@@ -1,0 +1,29 @@
+@font-face {
+	font-family: "Roboto";
+	src: url("/fonts/Roboto-Regular.ttf") format("truetype");
+}
+
+html {
+	height: 100%;
+	padding: 10px;
+	font-family: 'Roboto', sans-serif;
+}
+
+
+body {
+	background-color: black;
+	color: #c9c9c9 !important;
+	column-count: 2;
+	column-gap: 10px;
+	position: relative;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	height: calc(100% - 20px);
+}
+
+
+a, a:hover, a:visited, a:active {
+	color: #7f79e0 !important;
+	font-weight: bold;
+}

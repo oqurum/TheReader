@@ -1,0 +1,26 @@
+[package]
+name = "books-backend"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+books-common = { path = "../common" }
+bookie = { path = "../books" }
+
+actix-web = "4.0.0-beta.19"
+actix-files = "0.6.0-beta.13"
+actix-identity = "0.4.0-beta.7"
+actix-multipart = "0.4.0-beta.12"
+
+reqwest = { version = "0.11", features = ["multipart"] }
+tokio = "1.15"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+anyhow = "1.0"
+log = "0.4"
+
+# epub = "1.2"

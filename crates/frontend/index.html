@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Yew App</title>
+		<style data-trunk>
+			html {
+				height: 100%;
+				width: 100%;
+			}
+
+			body {
+				margin: 0;
+				height: 100%;
+				width: 100%;
+
+				background-color: #0e0e13;
+				color: #e9e9e9;
+			}
+
+			/* READER CONTAINER */
+
+			.reading-container {
+				height: 100%;
+				width: 100%;
+			}
+
+			.reading-container > .book {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				height: 100%;
+			}
+
+			/* READER */
+
+			.reader {
+				position: relative;
+				overflow: hidden;
+			}
+
+			.reader .navbar {
+				/* position: absolute;
+				top: 0;
+				left: 0;
+				width: calc(100% - 20px); */
+				padding: 10px;
+				user-select: none;
+				-moz-user-select: none;
+				-webkit-user-select: none;
+			}
+
+			.reader .navbar > * {
+				margin-right: 10px;
+			}
+
+			.reader .navbar > a {
+				cursor: pointer;
+			}
+
+			.reader .pages {
+				overflow: hidden;
+			}
+
+			.reader .pages .frames {
+				position: relative;
+			}
+
+			.reader .pages iframe {
+				border: none;
+				width: 100%;
+				height: 100%;
+			}
+
+
+			/* SIDEBAR */
+
+			.sidebar .server-list {
+				list-style-type: none;
+				margin-block-start: 0;
+				margin-block-end: 0;
+				padding-inline-start: 0;
+			}
+
+			.sidebar .server-list li {
+				cursor: pointer;
+				padding: 5px;
+				margin-bottom: 4px;
+			}
+
+
+			/* LIBRARY */
+
+			.library-list {
+				display: flex;
+				flex-direction: row;
+				flex-wrap: wrap;
+
+				margin-left: 1em;
+			}
+
+			.library-list.normal .library-item {
+				width: 165px;
+			}
+
+			.library-list .library-item {
+				cursor: pointer;
+				display: flex;
+				flex-direction: column;
+				margin-right: 2em;
+				margin-bottom: 2em;
+			}
+
+			.library-list .library-item .poster {
+				position: relative;
+				overflow: hidden;
+				width: 165px;
+				height: 247px;
+				border-radius: 4px;
+			}
+
+			.library-list .library-item .poster img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+
+			.library-list .library-item .thumb {
+				position: relative;
+				overflow: hidden;
+				width: 360px;
+				height: 202px;
+				border-radius: 4px;
+			}
+
+			.library-list .library-item .thumb img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+
+
+			.library-list .library-item .thumb .overlay:hover {
+				opacity: 0.2;
+			}
+
+			.library-list .library-item .thumb .overlay {
+				position: absolute;
+				left: 0;
+				top: 0;
+				width: 100%;
+				height: 100%;
+				display: grid;
+				justify-items: center;
+				background-color: rgba(0, 0, 0, 0.569);
+				align-content: center;
+			}
+
+			.library-list .library-item .thumb .overlay img {
+				position: relative;
+				width: 90%;
+			}
+
+			.library-list .library-item .info {
+				margin-top: 10px;
+				display: flex;
+				flex-direction: column;
+			}
+
+			.library-list .library-item .info .title {
+				font-size: 1em;
+				margin-block: 0;
+				text-overflow: ellipsis;
+				overflow: hidden;
+				white-space: nowrap;
+			}
+
+			.library-list .library-item .info .author {
+				font-size: 1.1em;
+				margin-block: 0;
+				text-overflow: ellipsis;
+				overflow: hidden;
+				white-space: nowrap;
+			}
+		</style>
+	</head>
+</html>
