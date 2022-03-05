@@ -167,6 +167,14 @@ function canFlattenElement(element) {
 export function js_update_pages_with_inlined_css(iframe) {
 	let document = iframe.contentDocument;
 
+	// Set <img> max-height to document.body.clientHeight
+	// Fix for images going over document height
+	let images = document.getElementsByTagName('img');
+	for (const element of images) {
+		element.style.maxHeight = document.body.clientHeight + 'px';
+	}
+
+
 	for(let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
 
