@@ -6,7 +6,7 @@
 // https://www.w3.org/publishing/epub3/epub-packages.html
 
 
-use std::{io::Read, fs::File, path::{PathBuf, Path}};
+use std::{io::Read, fs::File, path::{PathBuf, Path}, borrow::Cow};
 
 use zip::{ZipArchive};
 
@@ -93,6 +93,13 @@ impl Book for EpubBook {
 		this.init()?;
 
 		Ok(this)
+	}
+
+	fn get_unique_id(&self) -> Option<Cow<str>> {
+		self.package.metadata.identifiers.iter()
+			.filter(|v| v.id.is_some() && v.value.is_some())
+			.find(|v| v.id.as_deref().unwrap() == self.package.attributes.unique_identifier.as_str())
+			.map(|v| Cow::from(v.value.as_deref().unwrap()))
 	}
 
 	fn get_root_file_dir(&self) -> &Path {

@@ -1,6 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, borrow::Cow};
 
 pub mod epub;
+pub mod mobi;
 
 pub mod error;
 pub use error::*;
@@ -9,6 +10,8 @@ pub trait Book {
 	fn load_from_path(path: &str) -> Result<Self> where Self: Sized;
 
 	fn get_page_path(&self) -> PathBuf;
+	// TODO: Optional for now. Will be a Result. Unique ID should ALWAYS exist.
+	fn get_unique_id(&self) -> Option<Cow<str>>;
 
 	/// Get the raw page
 	fn read_page_raw_as_bytes(&mut self) -> Result<Vec<u8>>;

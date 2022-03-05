@@ -54,7 +54,7 @@ async fn load_pages(path: web::Path<(usize, String)>) -> web::Json<ChapterInfo> 
 	println!("Chapter Total: {}", book.chapter_count());
 	println!("Path: {:?}", book.get_page_path());
 	println!("Unique ID: {:?}", book.package.manifest.id);
-	// println!("ID: {:?}", book.get_current_id());
+	println!("ID: {:?}", book.get_unique_id());
 
 
 	let path = format!("/api/book/{}/res", book_id);
