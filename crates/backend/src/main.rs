@@ -1,5 +1,5 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{get, web, App, HttpServer, HttpRequest, cookie::SameSite, HttpResponse};
+use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
 
 use books_common::Chapter;
 use bookie::Book;
@@ -80,6 +80,12 @@ async fn load_pages(path: web::Path<(usize, String)>) -> web::Json<ChapterInfo> 
 	})
 }
 
+
+// TODO: Convert to async closure (https://github.com/rust-lang/rust/issues/62290)
+async fn default_handler() -> impl actix_web::Responder {
+	actix_files::NamedFile::open_async("../frontend/dist/index.html").await
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	HttpServer::new(|| {
@@ -95,8 +101,9 @@ async fn main() -> std::io::Result<()> {
 			.service(load_resource)
 
 			.service(actix_files::Files::new("/fonts", "../../app/public/fonts"))
+			.service(actix_files::Files::new("/images", "../../app/public/images"))
 			.service(actix_files::Files::new("/", "../frontend/dist").index_file("index.html"))
-			.default_service(web::route().to(|req: HttpRequest| actix_files::NamedFile::open("../frontend/dist/index.html").unwrap().into_response(&req)))
+			.default_service(web::route().to(default_handler))
 	})
 		.bind("0.0.0.0:8084")?
 		.run()
