@@ -1,15 +1,11 @@
 // Move reading.rs into here. Modify reading.rs to utilize this.
 // Add dimensions into Property.
 
-// TODO: Batch chapter grabs. Add progress bar at bottom of page.
-// TODO: Handle resizing.
-// TODO: Define custom size of reader. Currently only fullscreen.
-
 use std::{collections::HashMap, rc::Rc, sync::Mutex};
 
-use books_common::{MediaItem, Chapter};
+use books_common::MediaItem;
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
-use web_sys::{HtmlIFrameElement, HtmlElement};
+use web_sys::HtmlIFrameElement;
 use yew::prelude::*;
 
 use crate::pages::reading::{ChapterContents, FoundChapterPage};
@@ -53,10 +49,6 @@ impl Property {
 }
 
 impl PartialEq for Property {
-	// fn eq(&self, other: &Self) -> bool {
-	// 	Rc::ptr_eq(&self.book, &other.book) && Rc::ptr_eq(&self.chapters, &other.chapters) && self.width == other.width && self.height == other.height
-	// }
-
 	fn eq(&self, _other: &Self) -> bool {
 		false
 	}
@@ -78,16 +70,8 @@ pub enum Msg {
 }
 
 
-
-pub struct GeneratePage {
-	container: HtmlElement,
-	iframe: HtmlIFrameElement,
-	chapter: Chapter,
-}
-
-
 pub struct Reader {
-	viewing_page: usize,
+	viewing_page: usize, // TODO: Change to relative chapter page.
 	viewing_chapter: usize,
 
 	handle_touch_start: Option<Closure<dyn FnMut(TouchEvent)>>,
@@ -121,47 +105,28 @@ impl Component for Reader {
 					return false;
 				}
 
-				let mut new_chap = None;
-
 				let chapter_count = ctx.props().book.chapter_count;
 				let mut chapters = ctx.props().chapters.lock().unwrap();
 
-				// Double check first chapter page count.
+				// Double check all chapters if we're currently switching from first page.
 				if self.viewing_page == 0 {
-					let curr_chap = chapters.get_mut(&0).unwrap();
-					curr_chap.page_count = get_iframe_page_count(&curr_chap.iframe).max(1);
+					chapters.values_mut()
+					.for_each(|chap| chap.page_count = get_iframe_page_count(&chap.iframe).max(1));
 				}
 
-				match (
-					self.get_page(self.viewing_page, chapter_count, &*chapters),
-					self.get_page(self.viewing_page + 1, chapter_count, &*chapters)
-				) {
-					(Some(c1), Some(c2)) => {
-						// Same chapter? Mark it. Don't update renderer.
-						if c1 == c2 {
-							c2.chapter.set_page(c2.local_page);
-						}
+				let both_pages = self.get_page(self.viewing_page, chapter_count, &*chapters)
+					.zip(self.get_page(self.viewing_page + 1, chapter_count, &*chapters));
 
-						// Different chapter? place back into invisible frame container.
-						else {
-							log::info!("===== Different chapter");
-							self.viewing_chapter = c2.chapter.chapter;
-							// c1.chapter.container.append_child(&c1.chapter.iframe).unwrap();
-							new_chap = Some(c2.chapter.chapter);
-						}
+				if let Some((c1, c2)) = both_pages {
+					// Same chapter? Mark it. Don't update renderer.
+					if c1 == c2 {
+						c2.chapter.set_page(c2.local_page);
 					}
 
 					// Different chapter? place back into invisible frame container.
-					(Some(c1), None) => {
-						// c1.chapter.container.append_child(&c1.chapter.iframe).unwrap();
+					else {
+						self.viewing_chapter = c2.chapter.chapter;
 					}
-
-					_ => ()
-				}
-
-				if let Some(next_chap_number) = new_chap {
-					let next_chap = chapters.get_mut(&next_chap_number).unwrap();
-					next_chap.page_count = get_iframe_page_count(&next_chap.iframe).max(1);
 				}
 
 				self.viewing_page += 1;
@@ -172,40 +137,22 @@ impl Component for Reader {
 					return false;
 				}
 
-				let mut new_chap = None;
-
 				let chapter_count = ctx.props().book.chapter_count;
-				let mut chapters = ctx.props().chapters.lock().unwrap();
+				let chapters = ctx.props().chapters.lock().unwrap();
 
-				match (
-					self.get_page(self.viewing_page, chapter_count, &*chapters),
-					self.get_page(self.viewing_page - 1, chapter_count, &*chapters)
-				) {
-					(Some(c1), Some(c2)) => {
-						// Same chapter? Mark it. Don't update renderer.
-						if c1 == c2 {
-							c2.chapter.set_page(c2.local_page);
-						}
+				let both_pages = self.get_page(self.viewing_page, chapter_count, &*chapters)
+					.zip(self.get_page(self.viewing_page - 1, chapter_count, &*chapters));
 
-						// Different chapter? place back into invisible frame container.
-						else {
-							self.viewing_chapter = c2.chapter.chapter;
-							// c1.chapter.container.append_child(&c1.chapter.iframe).unwrap();
-							new_chap = Some(c2.chapter.chapter);
-						}
+				if let Some((c1, c2)) = both_pages {
+					// Same chapter? Mark it. Don't update renderer.
+					if c1 == c2 {
+						c2.chapter.set_page(c2.local_page);
 					}
 
 					// Different chapter? place back into invisible frame container.
-					(Some(c1), None) => {
-						// c1.chapter.container.append_child(&c1.chapter.iframe).unwrap();
+					else {
+						self.viewing_chapter = c2.chapter.chapter;
 					}
-
-					_ => ()
-				}
-
-				if let Some(next_chap_number) = new_chap {
-					let next_chap = chapters.get_mut(&next_chap_number).unwrap();
-					next_chap.page_count = get_iframe_page_count(&next_chap.iframe).max(1);
 				}
 
 				self.viewing_page -= 1;
@@ -231,6 +178,7 @@ impl Component for Reader {
 									ctx.link().send_message(Msg::NextPage);
 								} else {
 									log::info!("Previous Page");
+									ctx.link().send_message(Msg::PreviousPage);
 								}
 							}
 						} else {
@@ -260,8 +208,6 @@ impl Component for Reader {
 
 		let pages_style = format!("width: {}px; height: {}px;", ctx.props().width, ctx.props().height);
 
-		log::info!("VIEW: {}-{}", self.viewing_chapter, self.viewing_page);
-
 		html! {
 			<div class="reader">
 				<div class="navbar">
@@ -280,8 +226,6 @@ impl Component for Reader {
 	}
 
 	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-		self.update_chapter_pages(ctx);
-
 		if first_render {
 			let window = gloo_utils::window();
 
@@ -325,17 +269,7 @@ impl Component for Reader {
 }
 
 impl Reader {
-	fn update_chapter_pages(&mut self, ctx: &Context<Self>) {
-		let mut chapters = ctx.props().chapters.lock().unwrap();
-
-		for ele in chapters.values_mut() {
-			ele.page_count = get_iframe_page_count(&ele.iframe).max(1);
-		}
-	}
-
 	fn get_page<'a>(&self, find_page: usize, chapter_count: usize, chapters: &'a HashMap<usize, ChapterContents>) -> Option<FoundChapterPage<'a>> {
-		log::info!("Get Page {}", find_page);
-
 		let mut curr_page = 0;
 
 		for chap_number in 0..chapter_count {
@@ -343,59 +277,17 @@ impl Reader {
 
 			let local_page = find_page - curr_page;
 
-			log::info!(
-				"    [{}]: r{} < t{}",
-				chap_number,
-				local_page,
-				chapter.page_count// + (chap.page_count % 2)
-			);
-
-			if local_page < chapter.page_count {// + (chap.page_count % 2) {
-				log::info!("    !!");
+			if local_page < chapter.page_count {
 				return Some(FoundChapterPage {
 					chapter,
 					local_page
 				});
 			}
 
-			curr_page += chapter.page_count;// + (chap.page_count % 2);
+			curr_page += chapter.page_count;
 		}
 
 		None
-	}
-
-	fn view_page(&self, ctx: &Context<Self>) -> Html {
-		log::info!("================================");
-		log::info!("Viewing Page: {}", self.viewing_page);
-
-		let chapter_count = ctx.props().book.chapter_count;
-		let chapters = ctx.props().chapters.lock().unwrap();
-
-
-		if let Some(found) = self.get_page(self.viewing_page, chapter_count, &*chapters) {
-			log::info!("Found Chapter: {}", found.chapter.chapter);
-
-			log::info!("--------------------------------");
-
-			// js_generate_pages_but_horizontally_transpose(&chapter.iframe);
-
-			// if let Some(next_page) = self.get_page(self.viewing_page + 1) {
-			// 	let iframe_next = create_iframe();
-			// 	iframe_next.set_srcdoc(next_page);
-
-			// 	html! {
-			// 		<>
-			// 			{ Html::VRef(iframe_curr.into()) }
-			// 			{ Html::VRef(iframe_next.into()) }
-			// 		</>
-			// 	}
-			// } else {
-				Html::VRef(found.chapter.iframe.clone().into())
-			// }
-		} else {
-			log::info!("--------------------------------");
-			html! {}
-		}
 	}
 }
 
@@ -404,5 +296,4 @@ impl Reader {
 #[wasm_bindgen(module = "/js_generate_pages.js")]
 extern "C" {
 	fn get_iframe_page_count(iframe: &HtmlIFrameElement) -> usize;
-	fn js_update_pages_with_inlined_css(iframe: &HtmlIFrameElement);
 }

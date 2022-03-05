@@ -1,8 +1,12 @@
+// TODO: Handle resizing.
+// TODO: Allow custom sizes.
+// TODO: Batch chapter grabs. Add progress bar at bottom of page.
+
 use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex};
 
 use books_common::{MediaItem, Chapter};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
-use web_sys::{HtmlIFrameElement, HtmlElement};
+use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};
 
 use crate::fetch;
@@ -44,7 +48,6 @@ pub enum Msg {
 
 
 pub struct GeneratePage {
-	container: HtmlElement,
 	iframe: HtmlIFrameElement,
 	chapter: Chapter,
 }
@@ -52,16 +55,15 @@ pub struct GeneratePage {
 
 
 pub struct ChapterContents {
+	#[allow(dead_code)]
 	on_load: Closure<dyn FnMut()>,
 	pub chapter: usize,
 	pub page_count: usize,
-	pub iframe: HtmlIFrameElement,
-	// pub container: HtmlElement
+	pub iframe: HtmlIFrameElement
 }
 
 impl ChapterContents {
 	pub fn set_page(&self, page_number: usize) {
-		log::info!("\t\tset_page: calc(-{}% - {}px)", 100 * page_number, page_number * 10);
 		let body = self.iframe.content_document().unwrap().body().unwrap();
 		body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * page_number, page_number * 10)).unwrap();
 	}
@@ -110,12 +112,11 @@ impl Component for ReadingBook {
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			// TODO: Add checks to see if all pages have been initially loaded.
 			Msg::GenerateIFrameLoaded(page) => {
 				js_update_pages_with_inlined_css(&page.iframe);
 
 				let page_count = get_iframe_page_count(&page.iframe).max(1);
-
-				log::info!("\t[{}]: Pages: {}", page.chapter.value, page_count);
 
 				if let Entry::Occupied(mut v) = self.chapters.lock().unwrap().entry(page.chapter.value) {
 					v.get_mut().page_count = page_count;
@@ -133,7 +134,6 @@ impl Component for ReadingBook {
 				self.book = Some(Rc::new(book));
 
 				ctx.link().send_message(Msg::SendGetChapters(0, self.book.as_ref().unwrap().chapter_count));
-				// ctx.link().send_message(Msg::SendGetChapters(0, 3));
 			}
 
 			Msg::SendGetChapters(start, end) => {
@@ -156,14 +156,8 @@ impl Component for ReadingBook {
 				None => (gloo_utils::body().client_width().max(0), gloo_utils::body().client_height().max(0)),
 			};
 
-			// let node = self.view_page();
-
 			html! {
 				<div class="reading-container">
-					// <div class="navbar">
-					// 	<a onclick={ctx.link().callback(|_| Msg::NextPage)}>{"Next Page"}</a>
-					// </div>
-
 					<div class="book">
 						<Reader
 							book={Rc::clone(book)}
@@ -228,18 +222,6 @@ fn create_iframe() -> HtmlIFrameElement {
 }
 
 fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: Scope<ReadingBook>) -> ChapterContents {
-	let doc: HtmlElement = gloo_utils::document().create_element("div").unwrap().dyn_into().unwrap();
-
-	// {
-	// 	let style = doc.style();
-	// 	style.set_property("position", "absolute").unwrap();
-	// 	style.set_property("top", "0").unwrap();
-	// 	style.set_property("left", "0").unwrap();
-	// 	style.set_property("width", "0px").unwrap();
-	// 	style.set_property("height", "0px").unwrap();
-	// 	style.set_property("overflow", "hidden").unwrap();
-	// }
-
 	let iframe = create_iframe();
 	iframe.set_attribute("srcdoc", chapter.html.as_str()).unwrap();
 
@@ -253,18 +235,12 @@ fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: 
 		iframe.style().set_property("height", &format!("{}px", height)).unwrap();
 	}
 
-	// doc.append_child(&iframe).unwrap();
-	// gloo_utils::body().append_child(&doc).unwrap();
-
 	let new_frame = iframe.clone();
 
 	let chap_value = chapter.value;
 
 	let f = Closure::wrap(Box::new(move || {
-		log::info!("on load: {}", chapter.value);
-
 		scope.send_message(Msg::GenerateIFrameLoaded(GeneratePage {
-			container: doc.clone(),
 			iframe: iframe.clone(),
 			chapter: chapter.clone()
 		}));
@@ -276,7 +252,6 @@ fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: 
 		page_count: 1,
 		chapter: chap_value,
 		iframe: new_frame,
-		// container: page.container
 		on_load: f
 	}
 }
