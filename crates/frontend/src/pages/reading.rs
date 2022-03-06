@@ -11,11 +11,13 @@ use yew::{prelude::*, html::Scope};
 
 use crate::fetch;
 use crate::components::reader::Reader;
+use crate::components::notes::Notes;
 
 
-#[derive(Properties, PartialEq)]
-pub struct Property {
-	pub id: usize
+pub enum PageDisplay {
+	SinglePage,
+	DoublePage,
+	CustomAmount(usize)
 }
 
 
@@ -26,32 +28,10 @@ pub struct ChapterInfo {
 }
 
 
-pub enum TouchMsg {
-	Start(i32, i32),
-	End(i32, i32),
-	Cancel
-}
-
-
-pub enum Msg {
-	// Event
-	GenerateIFrameLoaded(GeneratePage),
-
-	// Send
-	SendGetChapters(usize, usize),
-
-	// Retrive
-	RetrieveBook(MediaItem),
-	RetrievePages(ChapterInfo),
-}
-
-
-
 pub struct GeneratePage {
 	iframe: HtmlIFrameElement,
 	chapter: Chapter,
 }
-
 
 
 pub struct ChapterContents {
@@ -76,7 +56,6 @@ impl PartialEq for ChapterContents {
 }
 
 
-
 pub struct FoundChapterPage<'a> {
 	pub chapter: &'a ChapterContents,
 	pub local_page: usize
@@ -88,6 +67,23 @@ impl<'a> PartialEq for FoundChapterPage<'a> {
 	}
 }
 
+
+pub enum Msg {
+	// Event
+	GenerateIFrameLoaded(GeneratePage),
+
+	// Send
+	SendGetChapters(usize, usize),
+
+	// Retrive
+	RetrieveBook(MediaItem),
+	RetrievePages(ChapterInfo),
+}
+
+#[derive(Properties, PartialEq)]
+pub struct Property {
+	pub id: usize
+}
 
 pub struct ReadingBook {
 	book: Option<Rc<MediaItem>>,
@@ -159,6 +155,7 @@ impl Component for ReadingBook {
 			html! {
 				<div class="reading-container">
 					<div class="book">
+						<Notes visible=false />
 						<Reader
 							book={Rc::clone(book)}
 							chapters={Rc::clone(&self.chapters)}
