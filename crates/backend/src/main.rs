@@ -1,8 +1,15 @@
+#![forbid(unsafe_code)]
+
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
 
 use books_common::Chapter;
 use bookie::Book;
+
+pub mod config;
+pub mod database;
+pub mod metadata;
+pub mod scanner;
 
 
 #[get("/api/book/{id}/res/{tail:.*}")]
@@ -88,8 +95,12 @@ async fn default_handler() -> impl actix_web::Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-	HttpServer::new(|| {
+	let db = database::init().await.unwrap();
+	scanner::scan(db.clone()).await.unwrap();
+
+	HttpServer::new(move || {
 		App::new()
+			.app_data(web::Data::new(db.clone()))
 			.wrap(IdentityService::new(
 				CookieIdentityPolicy::new(&[0; 32])
 					.name("bookie-auth")
