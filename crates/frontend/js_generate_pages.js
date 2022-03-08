@@ -177,41 +177,41 @@ export function js_update_pages_with_inlined_css(iframe) {
 		element.style.maxHeight = document.body.clientHeight + 'px';
 	}
 
-	for(let i = 0; i < document.body.children.length; i++) {
-		let child = document.body.children[i];
+	// for(let i = 0; i < document.body.children.length; i++) {
+	// 	let child = document.body.children[i];
 
-		// TODO: Should be after paddings.
-		// child.style.maxWidth = 'calc(50% - 20px)';
+	// 	// TODO: Should be after paddings.
+	// 	// child.style.maxWidth = 'calc(50% - 20px)';
 
-		// If we don't have a border, add padding.
-		// if (!child.hasAttribute('border')) {
-		// 	child.style.paddingLeft = '10px';
-		// 	child.style.paddingRight = '10px';
-		// }
+	// 	// If we don't have a border, add padding.
+	// 	// if (!child.hasAttribute('border')) {
+	// 	// 	child.style.paddingLeft = '10px';
+	// 	// 	child.style.paddingRight = '10px';
+	// 	// }
 
-		shrinkVerticalMargins(child, 18);
-		// TODO: addHorizontalMargins(child, 10);
+	// 	shrinkVerticalMargins(child, 18);
+	// 	// TODO: addHorizontalMargins(child, 10);
 
-		if (// child.clientHeight < 100 &&
-			canFlattenElement(child) &&
-			!doesContainAnyText(child)
-		) {
-			// console.log(child.cloneNode(true));
+	// 	if (// child.clientHeight < 100 &&
+	// 		canFlattenElement(child) &&
+	// 		!doesContainAnyText(child)
+	// 	) {
+	// 		// console.log(child.cloneNode(true));
 
-			while (child.firstChild != null) {
-				child.parentElement.appendChild(child.firstChild);
-			}
+	// 		while (child.firstChild != null) {
+	// 			child.parentElement.appendChild(child.firstChild);
+	// 		}
 
-			child.remove();
+	// 		child.remove();
 
-			i--; // Go back once since we remove this child from the array.
-		} else {
-			let flat_list = flattenAndReplaceTableList(child);
+	// 		i--; // Go back once since we remove this child from the array.
+	// 	} else {
+	// 		let flat_list = flattenAndReplaceTableList(child);
 
-			if (flat_list.length != 0) {
-				flat_list.forEach(v => v.style = 'width: 50%;');
-				i--;
-			}
-		}
-	}
+	// 		if (flat_list.length != 0) {
+	// 			flat_list.forEach(v => v.style = 'width: 50%;');
+	// 			i--;
+	// 		}
+	// 	}
+	// }
 }
