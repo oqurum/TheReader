@@ -71,6 +71,7 @@ impl<'a> PartialEq for FoundChapterPage<'a> {
 pub enum Msg {
 	// Event
 	GenerateIFrameLoaded(GeneratePage),
+	ToggleNotesVisibility,
 
 	// Send
 	SendGetChapters(usize, usize),
@@ -90,7 +91,9 @@ pub struct ReadingBook {
 	chapters: Rc<Mutex<HashMap<usize, ChapterContents>>>,
 	// TODO: Cache pages
 
-	book_dimensions: Option<(i32, i32)>
+	book_dimensions: Option<(i32, i32)>,
+
+	notes_visible: bool
 }
 
 impl Component for ReadingBook {
@@ -102,12 +105,18 @@ impl Component for ReadingBook {
 			chapters: Rc::new(Mutex::new(HashMap::new())),
 			book: None,
 
-			book_dimensions: Some((1040, 548))
+			book_dimensions: Some((1040, 548)),
+
+			notes_visible: false
 		}
 	}
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			Msg::ToggleNotesVisibility => {
+				self.notes_visible = !self.notes_visible;
+			}
+
 			// TODO: Add checks to see if all pages have been initially loaded.
 			Msg::GenerateIFrameLoaded(page) => {
 				js_update_pages_with_inlined_css(&page.iframe);
@@ -145,7 +154,7 @@ impl Component for ReadingBook {
 		true
 	}
 
-	fn view(&self, _ctx: &Context<Self>) -> Html {
+	fn view(&self, ctx: &Context<Self>) -> Html {
 		if let Some(book) = self.book.as_ref() {
 			let (width, height) = match self.book_dimensions { // TODO: Use Option.unzip once stable.
 				Some((a, b)) => (a, b),
@@ -155,7 +164,11 @@ impl Component for ReadingBook {
 			html! {
 				<div class="reading-container">
 					<div class="book">
-						<Notes visible=false />
+						<Notes visible={self.notes_visible} />
+						<div class="tools">
+							<div class="tool-item" title="Open/Close the Notebook" onclick={ctx.link().callback(|_| Msg::ToggleNotesVisibility)}>{ "📝" }</div>
+							// <div class="tool-item" title="Book Summary">{ "📝" }</div>
+						</div>
 						<Reader
 							book={Rc::clone(book)}
 							chapters={Rc::clone(&self.chapters)}

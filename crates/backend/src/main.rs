@@ -111,6 +111,8 @@ async fn main() -> std::io::Result<()> {
 			.service(load_pages)
 			.service(load_resource)
 
+			.service(actix_files::Files::new("/js", "../../app/public/js"))
+			.service(actix_files::Files::new("/css", "../../app/public/css"))
 			.service(actix_files::Files::new("/fonts", "../../app/public/fonts"))
 			.service(actix_files::Files::new("/images", "../../app/public/images"))
 			.service(actix_files::Files::new("/", "../frontend/dist").index_file("index.html"))
