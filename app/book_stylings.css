@@ -13,6 +13,7 @@ html {
 body {
 	background-color: black !important;
 	color: #c9c9c9 !important;
+	column-fill: auto !important;
 	column-count: 2 !important;
 	column-gap: 10px !important;
 	position: relative !important;
