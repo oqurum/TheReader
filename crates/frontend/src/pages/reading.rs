@@ -189,14 +189,11 @@ impl Component for ReadingBook {
 		self.update_chapter_pages();
 
 		if first_render {
-			ctx.link()
-			.send_message(Msg::RetrieveBook(MediaItem {
-				id: 0,
-				title: String::from("Rust for Rustaceans"),
-				author: String::from("Jon Gjengset"),
-				icon: String::from("https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1622640517l/58244064._SX318_.jpg"),
-				chapter_count: 23
-			}));
+			let id = ctx.props().id;
+
+			ctx.link().send_future(async move {
+				Msg::RetrieveBook(fetch("GET", &format!("/api/book/{}", id), Option::<&()>::None).await.unwrap())
+			});
 		}
 	}
 }

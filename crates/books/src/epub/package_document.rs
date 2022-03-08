@@ -243,7 +243,25 @@ pub struct MetaItem {
 
 	pub property: String,
 
-	pub value: Option<String>
+	pub value: Option<String>,
+
+	pub undefined: HashMap<String, String>
+}
+
+impl MetaItem {
+	pub fn get(&self, value: &str) -> Option<&str> {
+		match value {
+			"dir" => self.dir.as_deref(),
+			"id" => self.id.as_deref(),
+			"refines" => self.refines.as_deref(),
+			"scheme" => self.scheme.as_deref(),
+			"lang" => self.xml_lang.as_deref(),
+			"property" => Some(&self.property),
+			"value" => self.value.as_deref(),
+
+			v => self.undefined.get(v).map(|v| v.as_str())
+		}
+	}
 }
 
 impl TryFrom<XmlElement> for MetaItem {
@@ -258,6 +276,7 @@ impl TryFrom<XmlElement> for MetaItem {
 			xml_lang: None,
 			property: String::new(),
 			value: elem.value,
+			undefined: HashMap::new()
 		};
 
 		for attr in elem.attributes {
@@ -269,7 +288,7 @@ impl TryFrom<XmlElement> for MetaItem {
 				"lang" => this.xml_lang = Some(attr.value),
 				"property" => this.property = attr.value,
 
-				_ => println!("MetaItem::try_from(XmlElement): Missing Attribute parse for: {:?}", (attr.name.prefix.as_deref(), attr.name.local_name.as_str())),
+				_ => {this.undefined.insert(attr.name.local_name, attr.value);}
 			}
 		}
 

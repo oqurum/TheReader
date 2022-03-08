@@ -3,7 +3,7 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
 
-use books_common::Chapter;
+use books_common::{Chapter, MediaItem};
 use bookie::Book;
 
 use crate::database::Database;
@@ -15,10 +15,12 @@ pub mod scanner;
 
 
 #[get("/api/book/{id}/res/{tail:.*}")]
-async fn load_resource(path: web::Path<(usize, String)>) -> HttpResponse {
-	let (_book_id, resource_path) = path.into_inner();
+async fn load_resource(path: web::Path<(i64, String)>, db: web::Data<Database>) -> HttpResponse {
+	let (book_id, resource_path) = path.into_inner();
 
-	let mut book = bookie::epub::EpubBook::load_from_path("../../app/books/Pride and Prejudice by Jane Austen.epub").unwrap();
+	let file = db.find_file_by_id(book_id).await.unwrap().unwrap();
+
+	let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
 	let body = match book.read_path_as_bytes(&resource_path) {
 		Ok(v) => v,
@@ -41,10 +43,12 @@ struct ChapterInfo {
 }
 
 #[get("/api/book/{id}/pages/{pages}")]
-async fn load_pages(path: web::Path<(usize, String)>) -> web::Json<ChapterInfo> {
+async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> web::Json<ChapterInfo> {
 	let (book_id, chapters) = path.into_inner();
 
-	let mut book = bookie::epub::EpubBook::load_from_path("../../app/books/Pride and Prejudice by Jane Austen.epub").unwrap();
+	let file = db.find_file_by_id(book_id).await.unwrap().unwrap();
+
+	let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
 	let (start_chap, end_chap) = chapters
 		.split_once('-')
@@ -92,14 +96,66 @@ async fn load_pages(path: web::Path<(usize, String)>) -> web::Json<ChapterInfo> 
 
 // TODO: Add body requests for specifics
 #[get("/api/book/{id}")]
-async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
-	HttpResponse::Ok().json(db.find_file_by_id(*id).await.unwrap())
+async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<MediaItem>> {
+	web::Json(if let Some(file) = db.find_file_by_id(*id).await.unwrap() {
+		let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+
+		Some(MediaItem {
+			id: file.id,
+
+			title: book.package.metadata.titles.iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
+			author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
+			icon_path: None, // TODO
+
+			chapter_count: book.chapter_count(),
+
+			path: file.path,
+
+			file_name: file.file_name,
+			file_type: file.file_type,
+			file_size: file.file_size,
+
+			modified_at: file.modified_at,
+			accessed_at: file.accessed_at,
+			created_at: file.created_at,
+		})
+	} else {
+		None
+	})
 }
 
 // TODO: Add body requests for specific books
 #[get("/api/books")]
-async fn load_book_list(db: web::Data<Database>) -> HttpResponse {
-	HttpResponse::Ok().json(db.list_all_files().await.unwrap())
+async fn load_book_list(db: web::Data<Database>) -> web::Json<Vec<MediaItem>> {
+	web::Json(db.list_all_files()
+		.await
+		.unwrap()
+		.into_iter()
+		.filter(|v| v.file_type == "epub")
+		.map(|file| {
+			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+
+			MediaItem {
+				id: file.id,
+
+				title: book.package.metadata.titles.iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
+				author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
+				icon_path: None, // TODO
+
+				chapter_count: book.chapter_count(),
+
+				path: file.path,
+
+				file_name: file.file_name,
+				file_type: file.file_type,
+				file_size: file.file_size,
+
+				modified_at: file.modified_at,
+				accessed_at: file.accessed_at,
+				created_at: file.created_at,
+			}
+		})
+		.collect())
 }
 
 

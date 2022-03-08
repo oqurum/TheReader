@@ -2,10 +2,12 @@ use books_common::MediaItem;
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
-use crate::Route;
+use crate::{Route, fetch};
 
 pub enum Msg {
-	MediaList(Vec<MediaItem>)
+	RequestMediaList,
+
+	MediaListResults(Vec<MediaItem>)
 }
 
 pub struct DashboardPage {
@@ -22,10 +24,16 @@ impl Component for DashboardPage {
 		}
 	}
 
-	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
-			Msg::MediaList(items) => {
+			Msg::MediaListResults(items) => {
 				self.media_items = Some(items);
+			}
+
+			Msg::RequestMediaList => {
+				ctx.link().send_future(async {
+					Msg::MediaListResults(fetch("GET", "/api/books", Option::<&()>::None).await.unwrap())
+				});
 			}
 		}
 
@@ -50,21 +58,7 @@ impl Component for DashboardPage {
 
 	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
 		if first_render {
-			ctx.link().send_message(Msg::MediaList(
-				vec![
-					MediaItem {
-						id: 0,
-						title: String::from("Rust for Rustaceans"),
-						author: String::from("Jon Gjengset"),
-						icon: String::from("https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1622640517l/58244064._SX318_.jpg"),
-						chapter_count: 23
-					}
-				]
-			));
-
-			// ctx.link().send_future(async {
-			// 	Msg::ServerList(fetch("GET", "/servers", Option::<&()>::None).await.unwrap())
-			// });
+			ctx.link().send_message(Msg::RequestMediaList);
 		}
 	}
 }
@@ -72,9 +66,9 @@ impl Component for DashboardPage {
 impl DashboardPage {
 	fn render_media_item(item: &MediaItem, scope: &Scope<Self>) -> Html {
 		html! {
-			<Link<Route> to={Route::ReadBook { book_id: item.id }} classes={ classes!("library-item") }>
+			<Link<Route> to={Route::ReadBook { book_id: item.id as usize }} classes={ classes!("library-item") }>
 				<div class="poster">
-					<img src={ item.icon.clone() } />
+					<img src={ item.icon_path.as_ref().cloned().unwrap_or_else(|| String::from("/images/missingthumbnail.jpg")) } />
 				</div>
 				<div class="info">
 					<a class="author" title={ item.author.clone() }>{ item.author.clone() }</a>

@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use anyhow::Result;
+use books_common::StrippedMediaItem;
 use serde::Serialize;
 use sqlx::{sqlite::{SqlitePool, SqliteArguments, SqliteRow}, Arguments, Row};
 
@@ -105,9 +106,11 @@ impl Database {
 
 pub struct NewFile {
 	pub path: String,
-	pub file_type: String,
+
 	pub file_name: String,
+	pub file_type: String,
 	pub file_size: i64,
+
 	pub modified_at: i64,
 	pub accessed_at: i64,
 	pub created_at: i64,
@@ -116,26 +119,42 @@ pub struct NewFile {
 #[derive(Debug, Serialize)]
 pub struct File {
 	pub id: i64,
+
 	pub path: String,
-	pub file_type: String,
+
 	pub file_name: String,
+	pub file_type: String,
 	pub file_size: i64,
+
 	pub modified_at: i64,
 	pub accessed_at: i64,
 	pub created_at: i64,
 }
 
 impl From<SqliteRow> for File {
-    fn from(value: SqliteRow) -> Self {
-        Self {
-            id: value.get(0),
-            path: value.get(1),
-            file_type: value.get(2),
-            file_name: value.get(3),
-            file_size: value.get(4),
-            modified_at: value.get(5),
-            accessed_at: value.get(6),
-            created_at: value.get(7),
-        }
-    }
+	fn from(value: SqliteRow) -> Self {
+		Self {
+			id: value.get(0),
+			path: value.get(1),
+			file_type: value.get(2),
+			file_name: value.get(3),
+			file_size: value.get(4),
+			modified_at: value.get(5),
+			accessed_at: value.get(6),
+			created_at: value.get(7),
+		}
+	}
+}
+
+
+impl From<File> for StrippedMediaItem {
+	fn from(val: File) -> Self {
+		StrippedMediaItem {
+			id: val.id,
+			file_name: val.file_name,
+			file_type: val.file_type,
+			modified_at: val.modified_at,
+			created_at: val.created_at,
+		}
+	}
 }
