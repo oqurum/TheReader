@@ -3,7 +3,7 @@ use std::{path::PathBuf, collections::VecDeque};
 use anyhow::Result;
 use tokio::fs;
 
-use crate::database::{File, Database};
+use crate::database::{NewFile, Database};
 
 pub static FOLDER_PATH: &str = "Y:/books/J. K. Rowling";
 
@@ -31,8 +31,8 @@ pub async fn scan(db: Database) -> Result<()> {
 					None => (file_name, String::new())
 				};
 
-				let file = File {
-					path: path.to_str().unwrap().to_string(),
+				let file = NewFile {
+					path: path.to_str().unwrap().replace("\\", "/"),
 					file_name,
 					file_type,
 					file_size: file_size as i64,

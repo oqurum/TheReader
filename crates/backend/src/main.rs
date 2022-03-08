@@ -6,6 +6,8 @@ use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
 use books_common::Chapter;
 use bookie::Book;
 
+use crate::database::Database;
+
 pub mod config;
 pub mod database;
 pub mod metadata;
@@ -88,6 +90,19 @@ async fn load_pages(path: web::Path<(usize, String)>) -> web::Json<ChapterInfo> 
 }
 
 
+// TODO: Add body requests for specifics
+#[get("/api/book/{id}")]
+async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+	HttpResponse::Ok().json(db.find_file_by_id(*id).await.unwrap())
+}
+
+// TODO: Add body requests for specific books
+#[get("/api/books")]
+async fn load_book_list(db: web::Data<Database>) -> HttpResponse {
+	HttpResponse::Ok().json(db.list_all_files().await.unwrap())
+}
+
+
 // TODO: Convert to async closure (https://github.com/rust-lang/rust/issues/62290)
 async fn default_handler() -> impl actix_web::Responder {
 	actix_files::NamedFile::open_async("../frontend/dist/index.html").await
@@ -108,8 +123,10 @@ async fn main() -> std::io::Result<()> {
 					.same_site(SameSite::Strict)
 			))
 
+			.service(load_book)
 			.service(load_pages)
 			.service(load_resource)
+			.service(load_book_list)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))
