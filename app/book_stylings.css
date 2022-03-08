@@ -22,8 +22,8 @@ body {
 	height: calc(100% - 20px) !important;
 }
 
-
-a, a:hover, a:visited, a:active {
+/* Ensure's it's an href <a> element */
+a[href], a[href]:hover, a[href]:visited, a[href]:active {
 	color: #7f79e0 !important;
 	font-weight: bold;
 }
