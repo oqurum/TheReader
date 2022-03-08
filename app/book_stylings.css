@@ -4,22 +4,22 @@
 }
 
 html {
-	height: 100%;
-	padding: 10px;
-	font-family: 'Roboto', sans-serif;
+	height: 100% !important;
+	padding: 10px !important;
+	font-family: 'Roboto', sans-serif !important;
 }
 
 
 body {
-	background-color: black;
+	background-color: black !important;
 	color: #c9c9c9 !important;
-	column-count: 2;
-	column-gap: 10px;
-	position: relative;
-	overflow: hidden;
-	margin: 0;
-	padding: 0;
-	height: calc(100% - 20px);
+	column-count: 2 !important;
+	column-gap: 10px !important;
+	position: relative !important;
+	overflow: hidden !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	height: calc(100% - 20px) !important;
 }
 
 
