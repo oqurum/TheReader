@@ -67,6 +67,7 @@ pub enum Msg {
 	Touch(TouchMsg),
 	NextPage,
 	PreviousPage,
+	SetPage(usize)
 }
 
 
@@ -100,6 +101,10 @@ impl Component for Reader {
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			Msg::SetPage(new_page) => {
+				return self.set_page(new_page, ctx);
+			}
+
 			Msg::NextPage => {
 				if self.viewing_page + 1 == ctx.props().page_count() {
 					return false;
@@ -211,6 +216,7 @@ impl Component for Reader {
 		html! {
 			<div class="reader">
 				<div class="navbar">
+					<a onclick={ctx.link().callback(|_| Msg::SetPage(0))}>{"First Page"}</a>
 					<a onclick={ctx.link().callback(|_| Msg::PreviousPage)}>{"Previous Page"}</a>
 					<span>{self.viewing_page + 1} {"/"} {page_count} {" pages"}</span>
 					<a onclick={ctx.link().callback(|_| Msg::NextPage)}>{"Next Page"}</a>
@@ -288,6 +294,30 @@ impl Reader {
 		}
 
 		None
+	}
+
+	fn set_page(&mut self, new_page: usize, ctx: &Context<Self>) -> bool {
+		if new_page == ctx.props().page_count() || self.viewing_page == new_page {
+			false
+		} else {
+			let chapter_count = ctx.props().book.chapter_count;
+			let chapters = ctx.props().chapters.lock().unwrap();
+
+			let both_pages = self.get_page(self.viewing_page, chapter_count, &*chapters)
+				.zip(self.get_page(new_page, chapter_count, &*chapters));
+
+			if let Some((c1, c2)) = both_pages {
+				if c1 == c2 {
+					c2.chapter.set_page(c2.local_page);
+				} else {
+					self.viewing_chapter = c2.chapter.chapter;
+				}
+			}
+
+			self.viewing_page = new_page;
+
+			true
+		}
 	}
 }
 
