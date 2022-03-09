@@ -2,3 +2,5 @@
 
 /files
 /crates/frontend/dist
+
+database.db

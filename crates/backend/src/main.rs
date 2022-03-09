@@ -1,3 +1,5 @@
+// TODO: Ping/Pong if currently viewing book. View time. How long been on page. Etc.
+
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
 
@@ -10,6 +12,8 @@ pub mod config;
 pub mod database;
 pub mod metadata;
 pub mod scanner;
+
+
 
 
 #[get("/api/book/{id}/res/{tail:.*}")]

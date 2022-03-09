@@ -7,38 +7,94 @@ use serde::Serialize;
 
 pub async fn init() -> Result<Database> {
 	let _ = tokio::fs::remove_file("database.db").await;
-	let conn = rusqlite::Connection::open_in_memory()?;
+	let conn = rusqlite::Connection::open("database.db")?;
 
-	conn.execute(r#"
-		CREATE TABLE "files" (
-			"id" INTEGER NOT NULL UNIQUE,
+	// TODO: Multiple library paths.
+	conn.execute(
+		r#"CREATE TABLE "library" (
+			"id" 				INTEGER NOT NULL UNIQUE,
 
-			"path" TEXT NOT NULL UNIQUE,
-			"file_type"	TEXT,
-			"file_name"	TEXT NOT NULL,
-			"file_size"	INTEGER NOT NULL,
+			"name" 				TEXT,
+			"type_of" 			TEXT,
 
-			"modified_at" INTEGER NOT NULL,
-			"accessed_at" INTEGER NOT NULL,
-			"created_at" INTEGER NOT NULL,
+			"path" 				TEXT NOT NULL UNIQUE,
 
-			PRIMARY KEY("id" AUTOINCREMENT)
-		);
-	"#, [])?;
-
-	conn.execute(r#"
-		CREATE TABLE "notes" (
-			"id" INTEGER NOT NULL UNIQUE,
-			"file_id" TEXT NOT NULL,
-			"user_id" TEXT NOT NULL,
-
-			"data" TEXT NOT NULL,
-			"data_size" INTEGER NOT NULL,
-
-			"updated_at" INTEGER NOT NULL,
-			"created_at" INTEGER NOT NULL,
+			"scanned_at" 		DATETIME NOT NULL,
+			"created_at" 		DATETIME NOT NULL,
+			"updated_at" 		DATETIME NOT NULL,
 
 			PRIMARY KEY("id" AUTOINCREMENT)
+		);"#,
+		[]
+	)?;
+
+	conn.execute(
+		r#"CREATE TABLE "files" (
+			"id" 				INTEGER NOT NULL UNIQUE,
+
+			"path" 				TEXT NOT NULL UNIQUE,
+			"file_type" 		TEXT,
+			"file_name" 		TEXT NOT NULL,
+			"file_size" 		INTEGER NOT NULL,
+
+			"library_id" 		INTEGER,
+			"metadata_id" 		INTEGER,
+			"chapter_count" 	INTEGER,
+
+			"modified_at" 		DATETIME NOT NULL,
+			"accessed_at" 		DATETIME NOT NULL,
+			"created_at" 		DATETIME NOT NULL,
+
+			PRIMARY KEY("id" AUTOINCREMENT)
+		);"#,
+		[]
+	)?;
+
+	conn.execute(
+		r#"CREATE TABLE "metadata_items" (
+			"id"					INTEGER NOT NULL,
+
+			"guid"					TEXT,
+			"file_item_count"		INTEGER,
+			"title"					TEXT,
+			"original_title"		TEXT,
+			"description"			TEXT,
+			"rating"				FLOAT,
+			"thumb_url"				TEXT,
+
+			"publisher"				TEXT,
+			"tags_genre"			TEXT,
+			"tags_collection"		TEXT,
+			"tags_author"			TEXT,
+			"tags_country"			TEXT,
+
+			"available_at"			DATETIME,
+			"year"					INTEGER,
+
+			"refreshed_at"			DATETIME,
+			"created_at"			DATETIME,
+			"updated_at"			DATETIME,
+			"deleted_at"			DATETIME,
+
+			"hash"					TEXT,
+
+			PRIMARY KEY("id" AUTOINCREMENT)
+		);"#,
+		[]
+	)?;
+
+	conn.execute(r#"
+		CREATE TABLE "file_notes" (
+			"file_id" 		TEXT NOT NULL,
+			"user_id" 		TEXT NOT NULL,
+
+			"data" 			TEXT NOT NULL,
+			"data_size" 	INTEGER NOT NULL,
+
+			"updated_at" 	DATETIME NOT NULL,
+			"created_at" 	DATETIME NOT NULL,
+
+			UNIQUE(file_id, user_id)
 		);
 	"#, [])?;
 
@@ -47,8 +103,11 @@ pub async fn init() -> Result<Database> {
 			"file_id" TEXT NOT NULL,
 			"user_id" TEXT NOT NULL,
 
-			"updated_at" INTEGER NOT NULL,
-			"created_at" INTEGER NOT NULL,
+			"chapter" INTEGER NOT NULL,
+			"page" INTEGER NOT NULL,
+
+			"updated_at" DATETIME NOT NULL,
+			"created_at" DATETIME NOT NULL,
 
 			UNIQUE(file_id, user_id)
 		);
@@ -62,6 +121,7 @@ pub async fn init() -> Result<Database> {
 pub struct Database(Arc<Connection>);
 
 unsafe impl Sync for Database {}
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for Database {}
 
 impl Deref for Database {
