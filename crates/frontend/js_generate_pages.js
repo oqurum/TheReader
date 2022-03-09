@@ -10,7 +10,7 @@ export function get_iframe_page_count(iframe) {
 	let last_child = document.body.lastElementChild;
 
 	// TODO: Account for margins on body.
-	return Math.abs(Math.ceil(last_child.offsetLeft / document.body.offsetWidth));
+	return Math.abs(Math.round((last_child.offsetLeft + last_child.offsetWidth) / document.body.offsetWidth));
 }
 
 
