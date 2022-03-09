@@ -72,8 +72,10 @@ pub enum Msg {
 
 
 pub struct Reader {
-	viewing_page: usize, // TODO: Change to relative chapter page.
+	total_page_position: usize,
+
 	viewing_chapter: usize,
+	viewing_chapter_page: usize,
 
 	handle_touch_start: Option<Closure<dyn FnMut(TouchEvent)>>,
 	handle_touch_end: Option<Closure<dyn FnMut(TouchEvent)>>,
@@ -88,8 +90,9 @@ impl Component for Reader {
 
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
-			viewing_page: 0,
+			total_page_position: 0,
 			viewing_chapter: 0,
+			viewing_chapter_page: 0,
 
 			handle_touch_cancel: None,
 			handle_touch_end: None,
@@ -106,61 +109,65 @@ impl Component for Reader {
 			}
 
 			Msg::NextPage => {
-				if self.viewing_page + 1 == ctx.props().page_count() {
+				if self.total_page_position + 1 == ctx.props().page_count() {
 					return false;
 				}
 
-				let chapter_count = ctx.props().book.chapter_count;
 				let mut chapters = ctx.props().chapters.lock().unwrap();
 
+				let curr_chap_page_count = self.get_chapter_page_count(self.viewing_chapter, &*chapters);
+
+
 				// Double check all chapters if we're currently switching from first page.
-				if self.viewing_page == 0 {
+				if self.total_page_position == 0 {
 					chapters.values_mut()
 					.for_each(|chap| chap.page_count = get_iframe_page_count(&chap.iframe).max(1));
 				}
 
-				let both_pages = self.get_page(self.viewing_page, chapter_count, &*chapters)
-					.zip(self.get_page(self.viewing_page + 1, chapter_count, &*chapters));
+				if let Some(curr_chap_page_count) = curr_chap_page_count {
+					// Same Chapter?
+					if self.viewing_chapter_page + 1 < curr_chap_page_count {
+						// Increment relative page count
+						self.viewing_chapter_page += 1;
+						self.total_page_position += 1;
 
-				if let Some((c1, c2)) = both_pages {
-					// Same chapter? Mark it. Don't update renderer.
-					if c1 == c2 {
-						c2.chapter.set_page(c2.local_page);
+						chapters.get(&self.viewing_chapter).unwrap().set_page(self.viewing_chapter_page);
 					}
 
-					// Different chapter? place back into invisible frame container.
-					else {
-						self.viewing_chapter = c2.chapter.chapter;
+					// Go to next chapter
+					else if chapters.contains_key(&(self.viewing_chapter + 1)) {
+						self.viewing_chapter_page = 0;
+						self.viewing_chapter += 1;
+						self.total_page_position += 1;
 					}
 				}
-
-				self.viewing_page += 1;
 			}
 
 			Msg::PreviousPage => {
-				if self.viewing_page == 0 {
+				if self.total_page_position == 0 {
 					return false;
 				}
 
-				let chapter_count = ctx.props().book.chapter_count;
 				let chapters = ctx.props().chapters.lock().unwrap();
 
-				let both_pages = self.get_page(self.viewing_page, chapter_count, &*chapters)
-					.zip(self.get_page(self.viewing_page - 1, chapter_count, &*chapters));
+				// Current chapter still.
+				if self.viewing_chapter_page != 0 {
 
-				if let Some((c1, c2)) = both_pages {
-					// Same chapter? Mark it. Don't update renderer.
-					if c1 == c2 {
-						c2.chapter.set_page(c2.local_page);
-					}
+					self.viewing_chapter_page -= 1;
+					self.total_page_position -= 1;
 
-					// Different chapter? place back into invisible frame container.
-					else {
-						self.viewing_chapter = c2.chapter.chapter;
-					}
+					chapters.get(&self.viewing_chapter).unwrap().set_page(self.viewing_chapter_page);
 				}
 
-				self.viewing_page -= 1;
+				// Previous chapter.
+				else if chapters.contains_key(&(self.viewing_chapter - 1)) {
+					self.viewing_chapter -= 1;
+					self.total_page_position -= 1;
+
+					self.viewing_chapter_page = self.get_chapter_page_count(self.viewing_chapter, &*chapters).unwrap() - 1;
+
+					chapters.get(&self.viewing_chapter).unwrap().set_page(self.viewing_chapter_page);
+				}
 			}
 
 			Msg::Touch(msg) => match msg {
@@ -213,14 +220,14 @@ impl Component for Reader {
 
 		let pages_style = format!("width: {}px; height: {}px;", ctx.props().width, ctx.props().height);
 
-		let progress_precentage = format!("width: {}%;", (self.viewing_page + 1) as f64 / page_count as f64 * 100.0);
+		let progress_precentage = format!("width: {}%;", (self.total_page_position + 1) as f64 / page_count as f64 * 100.0);
 
 		html! {
 			<div class="reader">
 				<div class="navbar">
 					<a onclick={ctx.link().callback(|_| Msg::SetPage(0))}>{"First Page"}</a>
 					<a onclick={ctx.link().callback(|_| Msg::PreviousPage)}>{"Previous Page"}</a>
-					<span>{self.viewing_page + 1} {"/"} {page_count} {" pages"}</span>
+					<span>{self.total_page_position + 1} {"/"} {page_count} {" pages"}</span>
 					<a onclick={ctx.link().callback(|_| Msg::NextPage)}>{"Next Page"}</a>
 				</div>
 
@@ -278,13 +285,17 @@ impl Component for Reader {
 }
 
 impl Reader {
-	fn get_page<'a>(&self, find_page: usize, chapter_count: usize, chapters: &'a HashMap<usize, ChapterContents>) -> Option<FoundChapterPage<'a>> {
+	fn get_chapter_page_count(&self, chapter: usize, chapters: &HashMap<usize, ChapterContents>) -> Option<usize> {
+		Some(chapters.get(&chapter)?.page_count)
+	}
+
+	fn find_page<'a>(&self, total_page_position: usize, chapter_count: usize, chapters: &'a HashMap<usize, ChapterContents>) -> Option<FoundChapterPage<'a>> {
 		let mut curr_page = 0;
 
 		for chap_number in 0..chapter_count {
 			let chapter = chapters.get(&chap_number)?;
 
-			let local_page = find_page - curr_page;
+			let local_page = total_page_position - curr_page;
 
 			if local_page < chapter.page_count {
 				return Some(FoundChapterPage {
@@ -299,15 +310,15 @@ impl Reader {
 		None
 	}
 
-	fn set_page(&mut self, new_page: usize, ctx: &Context<Self>) -> bool {
-		if new_page == ctx.props().page_count() || self.viewing_page == new_page {
+	fn set_page(&mut self, new_total_page: usize, ctx: &Context<Self>) -> bool {
+		if new_total_page == ctx.props().page_count() || self.total_page_position == new_total_page {
 			false
 		} else {
 			let chapter_count = ctx.props().book.chapter_count;
 			let chapters = ctx.props().chapters.lock().unwrap();
 
-			let both_pages = self.get_page(self.viewing_page, chapter_count, &*chapters)
-				.zip(self.get_page(new_page, chapter_count, &*chapters));
+			let both_pages = self.find_page(self.total_page_position, chapter_count, &*chapters)
+				.zip(self.find_page(new_total_page, chapter_count, &*chapters));
 
 			if let Some((c1, c2)) = both_pages {
 				if c1 == c2 {
@@ -317,7 +328,7 @@ impl Reader {
 				}
 			}
 
-			self.viewing_page = new_page;
+			self.total_page_position = new_total_page;
 
 			true
 		}
