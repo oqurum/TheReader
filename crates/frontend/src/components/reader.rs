@@ -213,6 +213,8 @@ impl Component for Reader {
 
 		let pages_style = format!("width: {}px; height: {}px;", ctx.props().width, ctx.props().height);
 
+		let progress_precentage = format!("width: {}%;", (self.viewing_page + 1) as f64 / page_count as f64 * 100.0);
+
 		html! {
 			<div class="reader">
 				<div class="navbar">
@@ -227,6 +229,7 @@ impl Component for Reader {
 						{ for frames.into_iter().map(|v| Html::VRef(v.into())) }
 					</div>
 				</div>
+				<div class="progress"><div class="prog-bar" style={progress_precentage}></div></div>
 			</div>
 		}
 	}
