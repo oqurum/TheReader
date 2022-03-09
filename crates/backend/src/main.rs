@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
 
@@ -63,15 +61,7 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 			}
 		);
 
-	println!("Chapter: {}", book.get_chapter());
-	println!("Chapter Total: {}", book.chapter_count());
-	println!("Path: {:?}", book.get_page_path());
-	println!("Unique ID: {:?}", book.package.manifest.id);
-	println!("ID: {:?}", book.get_unique_id());
-
-
 	let path = format!("/api/book/{}/res", book_id);
-
 
 	let mut chapters = Vec::new();
 

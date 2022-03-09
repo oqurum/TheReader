@@ -209,6 +209,7 @@ export function js_update_pages_with_inlined_css(iframe) {
 		) {
 			// console.log(child.cloneNode(true));
 
+			// TODO: Flatten is removing <br> for some reason.
 			while (child.firstChild != null) {
 				child.parentElement.appendChild(child.firstChild);
 			}
