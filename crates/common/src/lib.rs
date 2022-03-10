@@ -1,6 +1,9 @@
 use serde::{Serialize, Deserialize};
 
 
+pub mod api;
+
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MediaItem {
 	pub id: i64,
@@ -32,13 +35,13 @@ impl PartialEq for MediaItem {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum Progression {
 	Ebook {
-		stopped: i32,
-		total: i32
+		chapter: i64,
+		page: i64,
 	},
 
 	AudioBook {
-		stopped: i32,
-		total: i32
+		chapter: i64,
+		seek_pos: i64,
 	}
 }
 

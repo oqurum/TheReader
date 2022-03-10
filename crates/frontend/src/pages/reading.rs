@@ -4,7 +4,7 @@
 
 use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex};
 
-use books_common::{MediaItem, Chapter};
+use books_common::{MediaItem, Chapter, api::GetBookIdResponse};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};
@@ -77,7 +77,7 @@ pub enum Msg {
 	SendGetChapters(usize, usize),
 
 	// Retrive
-	RetrieveBook(MediaItem),
+	RetrieveBook(GetBookIdResponse),
 	RetrievePages(ChapterInfo),
 }
 
@@ -135,8 +135,8 @@ impl Component for ReadingBook {
 				}
 			}
 
-			Msg::RetrieveBook(book) => {
-				self.book = Some(Rc::new(book));
+			Msg::RetrieveBook(resp) => {
+				self.book = Some(Rc::new(resp.media));
 
 				ctx.link().send_message(Msg::SendGetChapters(0, self.book.as_ref().unwrap().chapter_count));
 			}

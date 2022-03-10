@@ -1,6 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use books_common::Progression;
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, params, Row, OptionalExtension};
 use serde::{Serialize, Serializer};
@@ -163,7 +164,6 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-
 	// Files
 	pub fn add_file(&self, file: &NewFile) -> Result<()> {
 		self.execute(r#"
@@ -193,6 +193,33 @@ impl Database {
 
 	pub fn get_file_count(&self) -> Result<i64> {
 		Ok(self.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
+	}
+
+	// Progression
+	pub fn add_or_update_progress(&self, user_id: i64, file_id: i64, progress: Progression) -> Result<()> {
+		let prog = FileProgression::new(progress, user_id, file_id);
+
+		if self.get_progress(user_id, file_id)?.is_some() {
+			self.execute(
+				r#"UPDATE file_progression SET chapter = ?1, page = ?2, seek_pos = ?3, updated_at = ?4 WHERE file_id = ?5 AND user_id = ?6 LIMIT 1"#,
+				params![prog.chapter, prog.page, prog.seek_pos, prog.updated_at, prog.file_id, prog.user_id]
+			)?;
+		} else {
+			self.execute(
+				r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
+				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.page, prog.seek_pos, prog.updated_at, prog.created_at]
+			)?;
+		}
+
+		Ok(())
+	}
+
+	pub fn get_progress(&self, user_id: i64, file_id: i64) -> Result<Option<FileProgression>> {
+		Ok(self.query_row(
+			"SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
+			params![user_id, file_id],
+			|v| FileProgression::try_from(v)
+		).optional()?)
 	}
 }
 
@@ -247,11 +274,89 @@ pub struct FileProgression {
 	pub file_id: i64,
 	pub user_id: i64,
 
-	pub chapter: i64,
-	pub page: i64,
+	pub type_of: u8,
 
-	pub updated_at: i64,
-	pub created_at: i64,
+	// Ebook/Audiobook
+	pub chapter: i64,
+
+	// Ebook
+	pub page: Option<i64>,
+
+	// Audiobook
+	pub seek_pos: Option<i64>,
+
+	#[serde(serialize_with = "serialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
+}
+
+impl FileProgression {
+	pub fn new(progress: Progression, user_id: i64, file_id: i64) -> Self {
+		match progress {
+			Progression::Ebook { chapter, page } => Self {
+				file_id,
+				user_id,
+				type_of: 0,
+				chapter,
+				page: Some(page),
+				seek_pos: None,
+				updated_at: Utc::now(),
+				created_at: Utc::now(),
+			},
+
+			Progression::AudioBook { chapter, seek_pos } => Self {
+				file_id,
+				user_id,
+				type_of: 1,
+				chapter,
+				page: None,
+				seek_pos: Some(seek_pos),
+				updated_at: Utc::now(),
+				created_at: Utc::now(),
+			}
+		}
+	}
+}
+
+impl<'a> TryFrom<&Row<'a>> for FileProgression {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			file_id: value.get(0)?,
+			user_id: value.get(1)?,
+
+			type_of: value.get(2)?,
+
+			chapter: value.get(3)?,
+
+			page: value.get(4)?,
+
+			seek_pos: value.get(5)?,
+
+			updated_at: value.get(6)?,
+			created_at: value.get(7)?,
+		})
+	}
+}
+
+impl From<FileProgression> for Progression {
+    fn from(val: FileProgression) -> Self {
+        match val.type_of {
+			0 => Progression::Ebook {
+				chapter: val.chapter,
+				page: val.page.unwrap(),
+			},
+
+			1 => Progression::AudioBook {
+				chapter: val.chapter,
+				seek_pos: val.seek_pos.unwrap(),
+			},
+
+			_ => unreachable!()
+		}
+    }
 }
 
 
@@ -344,8 +449,8 @@ impl<'a> TryFrom<&Row<'a>> for File {
 
 			path: value.get(1)?,
 
-			file_type: value.get(2)?,
-			file_name: value.get(3)?,
+			file_name: value.get(2)?,
+			file_type: value.get(3)?,
 			file_size: value.get(4)?,
 
 			library_id: value.get(5)?,

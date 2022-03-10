@@ -3,7 +3,7 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
 
-use books_common::{Chapter, MediaItem};
+use books_common::{Chapter, MediaItem, api};
 use bookie::Book;
 
 use crate::database::Database;
@@ -90,28 +90,32 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 
 // TODO: Add body requests for specifics
 #[get("/api/book/{id}")]
-async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<MediaItem>> {
+async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
 	web::Json(if let Some(file) = db.find_file_by_id(*id).unwrap() {
 		let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
-		Some(MediaItem {
-			id: file.id,
+		Some(api::GetBookIdResponse {
+			progress: db.get_progress(0, *id).unwrap().map(|v| v.into()),
 
-			title: book.package.metadata.titles.iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
-			author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
-			icon_path: None, // TODO
+			media: MediaItem {
+				id: file.id,
 
-			chapter_count: book.chapter_count(),
+				title: book.package.metadata.titles.iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
+				author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
+				icon_path: None, // TODO
 
-			path: file.path,
+				chapter_count: book.chapter_count(),
 
-			file_name: file.file_name,
-			file_type: file.file_type,
-			file_size: file.file_size,
+				path: file.path,
 
-			modified_at: file.modified_at,
-			accessed_at: file.accessed_at,
-			created_at: file.created_at,
+				file_name: file.file_name,
+				file_type: file.file_type,
+				file_size: file.file_size,
+
+				modified_at: file.modified_at,
+				accessed_at: file.accessed_at,
+				created_at: file.created_at,
+			}
 		})
 	} else {
 		None
