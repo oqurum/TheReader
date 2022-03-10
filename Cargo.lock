@@ -375,6 +375,7 @@ dependencies = [
  "anyhow",
  "bookie",
  "books-common",
+ "chrono",
  "futures",
  "log",
  "reqwest",
@@ -515,6 +516,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
+ "time 0.1.43",
  "winapi",
 ]
 
