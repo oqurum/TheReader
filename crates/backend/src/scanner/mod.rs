@@ -3,13 +3,10 @@ use std::{path::PathBuf, collections::VecDeque};
 use anyhow::Result;
 use tokio::fs;
 
-use crate::database::{NewFile, Database};
+use crate::database::{NewFile, Database, Library};
 
-pub static FOLDER_PATH: &str = "Y:/books/J. K. Rowling";
-
-
-pub async fn scan(db: Database) -> Result<()> {
-	let mut folders: VecDeque<PathBuf> = std::collections::VecDeque::from([PathBuf::from(FOLDER_PATH)]);
+pub async fn library_scan(library: &Library, db: Database) -> Result<()> {
+	let mut folders: VecDeque<PathBuf> = std::collections::VecDeque::from([PathBuf::from(&library.path)]);
 
 	while let Some(path) = folders.pop_front() {
 		let mut dir = fs::read_dir(path).await?;
@@ -33,20 +30,26 @@ pub async fn scan(db: Database) -> Result<()> {
 
 				let file = NewFile {
 					path: path.to_str().unwrap().replace("\\", "/"),
+
 					file_name,
 					file_type,
 					file_size: file_size as i64,
+
+					library_id: 0,
+					metadata_id: 0,
+					chapter_count: 0,
+
 					modified_at: meta.modified()?.elapsed()?.as_millis() as i64,
 					accessed_at: meta.accessed()?.elapsed()?.as_millis() as i64,
 					created_at: meta.created()?.elapsed()?.as_millis() as i64,
 				};
 
-				db.add_file(&file).await?;
+				db.add_file(&file)?;
 			}
 		}
 	}
 
-	println!("Found {} Files", db.get_file_count().await?);
+	println!("Found {} Files", db.get_file_count()?);
 
 	Ok(())
 }

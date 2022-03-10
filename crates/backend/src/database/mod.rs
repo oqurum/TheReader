@@ -1,9 +1,9 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use books_common::StrippedMediaItem;
+use chrono::{DateTime, Utc};
 use rusqlite::{Connection, params, Row, OptionalExtension};
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 pub async fn init() -> Result<Database> {
 	let _ = tokio::fs::remove_file("database.db").await;
@@ -29,7 +29,7 @@ pub async fn init() -> Result<Database> {
 	)?;
 
 	conn.execute(
-		r#"CREATE TABLE "files" (
+		r#"CREATE TABLE "file" (
 			"id" 				INTEGER NOT NULL UNIQUE,
 
 			"path" 				TEXT NOT NULL UNIQUE,
@@ -83,8 +83,8 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
-	conn.execute(r#"
-		CREATE TABLE "file_notes" (
+	conn.execute(
+		r#"CREATE TABLE "file_notes" (
 			"file_id" 		TEXT NOT NULL,
 			"user_id" 		TEXT NOT NULL,
 
@@ -95,11 +95,12 @@ pub async fn init() -> Result<Database> {
 			"created_at" 	DATETIME NOT NULL,
 
 			UNIQUE(file_id, user_id)
-		);
-	"#, [])?;
+		);"#,
+		[]
+	)?;
 
-	conn.execute(r#"
-		CREATE TABLE "file_progression" (
+	conn.execute(
+		r#"CREATE TABLE "file_progression" (
 			"file_id" TEXT NOT NULL,
 			"user_id" TEXT NOT NULL,
 
@@ -110,8 +111,9 @@ pub async fn init() -> Result<Database> {
 			"created_at" DATETIME NOT NULL,
 
 			UNIQUE(file_id, user_id)
-		);
-	"#, [])?;
+		);"#,
+		[]
+	)?;
 
 	Ok(Database(Arc::new(conn)))
 }
@@ -133,9 +135,39 @@ impl Deref for Database {
 }
 
 impl Database {
-	pub async fn add_file(&self, file: &NewFile) -> Result<()> {
+	// Libraries
+	pub fn add_library(&self, path: &str) -> Result<()> {
+		// TODO: Create outside of fn.
+		let lib = NewLibrary {
+			name: String::from("Books"),
+			type_of: String::new(),
+			path: path.to_string(),
+			scanned_at: Utc::now(),
+			created_at: Utc::now(),
+			updated_at: Utc::now(),
+		};
+
+		self.execute(
+			r#"INSERT INTO library (name, type_of, path, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
+			params![&lib.name, &lib.type_of, &lib.path, lib.scanned_at, lib.created_at, lib.updated_at]
+		)?;
+
+		Ok(())
+	}
+
+	pub fn list_all_libraries(&self) -> Result<Vec<Library>> {
+		let mut conn = self.prepare("SELECT * FROM library")?;
+
+		let map = conn.query_map([], |v| Library::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
+
+	// Files
+	pub fn add_file(&self, file: &NewFile) -> Result<()> {
 		self.execute(r#"
-			INSERT INTO files (path, file_type, file_name, file_size, modified_at, accessed_at, created_at)
+			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at)
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 		"#,
 		params![&file.path, &file.file_type, &file.file_name, file.file_size, file.modified_at, file.accessed_at, file.created_at])?;
@@ -143,24 +175,127 @@ impl Database {
 		Ok(())
 	}
 
-	pub async fn list_all_files(&self) -> Result<Vec<File>> {
-		let mut conn = self.prepare("SELECT * FROM files")?;
+	pub fn list_all_files(&self) -> Result<Vec<File>> {
+		let mut conn = self.prepare("SELECT * FROM file")?;
 
 		let map = conn.query_map([], |v| File::try_from(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn find_file_by_id(&self, id: i64) -> Result<Option<File>> {
+	pub fn find_file_by_id(&self, id: i64) -> Result<Option<File>> {
 		Ok(self.query_row(
-			r#"SELECT * FROM files WHERE id=?1 LIMIT 1"#,
+			r#"SELECT * FROM file WHERE id=?1 LIMIT 1"#,
 			params![id],
 			|v| Ok(File::try_from(v))
 		).optional()?.transpose()?)
 	}
 
-	pub async fn get_file_count(&self) -> Result<i64> {
-		Ok(self.query_row(r#"SELECT COUNT(*) FROM files"#, [], |v| v.get(0))?)
+	pub fn get_file_count(&self) -> Result<i64> {
+		Ok(self.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
+	}
+}
+
+
+// TODO: Move to another file.
+
+#[derive(Debug, Serialize)]
+pub struct MetadataItem {
+	pub id: i64,
+
+	pub guid: String,
+	pub file_item_count: i64,
+	pub title: String,
+	pub original_title: String,
+	pub description: String,
+	pub rating: f64,
+	pub thumb_url: String,
+
+	pub publisher: String,
+	pub tags_genre: String,
+	pub tags_collection: String,
+	pub tags_author: String,
+	pub tags_country: String,
+
+	pub refreshed_at: i64,
+	pub created_at: i64,
+	pub updated_at: i64,
+	pub deleted_at: i64,
+
+	pub available_at: i64,
+	pub year: i64,
+
+	pub hash: String
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct FileNote {
+	pub file_id: i64,
+	pub user_id: i64,
+
+	pub data: String,
+	pub data_size: i64,
+
+	pub updated_at: i64,
+	pub created_at: i64,
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct FileProgression {
+	pub file_id: i64,
+	pub user_id: i64,
+
+	pub chapter: i64,
+	pub page: i64,
+
+	pub updated_at: i64,
+	pub created_at: i64,
+}
+
+
+pub struct NewLibrary {
+	pub name: String,
+	pub type_of: String,
+
+	pub path: String,
+
+	pub scanned_at: DateTime<Utc>,
+	pub created_at: DateTime<Utc>,
+	pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Library {
+	pub id: i64,
+
+	pub name: String,
+	pub type_of: String,
+
+	pub path: String,
+
+	#[serde(serialize_with = "serialize_datetime")]
+	pub scanned_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+}
+
+impl<'a> TryFrom<&Row<'a>> for Library {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			id: value.get(0)?,
+			name: value.get(1)?,
+			type_of: value.get(2)?,
+			path: value.get(3)?,
+			scanned_at: value.get(4)?,
+			created_at: value.get(5)?,
+			updated_at: value.get(6)?,
+		})
 	}
 }
 
@@ -171,6 +306,10 @@ pub struct NewFile {
 	pub file_name: String,
 	pub file_type: String,
 	pub file_size: i64,
+
+	pub library_id: i64,
+	pub metadata_id: i64,
+	pub chapter_count: i64,
 
 	pub modified_at: i64,
 	pub accessed_at: i64,
@@ -187,6 +326,10 @@ pub struct File {
 	pub file_type: String,
 	pub file_size: i64,
 
+	pub library_id: i64,
+	pub metadata_id: i64,
+	pub chapter_count: i64,
+
 	pub modified_at: i64,
 	pub accessed_at: i64,
 	pub created_at: i64,
@@ -198,26 +341,25 @@ impl<'a> TryFrom<&Row<'a>> for File {
 	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
 		Ok(Self {
 			id: value.get(0)?,
+
 			path: value.get(1)?,
+
 			file_type: value.get(2)?,
 			file_name: value.get(3)?,
 			file_size: value.get(4)?,
-			modified_at: value.get(5)?,
-			accessed_at: value.get(6)?,
-			created_at: value.get(7)?,
+
+			library_id: value.get(5)?,
+			metadata_id: value.get(6)?,
+			chapter_count: value.get(7)?,
+
+			modified_at: value.get(8)?,
+			accessed_at: value.get(9)?,
+			created_at: value.get(10)?,
 		})
 	}
 }
 
 
-impl From<File> for StrippedMediaItem {
-	fn from(val: File) -> Self {
-		StrippedMediaItem {
-			id: val.id,
-			file_name: val.file_name,
-			file_type: val.file_type,
-			modified_at: val.modified_at,
-			created_at: val.created_at,
-		}
-	}
+fn serialize_datetime<S>(value: &DateTime<Utc>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
+	s.serialize_i64(value.timestamp_millis())
 }

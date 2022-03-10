@@ -20,7 +20,7 @@ pub mod scanner;
 async fn load_resource(path: web::Path<(i64, String)>, db: web::Data<Database>) -> HttpResponse {
 	let (book_id, resource_path) = path.into_inner();
 
-	let file = db.find_file_by_id(book_id).await.unwrap().unwrap();
+	let file = db.find_file_by_id(book_id).unwrap().unwrap();
 
 	let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
@@ -48,7 +48,7 @@ struct ChapterInfo {
 async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> web::Json<ChapterInfo> {
 	let (book_id, chapters) = path.into_inner();
 
-	let file = db.find_file_by_id(book_id).await.unwrap().unwrap();
+	let file = db.find_file_by_id(book_id).unwrap().unwrap();
 
 	let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
@@ -91,7 +91,7 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 // TODO: Add body requests for specifics
 #[get("/api/book/{id}")]
 async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<MediaItem>> {
-	web::Json(if let Some(file) = db.find_file_by_id(*id).await.unwrap() {
+	web::Json(if let Some(file) = db.find_file_by_id(*id).unwrap() {
 		let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
 		Some(MediaItem {
@@ -122,7 +122,6 @@ async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Opt
 #[get("/api/books")]
 async fn load_book_list(db: web::Data<Database>) -> web::Json<Vec<MediaItem>> {
 	web::Json(db.list_all_files()
-		.await
 		.unwrap()
 		.into_iter()
 		.filter(|v| v.file_type == "epub")
@@ -161,7 +160,11 @@ async fn default_handler() -> impl actix_web::Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	let db = database::init().await.unwrap();
-	scanner::scan(db.clone()).await.unwrap();
+	db.add_library("Y:/books/J. K. Rowling").unwrap();
+
+	for library in db.list_all_libraries().unwrap() {
+		scanner::library_scan(&library, db.clone()).await.unwrap();
+	}
 
 	HttpServer::new(move || {
 		App::new()

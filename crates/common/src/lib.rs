@@ -29,24 +29,6 @@ impl PartialEq for MediaItem {
 }
 
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StrippedMediaItem {
-	pub id: i64,
-
-	pub file_name: String,
-	pub file_type: String,
-
-	pub modified_at: i64,
-	pub created_at: i64,
-}
-
-impl PartialEq for StrippedMediaItem {
-	fn eq(&self, other: &Self) -> bool {
-		self.id == other.id
-	}
-}
-
-
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum Progression {
 	Ebook {
