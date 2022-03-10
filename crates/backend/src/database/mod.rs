@@ -33,8 +33,8 @@ pub async fn init() -> Result<Database> {
 			"id" 				INTEGER NOT NULL UNIQUE,
 
 			"path" 				TEXT NOT NULL UNIQUE,
-			"file_type" 		TEXT,
 			"file_name" 		TEXT NOT NULL,
+			"file_type" 		TEXT,
 			"file_size" 		INTEGER NOT NULL,
 
 			"library_id" 		INTEGER,
@@ -167,10 +167,10 @@ impl Database {
 	// Files
 	pub fn add_file(&self, file: &NewFile) -> Result<()> {
 		self.execute(r#"
-			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, library_id, metadata_id, chapter_count)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 		"#,
-		params![&file.path, &file.file_type, &file.file_name, file.file_size, file.modified_at, file.accessed_at, file.created_at])?;
+		params![&file.path, &file.file_type, &file.file_name, file.file_size, file.modified_at, file.accessed_at, file.created_at, file.library_id, file.metadata_id, file.chapter_count])?;
 
 		Ok(())
 	}
