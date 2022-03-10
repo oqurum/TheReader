@@ -35,7 +35,7 @@ pub async fn library_scan(library: &Library, db: Database) -> Result<()> {
 					file_type,
 					file_size: file_size as i64,
 
-					library_id: 0,
+					library_id: library.id,
 					metadata_id: 0,
 					chapter_count: 0,
 
