@@ -1,9 +1,9 @@
 // TODO: Ping/Pong if currently viewing book. View time. How long been on page. Etc.
 
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse};
+use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post, delete};
 
-use books_common::{Chapter, MediaItem, api};
+use books_common::{Chapter, MediaItem, api, Progression};
 use bookie::Book;
 
 use crate::database::Database;
@@ -122,6 +122,24 @@ async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Opt
 	})
 }
 
+
+#[post("/api/book/{id}/progress")]
+async fn progress_book_add(id: web::Path<i64>, body: web::Json<Progression>, db: web::Data<Database>) -> HttpResponse {
+	match db.add_or_update_progress(0, *id, body.into_inner()) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+	}
+}
+
+#[delete("/api/book/{id}/progress")]
+async fn progress_book_delete(id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+	match db.delete_progress(0, *id) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+	}
+}
+
+
 // TODO: Add body requests for specific books
 #[get("/api/books")]
 async fn load_book_list(db: web::Data<Database>) -> web::Json<Vec<MediaItem>> {
@@ -184,6 +202,8 @@ async fn main() -> std::io::Result<()> {
 			.service(load_pages)
 			.service(load_resource)
 			.service(load_book_list)
+			.service(progress_book_add)
+			.service(progress_book_delete)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

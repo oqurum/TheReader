@@ -72,7 +72,7 @@ pub async fn fetch<V: for<'a> serde::de::Deserialize<'a>>(method: &str, url: &st
 	opts.mode(RequestMode::Cors);
 
 	if let Some(body) = body {
-		opts.body(Some(&JsValue::from_serde(body).unwrap()));
+		opts.body(Some(&JsValue::from_str(&serde_json::to_string(body).unwrap())));
 
 		let headers = Headers::new()?;
 		headers.append("Content-Type", "application/json")?;

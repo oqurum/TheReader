@@ -42,7 +42,9 @@ pub enum Progression {
 	AudioBook {
 		chapter: i64,
 		seek_pos: i64,
-	}
+	},
+
+	Complete
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

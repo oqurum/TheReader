@@ -102,11 +102,14 @@ pub async fn init() -> Result<Database> {
 
 	conn.execute(
 		r#"CREATE TABLE "file_progression" (
-			"file_id" TEXT NOT NULL,
-			"user_id" TEXT NOT NULL,
+			"file_id" INTEGER NOT NULL,
+			"user_id" INTEGER NOT NULL,
 
-			"chapter" INTEGER NOT NULL,
-			"page" INTEGER NOT NULL,
+			"type_of" INTEGER NOT NULL,
+
+			"chapter" INTEGER,
+			"page" INTEGER,
+			"seek_pos" INTEGER,
 
 			"updated_at" DATETIME NOT NULL,
 			"created_at" DATETIME NOT NULL,
@@ -201,7 +204,7 @@ impl Database {
 
 		if self.get_progress(user_id, file_id)?.is_some() {
 			self.execute(
-				r#"UPDATE file_progression SET chapter = ?1, page = ?2, seek_pos = ?3, updated_at = ?4 WHERE file_id = ?5 AND user_id = ?6 LIMIT 1"#,
+				r#"UPDATE file_progression SET chapter = ?1, page = ?2, seek_pos = ?3, updated_at = ?4 WHERE file_id = ?5 AND user_id = ?6"#,
 				params![prog.chapter, prog.page, prog.seek_pos, prog.updated_at, prog.file_id, prog.user_id]
 			)?;
 		} else {
@@ -220,6 +223,15 @@ impl Database {
 			params![user_id, file_id],
 			|v| FileProgression::try_from(v)
 		).optional()?)
+	}
+
+	pub fn delete_progress(&self, user_id: i64, file_id: i64) -> Result<()> {
+		self.execute(
+			"DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
+			params![user_id, file_id]
+		)?;
+
+		Ok(())
 	}
 }
 
@@ -277,10 +289,10 @@ pub struct FileProgression {
 	pub type_of: u8,
 
 	// Ebook/Audiobook
-	pub chapter: i64,
+	pub chapter: Option<i64>,
 
 	// Ebook
-	pub page: Option<i64>,
+	pub page: Option<i64>, // TODO: Remove page. Change to byte pos. Most accurate since screen sizes can change.
 
 	// Audiobook
 	pub seek_pos: Option<i64>,
@@ -294,11 +306,22 @@ pub struct FileProgression {
 impl FileProgression {
 	pub fn new(progress: Progression, user_id: i64, file_id: i64) -> Self {
 		match progress {
-			Progression::Ebook { chapter, page } => Self {
+			Progression::Complete => Self {
 				file_id,
 				user_id,
 				type_of: 0,
-				chapter,
+				chapter: None,
+				page: None,
+				seek_pos: None,
+				updated_at: Utc::now(),
+				created_at: Utc::now(),
+			},
+
+			Progression::Ebook { chapter, page } => Self {
+				file_id,
+				user_id,
+				type_of: 1,
+				chapter: Some(chapter),
 				page: Some(page),
 				seek_pos: None,
 				updated_at: Utc::now(),
@@ -308,8 +331,8 @@ impl FileProgression {
 			Progression::AudioBook { chapter, seek_pos } => Self {
 				file_id,
 				user_id,
-				type_of: 1,
-				chapter,
+				type_of: 2,
+				chapter: Some(chapter),
 				page: None,
 				seek_pos: Some(seek_pos),
 				updated_at: Utc::now(),
@@ -344,13 +367,15 @@ impl<'a> TryFrom<&Row<'a>> for FileProgression {
 impl From<FileProgression> for Progression {
     fn from(val: FileProgression) -> Self {
         match val.type_of {
-			0 => Progression::Ebook {
-				chapter: val.chapter,
+			0 => Progression::Complete,
+
+			1 => Progression::Ebook {
+				chapter: val.chapter.unwrap(),
 				page: val.page.unwrap(),
 			},
 
-			1 => Progression::AudioBook {
-				chapter: val.chapter,
+			2 => Progression::AudioBook {
+				chapter: val.chapter.unwrap(),
 				seek_pos: val.seek_pos.unwrap(),
 			},
 

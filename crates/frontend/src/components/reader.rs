@@ -3,7 +3,7 @@
 
 use std::{collections::HashMap, rc::Rc, sync::Mutex};
 
-use books_common::MediaItem;
+use books_common::{MediaItem, Progression};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::prelude::*;
@@ -67,7 +67,8 @@ pub enum Msg {
 	Touch(TouchMsg),
 	NextPage,
 	PreviousPage,
-	SetPage(usize)
+	SetPage(usize),
+	Ignore
 }
 
 
@@ -104,6 +105,8 @@ impl Component for Reader {
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			Msg::Ignore => return false,
+
 			Msg::SetPage(new_page) => {
 				return self.set_page(new_page, ctx);
 			}
@@ -141,6 +144,22 @@ impl Component for Reader {
 						self.total_page_position += 1;
 					}
 				}
+
+				let (chapter, page, book_id) = (self.viewing_chapter as i64, self.total_page_position as i64, ctx.props().book.id);
+
+				ctx.link()
+				.send_future(async move {
+					let _: Option<String> = crate::fetch(
+						"POST",
+						&format!("/api/book/{}/progress", book_id),
+						Some(&Progression::Ebook {
+							chapter,
+							page
+						})
+					).await.ok();
+
+					Msg::Ignore
+				});
 			}
 
 			Msg::PreviousPage => {
@@ -152,7 +171,6 @@ impl Component for Reader {
 
 				// Current chapter still.
 				if self.viewing_chapter_page != 0 {
-
 					self.viewing_chapter_page -= 1;
 					self.total_page_position -= 1;
 
@@ -168,6 +186,30 @@ impl Component for Reader {
 
 					chapters.get(&self.viewing_chapter).unwrap().set_page(self.viewing_chapter_page);
 				}
+
+				let (chapter, page, book_id) = (self.viewing_chapter as i64, self.total_page_position as i64, ctx.props().book.id);
+
+				ctx.link()
+				.send_future(async move {
+					if page == 0 {
+						let _: Option<String> = crate::fetch(
+							"DELETE",
+							&format!("/api/book/{}/progress", book_id),
+							Option::<&()>::None
+						).await.ok();
+					} else {
+						let _: Option<String> = crate::fetch(
+							"POST",
+							&format!("/api/book/{}/progress", book_id),
+							Some(&Progression::Ebook {
+								chapter,
+								page
+							})
+						).await.ok();
+					}
+
+					Msg::Ignore
+				});
 			}
 
 			Msg::Touch(msg) => match msg {
