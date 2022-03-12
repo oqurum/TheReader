@@ -15,6 +15,8 @@ pub struct Property {
 	pub book: Rc<MediaItem>,
 	pub chapters: Rc<Mutex<HashMap<usize, ChapterContents>>>,
 
+	pub progress: Option<Progression>,
+
 	pub width: i32,
 	pub height: i32,
 	// pub ratio: (usize, usize)
@@ -89,10 +91,10 @@ impl Component for Reader {
 	type Message = Msg;
 	type Properties = Property;
 
-	fn create(_ctx: &Context<Self>) -> Self {
+	fn create(ctx: &Context<Self>) -> Self {
 		Self {
 			total_page_position: 0,
-			viewing_chapter: 0,
+			viewing_chapter: 0, // TODO: Add after "frames loaded" event. // ctx.props().progress.map(|v| match v { Progression::Ebook { chapter, page } => chapter as usize, _ => 0 }).unwrap_or_default(),
 			viewing_chapter_page: 0,
 
 			handle_touch_cancel: None,
@@ -145,7 +147,12 @@ impl Component for Reader {
 					}
 				}
 
-				let (chapter, page, book_id) = (self.viewing_chapter as i64, self.total_page_position as i64, ctx.props().book.id);
+				let (chapter, page, char_pos, book_id) = (
+					self.viewing_chapter as i64,
+					self.total_page_position as i64,
+					js_get_current_byte_pos(&chapters.get(&self.viewing_chapter).unwrap().iframe).map(|v| v as i64).unwrap_or(-1),
+					ctx.props().book.id
+				);
 
 				ctx.link()
 				.send_future(async move {
@@ -153,6 +160,7 @@ impl Component for Reader {
 						"POST",
 						&format!("/api/book/{}/progress", book_id),
 						Some(&Progression::Ebook {
+							char_pos,
 							chapter,
 							page
 						})
@@ -187,7 +195,12 @@ impl Component for Reader {
 					chapters.get(&self.viewing_chapter).unwrap().set_page(self.viewing_chapter_page);
 				}
 
-				let (chapter, page, book_id) = (self.viewing_chapter as i64, self.total_page_position as i64, ctx.props().book.id);
+				let (chapter, page, char_pos, book_id) = (
+					self.viewing_chapter as i64,
+					self.total_page_position as i64,
+					js_get_current_byte_pos(&chapters.get(&self.viewing_chapter).unwrap().iframe).map(|v| v as i64).unwrap_or(-1),
+					ctx.props().book.id
+				);
 
 				ctx.link()
 				.send_future(async move {
@@ -202,6 +215,7 @@ impl Component for Reader {
 							"POST",
 							&format!("/api/book/{}/progress", book_id),
 							Some(&Progression::Ebook {
+								char_pos,
 								chapter,
 								page
 							})
@@ -281,6 +295,33 @@ impl Component for Reader {
 				<div class="progress"><div class="prog-bar" style={progress_precentage}></div></div>
 			</div>
 		}
+	}
+
+	fn changed(&mut self, ctx: &Context<Self>) -> bool {
+		if let Some(prog) = ctx.props().progress {
+			match prog {
+				Progression::Ebook { chapter, page, char_pos } if self.viewing_chapter == 0 => {
+					// TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
+					self.set_chapter(chapter as usize, ctx);
+
+					if char_pos != -1 {
+						let chap = ctx.props().chapters.lock().unwrap();
+
+						let chapter = chap.get(&self.viewing_chapter).unwrap();
+
+						let page = js_get_page_from_byte_position(&chapter.iframe, char_pos as usize);
+
+						if let Some(page) = page {
+							chapter.set_page(page);
+						}
+					}
+				}
+
+				_ => ()
+			}
+		}
+
+		true
 	}
 
 	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
@@ -375,6 +416,34 @@ impl Reader {
 			true
 		}
 	}
+
+	fn set_chapter(&mut self, new_chapter: usize, ctx: &Context<Self>) -> bool {
+		let chapter_count = ctx.props().book.chapter_count;
+
+		if self.viewing_chapter == new_chapter || new_chapter > chapter_count {
+			false
+		} else {
+			let chapters = ctx.props().chapters.lock().unwrap();
+
+			self.total_page_position = 0;
+			self.viewing_chapter_page = 0;
+			self.viewing_chapter = new_chapter;
+
+
+			for i in 0..=new_chapter {
+				if let Some(chap) = chapters.get(&i) {
+					if i != new_chapter {
+						self.total_page_position += chap.page_count;
+					}
+				} else {
+					self.total_page_position = 0;
+					return false;
+				}
+			}
+
+			true
+		}
+	}
 }
 
 
@@ -382,4 +451,7 @@ impl Reader {
 #[wasm_bindgen(module = "/js_generate_pages.js")]
 extern "C" {
 	fn get_iframe_page_count(iframe: &HtmlIFrameElement) -> usize;
+
+	fn js_get_current_byte_pos(iframe: &HtmlIFrameElement) -> Option<usize>;
+	fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize) -> Option<usize>;
 }

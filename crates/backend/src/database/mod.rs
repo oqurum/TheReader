@@ -109,6 +109,7 @@ pub async fn init() -> Result<Database> {
 
 			"chapter" INTEGER,
 			"page" INTEGER,
+			"char_pos" INTEGER,
 			"seek_pos" INTEGER,
 
 			"updated_at" DATETIME NOT NULL,
@@ -204,13 +205,13 @@ impl Database {
 
 		if self.get_progress(user_id, file_id)?.is_some() {
 			self.execute(
-				r#"UPDATE file_progression SET chapter = ?1, page = ?2, seek_pos = ?3, updated_at = ?4 WHERE file_id = ?5 AND user_id = ?6"#,
-				params![prog.chapter, prog.page, prog.seek_pos, prog.updated_at, prog.file_id, prog.user_id]
+				r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE file_id = ?6 AND user_id = ?7"#,
+				params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.file_id, prog.user_id]
 			)?;
 		} else {
 			self.execute(
-				r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
-				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.page, prog.seek_pos, prog.updated_at, prog.created_at]
+				r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#,
+				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.created_at]
 			)?;
 		}
 
@@ -293,6 +294,7 @@ pub struct FileProgression {
 
 	// Ebook
 	pub page: Option<i64>, // TODO: Remove page. Change to byte pos. Most accurate since screen sizes can change.
+	pub char_pos: Option<i64>,
 
 	// Audiobook
 	pub seek_pos: Option<i64>,
@@ -312,15 +314,17 @@ impl FileProgression {
 				type_of: 0,
 				chapter: None,
 				page: None,
+				char_pos: None,
 				seek_pos: None,
 				updated_at: Utc::now(),
 				created_at: Utc::now(),
 			},
 
-			Progression::Ebook { chapter, page } => Self {
+			Progression::Ebook { chapter, page, char_pos } => Self {
 				file_id,
 				user_id,
 				type_of: 1,
+				char_pos: Some(char_pos),
 				chapter: Some(chapter),
 				page: Some(page),
 				seek_pos: None,
@@ -334,6 +338,7 @@ impl FileProgression {
 				type_of: 2,
 				chapter: Some(chapter),
 				page: None,
+				char_pos: None,
 				seek_pos: Some(seek_pos),
 				updated_at: Utc::now(),
 				created_at: Utc::now(),
@@ -355,11 +360,12 @@ impl<'a> TryFrom<&Row<'a>> for FileProgression {
 			chapter: value.get(3)?,
 
 			page: value.get(4)?,
+			char_pos: value.get(5)?,
 
-			seek_pos: value.get(5)?,
+			seek_pos: value.get(6)?,
 
-			updated_at: value.get(6)?,
-			created_at: value.get(7)?,
+			updated_at: value.get(7)?,
+			created_at: value.get(8)?,
 		})
 	}
 }
@@ -370,6 +376,7 @@ impl From<FileProgression> for Progression {
 			0 => Progression::Complete,
 
 			1 => Progression::Ebook {
+				char_pos: val.char_pos.unwrap(),
 				chapter: val.chapter.unwrap(),
 				page: val.page.unwrap(),
 			},

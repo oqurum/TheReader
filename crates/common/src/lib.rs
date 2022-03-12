@@ -36,6 +36,7 @@ impl PartialEq for MediaItem {
 pub enum Progression {
 	Ebook {
 		chapter: i64,
+		char_pos: i64,
 		page: i64,
 	},
 

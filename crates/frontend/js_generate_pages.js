@@ -105,7 +105,7 @@ function flattenVerticalList(tableElement) {
 /**
  * @param {HTMLElement} element
  * @param {number} max_margins
- */
+**/
 function shrinkVerticalMargins(element, max_margins) {
 	let cs = getComputedStyle(element);
 
@@ -132,7 +132,7 @@ function shrinkVerticalMargins(element, max_margins) {
 /**
  * @param {HTMLElement} element
  * @returns boolean
- */
+**/
 function doesContainAnyText(element) {
 	for(let node of element.childNodes) {
 		// Check if Text Node and trim the text of NL's to check it it has any normal characters remaining.
@@ -149,7 +149,7 @@ function doesContainAnyText(element) {
  * @param {HTMLElement} element
  * @param {number} bodyWidth
  * @returns boolean
- */
+**/
 function canFlattenElement(element, bodyWidth) {
 	// let cs = getComputedStyle(element);
 
@@ -174,7 +174,7 @@ function canFlattenElement(element, bodyWidth) {
 
 /**
  * @param {HTMLIFrameElement} iframe
- */
+**/
 export function js_update_pages_with_inlined_css(iframe) {
 	let document = iframe.contentDocument;
 
@@ -226,4 +226,91 @@ export function js_update_pages_with_inlined_css(iframe) {
 			}
 		}
 	}
+}
+
+
+/**
+ * @param {HTMLIFrameElement} iframe
+ * @returns {number}
+**/
+export function js_get_current_byte_pos(iframe) {
+	let document = iframe.contentDocument;
+
+	let cs = getComputedStyle(document.body);
+
+	let left_amount = Math.abs(parseFloat(cs.left));
+	let width_amount = parseFloat(cs.width);
+
+	let byte_count = 0;
+
+	/**
+	 *
+	 * @param {Node} cont
+	 * @returns {boolean}
+	 */
+	function findTextPos(cont) {
+		if (cont.nodeType == Element.TEXT_NODE && cont.nodeValue.trim().length != 0) {
+			// TODO: Will probably mess up if element takes up a full page.
+			if (left_amount - cont.parentElement.offsetLeft < width_amount / 2.0) {
+				return true;
+			} else {
+				byte_count += cont.nodeValue.length;
+			}
+		}
+
+		for (let node of cont.childNodes) {
+			if (findTextPos(node)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if (findTextPos(document.body)) {
+		return byte_count;
+	} else {
+		return null;
+	}
+}
+
+
+/**
+ * @param {HTMLIFrameElement} iframe
+ * @param {number} position
+ * @returns {number}
+**/
+export function js_get_page_from_byte_position(iframe, position) {
+	let document = iframe.contentDocument;
+
+	let page = null;
+	let byte_count = 0;
+
+	/**
+	 * @param {Node} cont
+	 * @returns {boolean}
+	 */
+	function findTextPos(cont) {
+		if (cont.nodeType == Element.TEXT_NODE && cont.nodeValue.trim().length != 0) {
+			byte_count += cont.nodeValue.length;
+
+			// TODO: Will probably mess up if element takes up a full page.
+			if (byte_count > position) {
+				// TODO: Account for margins on body.
+				page = Math.abs(Math.round((cont.parentElement.offsetLeft + cont.parentElement.offsetWidth) / document.body.offsetWidth));
+				return true;
+			}
+		}
+
+		for (let node of cont.childNodes) {
+			if (findTextPos(node)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	findTextPos(document.body);
+	return page;
 }

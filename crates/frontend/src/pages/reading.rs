@@ -4,7 +4,7 @@
 
 use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex};
 
-use books_common::{MediaItem, Chapter, api::GetBookIdResponse};
+use books_common::{MediaItem, Chapter, api::GetBookIdResponse, Progression};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};
@@ -39,7 +39,8 @@ pub struct ChapterContents {
 	on_load: Closure<dyn FnMut()>,
 	pub chapter: usize,
 	pub page_count: usize,
-	pub iframe: HtmlIFrameElement
+	pub iframe: HtmlIFrameElement,
+	pub is_generated: bool
 }
 
 impl ChapterContents {
@@ -87,6 +88,7 @@ pub struct Property {
 }
 
 pub struct ReadingBook {
+	progress: Option<Progression>,
 	book: Option<Rc<MediaItem>>,
 	chapters: Rc<Mutex<HashMap<usize, ChapterContents>>>,
 	// TODO: Cache pages
@@ -103,6 +105,7 @@ impl Component for ReadingBook {
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
 			chapters: Rc::new(Mutex::new(HashMap::new())),
+			progress: None,
 			book: None,
 
 			book_dimensions: Some((1040, 548)),
@@ -123,13 +126,25 @@ impl Component for ReadingBook {
 
 				let page_count = get_iframe_page_count(&page.iframe).max(1);
 
-				if let Entry::Occupied(mut v) = self.chapters.lock().unwrap().entry(page.chapter.value) {
-					v.get_mut().page_count = page_count;
+				let mut chaps = self.chapters.lock().unwrap();
+
+				if let Entry::Occupied(mut v) = chaps.entry(page.chapter.value) {
+					let chap = v.get_mut();
+					chap.page_count = page_count;
+					chap.is_generated = true;
+				}
+
+				let chaps_generated = chaps.values().filter(|v| v.is_generated).count();
+
+				if chaps_generated == self.book.as_ref().unwrap().chapter_count {
+					drop(chaps);
+					self.on_all_frames_generated();
 				}
 			}
 
 			Msg::RetrievePages(info) => {
-				for chap in info.chapters {
+				// Reverse iterator since for some reason chapter "generation" works from LIFO
+				for chap in info.chapters.into_iter().rev() {
 					log::info!("Generating Chapter {}", chap.value + 1);
 					self.chapters.lock().unwrap().insert(chap.value, generate_pages(self.book_dimensions, chap, ctx.link().clone()));
 				}
@@ -137,6 +152,7 @@ impl Component for ReadingBook {
 
 			Msg::RetrieveBook(resp) => {
 				self.book = Some(Rc::new(resp.media));
+				self.progress = resp.progress;
 
 				ctx.link().send_message(Msg::SendGetChapters(0, self.book.as_ref().unwrap().chapter_count));
 			}
@@ -161,6 +177,8 @@ impl Component for ReadingBook {
 				None => (gloo_utils::body().client_width().max(0), gloo_utils::body().client_height().max(0)),
 			};
 
+			// TODO: Loading screen until all chapters have done initial generation.
+
 			html! {
 				<div class="reading-container">
 					<div class="book">
@@ -170,6 +188,7 @@ impl Component for ReadingBook {
 							// <div class="tool-item" title="Book Summary">{ "📝" }</div>
 						</div>
 						<Reader
+							progress={self.progress.filter(|_| self.have_all_chapters_passed_init_generation())}
 							book={Rc::clone(book)}
 							chapters={Rc::clone(&self.chapters)}
 							width={width}
@@ -203,6 +222,20 @@ impl ReadingBook {
 		for ele in self.chapters.lock().unwrap().values_mut() {
 			ele.page_count = get_iframe_page_count(&ele.iframe).max(1);
 		}
+	}
+
+	fn on_all_frames_generated(&mut self) {
+		log::info!("All Frames Generated");
+		// Double check page counts before proceeding.
+		self.update_chapter_pages();
+
+		// TODO: Remove .filter from fn view Reader progress. Replace with event.
+	}
+
+	fn have_all_chapters_passed_init_generation(&self) -> bool {
+		let chaps_generated = self.chapters.lock().unwrap().values().filter(|v| v.is_generated).count();
+
+		chaps_generated == self.book.as_ref().unwrap().chapter_count
 	}
 }
 
@@ -259,7 +292,8 @@ fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: 
 		page_count: 1,
 		chapter: chap_value,
 		iframe: new_frame,
-		on_load: f
+		on_load: f,
+		is_generated: false
 	}
 }
 
