@@ -10,21 +10,28 @@ pub async fn init() -> Result<Database> {
 	let _ = tokio::fs::remove_file("database.db").await;
 	let conn = rusqlite::Connection::open("database.db")?;
 
-	// TODO: Multiple library paths.
+	// TODO: Migrations https://github.com/rusqlite/rusqlite/discussions/1117
+
 	conn.execute(
 		r#"CREATE TABLE "library" (
 			"id" 				INTEGER NOT NULL UNIQUE,
 
-			"name" 				TEXT,
+			"name" 				TEXT UNIQUE,
 			"type_of" 			TEXT,
-
-			"path" 				TEXT NOT NULL UNIQUE,
 
 			"scanned_at" 		DATETIME NOT NULL,
 			"created_at" 		DATETIME NOT NULL,
 			"updated_at" 		DATETIME NOT NULL,
 
 			PRIMARY KEY("id" AUTOINCREMENT)
+		);"#,
+		[]
+	)?;
+
+	conn.execute(
+		r#"CREATE TABLE "directory" (
+			"library_id"	INTEGER NOT NULL,
+			"path"			TEXT NOT NULL UNIQUE
 		);"#,
 		[]
 	)?;
@@ -146,16 +153,19 @@ impl Database {
 		let lib = NewLibrary {
 			name: String::from("Books"),
 			type_of: String::new(),
-			path: path.to_string(),
 			scanned_at: Utc::now(),
 			created_at: Utc::now(),
 			updated_at: Utc::now(),
 		};
 
 		self.execute(
-			r#"INSERT INTO library (name, type_of, path, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
-			params![&lib.name, &lib.type_of, &lib.path, lib.scanned_at, lib.created_at, lib.updated_at]
+			r#"INSERT INTO library (name, type_of, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)"#,
+			params![&lib.name, &lib.type_of, lib.scanned_at, lib.created_at, lib.updated_at]
 		)?;
+
+		let lib = self.get_library_by_name("Books")?.unwrap();
+		// TODO: Correct.
+		self.add_directory(lib.id, path.to_string())?;
 
 		Ok(())
 	}
@@ -164,6 +174,32 @@ impl Database {
 		let mut conn = self.prepare("SELECT * FROM library")?;
 
 		let map = conn.query_map([], |v| Library::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
+	pub fn get_library_by_name(&self, value: &str) -> Result<Option<Library>> {
+		Ok(self.query_row(
+			r#"SELECT * FROM library WHERE name = ?1 LIMIT 1"#,
+			params![value],
+			|v| Library::try_from(v)
+		).optional()?)
+	}
+
+	// Directories
+	pub fn add_directory(&self, library_id: i64, path: String) -> Result<()> {
+		self.execute(
+			r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
+			params![&library_id, &path]
+		)?;
+
+		Ok(())
+	}
+
+	pub fn get_directories(&self, library_id: i64) -> Result<Vec<Directory>> {
+		let mut conn = self.prepare("SELECT * FROM directory WHERE library_id = ?1")?;
+
+		let map = conn.query_map([library_id], |v| Directory::try_from(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
@@ -475,8 +511,6 @@ pub struct NewLibrary {
 	pub name: String,
 	pub type_of: String,
 
-	pub path: String,
-
 	pub scanned_at: DateTime<Utc>,
 	pub created_at: DateTime<Utc>,
 	pub updated_at: DateTime<Utc>,
@@ -488,8 +522,6 @@ pub struct Library {
 
 	pub name: String,
 	pub type_of: String,
-
-	pub path: String,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub scanned_at: DateTime<Utc>,
@@ -507,10 +539,28 @@ impl<'a> TryFrom<&Row<'a>> for Library {
 			id: value.get(0)?,
 			name: value.get(1)?,
 			type_of: value.get(2)?,
-			path: value.get(3)?,
-			scanned_at: value.get(4)?,
-			created_at: value.get(5)?,
-			updated_at: value.get(6)?,
+			scanned_at: value.get(3)?,
+			created_at: value.get(4)?,
+			updated_at: value.get(5)?,
+		})
+	}
+}
+
+
+// Directory
+
+pub struct Directory {
+	pub library_id: i64,
+	pub path: String,
+}
+
+impl<'a> TryFrom<&Row<'a>> for Directory {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			library_id: value.get(0)?,
+			path: value.get(1)?,
 		})
 	}
 }

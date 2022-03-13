@@ -220,7 +220,9 @@ async fn main() -> std::io::Result<()> {
 	db.add_library("Y:/books/J. K. Rowling").unwrap();
 
 	for library in db.list_all_libraries().unwrap() {
-		scanner::library_scan(&library, db.clone()).await.unwrap();
+		let directories = db.get_directories(library.id).unwrap();
+
+		scanner::library_scan(&library, directories, db.clone()).await.unwrap();
 	}
 
 	HttpServer::new(move || {

@@ -3,14 +3,14 @@ use std::{path::PathBuf, collections::VecDeque};
 use anyhow::Result;
 use tokio::fs;
 
-use crate::database::{NewFile, Database, Library};
+use crate::database::{NewFile, Database, Library, Directory};
 
 
 pub static WHITELISTED_FILE_TYPES: [&str; 1] = ["epub"];
 
 
-pub async fn library_scan(library: &Library, db: Database) -> Result<()> {
-	let mut folders: VecDeque<PathBuf> = std::collections::VecDeque::from([PathBuf::from(&library.path)]);
+pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: Database) -> Result<()> {
+	let mut folders: VecDeque<PathBuf> = directories.into_iter().map(|v| PathBuf::from(&v.path)).collect::<VecDeque<_>>();
 
 	while let Some(path) = folders.pop_front() {
 		let mut dir = fs::read_dir(path).await?;
@@ -24,7 +24,6 @@ pub async fn library_scan(library: &Library, db: Database) -> Result<()> {
 			if file_type.is_dir() {
 				folders.push_back(path);
 			} else if file_type.is_file() {
-
 				let file_name = file_name.into_string().unwrap();
 				let (file_name, file_type) = match file_name.rsplit_once('.') {
 					Some((v1, v2)) => (v1.to_string(), v2.to_string().to_lowercase()),
