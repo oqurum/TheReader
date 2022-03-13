@@ -9,7 +9,7 @@ use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};
 
-use crate::fetch;
+use crate::request;
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
@@ -162,7 +162,7 @@ impl Component for ReadingBook {
 
 				ctx.link()
 				.send_future(async move {
-					Msg::RetrievePages(fetch("GET", &format!("/api/book/{}/pages/{}-{}", book_id, start, end), Option::<&()>::None).await.unwrap())
+					Msg::RetrievePages(request::get_book_pages(book_id, start, end).await)
 				});
 			}
 		}
@@ -211,7 +211,7 @@ impl Component for ReadingBook {
 			let id = ctx.props().id;
 
 			ctx.link().send_future(async move {
-				Msg::RetrieveBook(fetch("GET", &format!("/api/book/{}", id), Option::<&()>::None).await.unwrap())
+				Msg::RetrieveBook(request::get_book_info(id).await)
 			});
 		}
 	}

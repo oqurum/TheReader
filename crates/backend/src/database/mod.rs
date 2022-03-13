@@ -91,6 +91,7 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
 	conn.execute(
 		r#"CREATE TABLE "file_notes" (
 			"file_id" 		INTEGER NOT NULL,

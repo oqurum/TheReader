@@ -1,12 +1,9 @@
-use serde::Serialize;
-use wasm_bindgen::{JsValue, JsCast};
-use wasm_bindgen_futures::JsFuture;
-use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::*;
 
 
 mod pages;
+mod request;
 mod components;
 
 enum Msg {
@@ -64,52 +61,6 @@ impl Component for Model {
 impl Model {
 	//
 }
-
-
-pub async fn fetch<V: for<'a> serde::de::Deserialize<'a>>(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<V, JsValue> {
-	let mut opts = RequestInit::new();
-	opts.method(method);
-	opts.mode(RequestMode::Cors);
-
-	if let Some(body) = body {
-		opts.body(Some(&JsValue::from_str(&serde_json::to_string(body).unwrap())));
-
-		let headers = Headers::new()?;
-		headers.append("Content-Type", "application/json")?;
-		opts.headers(&headers);
-	}
-
-	let request = Request::new_with_str_and_init(url, &opts)?;
-
-	let window = gloo_utils::window();
-	let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
-	let resp: Response = resp_value.dyn_into().unwrap();
-
-	let text = JsFuture::from(resp.json()?).await?;
-
-	Ok(text.into_serde().unwrap())
-}
-
-
-pub async fn fetch_url_encoded<V: for<'a> serde::de::Deserialize<'a>>(method: &str, url: &str, form_data: FormData) -> Result<V, JsValue> {
-	let mut opts = RequestInit::new();
-	opts.method(method);
-	opts.mode(RequestMode::Cors);
-
-	opts.body(Some(&form_data));
-
-	let request = Request::new_with_str_and_init(url, &opts)?;
-
-	let window = gloo_utils::window();
-	let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
-	let resp: Response = resp_value.dyn_into().unwrap();
-
-	let text = JsFuture::from(resp.json()?).await?;
-
-	Ok(text.into_serde().unwrap())
-}
-
-
 
 #[derive(Routable, PartialEq, Clone, Debug)]
 pub enum Route {

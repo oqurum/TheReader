@@ -6,6 +6,8 @@ use serde_json::json;
 use wasm_bindgen::{prelude::{wasm_bindgen, Closure}, JsValue, JsCast};
 use yew::prelude::*;
 
+use crate::request;
+
 #[derive(Properties)]
 pub struct Property {
 	pub book: Rc<MediaItem>,
@@ -45,7 +47,7 @@ impl Component for Notes {
 
 		ctx.link()
 		.send_future(async move {
-			Msg::RetrieveNotes(crate::fetch("GET", &format!("/api/book/{}/notes", book_id), Option::<&()>::None).await.ok())
+			Msg::RetrieveNotes(request::get_book_notes(book_id).await)
 		});
 
 		Self {
@@ -71,11 +73,7 @@ impl Component for Notes {
 
 					ctx.link()
 					.send_future(async move {
-						let _: Option<String> = crate::fetch(
-							"POST",
-							&format!("/api/book/{}/notes", book_id),
-							Some(&body)
-						).await.ok();
+						request::update_book_notes(book_id, body).await;
 
 						Msg::Ignore
 					});

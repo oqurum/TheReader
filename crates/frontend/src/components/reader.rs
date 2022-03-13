@@ -8,7 +8,7 @@ use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::prelude::*;
 
-use crate::pages::reading::{ChapterContents, FoundChapterPage};
+use crate::{pages::reading::{ChapterContents, FoundChapterPage}, request};
 
 #[derive(Properties)]
 pub struct Property {
@@ -156,15 +156,13 @@ impl Component for Reader {
 
 				ctx.link()
 				.send_future(async move {
-					let _: Option<String> = crate::fetch(
-						"POST",
-						&format!("/api/book/{}/progress", book_id),
-						Some(&Progression::Ebook {
-							char_pos,
-							chapter,
-							page
-						})
-					).await.ok();
+					let progression = Progression::Ebook {
+						char_pos,
+						chapter,
+						page
+					};
+
+					request::update_book_progress(book_id, &progression).await;
 
 					Msg::Ignore
 				});
@@ -205,21 +203,15 @@ impl Component for Reader {
 				ctx.link()
 				.send_future(async move {
 					if page == 0 {
-						let _: Option<String> = crate::fetch(
-							"DELETE",
-							&format!("/api/book/{}/progress", book_id),
-							Option::<&()>::None
-						).await.ok();
+						request::remove_book_progress(book_id).await;
 					} else {
-						let _: Option<String> = crate::fetch(
-							"POST",
-							&format!("/api/book/{}/progress", book_id),
-							Some(&Progression::Ebook {
-								char_pos,
-								chapter,
-								page
-							})
-						).await.ok();
+						let progression = Progression::Ebook {
+							char_pos,
+							chapter,
+							page
+						};
+
+						request::update_book_progress(book_id, &progression).await;
 					}
 
 					Msg::Ignore

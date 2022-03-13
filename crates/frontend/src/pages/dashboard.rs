@@ -2,7 +2,7 @@ use books_common::MediaItem;
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
-use crate::{Route, fetch};
+use crate::{Route, request};
 
 pub enum Msg {
 	RequestMediaList,
@@ -32,7 +32,7 @@ impl Component for DashboardPage {
 
 			Msg::RequestMediaList => {
 				ctx.link().send_future(async {
-					Msg::MediaListResults(fetch("GET", "/api/books", Option::<&()>::None).await.unwrap())
+					Msg::MediaListResults(request::get_books().await)
 				});
 			}
 		}
