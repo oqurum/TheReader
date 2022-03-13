@@ -86,8 +86,8 @@ pub async fn init() -> Result<Database> {
 
 	conn.execute(
 		r#"CREATE TABLE "file_notes" (
-			"file_id" 		TEXT NOT NULL,
-			"user_id" 		TEXT NOT NULL,
+			"file_id" 		INTEGER NOT NULL,
+			"user_id" 		INTEGER NOT NULL,
 
 			"data" 			TEXT NOT NULL,
 			"data_size" 	INTEGER NOT NULL,
@@ -234,10 +234,50 @@ impl Database {
 
 		Ok(())
 	}
+
+
+	// Notes
+	pub fn add_or_update_notes(&self, user_id: i64, file_id: i64, data: String) -> Result<()> {
+		let prog = FileNote::new(file_id, user_id, data);
+
+		if self.get_notes(user_id, file_id)?.is_some() {
+			self.execute(
+				r#"UPDATE file_notes SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
+				params![prog.data, prog.data_size, prog.updated_at, prog.file_id, prog.user_id]
+			)?;
+		} else {
+			self.execute(
+				r#"INSERT INTO file_notes (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
+				params![prog.file_id, prog.user_id, prog.data, prog.data_size, prog.updated_at, prog.created_at]
+			)?;
+		}
+
+		Ok(())
+	}
+
+	pub fn get_notes(&self, user_id: i64, file_id: i64) -> Result<Option<FileNote>> {
+		Ok(self.query_row(
+			"SELECT * FROM file_notes WHERE user_id = ?1 AND file_id = ?2",
+			params![user_id, file_id],
+			|v| FileNote::try_from(v)
+		).optional()?)
+	}
+
+	pub fn delete_notes(&self, user_id: i64, file_id: i64) -> Result<()> {
+		self.execute(
+			"DELETE FROM file_notes WHERE user_id = ?1 AND file_id = ?2",
+			params![user_id, file_id]
+		)?;
+
+		Ok(())
+	}
 }
 
 
 // TODO: Move to another file.
+
+
+// Metadata
 
 #[derive(Debug, Serialize)]
 pub struct MetadataItem {
@@ -269,6 +309,8 @@ pub struct MetadataItem {
 }
 
 
+// Notes
+
 #[derive(Debug, Serialize)]
 pub struct FileNote {
 	pub file_id: i64,
@@ -277,10 +319,45 @@ pub struct FileNote {
 	pub data: String,
 	pub data_size: i64,
 
-	pub updated_at: i64,
-	pub created_at: i64,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
 }
 
+impl FileNote {
+	pub fn new(file_id: i64, user_id: i64, data: String) -> Self {
+		Self {
+			file_id,
+			user_id,
+			data_size: data.len() as i64,
+			data,
+			updated_at: Utc::now(),
+			created_at: Utc::now(),
+		}
+	}
+}
+
+
+impl<'a> TryFrom<&Row<'a>> for FileNote {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			file_id: value.get(0)?,
+			user_id: value.get(1)?,
+
+			data: value.get(2)?,
+
+			data_size: value.get(3)?,
+
+			updated_at: value.get(4)?,
+			created_at: value.get(5)?,
+		})
+	}
+}
+
+// File Progression
 
 #[derive(Debug, Serialize)]
 pub struct FileProgression {
@@ -392,6 +469,8 @@ impl From<FileProgression> for Progression {
 }
 
 
+// Library
+
 pub struct NewLibrary {
 	pub name: String,
 	pub type_of: String,
@@ -436,6 +515,8 @@ impl<'a> TryFrom<&Row<'a>> for Library {
 	}
 }
 
+
+// File
 
 pub struct NewFile {
 	pub path: String,

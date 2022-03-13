@@ -5,6 +5,7 @@ use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post,
 
 use books_common::{Chapter, MediaItem, api, Progression};
 use bookie::Book;
+use futures::TryStreamExt;
 
 use crate::database::Database;
 
@@ -90,12 +91,12 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 
 // TODO: Add body requests for specifics
 #[get("/api/book/{id}")]
-async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
-	web::Json(if let Some(file) = db.find_file_by_id(*id).unwrap() {
+async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
+	web::Json(if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
 		let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
 		Some(api::GetBookIdResponse {
-			progress: db.get_progress(0, *id).unwrap().map(|v| v.into()),
+			progress: db.get_progress(0, *file_id).unwrap().map(|v| v.into()),
 
 			media: MediaItem {
 				id: file.id,
@@ -124,16 +125,50 @@ async fn load_book(id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Opt
 
 
 #[post("/api/book/{id}/progress")]
-async fn progress_book_add(id: web::Path<i64>, body: web::Json<Progression>, db: web::Data<Database>) -> HttpResponse {
-	match db.add_or_update_progress(0, *id, body.into_inner()) {
+async fn progress_book_add(file_id: web::Path<i64>, body: web::Json<Progression>, db: web::Data<Database>) -> HttpResponse {
+	match db.add_or_update_progress(0, *file_id, body.into_inner()) {
 		Ok(_) => HttpResponse::Ok().finish(),
 		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
 	}
 }
 
 #[delete("/api/book/{id}/progress")]
-async fn progress_book_delete(id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
-	match db.delete_progress(0, *id) {
+async fn progress_book_delete(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+	match db.delete_progress(0, *file_id) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+	}
+}
+
+// db.get_notes(0, *file_id).unwrap().map(|v| v.data)
+
+
+#[get("/api/book/{id}/notes")]
+async fn notes_book_get(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+	match db.get_notes(0, *file_id) {
+		Ok(v) => HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+	}
+}
+
+#[post("/api/book/{id}/notes")]
+async fn notes_book_add(file_id: web::Path<i64>, mut payload: web::Payload, db: web::Data<Database>) -> actix_web::Result<HttpResponse> {
+	let mut body = web::BytesMut::new();
+	while let Some(chunk) = payload.try_next().await? {
+		body.extend_from_slice(&chunk);
+	}
+
+	let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
+
+	Ok(match db.add_or_update_notes(0, *file_id, data) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+	})
+}
+
+#[delete("/api/book/{id}/notes")]
+async fn notes_book_delete(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+	match db.delete_notes(0, *file_id) {
 		Ok(_) => HttpResponse::Ok().finish(),
 		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
 	}
@@ -204,6 +239,9 @@ async fn main() -> std::io::Result<()> {
 			.service(load_book_list)
 			.service(progress_book_add)
 			.service(progress_book_delete)
+			.service(notes_book_get)
+			.service(notes_book_add)
+			.service(notes_book_delete)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

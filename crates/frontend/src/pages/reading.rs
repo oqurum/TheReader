@@ -182,7 +182,7 @@ impl Component for ReadingBook {
 			html! {
 				<div class="reading-container">
 					<div class="book">
-						<Notes visible={self.notes_visible} />
+						<Notes visible={self.notes_visible} book={Rc::clone(book)} />
 						<div class="tools">
 							<div class="tool-item" title="Open/Close the Notebook" onclick={ctx.link().callback(|_| Msg::ToggleNotesVisibility)}>{ "📝" }</div>
 							// <div class="tool-item" title="Book Summary">{ "📝" }</div>
