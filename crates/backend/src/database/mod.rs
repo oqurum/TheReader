@@ -129,7 +129,7 @@ pub async fn init() -> Result<Database> {
 	)?;
 
 	conn.execute(
-		r#"CREATE TABLE "file_mark_up" (
+		r#"CREATE TABLE "file_notation" (
 			"file_id" 		INTEGER NOT NULL,
 			"user_id" 		INTEGER NOT NULL,
 

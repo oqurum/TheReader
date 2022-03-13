@@ -172,11 +172,34 @@ function canFlattenElement(element, bodyWidth) {
 }
 
 
+const LOAD_STYLES = [
+	// '/css/'
+];
+
+const LOAD_JS = [
+	// '/js/
+];
+
 /**
  * @param {HTMLIFrameElement} iframe
 **/
 export function js_update_pages_with_inlined_css(iframe) {
 	let document = iframe.contentDocument;
+
+	for (const link of LOAD_STYLES) {
+		let external = document.createElement('link');
+		external.type = 'text/css';
+		external.rel = 'stylesheet';
+		external.href = link;
+		document.body.appendChild(external);
+	}
+
+	for (const link of LOAD_JS) {
+		let external = document.createElement('script');
+		external.src = link;
+		document.body.appendChild(external);
+	}
+
 
 	// Set <img> / <svg> max-height to document.body.clientHeight
 	// Fix for images going over document height
@@ -191,24 +214,12 @@ export function js_update_pages_with_inlined_css(iframe) {
 	for(let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
 
-		// TODO: Should be after paddings.
-		// child.style.maxWidth = 'calc(50% - 20px)';
-
-		// If we don't have a border, add padding.
-		// if (!child.hasAttribute('border')) {
-		// 	child.style.paddingLeft = '10px';
-		// 	child.style.paddingRight = '10px';
-		// }
-
 		shrinkVerticalMargins(child, 18);
 		// TODO: addHorizontalMargins(child, 10);
 
-		if (// child.clientHeight < 100 &&
-			canFlattenElement(child, document.body.clientWidth) &&
+		if (canFlattenElement(child, document.body.clientWidth) &&
 			!doesContainAnyText(child)
 		) {
-			// console.log(child.cloneNode(true));
-
 			// TODO: Flatten is removing <br> for some reason.
 			while (child.firstChild != null) {
 				child.parentElement.appendChild(child.firstChild);

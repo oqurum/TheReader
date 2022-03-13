@@ -90,11 +90,7 @@ impl Component for Notes {
 
 			Msg::RetrieveNotes(data) => {
 				if let Some(data) = data.filter(|v| !v.is_empty()) {
-					log::info!("{}", data);
-
 					self.contents = js_sys::JSON::parse(&data).unwrap();
-
-					log::info!("{:?}", data);
 
 					if let Some(quill) = self.quill.as_ref() {
 						quill.quill.set_contents(&self.contents, None);
