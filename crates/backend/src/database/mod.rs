@@ -128,6 +128,22 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	conn.execute(
+		r#"CREATE TABLE "file_mark_up" (
+			"file_id" 		INTEGER NOT NULL,
+			"user_id" 		INTEGER NOT NULL,
+
+			"data" 			TEXT NOT NULL,
+			"data_size" 	INTEGER NOT NULL,
+
+			"updated_at" 	DATETIME NOT NULL,
+			"created_at" 	DATETIME NOT NULL,
+
+			UNIQUE(file_id, user_id)
+		);"#,
+		[]
+	)?;
+
 	Ok(Database(Arc::new(conn)))
 }
 
