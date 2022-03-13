@@ -401,6 +401,7 @@ dependencies = [
  "base64",
  "books-common",
  "gloo-file",
+ "gloo-timers",
  "gloo-utils",
  "js-sys",
  "lazy_static",
