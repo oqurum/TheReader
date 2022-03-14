@@ -3,7 +3,7 @@ use std::{path::PathBuf, collections::VecDeque};
 use anyhow::Result;
 use tokio::fs;
 
-use crate::database::{NewFile, Database, Library, Directory};
+use crate::database::{table::{NewFile, Library, Directory}, Database};
 
 
 pub static WHITELISTED_FILE_TYPES: [&str; 1] = ["epub"];

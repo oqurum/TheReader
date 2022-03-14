@@ -2,9 +2,12 @@ use std::sync::{Mutex, MutexGuard};
 
 use anyhow::Result;
 use books_common::Progression;
-use chrono::{DateTime, Utc};
-use rusqlite::{Connection, params, Row, OptionalExtension};
-use serde::{Serialize, Serializer};
+use chrono::Utc;
+use rusqlite::{Connection, params, OptionalExtension};
+
+pub mod table;
+use table::*;
+
 
 pub async fn init() -> Result<Database> {
 	let _ = tokio::fs::remove_file("database.db").await;
@@ -153,8 +156,9 @@ pub struct Database(Mutex<Connection>);
 
 impl Database {
 	fn lock(&self) -> Result<MutexGuard<Connection>> {
-		self.0.lock().map_err(|v| anyhow::anyhow!("Database Poisoned"))
+		self.0.lock().map_err(|_| anyhow::anyhow!("Database Poisoned"))
 	}
+
 
 	// Libraries
 	pub fn add_library(&self, path: &str) -> Result<()> {
@@ -197,6 +201,7 @@ impl Database {
 		).optional()?)
 	}
 
+
 	// Directories
 	pub fn add_directory(&self, library_id: i64, path: String) -> Result<()> {
 		self.lock()?.execute(
@@ -216,6 +221,7 @@ impl Database {
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
+
 
 	// Files
 	pub fn add_file(&self, file: &NewFile) -> Result<()> {
@@ -249,6 +255,7 @@ impl Database {
 	pub fn get_file_count(&self) -> Result<i64> {
 		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
 	}
+
 
 	// Progression
 	pub fn add_or_update_progress(&self, user_id: i64, file_id: i64, progress: Progression) -> Result<()> {
@@ -322,327 +329,4 @@ impl Database {
 
 		Ok(())
 	}
-}
-
-
-// TODO: Move to another file.
-
-
-// Metadata
-
-#[derive(Debug, Serialize)]
-pub struct MetadataItem {
-	pub id: i64,
-
-	pub guid: String,
-	pub file_item_count: i64,
-	pub title: String,
-	pub original_title: String,
-	pub description: String,
-	pub rating: f64,
-	pub thumb_url: String,
-
-	pub publisher: String,
-	pub tags_genre: String,
-	pub tags_collection: String,
-	pub tags_author: String,
-	pub tags_country: String,
-
-	pub refreshed_at: i64,
-	pub created_at: i64,
-	pub updated_at: i64,
-	pub deleted_at: i64,
-
-	pub available_at: i64,
-	pub year: i64,
-
-	pub hash: String
-}
-
-
-// Notes
-
-#[derive(Debug, Serialize)]
-pub struct FileNote {
-	pub file_id: i64,
-	pub user_id: i64,
-
-	pub data: String,
-	pub data_size: i64,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub updated_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-}
-
-impl FileNote {
-	pub fn new(file_id: i64, user_id: i64, data: String) -> Self {
-		Self {
-			file_id,
-			user_id,
-			data_size: data.len() as i64,
-			data,
-			updated_at: Utc::now(),
-			created_at: Utc::now(),
-		}
-	}
-}
-
-
-impl<'a> TryFrom<&Row<'a>> for FileNote {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			file_id: value.get(0)?,
-			user_id: value.get(1)?,
-
-			data: value.get(2)?,
-
-			data_size: value.get(3)?,
-
-			updated_at: value.get(4)?,
-			created_at: value.get(5)?,
-		})
-	}
-}
-
-// File Progression
-
-#[derive(Debug, Serialize)]
-pub struct FileProgression {
-	pub file_id: i64,
-	pub user_id: i64,
-
-	pub type_of: u8,
-
-	// Ebook/Audiobook
-	pub chapter: Option<i64>,
-
-	// Ebook
-	pub page: Option<i64>, // TODO: Remove page. Change to byte pos. Most accurate since screen sizes can change.
-	pub char_pos: Option<i64>,
-
-	// Audiobook
-	pub seek_pos: Option<i64>,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub updated_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-}
-
-impl FileProgression {
-	pub fn new(progress: Progression, user_id: i64, file_id: i64) -> Self {
-		match progress {
-			Progression::Complete => Self {
-				file_id,
-				user_id,
-				type_of: 0,
-				chapter: None,
-				page: None,
-				char_pos: None,
-				seek_pos: None,
-				updated_at: Utc::now(),
-				created_at: Utc::now(),
-			},
-
-			Progression::Ebook { chapter, page, char_pos } => Self {
-				file_id,
-				user_id,
-				type_of: 1,
-				char_pos: Some(char_pos),
-				chapter: Some(chapter),
-				page: Some(page),
-				seek_pos: None,
-				updated_at: Utc::now(),
-				created_at: Utc::now(),
-			},
-
-			Progression::AudioBook { chapter, seek_pos } => Self {
-				file_id,
-				user_id,
-				type_of: 2,
-				chapter: Some(chapter),
-				page: None,
-				char_pos: None,
-				seek_pos: Some(seek_pos),
-				updated_at: Utc::now(),
-				created_at: Utc::now(),
-			}
-		}
-	}
-}
-
-impl<'a> TryFrom<&Row<'a>> for FileProgression {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			file_id: value.get(0)?,
-			user_id: value.get(1)?,
-
-			type_of: value.get(2)?,
-
-			chapter: value.get(3)?,
-
-			page: value.get(4)?,
-			char_pos: value.get(5)?,
-
-			seek_pos: value.get(6)?,
-
-			updated_at: value.get(7)?,
-			created_at: value.get(8)?,
-		})
-	}
-}
-
-impl From<FileProgression> for Progression {
-    fn from(val: FileProgression) -> Self {
-        match val.type_of {
-			0 => Progression::Complete,
-
-			1 => Progression::Ebook {
-				char_pos: val.char_pos.unwrap(),
-				chapter: val.chapter.unwrap(),
-				page: val.page.unwrap(),
-			},
-
-			2 => Progression::AudioBook {
-				chapter: val.chapter.unwrap(),
-				seek_pos: val.seek_pos.unwrap(),
-			},
-
-			_ => unreachable!()
-		}
-    }
-}
-
-
-// Library
-
-pub struct NewLibrary {
-	pub name: String,
-	pub type_of: String,
-
-	pub scanned_at: DateTime<Utc>,
-	pub created_at: DateTime<Utc>,
-	pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Library {
-	pub id: i64,
-
-	pub name: String,
-	pub type_of: String,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub scanned_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub updated_at: DateTime<Utc>,
-}
-
-impl<'a> TryFrom<&Row<'a>> for Library {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			id: value.get(0)?,
-			name: value.get(1)?,
-			type_of: value.get(2)?,
-			scanned_at: value.get(3)?,
-			created_at: value.get(4)?,
-			updated_at: value.get(5)?,
-		})
-	}
-}
-
-
-// Directory
-
-pub struct Directory {
-	pub library_id: i64,
-	pub path: String,
-}
-
-impl<'a> TryFrom<&Row<'a>> for Directory {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			library_id: value.get(0)?,
-			path: value.get(1)?,
-		})
-	}
-}
-
-
-// File
-
-pub struct NewFile {
-	pub path: String,
-
-	pub file_name: String,
-	pub file_type: String,
-	pub file_size: i64,
-
-	pub library_id: i64,
-	pub metadata_id: i64,
-	pub chapter_count: i64,
-
-	pub modified_at: i64,
-	pub accessed_at: i64,
-	pub created_at: i64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct File {
-	pub id: i64,
-
-	pub path: String,
-
-	pub file_name: String,
-	pub file_type: String,
-	pub file_size: i64,
-
-	pub library_id: i64,
-	pub metadata_id: i64,
-	pub chapter_count: i64,
-
-	pub modified_at: i64,
-	pub accessed_at: i64,
-	pub created_at: i64,
-}
-
-impl<'a> TryFrom<&Row<'a>> for File {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			id: value.get(0)?,
-
-			path: value.get(1)?,
-
-			file_name: value.get(2)?,
-			file_type: value.get(3)?,
-			file_size: value.get(4)?,
-
-			library_id: value.get(5)?,
-			metadata_id: value.get(6)?,
-			chapter_count: value.get(7)?,
-
-			modified_at: value.get(8)?,
-			accessed_at: value.get(9)?,
-			created_at: value.get(10)?,
-		})
-	}
-}
-
-
-fn serialize_datetime<S>(value: &DateTime<Utc>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
-	s.serialize_i64(value.timestamp_millis())
 }
