@@ -23,6 +23,14 @@ body {
 	height: calc(100% - 20px) !important;
 }
 
+body.single-page {
+	column-count: 1 !important;
+}
+
+body.double-page {
+	column-count: 2 !important;
+}
+
 /* Ensure's it's an href <a> element */
 a[href], a[href]:hover, a[href]:visited, a[href]:active {
 	color: #7f79e0 !important;
