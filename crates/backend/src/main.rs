@@ -23,7 +23,7 @@ async fn load_resource(path: web::Path<(i64, String)>, db: web::Data<Database>) 
 
 	let file = db.find_file_by_id(book_id).unwrap().unwrap();
 
-	let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+	let mut book = bookie::load_from_path(&file.path).unwrap().unwrap();
 
 	let body = match book.read_path_as_bytes(&resource_path) {
 		Ok(v) => v,
@@ -51,7 +51,7 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 
 	let file = db.find_file_by_id(book_id).unwrap().unwrap();
 
-	let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+	let mut book = bookie::load_from_path(&file.path).unwrap().unwrap();
 
 	let (start_chap, end_chap) = chapters
 		.split_once('-')
@@ -93,6 +93,7 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 #[get("/api/book/{id}")]
 async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
 	web::Json(if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
+		// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
 		let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
 		Some(api::GetBookIdResponse {
@@ -183,6 +184,7 @@ async fn load_book_list(db: web::Data<Database>) -> web::Json<Vec<MediaItem>> {
 		.into_iter()
 		.filter(|v| v.file_type == "epub")
 		.map(|file| {
+			// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
 			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
 			MediaItem {

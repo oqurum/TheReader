@@ -6,6 +6,8 @@ pub mod mobi;
 pub mod error;
 pub use error::*;
 
+// TODO: path: &str -> path: &Path
+
 pub trait Book {
 	fn load_from_path(path: &str) -> Result<Self> where Self: Sized;
 
@@ -42,4 +44,13 @@ pub trait Book {
 	fn previous_chapter(&mut self) -> bool;
 
 	fn get_root_file_dir(&self) -> &Path;
+}
+
+
+pub fn load_from_path(path: &str) -> Result<Option<Box<dyn Book>>> {
+	Ok(match path.rsplit_once('.').map(|v| v.1) {
+		Some("epub") => Some(Box::new(epub::EpubBook::load_from_path(path)?)),
+
+		_ => None
+	})
 }
