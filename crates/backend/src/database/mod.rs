@@ -15,6 +15,7 @@ pub async fn init() -> Result<Database> {
 
 	// TODO: Migrations https://github.com/rusqlite/rusqlite/discussions/1117
 
+	// Library
 	conn.execute(
 		r#"CREATE TABLE "library" (
 			"id" 				INTEGER NOT NULL UNIQUE,
@@ -31,6 +32,7 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// Directory
 	conn.execute(
 		r#"CREATE TABLE "directory" (
 			"library_id"	INTEGER NOT NULL,
@@ -39,6 +41,7 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// File
 	conn.execute(
 		r#"CREATE TABLE "file" (
 			"id" 				INTEGER NOT NULL UNIQUE,
@@ -61,11 +64,12 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// Metadata Item
 	conn.execute(
-		r#"CREATE TABLE "metadata_items" (
+		r#"CREATE TABLE "metadata_item" (
 			"id"					INTEGER NOT NULL,
 
-			"guid"					TEXT,
+			"source"				TEXT,
 			"file_item_count"		INTEGER,
 			"title"					TEXT,
 			"original_title"		TEXT,
@@ -95,8 +99,9 @@ pub async fn init() -> Result<Database> {
 	)?;
 
 	// TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
+	// File Note
 	conn.execute(
-		r#"CREATE TABLE "file_notes" (
+		r#"CREATE TABLE "file_note" (
 			"file_id" 		INTEGER NOT NULL,
 			"user_id" 		INTEGER NOT NULL,
 
@@ -111,6 +116,7 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// File Progression
 	conn.execute(
 		r#"CREATE TABLE "file_progression" (
 			"file_id" INTEGER NOT NULL,
@@ -131,6 +137,7 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// File Notation
 	conn.execute(
 		r#"CREATE TABLE "file_notation" (
 			"file_id" 		INTEGER NOT NULL,

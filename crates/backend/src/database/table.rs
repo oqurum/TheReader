@@ -5,7 +5,7 @@
 pub struct MetadataItem {
 	pub id: i64,
 
-	pub guid: String,
+	pub source: String,
 	pub file_item_count: i64,
 	pub title: String,
 	pub original_title: String,
