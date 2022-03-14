@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::sync::{Mutex, MutexGuard};
 
 use anyhow::Result;
 use books_common::Progression;
@@ -144,26 +144,18 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
-	Ok(Database(Arc::new(conn)))
+	Ok(Database(Mutex::new(conn)))
 }
 
+// TODO: Replace with tokio Mutex?
+pub struct Database(Mutex<Connection>);
 
-#[derive(Clone)]
-pub struct Database(Arc<Connection>);
-
-unsafe impl Sync for Database {}
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for Database {}
-
-impl Deref for Database {
-    type Target = Connection;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 impl Database {
+	fn lock(&self) -> Result<MutexGuard<Connection>> {
+		self.0.lock().map_err(|v| anyhow::anyhow!("Database Poisoned"))
+	}
+
 	// Libraries
 	pub fn add_library(&self, path: &str) -> Result<()> {
 		// TODO: Create outside of fn.
@@ -175,7 +167,7 @@ impl Database {
 			updated_at: Utc::now(),
 		};
 
-		self.execute(
+		self.lock()?.execute(
 			r#"INSERT INTO library (name, type_of, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)"#,
 			params![&lib.name, &lib.type_of, lib.scanned_at, lib.created_at, lib.updated_at]
 		)?;
@@ -188,7 +180,9 @@ impl Database {
 	}
 
 	pub fn list_all_libraries(&self) -> Result<Vec<Library>> {
-		let mut conn = self.prepare("SELECT * FROM library")?;
+		let this = self.lock()?;
+
+		let mut conn = this.prepare("SELECT * FROM library")?;
 
 		let map = conn.query_map([], |v| Library::try_from(v))?;
 
@@ -196,7 +190,7 @@ impl Database {
 	}
 
 	pub fn get_library_by_name(&self, value: &str) -> Result<Option<Library>> {
-		Ok(self.query_row(
+		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM library WHERE name = ?1 LIMIT 1"#,
 			params![value],
 			|v| Library::try_from(v)
@@ -205,7 +199,7 @@ impl Database {
 
 	// Directories
 	pub fn add_directory(&self, library_id: i64, path: String) -> Result<()> {
-		self.execute(
+		self.lock()?.execute(
 			r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
 			params![&library_id, &path]
 		)?;
@@ -214,7 +208,9 @@ impl Database {
 	}
 
 	pub fn get_directories(&self, library_id: i64) -> Result<Vec<Directory>> {
-		let mut conn = self.prepare("SELECT * FROM directory WHERE library_id = ?1")?;
+		let this = self.lock()?;
+
+		let mut conn = this.prepare("SELECT * FROM directory WHERE library_id = ?1")?;
 
 		let map = conn.query_map([library_id], |v| Directory::try_from(v))?;
 
@@ -223,7 +219,7 @@ impl Database {
 
 	// Files
 	pub fn add_file(&self, file: &NewFile) -> Result<()> {
-		self.execute(r#"
+		self.lock()?.execute(r#"
 			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, library_id, metadata_id, chapter_count)
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 		"#,
@@ -233,7 +229,9 @@ impl Database {
 	}
 
 	pub fn list_all_files(&self) -> Result<Vec<File>> {
-		let mut conn = self.prepare("SELECT * FROM file")?;
+		let this = self.lock()?;
+
+		let mut conn = this.prepare("SELECT * FROM file")?;
 
 		let map = conn.query_map([], |v| File::try_from(v))?;
 
@@ -241,15 +239,15 @@ impl Database {
 	}
 
 	pub fn find_file_by_id(&self, id: i64) -> Result<Option<File>> {
-		Ok(self.query_row(
+		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM file WHERE id=?1 LIMIT 1"#,
 			params![id],
-			|v| Ok(File::try_from(v))
-		).optional()?.transpose()?)
+			|v| File::try_from(v)
+		).optional()?)
 	}
 
 	pub fn get_file_count(&self) -> Result<i64> {
-		Ok(self.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
+		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
 	}
 
 	// Progression
@@ -257,12 +255,12 @@ impl Database {
 		let prog = FileProgression::new(progress, user_id, file_id);
 
 		if self.get_progress(user_id, file_id)?.is_some() {
-			self.execute(
+			self.lock()?.execute(
 				r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE file_id = ?6 AND user_id = ?7"#,
 				params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.file_id, prog.user_id]
 			)?;
 		} else {
-			self.execute(
+			self.lock()?.execute(
 				r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#,
 				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.created_at]
 			)?;
@@ -272,7 +270,7 @@ impl Database {
 	}
 
 	pub fn get_progress(&self, user_id: i64, file_id: i64) -> Result<Option<FileProgression>> {
-		Ok(self.query_row(
+		Ok(self.lock()?.query_row(
 			"SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
 			params![user_id, file_id],
 			|v| FileProgression::try_from(v)
@@ -280,7 +278,7 @@ impl Database {
 	}
 
 	pub fn delete_progress(&self, user_id: i64, file_id: i64) -> Result<()> {
-		self.execute(
+		self.lock()?.execute(
 			"DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
 			params![user_id, file_id]
 		)?;
@@ -294,12 +292,12 @@ impl Database {
 		let prog = FileNote::new(file_id, user_id, data);
 
 		if self.get_notes(user_id, file_id)?.is_some() {
-			self.execute(
+			self.lock()?.execute(
 				r#"UPDATE file_notes SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
 				params![prog.data, prog.data_size, prog.updated_at, prog.file_id, prog.user_id]
 			)?;
 		} else {
-			self.execute(
+			self.lock()?.execute(
 				r#"INSERT INTO file_notes (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
 				params![prog.file_id, prog.user_id, prog.data, prog.data_size, prog.updated_at, prog.created_at]
 			)?;
@@ -309,7 +307,7 @@ impl Database {
 	}
 
 	pub fn get_notes(&self, user_id: i64, file_id: i64) -> Result<Option<FileNote>> {
-		Ok(self.query_row(
+		Ok(self.lock()?.query_row(
 			"SELECT * FROM file_notes WHERE user_id = ?1 AND file_id = ?2",
 			params![user_id, file_id],
 			|v| FileNote::try_from(v)
@@ -317,7 +315,7 @@ impl Database {
 	}
 
 	pub fn delete_notes(&self, user_id: i64, file_id: i64) -> Result<()> {
-		self.execute(
+		self.lock()?.execute(
 			"DELETE FROM file_notes WHERE user_id = ?1 AND file_id = ?2",
 			params![user_id, file_id]
 		)?;

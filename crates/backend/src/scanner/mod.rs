@@ -9,7 +9,7 @@ use crate::database::{NewFile, Database, Library, Directory};
 pub static WHITELISTED_FILE_TYPES: [&str; 1] = ["epub"];
 
 
-pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: Database) -> Result<()> {
+pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &Database) -> Result<()> {
 	let mut folders: VecDeque<PathBuf> = directories.into_iter().map(|v| PathBuf::from(&v.path)).collect::<VecDeque<_>>();
 
 	while let Some(path) = folders.pop_front() {

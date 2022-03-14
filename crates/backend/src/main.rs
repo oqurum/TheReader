@@ -222,12 +222,14 @@ async fn main() -> std::io::Result<()> {
 	for library in db.list_all_libraries().unwrap() {
 		let directories = db.get_directories(library.id).unwrap();
 
-		scanner::library_scan(&library, directories, db.clone()).await.unwrap();
+		scanner::library_scan(&library, directories, &db).await.unwrap();
 	}
+
+	let db_data = web::Data::new(db);
 
 	HttpServer::new(move || {
 		App::new()
-			.app_data(web::Data::new(db.clone()))
+			.app_data(db_data.clone())
 			.wrap(IdentityService::new(
 				CookieIdentityPolicy::new(&[0; 32])
 					.name("bookie-auth")
