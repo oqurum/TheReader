@@ -102,7 +102,7 @@ async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Jso
 			media: MediaItem {
 				id: file.id,
 
-				title: book.package.metadata.titles.iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
+				title: book.package.metadata.dcmes_elements.get("title").unwrap().iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
 				author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
 				icon_path: None, // TODO
 
@@ -190,7 +190,7 @@ async fn load_book_list(db: web::Data<Database>) -> web::Json<Vec<MediaItem>> {
 			MediaItem {
 				id: file.id,
 
-				title: book.package.metadata.titles.iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
+				title: book.package.metadata.dcmes_elements.get("title").unwrap().iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
 				author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
 				icon_path: None, // TODO
 

@@ -183,11 +183,7 @@ impl Parser for PackageAttributes {
 
 #[derive(Debug, Default)]
 pub struct PackageMetadata {
-	pub identifiers: Vec<DcmesElement>,
-	pub titles: Vec<DcmesElement>,
-	pub language: Vec<DcmesElement>,
 	pub meta: Vec<MetaItem>,
-
 	pub dcmes_elements: HashMap<String, Vec<DcmesElement>>,
 	// TODO: Finish
 }
@@ -204,12 +200,14 @@ impl PackageMetadata {
 	}
 
 	pub fn get_ident_pub(&self) -> Option<&str> {
-		self.identifiers.iter().find_map(|v| if v.id.as_deref() == Some("pub-id") { v.value.as_deref() } else { None })
+		self.dcmes_elements.get("identifier")?.iter().find_map(|v| if  v.id.as_deref() == Some("pub-id") { v.value.as_deref() } else { None })
 	}
 
 	pub fn get_ident_isbn(&self) -> Option<&str> {
-		self.identifiers.iter().find_map(|v| if v.id.as_deref() == Some("isbn-id") { v.value.as_deref() } else { None })
+		self.dcmes_elements.get("identifier")?.iter().find_map(|v| if v.id.as_deref() == Some("isbn-id") { v.value.as_deref() } else { None })
 	}
+
+	// TODO: Actually utilize <meta refines="#dc-name" ..>
 }
 
 impl Parser for PackageMetadata {
@@ -217,10 +215,6 @@ impl Parser for PackageMetadata {
 		for child in element.take_inner_children() {
 			match (child.name.prefix.as_deref(), child.name.local_name.as_str()) {
 				(None, "meta") => self.meta.push(MetaItem::try_from(child)?),
-
-				(Some("dc"), "identifier") => self.identifiers.push(DcmesElement::try_from(child)?),
-				(Some("dc"), "title") => self.titles.push(DcmesElement::try_from(child)?),
-				(Some("dc"), "language") => self.language.push(DcmesElement::try_from(child)?),
 
 				(Some("dc"), name) => { self.dcmes_elements.entry(name.to_owned()).or_default().push(DcmesElement::try_from(child)?); }
 
@@ -309,6 +303,10 @@ pub struct PackageManifest {
 impl PackageManifest {
 	pub fn get_item_by_id(&self, value: &str) -> Option<&ManifestItem> {
 		self.items.iter().find(|item| item.id == value)
+	}
+
+	pub fn get_item_by_property(&self, value: &str) -> Option<&ManifestItem> {
+		self.items.iter().find(|item| item.properties.as_deref() == Some(value))
 	}
 }
 
@@ -470,7 +468,7 @@ impl TryFrom<XmlElement> for PairIdValue {
 	} // TODO: Error
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DcmesElement {
 	pub namespace: Namespace,
 
