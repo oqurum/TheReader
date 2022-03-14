@@ -307,12 +307,12 @@ impl Database {
 
 		if self.get_notes(user_id, file_id)?.is_some() {
 			self.lock()?.execute(
-				r#"UPDATE file_notes SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
+				r#"UPDATE file_note SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
 				params![prog.data, prog.data_size, prog.updated_at, prog.file_id, prog.user_id]
 			)?;
 		} else {
 			self.lock()?.execute(
-				r#"INSERT INTO file_notes (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
+				r#"INSERT INTO file_note (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
 				params![prog.file_id, prog.user_id, prog.data, prog.data_size, prog.updated_at, prog.created_at]
 			)?;
 		}
@@ -322,7 +322,7 @@ impl Database {
 
 	pub fn get_notes(&self, user_id: i64, file_id: i64) -> Result<Option<FileNote>> {
 		Ok(self.lock()?.query_row(
-			"SELECT * FROM file_notes WHERE user_id = ?1 AND file_id = ?2",
+			"SELECT * FROM file_note WHERE user_id = ?1 AND file_id = ?2",
 			params![user_id, file_id],
 			|v| FileNote::try_from(v)
 		).optional()?)
@@ -330,7 +330,7 @@ impl Database {
 
 	pub fn delete_notes(&self, user_id: i64, file_id: i64) -> Result<()> {
 		self.lock()?.execute(
-			"DELETE FROM file_notes WHERE user_id = ?1 AND file_id = ?2",
+			"DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
 			params![user_id, file_id]
 		)?;
 
