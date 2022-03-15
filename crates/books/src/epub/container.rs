@@ -22,11 +22,19 @@ impl<R: Read + Seek> AbsContainer<R> {
 			let mut buf = String::new();
 			archive.by_name("mimetype")?.read_to_string(&mut buf)?;
 
-			if buf != "application/epub+zip" {
-				panic!("Invalid file 'mimetype' contents: '{}' expected 'application/epub+zip'", buf)
+			// Remove U+FEFF (Zero Width No-Break Space)
+			if !buf.is_empty() && buf.starts_with('\u{feff}') {
+				buf = buf.replace('\u{feff}', "");
+			}
+
+			// Added a trim since it could contain a NL
+			if buf.trim() != "application/epub+zip" {
+				panic!("Invalid file 'mimetype' contents: {:?} expected 'application/epub+zip'", buf)
 			}
 		}
 
+		// TODO: SerdeXml(Syntax { source: Error { pos: 1:1, kind: Syntax("Unexpected characters outside the root element: \u{feff}") } })
+		// Possible spot it's happening at.
 		let metainf_container = {
 			let file = archive.by_name("META-INF/container.xml")?;
 			serde_xml_rs::from_reader(file)?
