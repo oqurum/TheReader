@@ -26,10 +26,14 @@ pub struct MetadataItem {
 	pub tags_author: Option<String>,
 	pub tags_country: Option<String>,
 
-	pub refreshed_at: i64,
-	pub created_at: i64,
-	pub updated_at: i64,
-	pub deleted_at: Option<i64>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub refreshed_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime_opt")]
+	pub deleted_at: Option<DateTime<Utc>>,
 
 	pub available_at: Option<i64>,
 	pub year: Option<i64>,
@@ -58,10 +62,10 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			tags_country: value.get(13)?,
 			available_at: value.get(14)?,
 			year: value.get(15)?,
-			refreshed_at: value.get(16)?,
-			created_at: value.get(17)?,
-			updated_at: value.get(18)?,
-			deleted_at: value.get(19)?,
+			refreshed_at: Utc.timestamp_millis(value.get(16)?),
+			created_at: Utc.timestamp_millis(value.get(17)?),
+			updated_at: Utc.timestamp_millis(value.get(18)?),
+			deleted_at: value.get::<_, Option<_>>(19)?.map(|v| Utc.timestamp_millis(v)),
 			hash: value.get(20)?
 		})
 	}
@@ -302,9 +306,9 @@ pub struct NewFile {
 	pub metadata_id: i64,
 	pub chapter_count: i64,
 
-	pub modified_at: i64,
-	pub accessed_at: i64,
-	pub created_at: i64,
+	pub modified_at: DateTime<Utc>,
+	pub accessed_at: DateTime<Utc>,
+	pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize)]
@@ -321,9 +325,12 @@ pub struct File {
 	pub metadata_id: i64,
 	pub chapter_count: i64,
 
-	pub modified_at: i64,
-	pub accessed_at: i64,
-	pub created_at: i64,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub modified_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub accessed_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
 }
 
 impl<'a> TryFrom<&Row<'a>> for File {
@@ -343,9 +350,9 @@ impl<'a> TryFrom<&Row<'a>> for File {
 			metadata_id: value.get(6)?,
 			chapter_count: value.get(7)?,
 
-			modified_at: value.get(8)?,
-			accessed_at: value.get(9)?,
-			created_at: value.get(10)?,
+			modified_at: Utc.timestamp_millis(value.get(8)?),
+			accessed_at: Utc.timestamp_millis(value.get(9)?),
+			created_at: Utc.timestamp_millis(value.get(10)?),
 		})
 	}
 }
@@ -353,4 +360,11 @@ impl<'a> TryFrom<&Row<'a>> for File {
 
 fn serialize_datetime<S>(value: &DateTime<Utc>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
 	s.serialize_i64(value.timestamp_millis())
+}
+
+fn serialize_datetime_opt<S>(value: &Option<DateTime<Utc>>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
+	match value {
+		Some(v) => s.serialize_i64(v.timestamp_millis()),
+		None => s.serialize_none()
+	}
 }

@@ -14,7 +14,7 @@ pub struct LocalMetadata;
 #[async_trait]
 impl Metadata for LocalMetadata {
 	fn get_prefix(&self) ->  &'static str {
-		todo!()
+		"local"
 	}
 
 	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataItem>> {
@@ -23,13 +23,13 @@ impl Metadata for LocalMetadata {
 			None => return Ok(None)
 		};
 
-		let now = Utc::now().timestamp_millis();
+		let now = Utc::now();
 
 		let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
 
 		Ok(Some(MetadataItem {
 			id: 0,
-			source: format!("local:{}", book.get_unique_id().map(|v| v.to_string()).ok_or_else(|| anyhow::anyhow!("Unable to get Book Unique ID"))?),
+			source: format!("{}:{}", self.get_prefix(), book.get_unique_id().map(|v| v.to_string()).ok_or_else(|| anyhow::anyhow!("Unable to get Book Unique ID"))?),
 			file_item_count: 1,
 			title: title.clone(),
 			original_title: title,

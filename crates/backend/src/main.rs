@@ -114,9 +114,9 @@ async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Jso
 				file_type: file.file_type,
 				file_size: file.file_size,
 
-				modified_at: file.modified_at,
-				accessed_at: file.accessed_at,
-				created_at: file.created_at,
+				modified_at: file.modified_at.timestamp_millis(),
+				accessed_at: file.accessed_at.timestamp_millis(),
+				created_at: file.created_at.timestamp_millis(),
 			}
 		})
 	} else {
@@ -202,9 +202,9 @@ async fn load_book_list(db: web::Data<Database>) -> web::Json<Vec<MediaItem>> {
 				file_type: file.file_type,
 				file_size: file.file_size,
 
-				modified_at: file.modified_at,
-				accessed_at: file.accessed_at,
-				created_at: file.created_at,
+				modified_at: file.modified_at.timestamp_millis(),
+				accessed_at: file.accessed_at.timestamp_millis(),
+				created_at: file.created_at.timestamp_millis(),
 			}
 		})
 		.collect())

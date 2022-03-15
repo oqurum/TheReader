@@ -17,7 +17,7 @@ pub async fn init() -> Result<Database> {
 
 	// Library
 	conn.execute(
-		r#"CREATE TABLE "library" (
+		r#"CREATE TABLE IF NOT EXISTS "library" (
 			"id" 				INTEGER NOT NULL UNIQUE,
 
 			"name" 				TEXT UNIQUE,
@@ -34,7 +34,7 @@ pub async fn init() -> Result<Database> {
 
 	// Directory
 	conn.execute(
-		r#"CREATE TABLE "directory" (
+		r#"CREATE TABLE IF NOT EXISTS "directory" (
 			"library_id"	INTEGER NOT NULL,
 			"path"			TEXT NOT NULL UNIQUE
 		);"#,
@@ -43,7 +43,7 @@ pub async fn init() -> Result<Database> {
 
 	// File
 	conn.execute(
-		r#"CREATE TABLE "file" (
+		r#"CREATE TABLE IF NOT EXISTS "file" (
 			"id" 				INTEGER NOT NULL UNIQUE,
 
 			"path" 				TEXT NOT NULL UNIQUE,
@@ -66,7 +66,7 @@ pub async fn init() -> Result<Database> {
 
 	// Metadata Item
 	conn.execute(
-		r#"CREATE TABLE "metadata_item" (
+		r#"CREATE TABLE IF NOT EXISTS "metadata_item" (
 			"id"					INTEGER NOT NULL,
 
 			"source"				TEXT,
@@ -103,7 +103,7 @@ pub async fn init() -> Result<Database> {
 	// TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
 	// File Note
 	conn.execute(
-		r#"CREATE TABLE "file_note" (
+		r#"CREATE TABLE IF NOT EXISTS "file_note" (
 			"file_id" 		INTEGER NOT NULL,
 			"user_id" 		INTEGER NOT NULL,
 
@@ -120,7 +120,7 @@ pub async fn init() -> Result<Database> {
 
 	// File Progression
 	conn.execute(
-		r#"CREATE TABLE "file_progression" (
+		r#"CREATE TABLE IF NOT EXISTS "file_progression" (
 			"file_id" INTEGER NOT NULL,
 			"user_id" INTEGER NOT NULL,
 
@@ -141,7 +141,7 @@ pub async fn init() -> Result<Database> {
 
 	// File Notation
 	conn.execute(
-		r#"CREATE TABLE "file_notation" (
+		r#"CREATE TABLE IF NOT EXISTS "file_notation" (
 			"file_id" 		INTEGER NOT NULL,
 			"user_id" 		INTEGER NOT NULL,
 
@@ -238,7 +238,11 @@ impl Database {
 			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, library_id, metadata_id, chapter_count)
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 		"#,
-		params![&file.path, &file.file_type, &file.file_name, file.file_size, file.modified_at, file.accessed_at, file.created_at, file.library_id, file.metadata_id, file.chapter_count])?;
+		params![
+			&file.path, &file.file_type, &file.file_name, file.file_size,
+			file.modified_at.timestamp_millis(), file.accessed_at.timestamp_millis(), file.created_at.timestamp_millis(),
+			file.library_id, file.metadata_id, file.chapter_count
+		])?;
 
 		Ok(())
 	}
@@ -365,7 +369,8 @@ impl Database {
 					&meta.creator, &meta.publisher,
 					&meta.tags_genre, &meta.tags_collection, &meta.tags_author, &meta.tags_country,
 					&meta.available_at, &meta.year,
-					&meta.refreshed_at, &meta.created_at, &meta.updated_at, &meta.deleted_at,
+					&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
+					meta.deleted_at.as_ref().map(|v| v.timestamp_millis()),
 					&meta.hash
 				]
 			)?;
