@@ -34,6 +34,21 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 				if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) {
 					let file_size = fs::read(&path).await?.len(); // TODO: Remove fs::read
 
+					let chapter_count = match bookie::load_from_path(&path.to_string_lossy().to_string()) {
+						Ok(book) => {
+							if let Some(book) = book {
+								book.chapter_count() as i64
+							} else {
+								0
+							}
+						},
+
+						Err(e) => {
+							eprintln!("library_scan: {:?}", e);
+							continue;
+						}
+					};
+
 					let file = NewFile {
 						path: path.to_str().unwrap().replace("\\", "/"),
 
@@ -43,14 +58,16 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 
 						library_id: library.id,
 						metadata_id: 0,
-						chapter_count: 0,
+						chapter_count,
 
 						modified_at: Utc.timestamp_millis(meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
 						accessed_at: Utc.timestamp_millis(meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
 						created_at: Utc.timestamp_millis(meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
 					};
 
-					db.add_file(&file)?;
+					if !db.file_exist(&file)? {
+						db.add_file(&file)?;
+					}
 				} else {
 					log::info!("Skipping File {:?}. Not a whitelisted file type.", path);
 				}

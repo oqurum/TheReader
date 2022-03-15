@@ -20,6 +20,6 @@ pub trait Metadata {
 	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataItem>>;
 }
 
-pub async fn get_metadata(file: File) -> Result<Option<MetadataItem>> {
-	local::LocalMetadata.try_parse(&file).await
+pub async fn get_metadata(file: &File) -> Result<Option<MetadataItem>> {
+	local::LocalMetadata.try_parse(file).await
 }

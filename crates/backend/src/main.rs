@@ -219,7 +219,7 @@ async fn default_handler() -> impl actix_web::Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	let db = database::init().await.unwrap();
-	db.add_library("Y:/books/J. K. Rowling").unwrap();
+	// db.add_library("Y:/books/J. K. Rowling").unwrap();
 
 	for library in db.list_all_libraries().unwrap() {
 		let directories = db.get_directories(library.id).unwrap();
@@ -229,8 +229,9 @@ async fn main() -> std::io::Result<()> {
 
 	for file in db.list_all_files().unwrap() {
 		// TODO: Ensure it ALWAYS creates some type of metadata for the file.
-		if let Some(meta) = metadata::get_metadata(file).await.unwrap() {
-			db.add_or_update_metadata(&meta).unwrap();
+		if let Some(meta) = metadata::get_metadata(&file).await.unwrap() {
+			let meta = db.add_or_update_metadata(&meta).unwrap();
+			db.update_file_metadata_id(file.id, meta.id).unwrap();
 		}
 	}
 

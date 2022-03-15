@@ -6,7 +6,7 @@ use serde::{Serialize, Serializer};
 
 // Metadata
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MetadataItem {
 	pub id: i64,
 

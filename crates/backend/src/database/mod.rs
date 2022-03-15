@@ -10,7 +10,6 @@ use table::*;
 
 
 pub async fn init() -> Result<Database> {
-	let _ = tokio::fs::remove_file("database.db").await;
 	let conn = rusqlite::Connection::open("database.db")?;
 
 	// TODO: Migrations https://github.com/rusqlite/rusqlite/discussions/1117
@@ -247,6 +246,10 @@ impl Database {
 		Ok(())
 	}
 
+	pub fn file_exist(&self, file: &NewFile) -> Result<bool> {
+		Ok(self.lock()?.query_row(r#"SELECT id FROM file WHERE path = ?1"#, [&file.path], |_| Ok(1)).optional()?.is_some())
+	}
+
 	pub fn list_all_files(&self) -> Result<Vec<File>> {
 		let this = self.lock()?;
 
@@ -269,6 +272,14 @@ impl Database {
 		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
 	}
 
+	pub fn update_file_metadata_id(&self, file_id: i64, metadata_id: i64) -> Result<()> {
+		self.lock()?
+		.execute(r#"UPDATE file SET metadata_id = ?1 WHERE id = ?2"#,
+			params![metadata_id, file_id]
+		)?;
+
+		Ok(())
+	}
 
 	// Progression
 	pub fn add_or_update_progress(&self, user_id: i64, file_id: i64, progress: Progression) -> Result<()> {
@@ -345,14 +356,14 @@ impl Database {
 
 	// Metadata
 
-	pub fn add_or_update_metadata(&self, meta: &MetadataItem) -> Result<()> {
-		let meta_exists = if meta.id != 0 {
-			self.get_metadata_by_id(meta.id)?.is_some()
+	pub fn add_or_update_metadata(&self, meta: &MetadataItem) -> Result<MetadataItem> {
+		let table_meta = if meta.id != 0 {
+			self.get_metadata_by_id(meta.id)?
 		} else {
-			self.get_metadata_by_source(&meta.source)?.is_some()
+			self.get_metadata_by_source(&meta.source)?
 		};
 
-		if !meta_exists {
+		if table_meta.is_none() {
 			self.lock()?
 			.execute(r#"
 				INSERT INTO metadata_item (
@@ -374,6 +385,8 @@ impl Database {
 					&meta.hash
 				]
 			)?;
+
+			return Ok(self.get_metadata_by_source(&meta.source)?.unwrap());
 		} else if meta.id != 0 {
 			self.lock()?
 			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
@@ -386,7 +399,7 @@ impl Database {
 			)?;
 		}
 
-		Ok(())
+		Ok(table_meta.unwrap())
 	}
 
 	pub fn decrement_or_remove_metadata(&self, id: i64) -> Result<()> {
