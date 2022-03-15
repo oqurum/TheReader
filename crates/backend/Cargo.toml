@@ -26,4 +26,4 @@ chrono = "0.4"
 anyhow = "1.0"
 log = "0.4"
 
-rusqlite = { version = "0.27", features = [ "bundled", "trace", "blob", "chrono", "serde_json" ] }
+rusqlite = { version = "0.27", features = [ "bundled", "trace", "blob", "serde_json" ] }

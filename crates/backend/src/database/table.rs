@@ -1,5 +1,5 @@
 use books_common::Progression;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
 
@@ -110,8 +110,8 @@ impl<'a> TryFrom<&Row<'a>> for FileNote {
 
 			data_size: value.get(3)?,
 
-			updated_at: value.get(4)?,
-			created_at: value.get(5)?,
+			updated_at: Utc.timestamp_millis(value.get(4)?),
+			created_at: Utc.timestamp_millis(value.get(5)?),
 		})
 	}
 }
@@ -200,8 +200,8 @@ impl<'a> TryFrom<&Row<'a>> for FileProgression {
 
 			seek_pos: value.get(6)?,
 
-			updated_at: value.get(7)?,
-			created_at: value.get(8)?,
+			updated_at: Utc.timestamp_millis(value.get(7)?),
+			created_at: Utc.timestamp_millis(value.get(8)?),
 		})
 	}
 }
@@ -262,9 +262,9 @@ impl<'a> TryFrom<&Row<'a>> for Library {
 			id: value.get(0)?,
 			name: value.get(1)?,
 			type_of: value.get(2)?,
-			scanned_at: value.get(3)?,
-			created_at: value.get(4)?,
-			updated_at: value.get(5)?,
+			scanned_at: Utc.timestamp_millis(value.get(3)?),
+			created_at: Utc.timestamp_millis(value.get(4)?),
+			updated_at: Utc.timestamp_millis(value.get(5)?),
 		})
 	}
 }

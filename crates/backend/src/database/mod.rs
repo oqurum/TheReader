@@ -182,7 +182,7 @@ impl Database {
 
 		self.lock()?.execute(
 			r#"INSERT INTO library (name, type_of, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)"#,
-			params![&lib.name, &lib.type_of, lib.scanned_at, lib.created_at, lib.updated_at]
+			params![&lib.name, &lib.type_of, lib.scanned_at.timestamp_millis(), lib.created_at.timestamp_millis(), lib.updated_at.timestamp_millis()]
 		)?;
 
 		let lib = self.get_library_by_name("Books")?.unwrap();
@@ -273,12 +273,12 @@ impl Database {
 		if self.get_progress(user_id, file_id)?.is_some() {
 			self.lock()?.execute(
 				r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE file_id = ?6 AND user_id = ?7"#,
-				params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.file_id, prog.user_id]
+				params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
 			)?;
 		} else {
 			self.lock()?.execute(
 				r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#,
-				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.created_at]
+				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
 			)?;
 		}
 
@@ -310,12 +310,12 @@ impl Database {
 		if self.get_notes(user_id, file_id)?.is_some() {
 			self.lock()?.execute(
 				r#"UPDATE file_note SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
-				params![prog.data, prog.data_size, prog.updated_at, prog.file_id, prog.user_id]
+				params![prog.data, prog.data_size, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
 			)?;
 		} else {
 			self.lock()?.execute(
 				r#"INSERT INTO file_note (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
-				params![prog.file_id, prog.user_id, prog.data, prog.data_size, prog.updated_at, prog.created_at]
+				params![prog.file_id, prog.user_id, prog.data, prog.data_size, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
 			)?;
 		}
 
