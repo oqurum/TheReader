@@ -57,7 +57,7 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 						file_size: file_size as i64,
 
 						library_id: library.id,
-						metadata_id: 0,
+						metadata_id: None,
 						chapter_count,
 
 						modified_at: Utc.timestamp_millis(meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),

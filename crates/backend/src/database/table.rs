@@ -303,7 +303,7 @@ pub struct NewFile {
 	pub file_size: i64,
 
 	pub library_id: i64,
-	pub metadata_id: i64,
+	pub metadata_id: Option<i64>,
 	pub chapter_count: i64,
 
 	pub modified_at: DateTime<Utc>,
@@ -322,7 +322,7 @@ pub struct File {
 	pub file_size: i64,
 
 	pub library_id: i64,
-	pub metadata_id: i64,
+	pub metadata_id: Option<i64>,
 	pub chapter_count: i64,
 
 	#[serde(serialize_with = "serialize_datetime")]

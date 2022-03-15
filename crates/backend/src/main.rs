@@ -221,22 +221,49 @@ async fn main() -> std::io::Result<()> {
 	let db = database::init().await.unwrap();
 	// db.add_library("Y:/books/J. K. Rowling").unwrap();
 
-	for library in db.list_all_libraries().unwrap() {
-		let directories = db.get_directories(library.id).unwrap();
-
-		scanner::library_scan(&library, directories, &db).await.unwrap();
-	}
-
-	for file in db.list_all_files().unwrap() {
-		// TODO: Ensure it ALWAYS creates some type of metadata for the file.
-		if let Some(meta) = metadata::get_metadata(&file).await.unwrap() {
-			let meta = db.add_or_update_metadata(&meta).unwrap();
-			db.update_file_metadata_id(file.id, meta.id).unwrap();
-		}
-	}
-
-
 	let db_data = web::Data::new(db);
+
+	{
+		let db = db_data.clone();
+
+		std::thread::spawn(move || {
+			let rt = tokio::runtime::Runtime::new().unwrap();
+
+			rt.block_on(async {
+				println!("Scanning Library");
+
+				for library in db.list_all_libraries().unwrap() {
+					let directories = db.get_directories(library.id).unwrap();
+
+					scanner::library_scan(&library, directories, &db).await.unwrap();
+				}
+
+				println!("Updating Metadata");
+
+				for file in db.list_all_files().unwrap() {
+					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
+					if file.metadata_id.map(|v| v != 0).unwrap_or_default() {
+						match metadata::get_metadata(&file).await {
+							Ok(meta) => {
+								if let Some(meta) = meta {
+									let meta = db.add_or_update_metadata(&meta).unwrap();
+									db.update_file_metadata_id(file.id, meta.id).unwrap();
+								}
+							}
+
+							Err(e) => {
+								eprintln!("metadata::get_metadata: {:?}", e);
+							}
+						}
+					}
+				}
+
+				println!("Finished");
+			});
+		});
+	}
+
+	println!("Starting HTTP Server");
 
 	HttpServer::new(move || {
 		App::new()
