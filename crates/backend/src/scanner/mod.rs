@@ -1,6 +1,7 @@
-use std::{path::PathBuf, collections::VecDeque};
+use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
 use anyhow::Result;
+use chrono::{Utc, TimeZone};
 use tokio::fs;
 
 use crate::database::{table::{NewFile, Library, Directory}, Database};
@@ -44,9 +45,9 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 						metadata_id: 0,
 						chapter_count: 0,
 
-						modified_at: meta.modified()?.elapsed()?.as_millis() as i64,
-						accessed_at: meta.accessed()?.elapsed()?.as_millis() as i64,
-						created_at: meta.created()?.elapsed()?.as_millis() as i64,
+						modified_at: Utc.timestamp_millis(meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
+						accessed_at: Utc.timestamp_millis(meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
+						created_at: Utc.timestamp_millis(meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
 					};
 
 					db.add_file(&file)?;
