@@ -183,12 +183,13 @@ impl Parser for PackageAttributes {
 
 #[derive(Debug, Default)]
 pub struct PackageMetadata {
-	pub meta: Vec<MetaItem>,
-	pub dcmes_elements: HashMap<String, Vec<DcmesElement>>,
-	// TODO: Finish
+	pub meta_items: Vec<MetaItem>,
+	pub dcmes_elements: HashMap<String, Vec<DcmesElement>>
 }
 
 impl PackageMetadata {
+	// TODO: Make REQUIRED elements functions, along with utilizing meta connections.
+
 	pub fn get_creators(&self) -> Vec<&str> {
 		self.dcmes_elements.get("creator")
 			.map(|v|
@@ -214,7 +215,7 @@ impl Parser for PackageMetadata {
 	fn parse(&mut self, mut element: XmlElement) -> Result<()> {
 		for child in element.take_inner_children() {
 			match (child.name.prefix.as_deref(), child.name.local_name.as_str()) {
-				(None, "meta") => self.meta.push(MetaItem::try_from(child)?),
+				(None, "meta") => self.meta_items.push(MetaItem::try_from(child)?),
 
 				(Some("dc"), name) => { self.dcmes_elements.entry(name.to_owned()).or_default().push(DcmesElement::try_from(child)?); }
 

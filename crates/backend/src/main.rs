@@ -227,6 +227,14 @@ async fn main() -> std::io::Result<()> {
 		scanner::library_scan(&library, directories, &db).await.unwrap();
 	}
 
+	for file in db.list_all_files().unwrap() {
+		// TODO: Ensure it ALWAYS creates some type of metadata for the file.
+		if let Some(meta) = metadata::get_metadata(file).await.unwrap() {
+			db.add_or_update_metadata(&meta).unwrap();
+		}
+	}
+
+
 	let db_data = web::Data::new(db);
 
 	HttpServer::new(move || {

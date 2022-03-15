@@ -44,6 +44,38 @@ pub trait Book {
 	fn previous_chapter(&mut self) -> bool;
 
 	fn get_root_file_dir(&self) -> &Path;
+
+	fn find(&self, search: BookSearch<'_>) -> Option<Vec<String>>;
+}
+
+pub enum BookSearch<'a> {
+	// Required
+	Title,
+	Identifier,
+	Language,
+
+	// Optional
+    Contributor,
+	Coverage,
+	CoverImage,
+	Creator,
+	Date,
+	Description,
+	Format,
+	Publisher,
+	Relation,
+	Rights,
+	Source,
+	Subject,
+	Type,
+
+	Other(&'a str)
+}
+
+impl<'a> From<&'a str> for BookSearch<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::Other(value)
+    }
 }
 
 

@@ -77,7 +77,9 @@ pub async fn init() -> Result<Database> {
 			"rating"				FLOAT,
 			"thumb_url"				TEXT,
 
+			"creator"				TEXT,
 			"publisher"				TEXT,
+
 			"tags_genre"			TEXT,
 			"tags_collection"		TEXT,
 			"tags_author"			TEXT,
@@ -335,5 +337,101 @@ impl Database {
 		)?;
 
 		Ok(())
+	}
+
+	// Metadata
+
+	pub fn add_or_update_metadata(&self, meta: &MetadataItem) -> Result<()> {
+		let meta_exists = if meta.id != 0 {
+			self.get_metadata_by_id(meta.id)?.is_some()
+		} else {
+			self.get_metadata_by_source(&meta.source)?.is_some()
+		};
+
+		if !meta_exists {
+			self.lock()?
+			.execute(r#"
+				INSERT INTO metadata_item (
+					source, file_item_count, title, original_title, description, rating, thumb_url,
+					creator, publisher,
+					tags_genre, tags_collection, tags_author, tags_country,
+					available_at, year,
+					refreshed_at, created_at, updated_at, deleted_at,
+					hash
+				)
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)"#,
+				params![
+					&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_url,
+					&meta.creator, &meta.publisher,
+					&meta.tags_genre, &meta.tags_collection, &meta.tags_author, &meta.tags_country,
+					&meta.available_at, &meta.year,
+					&meta.refreshed_at, &meta.created_at, &meta.updated_at, &meta.deleted_at,
+					&meta.hash
+				]
+			)?;
+		} else if meta.id != 0 {
+			self.lock()?
+			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
+				params![meta.id]
+			)?;
+		} else {
+			self.lock()?
+			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
+				params![&meta.source]
+			)?;
+		}
+
+		Ok(())
+	}
+
+	pub fn decrement_or_remove_metadata(&self, id: i64) -> Result<()> {
+		if let Some(meta) = self.get_metadata_by_id(id)? {
+			if meta.file_item_count < 1 {
+				self.lock()?
+				.execute(
+					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
+					params![id]
+				)?;
+			} else {
+				self.lock()?
+				.execute(
+					r#"DELETE FROM metadata_item WHERE id = ?1"#,
+					params![id]
+				)?;
+			}
+		}
+
+		Ok(())
+	}
+
+	pub fn decrement_metadata(&self, id: i64) -> Result<()> {
+		if let Some(meta) = self.get_metadata_by_id(id)? {
+			if meta.file_item_count > 0 {
+				self.lock()?
+				.execute(
+					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
+					params![id]
+				)?;
+			}
+		}
+
+		Ok(())
+	}
+
+	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
+	pub fn get_metadata_by_source(&self, source: &str) -> Result<Option<MetadataItem>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM metadata_item WHERE source = ?1 LIMIT 1"#,
+			params![source],
+			|v| MetadataItem::try_from(v)
+		).optional()?)
+	}
+
+	pub fn get_metadata_by_id(&self, id: i64) -> Result<Option<MetadataItem>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM metadata_item WHERE id = ?1 LIMIT 1"#,
+			params![id],
+			|v| MetadataItem::try_from(v)
+		).optional()?)
 	}
 }

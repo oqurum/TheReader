@@ -15,7 +15,7 @@ mod modifier;
 mod package_document;
 pub mod container;
 
-use crate::Result;
+use crate::{Result, BookSearch};
 
 use super::Book;
 use container::*;
@@ -95,8 +95,57 @@ impl Book for EpubBook {
 		Ok(this)
 	}
 
+	fn find(&self, search: BookSearch<'_>) -> Option<Vec<String>> {
+		match search {
+			BookSearch::CoverImage => Some(vec![self.package.manifest.get_item_by_property("cover-image")?.href.to_owned()]),
+
+			_ => {
+				let tag_name = match &search {
+					BookSearch::Title => "title",
+					BookSearch::Identifier => "identifier",
+					BookSearch::Language => "language",
+					BookSearch::Contributor => "contributor",
+					BookSearch::Coverage => "coverage",
+					BookSearch::CoverImage => "cover-image",
+					BookSearch::Creator => "creator",
+					BookSearch::Date => "date",
+					BookSearch::Description => "description",
+					BookSearch::Format => "format",
+					BookSearch::Publisher => "publisher",
+					BookSearch::Relation => "relation",
+					BookSearch::Rights => "rights",
+					BookSearch::Source => "source",
+					BookSearch::Subject => "subject",
+					BookSearch::Type => "type",
+					BookSearch::Other(v) => *v,
+				};
+
+				let values: Vec<String> = if let Some(elements) = self.package.metadata.dcmes_elements.get(tag_name) {
+					elements.iter()
+						.filter_map(|v| v.value.as_ref().cloned())
+						.collect()
+				} else {
+					// dc terms are located in the metadata as meta items with said property names.
+					// https://www.dublincore.org/specifications/dublin-core/dcmi-terms/
+					let dc_tag_name = format!("dcterms:{}", tag_name);
+
+					self.package.metadata.meta_items.iter()
+						.filter_map(|v| if v.property == dc_tag_name { Some(v.value.as_ref()?.to_owned()) } else { None })
+						.collect()
+				};
+
+				if values.is_empty() {
+					None
+				} else {
+					Some(values)
+				}
+			}
+		}
+	}
+
 	fn get_unique_id(&self) -> Option<Cow<str>> {
-		self.package.metadata.identifiers.iter()
+		self.package.metadata.dcmes_elements.get("identifier")?
+			.iter()
 			.filter(|v| v.id.is_some() && v.value.is_some())
 			.find(|v| v.id.as_deref().unwrap() == self.package.attributes.unique_identifier.as_str())
 			.map(|v| Cow::from(v.value.as_deref().unwrap()))

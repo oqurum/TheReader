@@ -1,3 +1,8 @@
+use books_common::Progression;
+use chrono::{DateTime, Utc};
+use rusqlite::Row;
+use serde::{Serialize, Serializer};
+
 
 // Metadata
 
@@ -7,27 +12,59 @@ pub struct MetadataItem {
 
 	pub source: String,
 	pub file_item_count: i64,
-	pub title: String,
-	pub original_title: String,
-	pub description: String,
+	pub title: Option<String>,
+	pub original_title: Option<String>,
+	pub description: Option<String>,
 	pub rating: f64,
-	pub thumb_url: String,
+	pub thumb_url: Option<String>,
 
-	pub publisher: String,
-	pub tags_genre: String,
-	pub tags_collection: String,
-	pub tags_author: String,
-	pub tags_country: String,
+	pub creator: Option<String>,
+	pub publisher: Option<String>,
+
+	pub tags_genre: Option<String>,
+	pub tags_collection: Option<String>,
+	pub tags_author: Option<String>,
+	pub tags_country: Option<String>,
 
 	pub refreshed_at: i64,
 	pub created_at: i64,
 	pub updated_at: i64,
-	pub deleted_at: i64,
+	pub deleted_at: Option<i64>,
 
-	pub available_at: i64,
-	pub year: i64,
+	pub available_at: Option<i64>,
+	pub year: Option<i64>,
 
 	pub hash: String
+}
+
+impl<'a> TryFrom<&Row<'a>> for MetadataItem {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			id: value.get(0)?,
+			source: value.get(1)?,
+			file_item_count: value.get(2)?,
+			title: value.get(3)?,
+			original_title: value.get(4)?,
+			description: value.get(5)?,
+			rating: value.get(6)?,
+			thumb_url: value.get(7)?,
+			creator: value.get(8)?,
+			publisher: value.get(9)?,
+			tags_genre: value.get(10)?,
+			tags_collection: value.get(11)?,
+			tags_author: value.get(12)?,
+			tags_country: value.get(13)?,
+			available_at: value.get(14)?,
+			year: value.get(15)?,
+			refreshed_at: value.get(16)?,
+			created_at: value.get(17)?,
+			updated_at: value.get(18)?,
+			deleted_at: value.get(19)?,
+			hash: value.get(20)?
+		})
+	}
 }
 
 
@@ -253,11 +290,6 @@ impl<'a> TryFrom<&Row<'a>> for Directory {
 
 
 // File
-
-use books_common::Progression;
-use chrono::{DateTime, Utc};
-use rusqlite::Row;
-use serde::{Serialize, Serializer};
 
 pub struct NewFile {
 	pub path: String,
