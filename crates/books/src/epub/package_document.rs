@@ -217,6 +217,11 @@ impl Parser for PackageMetadata {
 	fn parse(&mut self, mut element: XmlElement) -> Result<()> {
 		for child in element.take_inner_children() {
 			match (child.name.prefix.as_deref(), child.name.local_name.as_str()) {
+				// FIX: for some files including a sub container filled with dc:names inside it.
+				(None, "dc-metadata") => {
+					Self::parse(self, child)?;
+				}
+
 				(None, "meta") => self.meta_items.push(MetaItem::try_from(child)?),
 
 				(None, name) => { self.non_prefixed_items.entry(name.to_owned()).or_default().push(child); }
