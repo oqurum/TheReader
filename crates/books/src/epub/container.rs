@@ -18,6 +18,10 @@ pub struct AbsContainer<R: Read + Seek> {
 
 impl<R: Read + Seek> AbsContainer<R> {
 	pub fn new(mut archive: ZipArchive<R>) -> Result<Self> {
+		// TODO: Wrap archive to remove invalid character(s)?
+		// library_scan: XmlReader(Error { pos: 1:1, kind: Syntax("Unexpected characters outside the root element: \u{feff}") })
+		// library_scan: SerdeXml(Syntax { source: Error { pos: 1:1, kind: Syntax("Unexpected characters outside the root element: \u{feff}") } })
+
 		{ // Ensure mimetype file is "application/epub+zip"
 			let mut buf = String::new();
 			archive.by_name("mimetype")?.read_to_string(&mut buf)?;
@@ -33,7 +37,6 @@ impl<R: Read + Seek> AbsContainer<R> {
 			}
 		}
 
-		// TODO: SerdeXml(Syntax { source: Error { pos: 1:1, kind: Syntax("Unexpected characters outside the root element: \u{feff}") } })
 		// Possible spot it's happening at.
 		let metainf_container = {
 			let file = archive.by_name("META-INF/container.xml")?;

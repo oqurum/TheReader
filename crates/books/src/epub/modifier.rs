@@ -26,7 +26,7 @@ pub fn update_attributes_with<F>(
 
 	for event in reader {
 		match event {
-			Err(e) => eprint!("{}", e),
+			Err(e) => eprintln!("update_attributes_with: {}", e),
 			Ok(v) => match v {
 				ReaderEvent::StartElement { name, attributes, namespace } => {
 					let attr = attributes
