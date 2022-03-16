@@ -1,5 +1,7 @@
 // TODO: Ping/Pong if currently viewing book. View time. How long been on page. Etc.
 
+use std::io::Read;
+
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post, delete};
 
@@ -125,6 +127,30 @@ async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Jso
 }
 
 
+// TODO: Change to /debug/{tail:.*} to allow for internal file viewing instead
+#[get("/api/book/{id}/debug")]
+async fn load_book_debug(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+	if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
+		// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
+		let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+
+		let path = book.container.root_files()[0].full_path.clone();
+
+		// Init Package Document
+		let mut file = book.container.archive.by_name(&path).unwrap();
+
+		let mut data = Vec::new();
+		file.read_to_end(&mut data).unwrap();
+
+		HttpResponse::Ok().body(data)
+	} else {
+		HttpResponse::Ok().body("Unable to find file from ID")
+	}
+}
+
+
+// Progress
+
 #[post("/api/book/{id}/progress")]
 async fn progress_book_add(file_id: web::Path<i64>, body: web::Json<Progression>, db: web::Data<Database>) -> HttpResponse {
 	match db.add_or_update_progress(0, *file_id, body.into_inner()) {
@@ -141,8 +167,8 @@ async fn progress_book_delete(file_id: web::Path<i64>, db: web::Data<Database>) 
 	}
 }
 
-// db.get_notes(0, *file_id).unwrap().map(|v| v.data)
 
+// Notes
 
 #[get("/api/book/{id}/notes")]
 async fn notes_book_get(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
@@ -230,19 +256,20 @@ async fn main() -> std::io::Result<()> {
 			let rt = tokio::runtime::Runtime::new().unwrap();
 
 			rt.block_on(async {
-				println!("Scanning Library");
+				// println!("Scanning Library");
 
-				for library in db.list_all_libraries().unwrap() {
-					let directories = db.get_directories(library.id).unwrap();
+				// for library in db.list_all_libraries().unwrap() {
+				// 	let directories = db.get_directories(library.id).unwrap();
 
-					scanner::library_scan(&library, directories, &db).await.unwrap();
-				}
+				// 	scanner::library_scan(&library, directories, &db).await.unwrap();
+				// }
 
 				println!("Updating Metadata");
 
 				for file in db.list_all_files().unwrap() {
 					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
-					if file.metadata_id.map(|v| v != 0).unwrap_or_default() {
+					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
+						println!("File {} - {:?}", file.id, file.path);
 						match metadata::get_metadata(&file).await {
 							Ok(meta) => {
 								if let Some(meta) = meta {
@@ -275,6 +302,7 @@ async fn main() -> std::io::Result<()> {
 					.same_site(SameSite::Strict)
 			))
 
+			.service(load_book_debug)
 			.service(load_book)
 			.service(load_pages)
 			.service(load_resource)

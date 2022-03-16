@@ -9,9 +9,9 @@ use crate::Result;
 
 
 pub struct AbsContainer<R: Read + Seek> {
-	pub(crate) archive: ZipArchive<R>,
+	pub archive: ZipArchive<R>,
 
-	pub(crate) metainf_container: MetaInfContainer,
+	pub metainf_container: MetaInfContainer,
 	// encryption, manifest, metadata, rights, signature
 	// https://www.w3.org/publishing/epub3/epub-ocf.html#sec-container-metainf-encryption.xml
 }

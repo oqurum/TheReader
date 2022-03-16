@@ -100,7 +100,7 @@ impl PackageDocument {
 }
 
 #[derive(Debug)]
-struct XmlElement {
+pub struct XmlElement {
 	pub name: OwnedName,
 	pub attributes: Vec<OwnedAttribute>,
 	pub namespace: Namespace,
@@ -184,7 +184,9 @@ impl Parser for PackageAttributes {
 #[derive(Debug, Default)]
 pub struct PackageMetadata {
 	pub meta_items: Vec<MetaItem>,
-	pub dcmes_elements: HashMap<String, Vec<DcmesElement>>
+	pub dcmes_elements: HashMap<String, Vec<DcmesElement>>,
+	pub non_prefixed_items: HashMap<String, Vec<XmlElement>>,
+	pub opf_items: HashMap<String, Vec<XmlElement>>
 }
 
 impl PackageMetadata {
@@ -217,7 +219,11 @@ impl Parser for PackageMetadata {
 			match (child.name.prefix.as_deref(), child.name.local_name.as_str()) {
 				(None, "meta") => self.meta_items.push(MetaItem::try_from(child)?),
 
+				(None, name) => { self.non_prefixed_items.entry(name.to_owned()).or_default().push(child); }
+
 				(Some("dc"), name) => { self.dcmes_elements.entry(name.to_owned()).or_default().push(DcmesElement::try_from(child)?); }
+
+				(Some("opf"), name) => { self.opf_items.entry(name.to_owned()).or_default().push(child); }
 
 				_ => println!("PackageMetadata::parse(XmlElement): Missing Child Element parse for: {:?}", (child.name.prefix.as_deref(), child.name.local_name.as_str())),
 			}
