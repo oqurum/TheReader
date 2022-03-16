@@ -1,17 +1,16 @@
-use books_common::MediaItem;
+use books_common::{MediaItem, api};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
 use crate::{Route, request};
 
 pub enum Msg {
-	RequestMediaList,
-
-	MediaListResults(Vec<MediaItem>)
+	MediaListResults(api::GetBookListResponse)
 }
 
 pub struct DashboardPage {
 	media_items: Option<Vec<MediaItem>>,
+	total_media_count: i64
 }
 
 impl Component for DashboardPage {
@@ -21,19 +20,20 @@ impl Component for DashboardPage {
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
 			media_items: None,
+			total_media_count: 0
 		}
 	}
 
-	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
-			Msg::MediaListResults(items) => {
-				self.media_items = Some(items);
-			}
+			Msg::MediaListResults(mut resp) => {
+				self.total_media_count = resp.count;
 
-			Msg::RequestMediaList => {
-				ctx.link().send_future(async {
-					Msg::MediaListResults(request::get_books().await)
-				});
+				if let Some(items) = self.media_items.as_mut() {
+					items.append(&mut resp.items);
+				} else {
+					self.media_items = Some(resp.items);
+				}
 			}
 		}
 
@@ -58,7 +58,9 @@ impl Component for DashboardPage {
 
 	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
 		if first_render {
-			ctx.link().send_message(Msg::RequestMediaList);
+			ctx.link().send_future(async {
+				Msg::MediaListResults(request::get_books().await)
+			});
 		}
 	}
 }

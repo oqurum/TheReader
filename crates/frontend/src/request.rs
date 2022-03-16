@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{MediaItem, api::GetBookIdResponse, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse}, Progression};
 use crate::pages::reading::ChapterInfo;
 
 // TODO: Manage Errors.
@@ -12,7 +12,7 @@ use crate::pages::reading::ChapterInfo;
 
 // Books
 
-pub async fn get_books() -> Vec<MediaItem> {
+pub async fn get_books() -> GetBookListResponse {
 	fetch("GET", "/api/books", Option::<&()>::None).await.unwrap()
 }
 

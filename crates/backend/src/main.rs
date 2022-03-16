@@ -224,36 +224,39 @@ struct BookListQuery {
 
 // TODO: Add body requests for specific books
 #[get("/api/books")]
-async fn load_book_list(db: web::Data<Database>, query: web::Query<BookListQuery>) -> web::Json<Vec<MediaItem>> {
-	web::Json(db.get_files_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
-		.unwrap()
-		.into_iter()
-		.filter(|v| v.file_type == "epub")
-		.map(|file| {
-			// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
-			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+async fn load_book_list(db: web::Data<Database>, query: web::Query<BookListQuery>) -> web::Json<api::GetBookListResponse> {
+	web::Json(api::GetBookListResponse {
+		count: db.get_file_count().unwrap(),
+		items: db.get_files_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
+			.unwrap()
+			.into_iter()
+			.filter(|v| v.file_type == "epub")
+			.map(|file| {
+				// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
+				let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
-			MediaItem {
-				id: file.id,
+				MediaItem {
+					id: file.id,
 
-				title: book.package.metadata.dcmes_elements.get("title").unwrap().iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
-				author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
-				icon_path: None, // TODO
+					title: book.package.metadata.dcmes_elements.get("title").unwrap().iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
+					author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
+					icon_path: None, // TODO
 
-				chapter_count: book.chapter_count(),
+					chapter_count: book.chapter_count(),
 
-				path: file.path,
+					path: file.path,
 
-				file_name: file.file_name,
-				file_type: file.file_type,
-				file_size: file.file_size,
+					file_name: file.file_name,
+					file_type: file.file_type,
+					file_size: file.file_size,
 
-				modified_at: file.modified_at.timestamp_millis(),
-				accessed_at: file.accessed_at.timestamp_millis(),
-				created_at: file.created_at.timestamp_millis(),
-			}
-		})
-		.collect())
+					modified_at: file.modified_at.timestamp_millis(),
+					accessed_at: file.accessed_at.timestamp_millis(),
+					created_at: file.created_at.timestamp_millis(),
+				}
+			})
+			.collect()
+	})
 }
 
 
