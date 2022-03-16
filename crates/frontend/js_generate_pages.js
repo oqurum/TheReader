@@ -214,6 +214,10 @@ export function js_update_pages_with_inlined_css(iframe) {
 	for(let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
 
+		// FIX: For some reason the inline CSS will not be the top priority.
+		child.style = STYLE;
+		applyToChildren(child);
+
 		shrinkVerticalMargins(child, 18);
 		// TODO: addHorizontalMargins(child, 10);
 
@@ -232,12 +236,23 @@ export function js_update_pages_with_inlined_css(iframe) {
 			let flat_list = flattenAndReplaceTableList(child);
 
 			if (flat_list.length != 0) {
-				flat_list.forEach(v => v.style = 'width: 50%;');
+				flat_list.forEach(v => v.style.width = '50%');
 				i--;
 			}
 		}
 	}
 }
+
+// FIX: For some reason the inline CSS will not be the top priority.
+function applyToChildren(element) {
+	for(let i = 0; i < element.children.length; i++) {
+		let child = element.children[i];
+		child.style = STYLE;
+		applyToChildren(child);
+	}
+}
+
+const STYLE = "background: none !important; font-family: 'Roboto', sans-serif !important; color: #c9c9c9 !important;";
 
 
 /**
