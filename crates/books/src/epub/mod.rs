@@ -143,32 +143,40 @@ impl Book for EpubBook {
 		}
 	}
 
-	fn get_unique_id(&self) -> Option<Cow<str>> {
-		// Find the unique ID based off of the specified one in the package attribute.
-		let found_id = self.package.metadata.dcmes_elements.get("identifier")?
-			.iter()
-			.filter(|v| v.id.is_some() && v.value.is_some())
-			.find(|v| v.id.as_deref().unwrap() == self.package.attributes.unique_identifier.as_str())
-			.map(|v| Cow::from(v.value.as_deref().unwrap()));
+	fn get_unique_id(&self) -> Result<Cow<str>> {
+		if let Some(identifier_elements) = self.package.metadata.dcmes_elements.get("identifier") {
+			// Find the unique ID based off of the specified one in the package attribute.
+			let found_id = identifier_elements
+				.iter()
+				.filter(|v| v.id.is_some() && v.value.is_some())
+				.find(|v| v.id.as_deref().unwrap() == self.package.attributes.unique_identifier.as_str())
+				.map(|v| Cow::from(v.value.as_deref().unwrap()));
 
-		if found_id.is_some() {
-			return found_id;
+			if let Some(found) = found_id {
+				return Ok(found);
+			}
+
+			// Otherwise find the first ID we can that contains both an ID and a VALUE.
+			let found_id = identifier_elements
+				.iter()
+				.find(|v| v.id.is_some() && v.value.is_some())
+				.map(|v| Cow::from(v.value.as_deref().unwrap()));
+
+			if let Some(found) = found_id {
+				return Ok(found);
+			}
+
+			// Just grab the first identifier we have.
+			let found_id = identifier_elements
+				.iter()
+				.find_map(|v| v.value.as_deref().map(Cow::from));
+
+			if let Some(found) = found_id {
+				return Ok(found);
+			}
 		}
 
-		// Otherwise find the first ID we can that contains both an ID and a VALUE.
-		let found_id = self.package.metadata.dcmes_elements.get("identifier")?
-			.iter()
-			.find(|v| v.id.is_some() && v.value.is_some())
-			.map(|v| Cow::from(v.value.as_deref().unwrap()));
-
-		if found_id.is_some() {
-			return found_id;
-		}
-
-		// Just grab the first identifier we have.
-		self.package.metadata.dcmes_elements.get("identifier")?
-			.iter()
-			.find_map(|v| v.value.as_deref().map(Cow::from))
+		Ok(Cow::from(self.package.attributes.unique_identifier.as_str()))
 	}
 
 	fn get_root_file_dir(&self) -> &Path {
@@ -267,12 +275,12 @@ impl Book for EpubBook {
 
 // TODO: Tests
 
-#[cfg(test)]
-mod tests {
-	use super::*;
+// #[cfg(test)]
+// mod tests {
+// 	use super::*;
 
-	#[test]
-	fn load() {
-		//
-	}
-}
+// 	#[test]
+// 	fn load() {
+// 		//
+// 	}
+// }

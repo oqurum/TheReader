@@ -29,7 +29,7 @@ impl Metadata for LocalMetadata {
 
 		Ok(Some(MetadataItem {
 			id: 0,
-			source: format!("{}:{}", self.get_prefix(), book.get_unique_id().map(|v| v.to_string()).ok_or_else(|| anyhow::anyhow!("Unable to get Book Unique ID"))?),
+			source: format!("{}:{}", self.get_prefix(), book.get_unique_id()?),
 			file_item_count: 1,
 			title: title.clone(),
 			original_title: title,

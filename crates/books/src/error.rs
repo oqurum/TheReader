@@ -25,5 +25,8 @@ pub enum Error {
 	FromUtf8(#[from] FromUtf8Error),
 
 	#[error("Missing Value For {0}")]
-	MissingValueFor(&'static str)
+	MissingValueFor(&'static str),
+
+	#[error("Missing Unique ID")]
+	MissingUniqueId
 }

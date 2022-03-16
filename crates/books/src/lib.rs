@@ -13,7 +13,7 @@ pub trait Book {
 
 	fn get_page_path(&self) -> PathBuf;
 	// TODO: Optional for now. Will be a Result. Unique ID should ALWAYS exist.
-	fn get_unique_id(&self) -> Option<Cow<str>>;
+	fn get_unique_id(&self) -> Result<Cow<str>>;
 
 	/// Get the raw page
 	fn read_page_raw_as_bytes(&mut self) -> Result<Vec<u8>>;

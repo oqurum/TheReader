@@ -256,20 +256,19 @@ async fn main() -> std::io::Result<()> {
 			let rt = tokio::runtime::Runtime::new().unwrap();
 
 			rt.block_on(async {
-				// println!("Scanning Library");
+				println!("Scanning Library");
 
-				// for library in db.list_all_libraries().unwrap() {
-				// 	let directories = db.get_directories(library.id).unwrap();
+				for library in db.list_all_libraries().unwrap() {
+					let directories = db.get_directories(library.id).unwrap();
 
-				// 	scanner::library_scan(&library, directories, &db).await.unwrap();
-				// }
+					scanner::library_scan(&library, directories, &db).await.unwrap();
+				}
 
 				println!("Updating Metadata");
 
 				for file in db.list_all_files().unwrap() {
 					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
-						println!("File {} - {:?}", file.id, file.path);
 						match metadata::get_metadata(&file).await {
 							Ok(meta) => {
 								if let Some(meta) = meta {
