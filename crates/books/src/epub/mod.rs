@@ -144,11 +144,31 @@ impl Book for EpubBook {
 	}
 
 	fn get_unique_id(&self) -> Option<Cow<str>> {
-		self.package.metadata.dcmes_elements.get("identifier")?
+		// Find the unique ID based off of the specified one in the package attribute.
+		let found_id = self.package.metadata.dcmes_elements.get("identifier")?
 			.iter()
 			.filter(|v| v.id.is_some() && v.value.is_some())
 			.find(|v| v.id.as_deref().unwrap() == self.package.attributes.unique_identifier.as_str())
-			.map(|v| Cow::from(v.value.as_deref().unwrap()))
+			.map(|v| Cow::from(v.value.as_deref().unwrap()));
+
+		if found_id.is_some() {
+			return found_id;
+		}
+
+		// Otherwise find the first ID we can that contains both an ID and a VALUE.
+		let found_id = self.package.metadata.dcmes_elements.get("identifier")?
+			.iter()
+			.find(|v| v.id.is_some() && v.value.is_some())
+			.map(|v| Cow::from(v.value.as_deref().unwrap()));
+
+		if found_id.is_some() {
+			return found_id;
+		}
+
+		// Just grab the first identifier we have.
+		self.package.metadata.dcmes_elements.get("identifier")?
+			.iter()
+			.find_map(|v| v.value.as_deref().map(Cow::from))
 	}
 
 	fn get_root_file_dir(&self) -> &Path {
