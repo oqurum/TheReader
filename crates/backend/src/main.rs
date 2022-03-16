@@ -127,22 +127,32 @@ async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Jso
 }
 
 
-// TODO: Change to /debug/{tail:.*} to allow for internal file viewing instead
-#[get("/api/book/{id}/debug")]
-async fn load_book_debug(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
-	if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
+#[get("/api/book/{id}/debug/{tail:.*}")]
+async fn load_book_debug(web_path: web::Path<(i64, String)>, db: web::Data<Database>) -> HttpResponse {
+	println!("{:?}", web_path);
+
+	if let Some(file) = db.find_file_by_id(web_path.0).unwrap() {
+		if web_path.1.is_empty() {
+			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+
+			HttpResponse::Ok().body(
+				book.container.file_names_in_archive()
+				.map(|v| format!("<a href=\"{}\">{}</a>", v, v))
+				.collect::<Vec<_>>()
+				.join("<br/>")
+			)
+		} else {
 		// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
 		let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
-		let path = book.container.root_files()[0].full_path.clone();
-
 		// Init Package Document
-		let mut file = book.container.archive.by_name(&path).unwrap();
+			let mut file = book.container.archive.by_name(&web_path.1).unwrap();
 
 		let mut data = Vec::new();
 		file.read_to_end(&mut data).unwrap();
 
 		HttpResponse::Ok().body(data)
+		}
 	} else {
 		HttpResponse::Ok().body("Unable to find file from ID")
 	}
