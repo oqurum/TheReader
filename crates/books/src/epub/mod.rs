@@ -69,6 +69,9 @@ impl EpubBook {
 				.replace("\\", "/")
 		};
 
+		// FIX: Some books have encoded their manifest item @href. We need to decode them.
+		let path = urlencoding::decode(&path)?;
+
 		let mut buf = Vec::new();
 
 		self.container.archive.by_name(&path)?
