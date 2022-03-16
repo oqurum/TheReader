@@ -44,9 +44,13 @@ impl Component for DashboardPage {
 		if let Some(items) = self.media_items.as_deref() {
 			let link = ctx.link().clone();
 
+			// TODO: Placeholders
+			// let remaining = (self.total_media_count as usize - items.len()).min(50);
+
 			html! {
 				<div class="library-list normal">
 					{ for items.iter().map(|item| Self::render_media_item(item, &link)) }
+					// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
 				</div>
 			}
 		} else {
@@ -66,7 +70,7 @@ impl Component for DashboardPage {
 }
 
 impl DashboardPage {
-	fn render_media_item(item: &MediaItem, scope: &Scope<Self>) -> Html {
+	fn render_media_item(item: &MediaItem, _scope: &Scope<Self>) -> Html {
 		html! {
 			<Link<Route> to={Route::ReadBook { book_id: item.id as usize }} classes={ classes!("library-item") }>
 				<div class="poster">
@@ -79,4 +83,16 @@ impl DashboardPage {
 			</Link<Route>>
 		}
 	}
+
+	// fn render_placeholder_item() -> Html {
+	// 	html! {
+	// 		<div class="library-item placeholder">
+	// 			<div class="poster"></div>
+	// 			<div class="info">
+	// 				<a class="author"></a>
+	// 				<a class="title"></a>
+	// 			</div>
+	// 		</div>
+	// 	}
+	// }
 }
