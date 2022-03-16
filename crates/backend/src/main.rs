@@ -202,10 +202,20 @@ async fn notes_book_delete(file_id: web::Path<i64>, db: web::Data<Database>) -> 
 }
 
 
+
+
+
+#[derive(serde::Deserialize)]
+struct BookListQuery {
+	offset: Option<usize>,
+	limit: Option<usize>,
+}
+
+
 // TODO: Add body requests for specific books
 #[get("/api/books")]
-async fn load_book_list(db: web::Data<Database>) -> web::Json<Vec<MediaItem>> {
-	web::Json(db.list_all_files()
+async fn load_book_list(db: web::Data<Database>, query: web::Query<BookListQuery>) -> web::Json<Vec<MediaItem>> {
+	web::Json(db.get_files_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
 		.unwrap()
 		.into_iter()
 		.filter(|v| v.file_type == "epub")
@@ -266,7 +276,7 @@ async fn main() -> std::io::Result<()> {
 
 				println!("Updating Metadata");
 
-				for file in db.list_all_files().unwrap() {
+				for file in db.get_files_of_no_metadata().unwrap() {
 					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
 						match metadata::get_metadata(&file).await {

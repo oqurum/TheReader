@@ -250,10 +250,20 @@ impl Database {
 		Ok(self.lock()?.query_row(r#"SELECT id FROM file WHERE path = ?1"#, [&file.path], |_| Ok(1)).optional()?.is_some())
 	}
 
-	pub fn list_all_files(&self) -> Result<Vec<File>> {
+	pub fn get_files_by(&self, offset: usize, limit: usize) -> Result<Vec<File>> {
 		let this = self.lock()?;
 
-		let mut conn = this.prepare("SELECT * FROM file")?;
+		let mut conn = this.prepare("SELECT * FROM file LIMIT ?1 OFFSET ?2")?;
+
+		let map = conn.query_map([limit, offset], |v| File::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
+	pub fn get_files_of_no_metadata(&self) -> Result<Vec<File>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id = 0 OR metadata_id = NULL")?;
 
 		let map = conn.query_map([], |v| File::try_from(v))?;
 
