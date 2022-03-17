@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse}, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse}, Progression};
 use crate::pages::reading::ChapterInfo;
 
 // TODO: Manage Errors.
@@ -65,6 +65,15 @@ pub async fn remove_book_notes(book_id: i64) {
 		Option::<&()>::None
 	).await.ok();
 }
+
+
+// Options
+
+pub async fn get_options() -> GetOptionsResponse {
+	fetch("GET", "/api/options", Option::<&()>::None).await.unwrap()
+}
+
+
 
 
 async fn fetch<V: for<'a> Deserialize<'a>>(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<V, JsValue> {

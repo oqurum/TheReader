@@ -230,6 +230,16 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
+	pub fn get_all_directories(&self) -> Result<Vec<Directory>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare("SELECT * FROM directory")?;
+
+		let map = conn.query_map([], |v| Directory::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
 
 	// Files
 	pub fn add_file(&self, file: &NewFile) -> Result<()> {

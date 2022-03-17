@@ -1,8 +1,9 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression};
+use crate::{MediaItem, Progression, LibraryColl};
 
 
+// Book
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetBookIdResponse {
@@ -14,4 +15,11 @@ pub struct GetBookIdResponse {
 pub struct GetBookListResponse {
 	pub count: i64,
 	pub items: Vec<MediaItem>
+}
+
+// Options
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetOptionsResponse {
+	pub libraries: Vec<LibraryColl>
 }

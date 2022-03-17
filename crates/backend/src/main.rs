@@ -5,7 +5,7 @@ use std::io::Read;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post, delete};
 
-use books_common::{Chapter, MediaItem, api, Progression};
+use books_common::{Chapter, MediaItem, api, Progression, LibraryColl};
 use bookie::Book;
 use futures::TryStreamExt;
 
@@ -129,8 +129,6 @@ async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Jso
 
 #[get("/api/book/{id}/debug/{tail:.*}")]
 async fn load_book_debug(web_path: web::Path<(i64, String)>, db: web::Data<Database>) -> HttpResponse {
-	println!("{:?}", web_path);
-
 	if let Some(file) = db.find_file_by_id(web_path.0).unwrap() {
 		if web_path.1.is_empty() {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
@@ -212,7 +210,46 @@ async fn notes_book_delete(file_id: web::Path<i64>, db: web::Data<Database>) -> 
 }
 
 
+// Options
 
+#[get("/api/options")]
+async fn load_options(db: web::Data<Database>) -> web::Json<api::GetOptionsResponse> {
+	let libraries = db.list_all_libraries().unwrap();
+	let mut directories = db.get_all_directories().unwrap();
+
+	web::Json(api::GetOptionsResponse {
+		libraries: libraries.into_iter()
+			.map(|lib| {
+				LibraryColl {
+					id: lib.id,
+					name: lib.name,
+					scanned_at: lib.scanned_at.timestamp_millis(),
+					created_at: lib.created_at.timestamp_millis(),
+					updated_at: lib.updated_at.timestamp_millis(),
+					directories: take_from_and_swap(&mut directories, |v| v.library_id == lib.id)
+						.into_iter()
+						.map(|v| v.path)
+						.collect()
+				}
+			})
+			.collect()
+	})
+}
+
+// TODO: Move to utils file.
+fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) -> Vec<V> {
+	let mut ret = Vec::new();
+
+	for i in (0..array.len()).rev() {
+		if predicate(&array[i]) {
+			ret.push(array.swap_remove(i));
+		}
+	}
+
+	ret.reverse();
+
+	ret
+}
 
 
 #[derive(serde::Deserialize)]
@@ -268,7 +305,6 @@ async fn default_handler() -> impl actix_web::Responder {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	let db = database::init().await.unwrap();
-	// db.add_library("Y:/books/J. K. Rowling").unwrap();
 
 	let db_data = web::Data::new(db);
 
@@ -334,6 +370,7 @@ async fn main() -> std::io::Result<()> {
 			.service(notes_book_get)
 			.service(notes_book_add)
 			.service(notes_book_delete)
+			.service(load_options)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

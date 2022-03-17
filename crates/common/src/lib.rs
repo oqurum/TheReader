@@ -53,3 +53,16 @@ pub struct Chapter {
 	pub value: usize,
 	pub html: String
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LibraryColl {
+	pub id: i64,
+	pub name: String,
+
+	pub scanned_at: i64,
+	pub created_at: i64,
+	pub updated_at: i64,
+
+	pub directories: Vec<String>
+}
