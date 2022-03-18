@@ -251,6 +251,43 @@ fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) ->
 	ret
 }
 
+#[post("/api/options/add")]
+async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse{
+	let api::ModifyOptionsBody {
+		library,
+		directory
+	} = modify.into_inner();
+
+	if let Some(library) = library {
+		db.add_library(&library.name).unwrap();
+	}
+
+	if let Some(directory) = directory {
+		// TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
+		db.add_directory(directory.library_id, directory.path).unwrap();
+	}
+
+	HttpResponse::Ok().finish()
+}
+
+#[post("/api/options/remove")]
+async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse {
+	let api::ModifyOptionsBody {
+		library,
+		directory
+	} = modify.into_inner();
+
+	if let Some(library) = library {
+		db.remove_library(library.id.unwrap()).unwrap();
+	}
+
+	if let Some(directory) = directory {
+		db.remove_directory(&directory.path).unwrap();
+	}
+
+	HttpResponse::Ok().finish()
+}
+
 
 #[derive(serde::Deserialize)]
 struct BookListQuery {
@@ -371,6 +408,8 @@ async fn main() -> std::io::Result<()> {
 			.service(notes_book_add)
 			.service(notes_book_delete)
 			.service(load_options)
+			.service(update_options_add)
+			.service(update_options_remove)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

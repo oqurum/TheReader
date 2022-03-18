@@ -191,6 +191,13 @@ impl Database {
 		Ok(())
 	}
 
+	pub fn remove_library(&self, id: i64) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM library WHERE id = ?1"#,
+			params![id]
+		)?)
+	}
+
 	pub fn list_all_libraries(&self) -> Result<Vec<Library>> {
 		let this = self.lock()?;
 
@@ -218,6 +225,13 @@ impl Database {
 		)?;
 
 		Ok(())
+	}
+
+	pub fn remove_directory(&self, path: &str) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM directory WHERE path = ?1"#,
+			params![path]
+		)?)
 	}
 
 	pub fn get_directories(&self, library_id: i64) -> Result<Vec<Directory>> {

@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory};
 
 
 // Book
@@ -17,9 +17,16 @@ pub struct GetBookListResponse {
 	pub items: Vec<MediaItem>
 }
 
+
 // Options
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetOptionsResponse {
 	pub libraries: Vec<LibraryColl>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModifyOptionsBody {
+	pub library: Option<BasicLibrary>,
+	pub directory: Option<BasicDirectory>
 }

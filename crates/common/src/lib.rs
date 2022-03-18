@@ -66,3 +66,16 @@ pub struct LibraryColl {
 
 	pub directories: Vec<String>
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BasicLibrary {
+	pub id: Option<i64>,
+	pub name: String
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BasicDirectory {
+	pub library_id: i64,
+	pub path: String
+}

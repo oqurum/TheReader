@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse}, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody}, Progression};
 use crate::pages::reading::ChapterInfo;
 
 // TODO: Manage Errors.
@@ -72,6 +72,23 @@ pub async fn remove_book_notes(book_id: i64) {
 pub async fn get_options() -> GetOptionsResponse {
 	fetch("GET", "/api/options", Option::<&()>::None).await.unwrap()
 }
+
+pub async fn update_options_add(options: ModifyOptionsBody) {
+	let _: Option<String> = fetch(
+		"POST",
+		"/api/options/add",
+		Some(&options)
+	).await.ok();
+}
+
+pub async fn update_options_remove(options: ModifyOptionsBody) {
+	let _: Option<String> = fetch(
+		"POST",
+		"/api/options/remove",
+		Some(&options)
+	).await.ok();
+}
+
 
 
 
