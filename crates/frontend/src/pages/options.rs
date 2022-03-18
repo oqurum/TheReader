@@ -56,9 +56,9 @@ impl Component for OptionsPage {
 				self.update_popup = Some(update);
 			}
 
-			Msg::RequestUpdateOptions(is_add) => {
+			Msg::RequestUpdateOptions(should_add_options) => {
 				if let Some(options) = self.update_popup.take() {
-					if is_add {
+					if should_add_options {
 						ctx.link().send_future(async {
 							request::update_options_add(options).await;
 							Msg::OptionsResults(request::get_options().await)
@@ -91,8 +91,39 @@ impl Component for OptionsPage {
 								html! {
 									<>
 										<h3>{ v.name.clone() }</h3>
+										<button onclick={ ctx.link().batch_callback(move|_| {
+											vec![
+												Msg::UpdatePopup(api::ModifyOptionsBody {
+													library: Some(BasicLibrary {
+														id: Some(lib_id),
+														name: None
+													}),
+													directory: None
+												}),
+												Msg::RequestUpdateOptions(false)
+											]
+										}) }>{ "delete" }</button>
 										<ul>
-											{ for v.directories.iter().map(|v| html! { <li>{ v.clone() }</li> }) }
+											{
+												for v.directories.iter().map(move |v| {
+													let path = v.clone();
+
+													html! {
+														<li><button onclick={ ctx.link().batch_callback(move |_| {
+															vec![
+																Msg::UpdatePopup(api::ModifyOptionsBody {
+																	library: None,
+																	directory: Some(BasicDirectory {
+																		library_id: lib_id,
+																		path: path.clone()
+																	})
+																}),
+																Msg::RequestUpdateOptions(false)
+															]
+														}) }>{ "X" }</button>{ v.clone() }</li>
+													}
+												})
+											}
 											<li><button onclick={ctx.link().callback(move |_| Msg::DisplayPopup(1, lib_id))}>{ "Add New" }</button></li>
 										</ul>
 									</>
@@ -139,7 +170,7 @@ impl OptionsPage {
 								Msg::UpdatePopup(api::ModifyOptionsBody {
 									library: Some(BasicLibrary {
 										id: None,
-										name: e.target_unchecked_into::<HtmlInputElement>().value()
+										name: Some(e.target_unchecked_into::<HtmlInputElement>().value())
 									}),
 									directory: None
 								})

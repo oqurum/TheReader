@@ -169,10 +169,10 @@ impl Database {
 
 
 	// Libraries
-	pub fn add_library(&self, path: &str) -> Result<()> {
+	pub fn add_library(&self, name: String) -> Result<()> {
 		// TODO: Create outside of fn.
 		let lib = NewLibrary {
-			name: String::from("Books"),
+			name,
 			type_of: String::new(),
 			scanned_at: Utc::now(),
 			created_at: Utc::now(),
@@ -184,14 +184,12 @@ impl Database {
 			params![&lib.name, &lib.type_of, lib.scanned_at.timestamp_millis(), lib.created_at.timestamp_millis(), lib.updated_at.timestamp_millis()]
 		)?;
 
-		let lib = self.get_library_by_name("Books")?.unwrap();
-		// TODO: Correct.
-		self.add_directory(lib.id, path.to_string())?;
-
 		Ok(())
 	}
 
 	pub fn remove_library(&self, id: i64) -> Result<usize> {
+		self.remove_directories_by_library_id(id)?;
+
 		Ok(self.lock()?.execute(
 			r#"DELETE FROM library WHERE id = ?1"#,
 			params![id]
@@ -231,6 +229,13 @@ impl Database {
 		Ok(self.lock()?.execute(
 			r#"DELETE FROM directory WHERE path = ?1"#,
 			params![path]
+		)?)
+	}
+
+	pub fn remove_directories_by_library_id(&self, id: i64) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM directory WHERE library_id = ?1"#,
+			params![id]
 		)?)
 	}
 

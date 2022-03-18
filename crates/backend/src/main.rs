@@ -259,7 +259,7 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 	} = modify.into_inner();
 
 	if let Some(library) = library {
-		db.add_library(&library.name).unwrap();
+		db.add_library(library.name.unwrap()).unwrap();
 	}
 
 	if let Some(directory) = directory {

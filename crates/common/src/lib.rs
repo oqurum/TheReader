@@ -71,7 +71,7 @@ pub struct LibraryColl {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicLibrary {
 	pub id: Option<i64>,
-	pub name: String
+	pub name: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
