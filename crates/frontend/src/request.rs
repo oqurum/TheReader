@@ -12,8 +12,21 @@ use crate::pages::reading::ChapterInfo;
 
 // Books
 
-pub async fn get_books() -> GetBookListResponse {
-	fetch("GET", "/api/books", Option::<&()>::None).await.unwrap()
+pub async fn get_books(offset: Option<usize>, limit: Option<usize>) -> GetBookListResponse {
+	let mut url = String::from("/api/books?");
+
+	if let Some(value) = offset {
+		url += "offset=";
+		url += &value.to_string();
+		url += "&";
+	}
+
+	if let Some(value) = limit {
+		url += "limit=";
+		url += &value.to_string();
+	}
+
+	fetch("GET", &url, Option::<&()>::None).await.unwrap()
 }
 
 pub async fn get_book_info(id: usize) -> GetBookIdResponse {

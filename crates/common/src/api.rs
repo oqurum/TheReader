@@ -17,6 +17,13 @@ pub struct GetBookListResponse {
 	pub items: Vec<MediaItem>
 }
 
+#[derive(serde::Deserialize)]
+pub struct BookListQuery {
+	pub offset: Option<usize>,
+	pub limit: Option<usize>,
+}
+
+
 
 // Options
 

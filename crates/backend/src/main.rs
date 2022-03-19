@@ -289,16 +289,9 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 }
 
 
-#[derive(serde::Deserialize)]
-struct BookListQuery {
-	offset: Option<usize>,
-	limit: Option<usize>,
-}
-
-
 // TODO: Add body requests for specific books
 #[get("/api/books")]
-async fn load_book_list(db: web::Data<Database>, query: web::Query<BookListQuery>) -> web::Json<api::GetBookListResponse> {
+async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> web::Json<api::GetBookListResponse> {
 	web::Json(api::GetBookListResponse {
 		count: db.get_file_count().unwrap(),
 		items: db.get_files_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
