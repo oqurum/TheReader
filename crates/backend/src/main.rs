@@ -9,7 +9,7 @@ use books_common::{Chapter, MediaItem, api, Progression, LibraryColl};
 use bookie::Book;
 use futures::TryStreamExt;
 
-use crate::database::Database;
+use crate::database::{Database, table::FileWithMetadata};
 
 pub mod config;
 pub mod database;
@@ -294,22 +294,21 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> web::Json<api::GetBookListResponse> {
 	web::Json(api::GetBookListResponse {
 		count: db.get_file_count().unwrap(),
-		items: db.get_files_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
+		items: db.get_files_with_metadata_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
 			.unwrap()
 			.into_iter()
-			.filter(|v| v.file_type == "epub")
-			.map(|file| {
-				// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
-				let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+			.map(|resp| {
+				let FileWithMetadata { file, meta } = resp;
 
 				MediaItem {
 					id: file.id,
 
-					title: book.package.metadata.dcmes_elements.get("title").unwrap().iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
-					author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
-					icon_path: None, // TODO
+					title: meta.title.or(meta.original_title).unwrap_or_default(),
+					author: meta.creator.unwrap_or_default(),
+					// TODO: Cache images
+					icon_path: meta.thumb_url.map(|url| format!("/api/book/{}/res/{}", file.id, url)),
 
-					chapter_count: book.chapter_count(),
+					chapter_count: file.chapter_count as usize,
 
 					path: file.path,
 

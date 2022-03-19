@@ -289,6 +289,16 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
+	pub fn get_files_with_metadata_by(&self, offset: usize, limit: usize) -> Result<Vec<FileWithMetadata>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare("SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id LIMIT ?1 OFFSET ?2")?;
+
+		let map = conn.query_map([limit, offset], |v| FileWithMetadata::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
 	pub fn get_files_of_no_metadata(&self) -> Result<Vec<File>> {
 		let this = self.lock()?;
 
