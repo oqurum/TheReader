@@ -1,6 +1,7 @@
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::*;
 
+use components::NavbarModule;
 
 mod pages;
 mod request;
@@ -19,11 +20,6 @@ impl Component for Model {
 	type Properties = ();
 
 	fn create(ctx: &Context<Self>) -> Self {
-		// ctx.link()
-		// .send_future(async {
-		// 	Msg::ServerList(fetch("GET", "/servers", Option::<&()>::None).await.unwrap())
-		// });
-
 		ctx.link().send_message(Msg::Load);
 
 		Self {
@@ -47,6 +43,7 @@ impl Component for Model {
 
 			html! {
 				<BrowserRouter>
+					<NavbarModule />
 					<Switch<Route> render={Switch::render(move |r| switch(r, link.clone()))} />
 				</BrowserRouter>
 			}
