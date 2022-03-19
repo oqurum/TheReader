@@ -82,6 +82,14 @@ impl Component for OptionsPage {
 		if let Some(resp) = self.resp.as_ref() {
 			html! {
 				<div class="options-page">
+					<h2>{ "Tasks" }</h2>
+
+					<button onclick={ ctx.link().callback_future(|_| async {
+						request::run_task().await;
+						Msg::Ignore
+					}) }>{ "Run Library Scan + Metadata Updater" }</button>
+
+
 					<h2>{ "Libraries" }</h2>
 					{
 						for resp.libraries.iter()

@@ -37,3 +37,13 @@ pub struct ModifyOptionsBody {
 	pub library: Option<BasicLibrary>,
 	pub directory: Option<BasicDirectory>
 }
+
+// Task
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RunTaskBody {
+	#[serde(default)]
+	pub run_search: bool,
+	#[serde(default)]
+	pub run_metadata: bool
+}

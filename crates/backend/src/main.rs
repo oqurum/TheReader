@@ -140,16 +140,16 @@ async fn load_book_debug(web_path: web::Path<(i64, String)>, db: web::Data<Datab
 				.join("<br/>")
 			)
 		} else {
-		// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
-		let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+			// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
+			let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 
-		// Init Package Document
+			// Init Package Document
 			let mut file = book.container.archive.by_name(&web_path.1).unwrap();
 
-		let mut data = Vec::new();
-		file.read_to_end(&mut data).unwrap();
+			let mut data = Vec::new();
+			file.read_to_end(&mut data).unwrap();
 
-		HttpResponse::Ok().body(data)
+			HttpResponse::Ok().body(data)
 		}
 	} else {
 		HttpResponse::Ok().body("Unable to find file from ID")
@@ -252,7 +252,7 @@ fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) ->
 }
 
 #[post("/api/options/add")]
-async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse{
+async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse {
 	let api::ModifyOptionsBody {
 		library,
 		directory
@@ -289,6 +289,57 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 }
 
 
+// Task
+
+// TODO: Actually optimize and fool-proof.
+#[post("/api/task")]
+async fn run_task(modify: web::Json<api::RunTaskBody>, db: web::Data<Database>) -> HttpResponse {
+	let modify = modify.into_inner();
+
+	std::thread::spawn(move || {
+		let rt = tokio::runtime::Runtime::new().unwrap();
+
+		rt.block_on(async {
+			if modify.run_search {
+				println!("Scanning Library");
+
+				for library in db.list_all_libraries().unwrap() {
+					let directories = db.get_directories(library.id).unwrap();
+
+					scanner::library_scan(&library, directories, &db).await.unwrap();
+				}
+			}
+
+			if modify.run_metadata {
+				println!("Updating Metadata");
+
+				for file in db.get_files_of_no_metadata().unwrap() {
+					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
+					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
+						match metadata::get_metadata(&file).await {
+							Ok(meta) => {
+								if let Some(meta) = meta {
+									let meta = db.add_or_update_metadata(&meta).unwrap();
+									db.update_file_metadata_id(file.id, meta.id).unwrap();
+								}
+							}
+
+							Err(e) => {
+								eprintln!("metadata::get_metadata: {:?}", e);
+							}
+						}
+					}
+				}
+			}
+
+			println!("Finished");
+		});
+	});
+
+	HttpResponse::Ok().finish()
+}
+
+
 // TODO: Add body requests for specific books
 #[get("/api/books")]
 async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> web::Json<api::GetBookListResponse> {
@@ -297,9 +348,7 @@ async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookList
 		items: db.get_files_with_metadata_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
 			.unwrap()
 			.into_iter()
-			.map(|resp| {
-				let FileWithMetadata { file, meta } = resp;
-
+			.map(|FileWithMetadata { file, meta }| {
 				MediaItem {
 					id: file.id,
 
@@ -337,46 +386,6 @@ async fn main() -> std::io::Result<()> {
 
 	let db_data = web::Data::new(db);
 
-	{
-		let db = db_data.clone();
-
-		std::thread::spawn(move || {
-			let rt = tokio::runtime::Runtime::new().unwrap();
-
-			rt.block_on(async {
-				println!("Scanning Library");
-
-				for library in db.list_all_libraries().unwrap() {
-					let directories = db.get_directories(library.id).unwrap();
-
-					scanner::library_scan(&library, directories, &db).await.unwrap();
-				}
-
-				println!("Updating Metadata");
-
-				for file in db.get_files_of_no_metadata().unwrap() {
-					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
-					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
-						match metadata::get_metadata(&file).await {
-							Ok(meta) => {
-								if let Some(meta) = meta {
-									let meta = db.add_or_update_metadata(&meta).unwrap();
-									db.update_file_metadata_id(file.id, meta.id).unwrap();
-								}
-							}
-
-							Err(e) => {
-								eprintln!("metadata::get_metadata: {:?}", e);
-							}
-						}
-					}
-				}
-
-				println!("Finished");
-			});
-		});
-	}
-
 	println!("Starting HTTP Server");
 
 	HttpServer::new(move || {
@@ -402,6 +411,7 @@ async fn main() -> std::io::Result<()> {
 			.service(load_options)
 			.service(update_options_add)
 			.service(update_options_remove)
+			.service(run_task)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

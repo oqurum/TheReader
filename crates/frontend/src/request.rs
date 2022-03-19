@@ -102,6 +102,17 @@ pub async fn update_options_remove(options: ModifyOptionsBody) {
 	).await.ok();
 }
 
+pub async fn run_task() { // TODO: Use common::api::RunTaskBody
+	let _: Option<String> = fetch(
+		"POST",
+		"/api/task",
+		Some(&serde_json::json!({
+			"run_search": true,
+			"run_metadata": true
+		}))
+	).await.ok();
+}
+
 
 
 
