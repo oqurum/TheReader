@@ -4,6 +4,7 @@ use thiserror::Error as ThisError;
 use zip::result::ZipError;
 use serde_xml_rs::Error as SerdeXmlError;
 use xml::reader::Error as XmlReaderError;
+use mobi::MobiError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -14,6 +15,9 @@ pub enum Error {
 
 	#[error("Zip Error: {0}")]
 	Zip(#[from] ZipError),
+
+	#[error("Mobi Error: {0}")]
+	Mobi(#[from] MobiError),
 
 	#[error("Serde XML Error: {0}")]
 	SerdeXml(#[from] SerdeXmlError),
