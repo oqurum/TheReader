@@ -1,8 +1,10 @@
 
-pub mod dashboard;
+pub mod home;
+pub mod library;
 pub mod options;
 pub mod reading;
 
-pub use dashboard::DashboardPage;
+pub use home::HomePage;
+pub use library::LibraryPage;
 pub use options::OptionsPage;
 pub use reading::ReadingBook;

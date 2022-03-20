@@ -3,17 +3,27 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody}, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse}, Progression};
 use crate::pages::reading::ChapterInfo;
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
 
 
+// Libraries
+pub async fn get_libraries() -> GetLibrariesResponse {
+	fetch("GET", "/api/libraries", Option::<&()>::None).await.unwrap()
+}
+
+
 // Books
 
-pub async fn get_books(offset: Option<usize>, limit: Option<usize>) -> GetBookListResponse {
+pub async fn get_books(library: i64, offset: Option<usize>, limit: Option<usize>) -> GetBookListResponse {
 	let mut url = String::from("/api/books?");
+
+	url += "library=";
+	url += &library.to_string();
+	url += "&";
 
 	if let Some(value) = offset {
 		url += "offset=";

@@ -279,22 +279,28 @@ impl Database {
 		Ok(self.lock()?.query_row(r#"SELECT id FROM file WHERE path = ?1"#, [&file.path], |_| Ok(1)).optional()?.is_some())
 	}
 
-	pub fn get_files_by(&self, offset: usize, limit: usize) -> Result<Vec<File>> {
+	pub fn get_files_by(&self, library: usize, offset: usize, limit: usize) -> Result<Vec<File>> {
 		let this = self.lock()?;
 
-		let mut conn = this.prepare("SELECT * FROM file LIMIT ?1 OFFSET ?2")?;
+		let mut conn = this.prepare("SELECT * FROM file WHERE library_id = ?1  LIMIT ?2 OFFSET ?3")?;
 
-		let map = conn.query_map([limit, offset], |v| File::try_from(v))?;
+		let map = conn.query_map([library, limit, offset], |v| File::try_from(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn get_files_with_metadata_by(&self, offset: usize, limit: usize) -> Result<Vec<FileWithMetadata>> {
+	pub fn get_files_with_metadata_by(&self, library: usize, offset: usize, limit: usize) -> Result<Vec<FileWithMetadata>> {
 		let this = self.lock()?;
 
-		let mut conn = this.prepare("SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id LIMIT ?1 OFFSET ?2")?;
+		let mut conn = this.prepare(r#"
+			SELECT * FROM file
+			LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id
+			WHERE library_id = ?1
+			LIMIT ?2
+			OFFSET ?3
+		"#)?;
 
-		let map = conn.query_map([limit, offset], |v| FileWithMetadata::try_from(v))?;
+		let map = conn.query_map([library, limit, offset], |v| FileWithMetadata::try_from(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}

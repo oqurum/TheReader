@@ -61,8 +61,8 @@ impl Model {
 
 #[derive(Routable, PartialEq, Clone, Debug)]
 pub enum Route {
-	#[at("/view/:library_id")]
-	ViewLibrary { library_id: String },
+	#[at("/library/:library_id")]
+	ViewLibrary { library_id: i64 },
 
 	#[at("/read/:book_id")]
 	ReadBook { book_id: usize },
@@ -76,18 +76,11 @@ pub enum Route {
 }
 
 
-fn switch(route: &Route, link: Scope<Model>) -> Html {
+fn switch(route: &Route, _link: Scope<Model>) -> Html {
 	log::info!("{:?}", route);
 	match route.clone() {
 		Route::ViewLibrary { library_id } => {
-			// link.send_message(Msg::ChangeServer(server_id));
-
-			// if server.is_selected() {
-			// 	html! { <pages::ViewPage server={server.into_selected()} library_id={library_id} /> }
-			// } else {
-			// 	html! {}
-			// }
-			html! { <span>{ "Unimplemented 1" }</span> }
+			html! { <pages::LibraryPage library_id={library_id}  /> }
 		}
 
 		Route::ReadBook { book_id } => {
@@ -99,7 +92,7 @@ fn switch(route: &Route, link: Scope<Model>) -> Html {
 		}
 
 		Route::Dashboard => {
-			html! { <pages::DashboardPage /> }
+			html! { <pages::HomePage /> }
 		}
 	}
 }

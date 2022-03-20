@@ -345,7 +345,7 @@ async fn run_task(modify: web::Json<api::RunTaskBody>, db: web::Data<Database>) 
 async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> web::Json<api::GetBookListResponse> {
 	web::Json(api::GetBookListResponse {
 		count: db.get_file_count().unwrap(),
-		items: db.get_files_with_metadata_by(query.offset.unwrap_or(0), query.limit.unwrap_or(50))
+		items: db.get_files_with_metadata_by(query.library, query.offset.unwrap_or(0), query.limit.unwrap_or(50))
 			.unwrap()
 			.into_iter()
 			.map(|FileWithMetadata { file, meta }| {
@@ -368,6 +368,30 @@ async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookList
 					modified_at: file.modified_at.timestamp_millis(),
 					accessed_at: file.accessed_at.timestamp_millis(),
 					created_at: file.created_at.timestamp_millis(),
+				}
+			})
+			.collect()
+	})
+}
+
+
+#[get("/api/libraries")]
+async fn load_library_list(db: web::Data<Database>) -> web::Json<api::GetLibrariesResponse> {
+	web::Json(api::GetLibrariesResponse {
+		items: db.list_all_libraries()
+			.unwrap()
+			.into_iter()
+			.map(|file| {
+				LibraryColl {
+					id: file.id,
+
+					name: file.name,
+
+					created_at: file.created_at.timestamp_millis(),
+					scanned_at: file.scanned_at.timestamp_millis(),
+					updated_at: file.updated_at.timestamp_millis(),
+
+					directories: Vec::new()
 				}
 			})
 			.collect()
@@ -408,6 +432,7 @@ async fn main() -> std::io::Result<()> {
 			.service(notes_book_get)
 			.service(notes_book_add)
 			.service(notes_book_delete)
+			.service(load_library_list)
 			.service(load_options)
 			.service(update_options_add)
 			.service(update_options_remove)

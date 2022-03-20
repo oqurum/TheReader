@@ -6,6 +6,12 @@ use yew_router::prelude::Link;
 
 use crate::{Route, request};
 
+
+#[derive(Properties, PartialEq)]
+pub struct Property {
+	pub library_id: i64,
+}
+
 pub enum Msg {
 	// Requests
 	RequestMediaItems,
@@ -17,7 +23,7 @@ pub enum Msg {
 	OnScroll(i32),
 }
 
-pub struct DashboardPage {
+pub struct LibraryPage {
 	on_scroll_fn: Option<Closure<dyn FnMut()>>,
 
 	media_items: Option<Vec<MediaItem>>,
@@ -26,9 +32,9 @@ pub struct DashboardPage {
 	is_fetching_media_items: bool,
 }
 
-impl Component for DashboardPage {
+impl Component for LibraryPage {
 	type Message = Msg;
-	type Properties = ();
+	type Properties = Property;
 
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
@@ -50,9 +56,11 @@ impl Component for DashboardPage {
 
 				let offset = Some(self.media_items.as_ref().map(|v| v.len()).unwrap_or_default()).filter(|v| *v != 0);
 
+				let library = ctx.props().library_id;
+
 				ctx.link()
 				.send_future(async move {
-					Msg::MediaListResults(request::get_books(offset, None).await)
+					Msg::MediaListResults(request::get_books(library, offset, None).await)
 				});
 			}
 
@@ -124,7 +132,7 @@ impl Component for DashboardPage {
 	}
 }
 
-impl DashboardPage {
+impl LibraryPage {
 	fn render_media_item(item: &MediaItem, _scope: &Scope<Self>) -> Html {
 		html! {
 			<Link<Route> to={Route::ReadBook { book_id: item.id as usize }} classes={ classes!("library-item") }>
