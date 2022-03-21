@@ -27,6 +27,8 @@ impl Metadata for OpenLibraryMetadata {
 			book.find(bookie::BookSearch::Identifier)
 		};
 
+		println!("[OL]: try_parse with ids: {:?}", found);
+
 
 		if let Some(idents) = found {
 			for ident in idents {
@@ -67,7 +69,7 @@ impl OpenLibraryMetadata {
 			source: format!("{}:{}", self.get_prefix(), source_id),
 			title: Some(record.title.clone()),
 			original_title: Some(record.title),
-			description: record.description.clone(),
+			description: record.description.as_ref().map(|v| v.content().to_owned()),
 			rating: 0.0,
 			thumb_url: None,
 			creator: None,
@@ -180,21 +182,21 @@ impl SearchId {
 pub struct Record {
 	pub publishers: Vec<String>,
 	pub number_of_pages: usize,
-	pub description: Option<String>,
+	pub description: Option<RecordDescription>,
 	pub contributors: Option<Vec<Contributor>>,
 	pub series: Option<Vec<String>>,
 	pub covers: Vec<usize>,
-	pub local_id: Vec<String>,
+	pub local_id: Option<Vec<String>>,
 	pub physical_format: Option<String>,
 	pub key: String,
-	pub authors: Vec<KeyItem>,
+	pub authors: Option<Vec<KeyItem>>,
 	pub publish_places: Option<Vec<String>>,
-	pub contributions: Vec<String>,
+	pub contributions: Option<Vec<String>>,
 	pub subjects: Option<Vec<String>>,
 	pub edition_name: Option<String>,
 	pub pagination: Option<String>,
 	// pub classifications: ,
-	pub source_records: Vec<String>,
+	pub source_records: Option<Vec<String>>,
 	pub title: String,
 	pub identifiers: HashMap<String, Vec<String>>, // TODO: Enum Key names (amazon, google, librarything, goodreads, etc..)
 	pub languages: Vec<KeyItem>,
@@ -217,6 +219,24 @@ pub struct Record {
 
 
 #[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RecordDescription {
+	Text(String),
+	SpecificType(TypeValueItem)
+}
+
+impl RecordDescription {
+	pub fn content(&self) -> &str {
+		match self {
+			Self::Text(v) => v.as_str(),
+			Self::SpecificType(v) => v.value.as_str(),
+		}
+	}
+}
+
+
+
+#[derive(Serialize, Deserialize)]
 pub struct Contributor {
 	role: String,
 	name: String
@@ -227,13 +247,17 @@ pub struct KeyItem {
 	key: String
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TypeValueItem {
-	r#type: String,
+	r#type: String, // TODO: Handle Types
 	value: String
 }
 
-
+/*
+Types
+	/type/text = "Normal Text" (used in: description)
+	/type/datetime = "2021-09-30T16:27:03.066859" (used in: create, last_modified)
+*/
 
 
 #[cfg(test)]
