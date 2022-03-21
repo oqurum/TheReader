@@ -354,6 +354,8 @@ async fn update_item_metadata(body: web::Json<api::PostMetadataBody>, db: web::D
 
 			match body.into_inner() {
 				api::PostMetadataBody::File(file_id) => {
+					println!("Finding Metadata for File ID: {}", file_id);
+
 					let fm = db.find_file_by_id_with_metadata(file_id).unwrap().unwrap();
 
 					match metadata::openlibrary::OpenLibraryMetadata.try_parse(&fm.file).await {
@@ -375,7 +377,8 @@ async fn update_item_metadata(body: web::Json<api::PostMetadataBody>, db: web::D
 							println!("{:#?}", meta);
 						}
 
-						v => eprintln!("Error: {:#?}", v)
+						Ok(None) => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
+						Err(e) => eprintln!("Metadata Grabber Error: {}", e)
 					}
 				}
 			}

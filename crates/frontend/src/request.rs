@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse}, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody}, Progression};
 use crate::pages::reading::ChapterInfo;
 
 // TODO: Manage Errors.
@@ -13,6 +13,17 @@ use crate::pages::reading::ChapterInfo;
 // Libraries
 pub async fn get_libraries() -> GetLibrariesResponse {
 	fetch("GET", "/api/libraries", Option::<&()>::None).await.unwrap()
+}
+
+
+// Metadata
+
+pub async fn update_metadata(value: &PostMetadataBody) {
+	let _: Option<String> = fetch(
+		"POST",
+		"/api/metadata",
+		Some(value)
+	).await.ok();
 }
 
 

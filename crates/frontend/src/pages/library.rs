@@ -21,6 +21,9 @@ pub enum Msg {
 
 	// Events
 	OnScroll(i32),
+	PosterItem(PosterItem),
+
+	Ignore
 }
 
 pub struct LibraryPage {
@@ -82,6 +85,19 @@ impl Component for LibraryPage {
 					ctx.link().send_message(Msg::RequestMediaItems);
 				}
 			}
+
+			Msg::PosterItem(item) => match item {
+				PosterItem::Meta(file_id) => {
+					ctx.link()
+					.send_future(async move {
+						request::update_metadata(&api::PostMetadataBody::File(file_id)).await;
+
+						Msg::Ignore
+					});
+				}
+			}
+
+			Msg::Ignore => return false,
 		}
 
 		true
@@ -133,10 +149,21 @@ impl Component for LibraryPage {
 }
 
 impl LibraryPage {
-	fn render_media_item(item: &MediaItem, _scope: &Scope<Self>) -> Html {
+	fn render_media_item(item: &MediaItem, scope: &Scope<Self>) -> Html {
+		let file_id = item.id;
+		let on_click_meta = scope.callback(move |e: MouseEvent| {
+			e.prevent_default();
+			e.stop_propagation();
+
+			Msg::PosterItem(PosterItem::Meta(file_id))
+		});
+
 		html! {
 			<Link<Route> to={Route::ReadBook { book_id: item.id as usize }} classes={ classes!("library-item") }>
 				<div class="poster">
+					<div class="bottom-right">
+						<a href="javascript:;" onclick={on_click_meta}>{ "Meta" }</a>
+					</div>
 					<img src={ item.icon_path.as_ref().cloned().unwrap_or_else(|| String::from("/images/missingthumbnail.jpg")) } />
 				</div>
 				<div class="info">
@@ -164,4 +191,8 @@ impl LibraryPage {
 
 		count != 0 && count != self.total_media_count as usize
 	}
+}
+
+pub enum PosterItem {
+	Meta(i64)
 }

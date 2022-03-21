@@ -203,6 +203,7 @@
 				height: 247px;
 				border-radius: 4px;
 				border: transparent 1px solid;
+				transition: border 0.25s;
 			}
 
 			.library-list .library-item .poster:hover {
@@ -215,40 +216,16 @@
 				object-fit: cover;
 			}
 
-			.library-list .library-item .thumb {
-				position: relative;
-				overflow: hidden;
-				width: 360px;
-				height: 202px;
-				border-radius: 4px;
-			}
-
-			.library-list .library-item .thumb img {
-				width: 100%;
-				height: 100%;
-				object-fit: cover;
-			}
-
-
-			.library-list .library-item .thumb .overlay:hover {
-				opacity: 0.2;
-			}
-
-			.library-list .library-item .thumb .overlay {
+			.library-list .library-item .poster .bottom-right {
+				z-index: 99;
 				position: absolute;
-				left: 0;
-				top: 0;
-				width: 100%;
-				height: 100%;
-				display: grid;
-				justify-items: center;
-				background-color: rgba(0, 0, 0, 0.569);
-				align-content: center;
+				bottom: 0px;
+				right: 0px;
+				display: none;
 			}
 
-			.library-list .library-item .thumb .overlay img {
-				position: relative;
-				width: 90%;
+			.library-list .library-item .poster:hover .bottom-right {
+				display: block;
 			}
 
 			.library-list .library-item .info {
