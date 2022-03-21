@@ -323,6 +323,14 @@ impl Database {
 		).optional()?)
 	}
 
+	pub fn find_file_by_id_with_metadata(&self, id: i64) -> Result<Option<FileWithMetadata>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id WHERE id = ?1"#,
+			[id],
+			|v| FileWithMetadata::try_from(v)
+		).optional()?)
+	}
+
 	pub fn get_file_count(&self) -> Result<i64> {
 		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
 	}
@@ -411,7 +419,7 @@ impl Database {
 
 	// Metadata
 
-	pub fn add_or_update_metadata(&self, meta: &MetadataItem) -> Result<MetadataItem> {
+	pub fn add_or_increment_metadata(&self, meta: &MetadataItem) -> Result<MetadataItem> {
 		let table_meta = if meta.id != 0 {
 			self.get_metadata_by_id(meta.id)?
 		} else {
@@ -455,6 +463,33 @@ impl Database {
 		}
 
 		Ok(table_meta.unwrap())
+	}
+
+
+	pub fn update_metadata(&self, meta: &MetadataItem) -> Result<()> {
+		self.lock()?
+		.execute(r#"
+			UPDATE metadata_item SET
+				source = ?2, file_item_count = ?3, title = ?4, original_title = ?5, description = ?6, rating = ?7, thumb_url = ?8,
+				creator = ?9, publisher = ?10,
+				tags_genre = ?11, tags_collection = ?12, tags_author = ?13, tags_country = ?14,
+				available_at = ?15, year = ?16,
+				refreshed_at = ?17, created_at = ?18, updated_at = ?19, deleted_at = ?20,
+				hash = ?21
+			WHERE id = ?1"#,
+			params![
+				meta.id,
+				&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_url,
+				&meta.creator, &meta.publisher,
+				&meta.tags_genre, &meta.tags_collection, &meta.tags_author, &meta.tags_country,
+				&meta.available_at, &meta.year,
+				&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
+				meta.deleted_at.as_ref().map(|v| v.timestamp_millis()),
+				&meta.hash
+			]
+		)?;
+
+		Ok(())
 	}
 
 	pub fn decrement_or_remove_metadata(&self, id: i64) -> Result<()> {

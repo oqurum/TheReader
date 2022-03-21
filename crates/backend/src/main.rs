@@ -9,7 +9,7 @@ use books_common::{Chapter, MediaItem, api, Progression, LibraryColl};
 use bookie::Book;
 use futures::TryStreamExt;
 
-use crate::database::{Database, table::FileWithMetadata};
+use crate::{database::{Database, table::FileWithMetadata}, metadata::Metadata};
 
 pub mod config;
 pub mod database;
@@ -319,7 +319,7 @@ async fn run_task(modify: web::Json<api::RunTaskBody>, db: web::Data<Database>) 
 						match metadata::get_metadata(&file).await {
 							Ok(meta) => {
 								if let Some(meta) = meta {
-									let meta = db.add_or_update_metadata(&meta).unwrap();
+									let meta = db.add_or_increment_metadata(&meta).unwrap();
 									db.update_file_metadata_id(file.id, meta.id).unwrap();
 								}
 							}
@@ -331,6 +331,55 @@ async fn run_task(modify: web::Json<api::RunTaskBody>, db: web::Data<Database>) 
 					}
 				}
 			}
+
+			println!("Finished");
+		});
+	});
+
+	HttpResponse::Ok().finish()
+}
+
+
+// Metadata
+
+// TODO: Actually optimize and fool-proof.
+// TODO: Use for frontend updating instead of attempting to auto-match. Will retreive metadata source name.
+#[post("/api/metadata")]
+async fn update_item_metadata(body: web::Json<api::PostMetadataBody>, db: web::Data<Database>) -> HttpResponse {
+	std::thread::spawn(move || {
+		let rt = tokio::runtime::Runtime::new().unwrap();
+
+		rt.block_on(async {
+			// TODO: Check if we're refreshing metadata.
+
+			match body.into_inner() {
+				api::PostMetadataBody::File(file_id) => {
+					let fm = db.find_file_by_id_with_metadata(file_id).unwrap().unwrap();
+
+					match metadata::openlibrary::OpenLibraryMetadata.try_parse(&fm.file).await {
+						Ok(Some(mut meta)) => {
+							meta.id = fm.meta.id;
+							meta.rating = fm.meta.rating;
+							meta.deleted_at = fm.meta.deleted_at;
+							meta.file_item_count = fm.meta.file_item_count;
+
+							if fm.meta.title != fm.meta.original_title {
+								meta.title = fm.meta.title;
+							}
+
+							// TODO: Only if metadata exists and IS the same source.
+							meta.created_at = fm.meta.created_at;
+
+							db.update_metadata(&meta).unwrap();
+
+							println!("{:#?}", meta);
+						}
+
+						v => eprintln!("Error: {:#?}", v)
+					}
+				}
+			}
+
 
 			println!("Finished");
 		});
@@ -437,6 +486,7 @@ async fn main() -> std::io::Result<()> {
 			.service(update_options_add)
 			.service(update_options_remove)
 			.service(run_task)
+			.service(update_item_metadata)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

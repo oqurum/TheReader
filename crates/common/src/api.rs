@@ -12,7 +12,6 @@ pub struct GetLibrariesResponse {
 
 
 
-
 // Book
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -48,6 +47,17 @@ pub struct ModifyOptionsBody {
 	pub library: Option<BasicLibrary>,
 	pub directory: Option<BasicDirectory>
 }
+
+
+
+// Metadata
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum PostMetadataBody {
+	File(i64)
+}
+
+
 
 // Task
 
