@@ -325,7 +325,7 @@ impl Database {
 
 	pub fn find_file_by_id_with_metadata(&self, id: i64) -> Result<Option<FileWithMetadata>> {
 		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id WHERE id = ?1"#,
+			r#"SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id WHERE file.id = ?1"#,
 			[id],
 			|v| FileWithMetadata::try_from(v)
 		).optional()?)
