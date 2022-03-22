@@ -1,8 +1,17 @@
 use std::collections::HashMap;
 
+use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
 use super::{KeyItem, TypeValueItem};
+
+
+pub async fn get_book_by_id(id: BookId) -> Result<BookInfo> {
+	let resp = reqwest::get(id.get_json_url()).await?;
+
+	Ok(resp.json().await?)
+}
+
 
 
 /// https://openlibrary.org/dev/docs/api/books
@@ -55,7 +64,7 @@ impl BookId {
 
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Record {
+pub struct BookInfo {
 	pub publishers: Vec<String>,
 	pub number_of_pages: usize,
 	pub description: Option<RecordDescription>,

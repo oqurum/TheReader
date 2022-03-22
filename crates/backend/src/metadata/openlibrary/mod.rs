@@ -13,7 +13,7 @@ use super::Metadata;
 pub mod book;
 pub mod author;
 
-use book::{BookId, Record};
+use book::BookId;
 
 pub struct OpenLibraryMetadata;
 
@@ -55,18 +55,16 @@ impl Metadata for OpenLibraryMetadata {
 
 impl OpenLibraryMetadata {
 	async fn request(&self, id: BookId) -> Result<Option<MetadataItem>> {
-		let resp = reqwest::get(id.get_json_url()).await?;
-
-		let record = resp.json::<Record>().await?;
+		let book_info = book::get_book_by_id(id).await?;
 
 		// TODO: Parse record.publish_date | Variations i've seen: "2018", "October 1, 1988", unknown if more types
 
-		let source_id = match record.isbn_13.first().or_else(|| record.isbn_10.first()) {
+		let source_id = match book_info.isbn_13.first().or_else(|| book_info.isbn_10.first()) {
 			Some(v) => v,
 			None => return Ok(None)
 		};
 
-		println!("{:#?}", record);
+		println!("{:#?}", book_info);
 
 		// TODO: Download thumb url and store it.
 
@@ -74,9 +72,9 @@ impl OpenLibraryMetadata {
 			id: 0,
 			file_item_count: 1,
 			source: format!("{}:{}", self.get_prefix(), source_id),
-			title: Some(record.title.clone()),
-			original_title: Some(record.title),
-			description: record.description.as_ref().map(|v| v.content().to_owned()),
+			title: Some(book_info.title.clone()),
+			original_title: Some(book_info.title),
+			description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 			rating: 0.0,
 			thumb_url: None,
 			creator: None,
@@ -164,13 +162,11 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn test_url() {
+	fn test_json_parse_url() {
 		let rt = Runtime::new().unwrap();
 
 		rt.block_on(async {
-			let resp = reqwest::get("https://openlibrary.org/books/OL7353617M.json").await.unwrap();
-
-			resp.json::<Record>().await.unwrap();
+			book::get_book_by_id(BookId::Edition(String::from("OL7353617M"))).await.unwrap();
 		});
 	}
 }
