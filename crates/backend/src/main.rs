@@ -9,7 +9,7 @@ use books_common::{Chapter, MediaItem, api, Progression, LibraryColl};
 use bookie::Book;
 use futures::TryStreamExt;
 
-use crate::{database::{Database, table::FileWithMetadata}, metadata::Metadata};
+use crate::database::{Database, table::FileWithMetadata};
 
 pub mod config;
 pub mod database;
@@ -316,7 +316,7 @@ async fn run_task(modify: web::Json<api::RunTaskBody>, db: web::Data<Database>) 
 				for file in db.get_files_of_no_metadata().unwrap() {
 					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
-						match metadata::get_metadata(&file).await {
+						match metadata::get_metadata(&file, None).await {
 							Ok(meta) => {
 								if let Some(meta) = meta {
 									let meta = db.add_or_increment_metadata(&meta).unwrap();
@@ -358,7 +358,7 @@ async fn update_item_metadata(body: web::Json<api::PostMetadataBody>, db: web::D
 
 					let fm = db.find_file_by_id_with_metadata(file_id).unwrap().unwrap();
 
-					match metadata::openlibrary::OpenLibraryMetadata.try_parse(&fm.file).await {
+					match metadata::get_metadata(&fm.file, Some(&fm.meta)).await {
 						Ok(Some(mut meta)) => {
 							meta.id = fm.meta.id;
 							meta.rating = fm.meta.rating;
