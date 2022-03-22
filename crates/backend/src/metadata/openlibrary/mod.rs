@@ -5,11 +5,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;
+use serde::{Serialize, Deserialize};
 
 use crate::database::table::{MetadataItem, File};
 use super::Metadata;
 
 pub mod book;
+pub mod author;
 
 use book::{BookId, Record};
 
@@ -63,6 +65,8 @@ impl OpenLibraryMetadata {
 			Some(v) => v,
 			None => return Ok(None)
 		};
+
+		println!("{:#?}", record);
 
 		// TODO: Download thumb url and store it.
 
@@ -139,6 +143,18 @@ Types
 	/type/text = "Normal Text" (used in: description)
 	/type/datetime = "2021-09-30T16:27:03.066859" (used in: create, last_modified)
 */
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KeyItem {
+	key: String
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypeValueItem {
+	r#type: String, // TODO: Handle Types
+	value: String
+}
 
 
 #[cfg(test)]

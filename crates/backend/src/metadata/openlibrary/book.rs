@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
+use super::{KeyItem, TypeValueItem};
+
 
 /// https://openlibrary.org/dev/docs/api/books
 pub enum BookId {
@@ -88,7 +90,7 @@ pub struct Record {
 	pub latest_revision: usize,
 	pub revision: usize,
 	pub created: TypeValueItem,
-	pub last_modified: TypeValueItem
+	pub last_modified: TypeValueItem,
 }
 
 
@@ -109,20 +111,8 @@ impl RecordDescription {
 }
 
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Contributor {
 	role: String,
 	name: String
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct KeyItem {
-	key: String
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TypeValueItem {
-	r#type: String, // TODO: Handle Types
-	value: String
 }
