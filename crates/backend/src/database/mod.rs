@@ -155,6 +155,40 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// Tags People
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "tag_person" (
+			"id"			INTEGER NOT NULL,
+
+			"source" 		TEXT NOT NULL,
+			"type"			INTEGER NOT NULL,
+
+			"name"			TEXT NOT NULL,
+			"description"	TEXT,
+			"birth_date"	TEXT,
+
+			"updated_at" 	DATETIME NOT NULL,
+			"created_at" 	DATETIME NOT NULL,
+
+			PRIMARY KEY("id" AUTOINCREMENT)
+		);"#,
+		[]
+	)?;
+
+	// People Alt names
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "tag_person_alts" (
+			"person_id"		INTEGER NOT NULL,
+
+			"name"			TEXT NOT NULL,
+
+			UNIQUE(person_id, name)
+		);"#,
+		[]
+	)?;
+
+	//
+
 	Ok(Database(Mutex::new(conn)))
 }
 

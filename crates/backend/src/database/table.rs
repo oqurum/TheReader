@@ -358,6 +358,63 @@ impl<'a> TryFrom<&Row<'a>> for File {
 }
 
 
+// Tags People
+
+pub struct NewTagPerson {
+	pub source: String,
+	pub r#type: i64,
+
+	pub name: String,
+	pub description: Option<String>,
+
+	pub updated_at: DateTime<Utc>,
+	pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TagPerson {
+	pub id: i64,
+
+	pub source: String,
+	pub r#type: i64,
+
+	pub name: String,
+	pub description: Option<String>,
+	pub birth_date: Option<String>,
+
+	#[serde(serialize_with = "serialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
+}
+
+impl<'a> TryFrom<&Row<'a>> for TagPerson {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			id: value.get(0)?,
+
+			source: value.get(1)?,
+			r#type: value.get(2)?,
+
+			name: value.get(3)?,
+			description: value.get(4)?,
+			birth_date: value.get(5)?,
+
+			created_at: Utc.timestamp_millis(value.get(6)?),
+			updated_at: Utc.timestamp_millis(value.get(7)?),
+		})
+	}
+}
+
+
+
+
+
+
+// Utils
+
 fn serialize_datetime<S>(value: &DateTime<Utc>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
 	s.serialize_i64(value.timestamp_millis())
 }
@@ -371,9 +428,7 @@ fn serialize_datetime_opt<S>(value: &Option<DateTime<Utc>>, s: S) -> std::result
 
 
 
-
 // Non Table Items
-
 
 pub struct FileWithMetadata {
 	pub file: File,
