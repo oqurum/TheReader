@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 use super::{KeyItem, TypeValueItem};
 
 
-pub async fn get_book_by_id(id: BookId) -> Result<BookInfo> {
+pub async fn get_book_by_id(id: &BookId) -> Result<BookInfo> {
 	let resp = reqwest::get(id.get_json_url()).await?;
 
 	Ok(resp.json().await?)
@@ -45,8 +45,8 @@ impl BookId {
 		format!("https://openlibrary.org/{}/{}.json", self.key(), self.value())
 	}
 
-	pub fn get_rfd_url(&self) -> String {
-		format!("https://openlibrary.org/{}/{}.rfd", self.key(), self.value())
+	pub fn get_rdf_url(&self) -> String {
+		format!("https://openlibrary.org/{}/{}.rdf", self.key(), self.value())
 	}
 
 	/// Tries to convert string into one of these values to the best of its' ability.

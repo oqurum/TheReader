@@ -54,8 +54,35 @@ impl Metadata for OpenLibraryMetadata {
 }
 
 impl OpenLibraryMetadata {
-	async fn request(&self, id: BookId) -> Result<Option<MetadataItem>> {
-		let book_info = book::get_book_by_id(id).await?;
+	pub async fn request(&self, id: BookId) -> Result<Option<MetadataItem>> {
+		let mut book_info = book::get_book_by_id(&id).await?;
+
+
+		// Find Authors.
+		let authors_rfd = author::get_authors_from_book_by_rfd(&id).await?;
+
+		// Now it's just Vec< OL00000A >
+		// TODO: Implement.
+		let _authors_found = if let Some(authors) = book_info.authors.take() {
+			let mut author_paths: Vec<String> = authors.into_iter()
+				.map(|v| self.prefix_text(strip_url_or_path(v.key)))
+				.collect();
+
+			for auth in authors_rfd {
+				let stripped = self.prefix_text(strip_url_or_path(auth.about));
+
+				if !author_paths.contains(&stripped) {
+					author_paths.push(stripped);
+				}
+			}
+
+			author_paths
+		} else {
+			authors_rfd.into_iter()
+				.map(|auth| self.prefix_text(strip_url_or_path(auth.about)))
+				.collect()
+		};
+
 
 		// TODO: Parse record.publish_date | Variations i've seen: "2018", "October 1, 1988", unknown if more types
 
@@ -63,8 +90,6 @@ impl OpenLibraryMetadata {
 			Some(v) => v,
 			None => return Ok(None)
 		};
-
-		println!("{:#?}", book_info);
 
 		// TODO: Download thumb url and store it.
 
@@ -136,6 +161,15 @@ impl SearchId {
 	}
 }
 
+
+fn strip_url_or_path<V: AsRef<str>>(value: V) -> String {
+	value.as_ref()
+		.rsplit('/')
+		.find(|v| !v.is_empty())
+		.unwrap()
+		.to_owned()
+}
+
 /*
 Types
 	/type/text = "Normal Text" (used in: description)
@@ -166,7 +200,7 @@ mod tests {
 		let rt = Runtime::new().unwrap();
 
 		rt.block_on(async {
-			book::get_book_by_id(BookId::Edition(String::from("OL7353617M"))).await.unwrap();
+			book::get_book_by_id(&BookId::Edition(String::from("OL7353617M"))).await.unwrap();
 		});
 	}
 }

@@ -6,8 +6,8 @@ use super::book::BookId;
 
 // Call rfd after calling book.
 
-pub async fn get_authors_from_book_by_rfd(id: BookId) -> Result<Vec<rfd::AuthorDescription>> {
-	let resp = reqwest::get(id.get_rfd_url()).await?;
+pub async fn get_authors_from_book_by_rfd(id: &BookId) -> Result<Vec<rfd::AuthorDescription>> {
+	let resp = reqwest::get(id.get_rdf_url()).await?;
 
 	let text = resp.text().await?;
 

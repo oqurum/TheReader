@@ -26,6 +26,10 @@ macro_rules! return_if_found {
 
 #[async_trait]
 pub trait Metadata {
+	fn prefix_text<V: AsRef<str>>(&self, value: V) -> String {
+		format!("{}:{}", self.get_prefix(), value.as_ref())
+	}
+
 	fn get_prefix(&self) -> &'static str;
 
 	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataItem>>;
