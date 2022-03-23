@@ -377,7 +377,7 @@ fn serialize_datetime_opt<S>(value: &Option<DateTime<Utc>>, s: S) -> std::result
 
 pub struct FileWithMetadata {
 	pub file: File,
-	pub meta: MetadataItem
+	pub meta: Option<MetadataItem>
 }
 
 impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
@@ -403,29 +403,32 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 				created_at: Utc.timestamp_millis(value.get(10)?),
 			},
 
-			meta: MetadataItem {
-				id: value.get(11)?,
-				source: value.get(12)?,
-				file_item_count: value.get(13)?,
-				title: value.get(14)?,
-				original_title: value.get(15)?,
-				description: value.get(16)?,
-				rating: value.get(17)?,
-				thumb_url: value.get(18)?,
-				creator: value.get(19)?,
-				publisher: value.get(20)?,
-				tags_genre: value.get(21)?,
-				tags_collection: value.get(22)?,
-				tags_author: value.get(23)?,
-				tags_country: value.get(24)?,
-				available_at: value.get(25)?,
-				year: value.get(26)?,
-				refreshed_at: Utc.timestamp_millis(value.get(27)?),
-				created_at: Utc.timestamp_millis(value.get(28)?),
-				updated_at: Utc.timestamp_millis(value.get(29)?),
-				deleted_at: value.get::<_, Option<_>>(30)?.map(|v| Utc.timestamp_millis(v)),
-				hash: value.get(31)?
-			}
+			meta: value.get(11)
+				.ok()
+				.map(|_: i64| std::result::Result::<_, Self::Error>::Ok(MetadataItem {
+					id: value.get(11)?,
+					source: value.get(12)?,
+					file_item_count: value.get(13)?,
+					title: value.get(14)?,
+					original_title: value.get(15)?,
+					description: value.get(16)?,
+					rating: value.get(17)?,
+					thumb_url: value.get(18)?,
+					creator: value.get(19)?,
+					publisher: value.get(20)?,
+					tags_genre: value.get(21)?,
+					tags_collection: value.get(22)?,
+					tags_author: value.get(23)?,
+					tags_country: value.get(24)?,
+					available_at: value.get(25)?,
+					year: value.get(26)?,
+					refreshed_at: Utc.timestamp_millis(value.get(27)?),
+					created_at: Utc.timestamp_millis(value.get(28)?),
+					updated_at: Utc.timestamp_millis(value.get(29)?),
+					deleted_at: value.get::<_, Option<_>>(30)?.map(|v| Utc.timestamp_millis(v)),
+					hash: value.get(31)?
+				}))
+				.transpose()?
 		})
 	}
 }

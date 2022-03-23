@@ -358,19 +358,21 @@ async fn update_item_metadata(body: web::Json<api::PostMetadataBody>, db: web::D
 
 					let fm = db.find_file_by_id_with_metadata(file_id).unwrap().unwrap();
 
-					match metadata::get_metadata(&fm.file, Some(&fm.meta)).await {
+					match metadata::get_metadata(&fm.file, fm.meta.as_ref()).await {
 						Ok(Some(mut meta)) => {
-							meta.id = fm.meta.id;
-							meta.rating = fm.meta.rating;
-							meta.deleted_at = fm.meta.deleted_at;
-							meta.file_item_count = fm.meta.file_item_count;
+							if let Some(fm_meta) = fm.meta {
+								meta.id = fm_meta.id;
+								meta.rating = fm_meta.rating;
+								meta.deleted_at = fm_meta.deleted_at;
+								meta.file_item_count = fm_meta.file_item_count;
 
-							if fm.meta.title != fm.meta.original_title {
-								meta.title = fm.meta.title;
+								if fm_meta.title != fm_meta.original_title {
+									meta.title = fm_meta.title;
 							}
 
 							// TODO: Only if metadata exists and IS the same source.
-							meta.created_at = fm.meta.created_at;
+								meta.created_at = fm_meta.created_at;
+							}
 
 							db.update_metadata(&meta).unwrap();
 
@@ -401,13 +403,23 @@ async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookList
 			.unwrap()
 			.into_iter()
 			.map(|FileWithMetadata { file, meta }| {
+				let (title, author, icon_path) = if let Some(meta) = meta {
+					(
+						meta.title.or(meta.original_title).unwrap_or_default(),
+						meta.creator.unwrap_or_default(),
+						meta.thumb_url.map(|url| format!("/api/book/{}/res/{}", file.id, url))
+					)
+				} else {
+					(String::new(), String::new(), None)
+				};
+
 				MediaItem {
 					id: file.id,
 
-					title: meta.title.or(meta.original_title).unwrap_or_default(),
-					author: meta.creator.unwrap_or_default(),
+					title,
+					author,
 					// TODO: Cache images
-					icon_path: meta.thumb_url.map(|url| format!("/api/book/{}/res/{}", file.id, url)),
+					icon_path,
 
 					chapter_count: file.chapter_count as usize,
 
