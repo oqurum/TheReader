@@ -15,6 +15,7 @@ pub mod config;
 pub mod database;
 pub mod metadata;
 pub mod scanner;
+pub mod task;
 
 
 
@@ -368,9 +369,9 @@ async fn update_item_metadata(body: web::Json<api::PostMetadataBody>, db: web::D
 
 								if fm_meta.title != fm_meta.original_title {
 									meta.title = fm_meta.title;
-							}
+								}
 
-							// TODO: Only if metadata exists and IS the same source.
+								// TODO: Only if metadata exists and IS the same source.
 								meta.created_at = fm_meta.created_at;
 							}
 
@@ -473,6 +474,8 @@ async fn main() -> std::io::Result<()> {
 	let db = database::init().await.unwrap();
 
 	let db_data = web::Data::new(db);
+
+	task::start_task_manager(db_data.clone());
 
 	println!("Starting HTTP Server");
 
