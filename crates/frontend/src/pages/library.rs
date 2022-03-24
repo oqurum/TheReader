@@ -167,8 +167,8 @@ impl LibraryPage {
 					<img src={ item.icon_path.as_ref().cloned().unwrap_or_else(|| String::from("/images/missingthumbnail.jpg")) } />
 				</div>
 				<div class="info">
-					<div class="author" title={ item.author.clone() }>{ item.author.clone() }</div>
 					<div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>
+					<div class="author" title={ item.author.clone() }>{ item.author.clone() }</div>
 				</div>
 			</Link<Route>>
 		}

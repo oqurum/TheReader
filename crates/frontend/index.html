@@ -6,26 +6,39 @@
 
 		<script src="/js/quill.js"></script>
 		<link href="/css/quill.snow.css" rel="stylesheet" />
+		<link href="/css/open-props.min.css" rel="stylesheet" />
+		<link href="/css/open-props-normalize.min.css" rel="stylesheet" />
 
 		<style data-trunk>
 			html {
+				--brand: var(--orange-3);
+				--text1: var(--gray-1);
+				--text2: var(--gray-3);
+				--surface1: var(--gray-9);
+				--surface2: var(--gray-8);
+				--surface3: var(--gray-7);
+				--surface4: var(--gray-6);
+				--surface-shadow: 200 50% 3%;
+				--shadow-strength: 80%;
+
 				height: 100%;
 				width: 100%;
+
+				background-color: var(--surface1);
+				color: var(--text1);
+				accent-color: var(--brand);
 			}
 
 			body {
 				margin: 0;
 				height: 100%;
 				width: 100%;
-
-				background-color: #0e0e13;
-				color: #e9e9e9;
 			}
 
 			/* NAVBAR */
 			.navbar-module {
 				display: flex;
-				background: rgba(58, 58, 58, 0.459);
+				background: var(--surface2);
 				margin-bottom: 10px;
 				padding: 0px 10px;
 			}
@@ -33,7 +46,7 @@
 			.navbar-module > a {
 				padding: 10px 20px;
 				text-decoration: none;
-				color: white;
+				color: var(--text1);
 				text-transform: uppercase;
 				user-select: none;
 			}
@@ -235,7 +248,7 @@
 			}
 
 			.library-list .library-item .info .title {
-				color: #d3d3d3;
+				color: var(--text1);
 				text-decoration: none;
 				font-size: 1em;
 
@@ -250,9 +263,9 @@
 			}
 
 			.library-list .library-item .info .author {
-				color: #f3f3f3;
+				color: var(--text2);
 				text-decoration: none;
-				font-size: 1.1em;
+				font-size: 0.9em;
 
 				margin-block: 0;
 				text-overflow: ellipsis;
