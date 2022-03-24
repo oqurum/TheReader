@@ -1,0 +1,266 @@
+html {
+	--brand: var(--orange-3);
+	--text1: var(--gray-1);
+	--text2: var(--gray-3);
+	--surface1: var(--gray-9);
+	--surface2: var(--gray-8);
+	--surface3: var(--gray-7);
+	--surface4: var(--gray-6);
+	--surface-shadow: 200 50% 3%;
+	--shadow-strength: 80%;
+
+	height: 100%;
+	width: 100%;
+
+	background-color: var(--surface1);
+	color: var(--text1);
+	accent-color: var(--brand);
+}
+
+body {
+	margin: 0;
+	height: 100%;
+	width: 100%;
+}
+
+/* NAVBAR */
+.navbar-module {
+	display: flex;
+	background: var(--surface2);
+	margin-bottom: 10px;
+	padding: 0px 10px;
+}
+
+.navbar-module > a {
+	padding: 10px 20px;
+	text-decoration: none;
+	color: var(--text1);
+	text-transform: uppercase;
+	user-select: none;
+}
+
+/* POPUP */
+.popup {
+	position: absolute;
+	z-index: 100;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	display: grid;
+	justify-content: center;
+	align-content: center;
+}
+
+/* READER CONTAINER */
+
+.reading-container {
+	height: 100%;
+	width: 100%;
+}
+
+.reading-container > .book {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100%;
+}
+
+/* .book > .tools {
+} */
+
+/* NOTES */
+#notary {
+	height: 500px;
+	overflow: auto;
+}
+
+.notes {
+	flex-grow: 1;
+	max-width: 32em;
+	margin-right: 0.5em;
+	padding: 0.5em;
+}
+
+/* READER */
+
+.reader {
+	position: relative;
+	overflow: hidden;
+}
+
+.reader > .progress {
+	width: 100%;
+	background-color: #2f3337;
+	height: 4px;
+}
+
+.reader > .progress > .prog-bar {
+	background-color: darkcyan;
+	height: 100%;
+}
+
+.reader .navbar {
+	/* position: absolute;
+	top: 0;
+	left: 0;
+	width: calc(100% - 20px); */
+	padding: 10px;
+	user-select: none;
+	-moz-user-select: none;
+	-webkit-user-select: none;
+}
+
+.reader .navbar > * {
+	margin-right: 10px;
+}
+
+.reader .navbar > a {
+	cursor: pointer;
+}
+
+.reader .pages {
+	overflow: hidden;
+}
+
+.reader .pages .frames {
+	position: relative;
+}
+
+.reader .pages iframe {
+	border: none;
+	width: 100%;
+	height: 100%;
+}
+
+
+/* SIDEBAR */
+
+.sidebar .server-list {
+	list-style-type: none;
+	margin-block-start: 0;
+	margin-block-end: 0;
+	padding-inline-start: 0;
+}
+
+.sidebar .server-list li {
+	cursor: pointer;
+	padding: 5px;
+	margin-bottom: 4px;
+}
+
+
+/* LIBRARY */
+
+.library-list {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+
+	margin-left: 1em;
+}
+
+/* PLACEHOLDER */
+
+.library-item.placeholder .poster {
+	background-color: #202020;
+	min-height: 247px;
+}
+
+.library-item.placeholder .info .author {
+	background-color: #202020;
+	height: 1em;
+	width: 7em;
+	margin-bottom: 3px;
+}
+
+.library-item.placeholder .info .title {
+	background-color: #202020;
+	height: 1em;
+	width: 4em;
+}
+
+
+
+/* NORMAL */
+
+.library-list.normal .library-item {
+	width: 165px;
+}
+
+.library-list .library-item {
+	text-decoration: none;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	margin-right: 2em;
+	margin-bottom: 2em;
+}
+
+.library-list .library-item .poster {
+	position: relative;
+	overflow: hidden;
+	width: 165px;
+	height: 247px;
+	border-radius: 4px;
+	border: transparent 1px solid;
+	transition: border 0.25s;
+}
+
+.library-list .library-item .poster:hover {
+	border: #883d97 1px solid;
+}
+
+.library-list .library-item .poster img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.library-list .library-item .poster .bottom-right {
+	z-index: 99;
+	position: absolute;
+	bottom: 0px;
+	right: 0px;
+	display: none;
+}
+
+.library-list .library-item .poster:hover .bottom-right {
+	display: block;
+}
+
+.library-list .library-item .info {
+	margin-top: 10px;
+	display: flex;
+	flex-direction: column;
+}
+
+.library-list .library-item .info .title {
+	color: var(--text1);
+	text-decoration: none;
+	font-size: 1em;
+
+	margin-block: 0;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+.library-list .library-item .info .title:hover {
+	text-decoration: underline;
+}
+
+.library-list .library-item .info .author {
+	color: var(--text2);
+	text-decoration: none;
+	font-size: 0.9em;
+
+	margin-block: 0;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+.library-list .library-item .info .author:hover {
+	text-decoration: underline;
+}
