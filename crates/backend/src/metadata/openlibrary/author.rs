@@ -51,8 +51,8 @@ pub mod json {
 	use serde::{Deserialize, Serialize};
 	use crate::metadata::openlibrary::{KeyItem, TypeValueItem};
 
-
 	#[derive(Debug, Serialize, Deserialize)]
+	#[serde(deny_unknown_fields)]
 	pub struct AuthorJson {
 		pub bio: String,
 		pub r#type: KeyItem,
