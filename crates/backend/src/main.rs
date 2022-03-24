@@ -17,6 +17,8 @@ pub mod metadata;
 pub mod scanner;
 pub mod task;
 
+pub use task::{queue_task, Task};
+
 
 
 
@@ -292,50 +294,18 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 
 // Task
 
-// TODO: Actually optimize and fool-proof.
+// TODO: Actually optimize.
 #[post("/api/task")]
-async fn run_task(modify: web::Json<api::RunTaskBody>, db: web::Data<Database>) -> HttpResponse {
+async fn run_task(modify: web::Json<api::RunTaskBody>) -> HttpResponse {
 	let modify = modify.into_inner();
 
-	std::thread::spawn(move || {
-		let rt = tokio::runtime::Runtime::new().unwrap();
+	if modify.run_search {
+		queue_task(task::TaskLibraryScan);
+	}
 
-		rt.block_on(async {
-			if modify.run_search {
-				println!("Scanning Library");
-
-				for library in db.list_all_libraries().unwrap() {
-					let directories = db.get_directories(library.id).unwrap();
-
-					scanner::library_scan(&library, directories, &db).await.unwrap();
-				}
-			}
-
-			if modify.run_metadata {
-				println!("Updating Metadata");
-
-				for file in db.get_files_of_no_metadata().unwrap() {
-					// TODO: Ensure it ALWAYS creates some type of metadata for the file.
-					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
-						match metadata::get_metadata(&file, None).await {
-							Ok(meta) => {
-								if let Some(meta) = meta {
-									let meta = db.add_or_increment_metadata(&meta).unwrap();
-									db.update_file_metadata_id(file.id, meta.id).unwrap();
-								}
-							}
-
-							Err(e) => {
-								eprintln!("metadata::get_metadata: {:?}", e);
-							}
-						}
-					}
-				}
-			}
-
-			println!("Finished");
-		});
-	});
+	if modify.run_metadata {
+		queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::Invalid));
+	}
 
 	HttpResponse::Ok().finish()
 }
@@ -343,51 +313,18 @@ async fn run_task(modify: web::Json<api::RunTaskBody>, db: web::Data<Database>) 
 
 // Metadata
 
-// TODO: Actually optimize and fool-proof.
 // TODO: Use for frontend updating instead of attempting to auto-match. Will retreive metadata source name.
 #[post("/api/metadata")]
-async fn update_item_metadata(body: web::Json<api::PostMetadataBody>, db: web::Data<Database>) -> HttpResponse {
+async fn update_item_metadata(body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	std::thread::spawn(move || {
 		let rt = tokio::runtime::Runtime::new().unwrap();
 
 		rt.block_on(async {
-			// TODO: Check if we're refreshing metadata.
-
 			match body.into_inner() {
 				api::PostMetadataBody::File(file_id) => {
-					println!("Finding Metadata for File ID: {}", file_id);
-
-					let fm = db.find_file_by_id_with_metadata(file_id).unwrap().unwrap();
-
-					match metadata::get_metadata(&fm.file, fm.meta.as_ref()).await {
-						Ok(Some(mut meta)) => {
-							if let Some(fm_meta) = fm.meta {
-								meta.id = fm_meta.id;
-								meta.rating = fm_meta.rating;
-								meta.deleted_at = fm_meta.deleted_at;
-								meta.file_item_count = fm_meta.file_item_count;
-
-								if fm_meta.title != fm_meta.original_title {
-									meta.title = fm_meta.title;
-								}
-
-								// TODO: Only if metadata exists and IS the same source.
-								meta.created_at = fm_meta.created_at;
-							}
-
-							db.update_metadata(&meta).unwrap();
-
-							println!("{:#?}", meta);
-						}
-
-						Ok(None) => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
-						Err(e) => eprintln!("Metadata Grabber Error: {}", e)
-					}
+					queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::Single(file_id)));
 				}
 			}
-
-
-			println!("Finished");
 		});
 	});
 
