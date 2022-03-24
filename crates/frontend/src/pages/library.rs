@@ -162,7 +162,7 @@ impl LibraryPage {
 			<Link<Route> to={Route::ReadBook { book_id: item.id as usize }} classes={ classes!("library-item") }>
 				<div class="poster">
 					<div class="bottom-right">
-						<a href="javascript:;" onclick={on_click_meta}>{ "Meta" }</a>
+						<span class="material-icons" onclick={on_click_meta} title="Update Metadata">{ "search" }</span>
 					</div>
 					<img src={ item.icon_path.as_ref().cloned().unwrap_or_else(|| String::from("/images/missingthumbnail.jpg")) } />
 				</div>
