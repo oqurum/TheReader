@@ -6,13 +6,11 @@
 	--surface2: var(--gray-8);
 	--surface3: var(--gray-7);
 	--surface4: var(--gray-6);
-	--surface-shadow: 200 50% 3%;
-	--shadow-strength: 80%;
 
 	height: 100%;
 	width: 100%;
 
-	background-color: var(--surface1);
+	background-color: var(--surface2);
 	color: var(--text1);
 	accent-color: var(--brand);
 }
@@ -26,7 +24,7 @@ body {
 /* NAVBAR */
 .navbar-module {
 	display: flex;
-	background: var(--surface2);
+	background: var(--surface1);
 	margin-bottom: 10px;
 	padding: 0px 10px;
 
@@ -67,9 +65,6 @@ body {
 }
 
 
-/* .book > .tools {
-} */
-
 /* NOTES */
 #notary {
 	height: 500px;
@@ -81,6 +76,19 @@ body {
 	max-width: 32em;
 	margin-right: 0.5em;
 	padding: 0.5em;
+
+
+	.ql-stroke {
+		stroke: var(--text1) !important;
+	}
+
+	.ql-picker {
+		color: var(--text1) !important;
+	}
+
+	.ql-picker-options {
+		background-color: var(--surface3) !important;
+	}
 }
 
 /* READER */
@@ -95,16 +103,12 @@ body {
 		height: 4px;
 
 		> .prog-bar {
-			background-color: darkcyan;
+			background-color: var(--brand);
 			height: 100%;
 		}
 	}
 
 	.navbar {
-		/* position: absolute;
-		top: 0;
-		left: 0;
-		width: calc(100% - 20px); */
 		padding: 10px;
 		user-select: none;
 		-moz-user-select: none;
@@ -206,12 +210,12 @@ body {
 			overflow: hidden;
 			width: 165px;
 			height: 247px;
-			border-radius: 4px;
-			border: transparent 1px solid;
+			border-radius: var(--radius-2);
+			border: var(--border-size-1) solid transparent;
 			transition: border 0.25s;
 
 			&:hover {
-				border: #883d97 1px solid;
+				border-color: var(--brand);
 			}
 
 			img {
@@ -241,7 +245,7 @@ body {
 			.title {
 				color: var(--text1);
 				text-decoration: none;
-				font-size: 1em;
+				font-size: var(--font-size-2);
 
 				margin-block: 0;
 				text-overflow: ellipsis;
@@ -257,7 +261,7 @@ body {
 			.author {
 				color: var(--text2);
 				text-decoration: none;
-				font-size: 0.9em;
+				font-size: var(--font-size-1);
 
 				margin-block: 0;
 				text-overflow: ellipsis;
