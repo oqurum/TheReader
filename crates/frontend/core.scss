@@ -47,6 +47,14 @@ body {
 	width: 100%;
 }
 
+
+
+:where(a[href]):visited {
+	color: var(--text1);
+}
+
+
+
 /* NAVBAR */
 .navbar-module {
 	display: flex;
@@ -254,7 +262,7 @@ body {
 				z-index: 99;
 				position: absolute;
 				bottom: 0px;
-				right: 0px;
+				right: 3px;
 				display: none;
 			}
 
