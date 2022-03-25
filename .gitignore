@@ -4,3 +4,4 @@
 /crates/frontend/dist
 
 database.db
+/app/thumbnails

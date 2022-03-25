@@ -138,6 +138,20 @@ impl Task for TaskUpdateInvalidMetadata {
 								meta.title = fm_meta.title;
 							}
 
+							match (meta.thumb_url.is_some(), fm_meta.thumb_url.is_some()) {
+								// No new thumb, but we have an old one. Set old one as new one.
+								(false, true) => {
+									meta.thumb_url = fm_meta.thumb_url;
+								}
+
+								// Both have a poster and they're both different.
+								(true, true) if meta.thumb_url != fm_meta.thumb_url => {
+									// TODO: Remove old poster.
+								}
+
+								_ => ()
+							}
+
 							// TODO: Only if metadata exists and IS the same source.
 							meta.created_at = fm_meta.created_at;
 						}

@@ -13,11 +13,13 @@ use crate::database::{Database, table::FileWithMetadata};
 
 pub mod config;
 pub mod database;
+pub mod image;
 pub mod metadata;
 pub mod scanner;
 pub mod task;
 
 pub use task::{queue_task, Task};
+pub use self::image::{ThumbnailLocation, ThumbnailType, store_image};
 
 
 
@@ -42,6 +44,23 @@ async fn load_resource(path: web::Path<(i64, String)>, db: web::Data<Database>) 
 
 	HttpResponse::Ok()
 		.body(body)
+}
+
+#[get("/api/book/{id}/thumbnail")]
+async fn load_book_thumbnail(path: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+	let book_id = path.into_inner();
+
+	let file = db.find_file_by_id_with_metadata(book_id).unwrap().unwrap();
+
+	if let Some(path) = file.meta.and_then(|v| v.thumb_url) {
+		let loc = ThumbnailLocation::from(path);
+
+		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
+
+		HttpResponse::Ok().body(std::fs::read(path).unwrap())
+	} else {
+		HttpResponse::NotFound().finish()
+	}
 }
 
 
@@ -429,6 +448,7 @@ async fn main() -> std::io::Result<()> {
 			.service(load_book_debug)
 			.service(load_book)
 			.service(load_pages)
+			.service(load_book_thumbnail)
 			.service(load_resource)
 			.service(load_book_list)
 			.service(progress_book_add)

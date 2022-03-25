@@ -164,7 +164,7 @@ impl LibraryPage {
 					<div class="bottom-right">
 						<span class="material-icons" onclick={on_click_meta} title="Update Metadata">{ "search" }</span>
 					</div>
-					<img src={ item.icon_path.as_ref().cloned().unwrap_or_else(|| String::from("/images/missingthumbnail.jpg")) } />
+					<img src={ if item.icon_path.is_some() { format!("/api/book/{}/thumbnail", item.id) } else { String::from("/images/missingthumbnail.jpg") } } />
 				</div>
 				<div class="info">
 					<div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>

@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::database::{table::{MetadataItem, File, self}, Database};
+use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
 use super::Metadata;
 
 pub mod book;
@@ -46,7 +46,7 @@ impl Metadata for OpenLibraryMetadata {
 
 				match self.request(id, db).await {
 					Ok(Some(v)) => return Ok(Some(v)),
-					a => eprintln!("{:?}", a)
+					a => eprintln!("OpenLibraryMetadata::try_parse {:?}", a)
 				}
 			}
 		}
@@ -135,7 +135,24 @@ impl OpenLibraryMetadata {
 			None => return Ok(None)
 		};
 
-		// TODO: Download thumb url and store it.
+		let mut thumb_url = None;
+
+		// Download thumb url and store it.
+		if let Some(thumb_id) = book_info.covers.as_ref().and_then(|v| v.iter().find(|v| **v != -1)).copied() {
+			let resp = reqwest::get(format!("https://covers.openlibrary.org/b/id/{}-L.jpg", thumb_id)).await?;
+
+			if resp.status().is_success() {
+				let bytes = resp.bytes().await?;
+
+				match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
+					Ok(path) => thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
+					Err(e) => {
+						eprintln!("store_image: {}", e);
+					}
+				}
+			}
+		}
+
 
 		Ok(Some(MetadataItem {
 			id: 0,
@@ -145,7 +162,7 @@ impl OpenLibraryMetadata {
 			original_title: Some(book_info.title),
 			description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 			rating: 0.0,
-			thumb_url: None,
+			thumb_url,
 			creator: None,
 			publisher: None,
 			tags_genre: None,
@@ -225,6 +242,7 @@ Types
 pub struct KeyItem {
 	key: String
 }
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeValueItem {

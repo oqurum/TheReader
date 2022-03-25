@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use bookie::BookSearch;
 use chrono::Utc;
 
-use crate::database::{table::{File, MetadataItem}, Database};
+use crate::{database::{table::{File, MetadataItem}, Database}, ThumbnailType};
 
 use super::Metadata;
 
@@ -18,37 +18,61 @@ impl Metadata for LocalMetadata {
 	}
 
 	async fn try_parse(&mut self, file: &File, _db: &Database) -> Result<Option<MetadataItem>> {
-		let book = match bookie::load_from_path(&file.path)? {
-			Some(v) => v,
-			None => return Ok(None)
+		// Wrapped to prevent "future cannot be sent between threads safely"
+		let (mut meta, opt_thumb_url) = {
+			let mut book = match bookie::load_from_path(&file.path)? {
+				Some(v) => v,
+				None => return Ok(None)
+			};
+
+			let now = Utc::now();
+
+			let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
+			let opt_thumb_url = book.find(BookSearch::CoverImage)
+				.map(|mut v| v.remove(0))
+				.map(|url| book.read_path_as_bytes(&url));
+
+			(MetadataItem {
+				id: 0,
+				source: format!("{}:{}", self.get_prefix(), book.get_unique_id()?),
+				file_item_count: 1,
+				title: title.clone(),
+				original_title: title,
+				description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
+				rating: 0.0,
+				thumb_url: None,
+				creator: book.find(BookSearch::Creator).map(|mut v| v.remove(0)),
+				publisher: book.find(BookSearch::Publisher).map(|mut v| v.remove(0)),
+				tags_genre: None,
+				tags_collection: None,
+				tags_author: None,
+				tags_country: None,
+				refreshed_at: now,
+				created_at: now,
+				updated_at: now,
+				deleted_at: None,
+				available_at: None,
+				year: None,
+				hash: String::new() // TODO: Should not be a file hash. Multiple files can use the same Metadata.
+			}, opt_thumb_url)
 		};
 
-		let now = Utc::now();
+		meta.thumb_url = match opt_thumb_url {
+			Some(book_file_path) => {
+				let image = book_file_path?;
 
-		let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
+				match crate::store_image(ThumbnailType::Local, image).await {
+					Ok(path) => Some(ThumbnailType::Local.prefix_text(&path)),
+					Err(e) => {
+						eprintln!("store_image: {}", e);
+						None
+					}
+				}
+			}
 
-		Ok(Some(MetadataItem {
-			id: 0,
-			source: format!("{}:{}", self.get_prefix(), book.get_unique_id()?),
-			file_item_count: 1,
-			title: title.clone(),
-			original_title: title,
-			description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
-			rating: 0.0,
-			thumb_url: book.find(BookSearch::CoverImage).map(|mut v| v.remove(0)),
-			creator: book.find(BookSearch::Creator).map(|mut v| v.remove(0)),
-			publisher: book.find(BookSearch::Publisher).map(|mut v| v.remove(0)),
-			tags_genre: None,
-			tags_collection: None,
-			tags_author: None,
-			tags_country: None,
-			refreshed_at: now,
-			created_at: now,
-			updated_at: now,
-			deleted_at: None,
-			available_at: None,
-			year: None,
-			hash: String::new() // TODO: Should not be a file hash. Multiple files can use the same Metadata.
-		}))
+			None => None
+		};
+
+		Ok(Some(meta))
 	}
 }

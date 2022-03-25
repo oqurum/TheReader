@@ -41,10 +41,6 @@ pub trait Metadata {
 pub async fn get_metadata(file: &File, meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataItem>> {
 	return_if_found!(openlibrary::OpenLibraryMetadata.try_parse(file, db).await);
 
-	// TODO: Temporary. Don't re-scan file if we already have metadata from file.
-	if meta.map(|v| !v.source.starts_with("local")).unwrap_or(true) {
-		local::LocalMetadata.try_parse(file, db).await
-	} else {
-		Ok(None)
-	}
+	// TODO: Don't re-scan file if we already have metadata from file.
+	local::LocalMetadata.try_parse(file, db).await
 }
