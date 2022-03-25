@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::database::table::{MetadataItem, File};
+use crate::database::{table::{MetadataItem, File}, Database};
 
 pub mod audible;
 pub mod commonsensemedia;
@@ -32,18 +32,18 @@ pub trait Metadata {
 
 	fn get_prefix(&self) -> &'static str;
 
-	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataItem>>;
+	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>>;
 
 	// TODO: Search
 }
 
 // TODO: Utilize current metadata in try_parse.
-pub async fn get_metadata(file: &File, meta: Option<&MetadataItem>) -> Result<Option<MetadataItem>> {
-	return_if_found!(openlibrary::OpenLibraryMetadata.try_parse(file).await);
+pub async fn get_metadata(file: &File, meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataItem>> {
+	return_if_found!(openlibrary::OpenLibraryMetadata.try_parse(file, db).await);
 
 	// TODO: Temporary. Don't re-scan file if we already have metadata from file.
 	if meta.map(|v| !v.source.starts_with("local")).unwrap_or(true) {
-		local::LocalMetadata.try_parse(file).await
+		local::LocalMetadata.try_parse(file, db).await
 	} else {
 		Ok(None)
 	}

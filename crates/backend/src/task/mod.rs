@@ -104,7 +104,7 @@ impl Task for TaskUpdateInvalidMetadata {
 				for file in db.get_files_of_no_metadata()? {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
-						match crate::metadata::get_metadata(&file, None).await {
+						match crate::metadata::get_metadata(&file, None, db).await {
 							Ok(meta) => {
 								if let Some(meta) = meta {
 									let meta = db.add_or_increment_metadata(&meta)?;
@@ -126,7 +126,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 				let fm = db.find_file_by_id_with_metadata(file_id)?.unwrap();
 
-				match crate::metadata::get_metadata(&fm.file, fm.meta.as_ref()).await {
+				match crate::metadata::get_metadata(&fm.file, fm.meta.as_ref(), db).await {
 					Ok(Some(mut meta)) => {
 						if let Some(fm_meta) = fm.meta {
 							meta.id = fm_meta.id;
@@ -143,8 +143,6 @@ impl Task for TaskUpdateInvalidMetadata {
 						}
 
 						db.update_metadata(&meta)?;
-
-						println!("{:#?}", meta);
 					}
 
 					Ok(None) => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),

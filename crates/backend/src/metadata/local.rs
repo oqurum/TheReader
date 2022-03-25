@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use bookie::BookSearch;
 use chrono::Utc;
 
-use crate::database::table::{File, MetadataItem};
+use crate::database::{table::{File, MetadataItem}, Database};
 
 use super::Metadata;
 
@@ -17,7 +17,7 @@ impl Metadata for LocalMetadata {
 		"local"
 	}
 
-	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataItem>> {
+	async fn try_parse(&mut self, file: &File, _db: &Database) -> Result<Option<MetadataItem>> {
 		let book = match bookie::load_from_path(&file.path)? {
 			Some(v) => v,
 			None => return Ok(None)

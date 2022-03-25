@@ -23,14 +23,9 @@ pub async fn get_authors_from_book_by_rfd(id: &BookId) -> Result<Vec<rfd::Author
 }
 
 
-pub async fn get_author_from_url(url_or_path: &str) -> Result<Option<()>> {
+pub async fn get_author_from_url(url_or_path: &str) -> Result<json::AuthorJson> {
 	let resp = reqwest::get(into_url(url_or_path)).await?;
-
-	let record: json::AuthorJson = resp.json().await?;
-
-	println!("{:#?}", record);
-
-	Ok(None)
+	Ok(resp.json().await?)
 }
 
 fn into_url(url_or_path: &str) -> String {

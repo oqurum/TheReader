@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::database::table::{MetadataItem, File};
+use crate::database::{table::{MetadataItem, File, self}, Database};
 use super::Metadata;
 
 pub mod book;
@@ -23,7 +23,7 @@ impl Metadata for OpenLibraryMetadata {
 		"openlibrary"
 	}
 
-	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataItem>> {
+	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>> {
 		use bookie::Book;
 
 		// Wrapped b/c "future cannot be send between threads safely"
@@ -42,7 +42,7 @@ impl Metadata for OpenLibraryMetadata {
 					None => continue
 				};
 
-				match self.request(id).await {
+				match self.request(id, db).await {
 					Ok(Some(v)) => return Ok(Some(v)),
 					a => eprintln!("{:?}", a)
 				}
@@ -54,22 +54,21 @@ impl Metadata for OpenLibraryMetadata {
 }
 
 impl OpenLibraryMetadata {
-	pub async fn request(&self, id: BookId) -> Result<Option<MetadataItem>> {
+	pub async fn request(&self, id: BookId, db: &Database) -> Result<Option<MetadataItem>> {
 		let mut book_info = book::get_book_by_id(&id).await?;
 
 
 		// Find Authors.
 		let authors_rfd = author::get_authors_from_book_by_rfd(&id).await?;
 
-		// Now it's just Vec< OL00000A >
-		// TODO: Implement.
-		let _authors_found = if let Some(authors) = book_info.authors.take() {
+		// Now authors are just Vec< OL00000A >
+		let authors_found = if let Some(authors) = book_info.authors.take() {
 			let mut author_paths: Vec<String> = authors.into_iter()
-				.map(|v| self.prefix_text(strip_url_or_path(v.key)))
+				.map(|v| strip_url_or_path(v.key))
 				.collect();
 
 			for auth in authors_rfd {
-				let stripped = self.prefix_text(strip_url_or_path(auth.about));
+				let stripped = strip_url_or_path(auth.about);
 
 				if !author_paths.contains(&stripped) {
 					author_paths.push(stripped);
@@ -79,9 +78,44 @@ impl OpenLibraryMetadata {
 			author_paths
 		} else {
 			authors_rfd.into_iter()
-				.map(|auth| self.prefix_text(strip_url_or_path(auth.about)))
+				.map(|auth| strip_url_or_path(auth.about))
 				.collect()
 		};
+
+		let mut people = Vec::new();
+
+		// Now we'll grab the Authors.
+		for auth_id in authors_found {
+			match author::get_author_from_url(&auth_id).await {
+				Ok(author) => {
+					if db.get_person_by_name(&author.name)?.is_some() {
+						continue;
+					}
+
+					let person_id = db.add_person(&table::NewTagPerson {
+						source: self.prefix_text(auth_id),
+						type_of: 0,
+						name: author.name,
+						description: Some(author.bio),
+						birth_date: Some(author.birth_date),
+						updated_at: Utc::now(),
+						created_at: Utc::now(),
+					})?;
+
+					for alt_name in author.alternate_names {
+						db.add_person_alt(&table::TagPersonAlt {
+							person_id,
+							name: alt_name,
+						})?;
+					}
+
+					people.push(person_id.to_string());
+				}
+
+				Err(e) => eprintln!("[METADATA]: OpenLibrary Error: {}", e),
+			}
+		}
+
 
 
 		// TODO: Parse record.publish_date | Variations i've seen: "2018", "October 1, 1988", unknown if more types
@@ -106,7 +140,7 @@ impl OpenLibraryMetadata {
 			publisher: None,
 			tags_genre: None,
 			tags_collection: None,
-			tags_author: None,
+			tags_author: Some(people.join("|")).filter(|v| !v.is_empty()),
 			tags_country: None,
 			refreshed_at: Utc::now(),
 			created_at: Utc::now(),

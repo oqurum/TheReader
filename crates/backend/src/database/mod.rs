@@ -163,7 +163,7 @@ pub async fn init() -> Result<Database> {
 			"source" 		TEXT NOT NULL,
 			"type"			INTEGER NOT NULL,
 
-			"name"			TEXT NOT NULL,
+			"name"			TEXT NOT NULL COLLATE NOCASE,
 			"description"	TEXT,
 			"birth_date"	TEXT,
 
@@ -177,10 +177,10 @@ pub async fn init() -> Result<Database> {
 
 	// People Alt names
 	conn.execute(
-		r#"CREATE TABLE IF NOT EXISTS "tag_person_alts" (
+		r#"CREATE TABLE IF NOT EXISTS "tag_person_alt" (
 			"person_id"		INTEGER NOT NULL,
 
-			"name"			TEXT NOT NULL,
+			"name"			TEXT NOT NULL COLLATE NOCASE,
 
 			UNIQUE(person_id, name)
 		);"#,
@@ -203,6 +203,7 @@ impl Database {
 
 
 	// Libraries
+
 	pub fn add_library(&self, name: String) -> Result<()> {
 		// TODO: Create outside of fn.
 		let lib = NewLibrary {
@@ -250,6 +251,7 @@ impl Database {
 
 
 	// Directories
+
 	pub fn add_directory(&self, library_id: i64, path: String) -> Result<()> {
 		self.lock()?.execute(
 			r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
@@ -295,6 +297,7 @@ impl Database {
 
 
 	// Files
+
 	pub fn add_file(&self, file: &NewFile) -> Result<()> {
 		self.lock()?.execute(r#"
 			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, library_id, metadata_id, chapter_count)
@@ -379,6 +382,7 @@ impl Database {
 	}
 
 	// Progression
+
 	pub fn add_or_update_progress(&self, user_id: i64, file_id: i64, progress: Progression) -> Result<()> {
 		let prog = FileProgression::new(progress, user_id, file_id);
 
@@ -416,6 +420,7 @@ impl Database {
 
 
 	// Notes
+
 	pub fn add_or_update_notes(&self, user_id: i64, file_id: i64, data: String) -> Result<()> {
 		let prog = FileNote::new(file_id, user_id, data);
 
@@ -450,6 +455,7 @@ impl Database {
 
 		Ok(())
 	}
+
 
 	// Metadata
 
@@ -498,7 +504,6 @@ impl Database {
 
 		Ok(table_meta.unwrap())
 	}
-
 
 	pub fn update_metadata(&self, meta: &MetadataItem) -> Result<()> {
 		self.lock()?
@@ -574,6 +579,76 @@ impl Database {
 			r#"SELECT * FROM metadata_item WHERE id = ?1 LIMIT 1"#,
 			params![id],
 			|v| MetadataItem::try_from(v)
+		).optional()?)
+	}
+
+
+	// Person
+
+	pub fn add_person(&self, person: &NewTagPerson) -> Result<i64> {
+		let conn = self.lock()?;
+
+		conn.execute(r#"
+			INSERT INTO tag_person (source, type, name, description, birth_date, updated_at, created_at)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+		"#,
+		params![
+			&person.source, &person.type_of, &person.name, &person.description, &person.birth_date,
+			person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
+		])?;
+
+		Ok(conn.last_insert_rowid())
+	}
+
+	pub fn get_person_by_name(&self, value: &str) -> Result<Option<TagPerson>> {
+		let person = self.lock()?.query_row(
+			r#"SELECT * FROM tag_person WHERE name = ?1 LIMIT 1"#,
+			params![value],
+			|v| TagPerson::try_from(v)
+		).optional()?;
+
+		if let Some(person) = person {
+			Ok(Some(person))
+		} else if let Some(alt) = self.get_person_alt_by_name(value)? {
+			self.get_person_by_id(alt.person_id)
+		} else {
+			Ok(None)
+		}
+	}
+
+	pub fn get_person_by_id(&self, value: i64) -> Result<Option<TagPerson>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM tag_person WHERE id = ?1 LIMIT 1"#,
+			params![value],
+			|v| TagPerson::try_from(v)
+		).optional()?)
+	}
+
+	pub fn get_person_by_source(&self, value: &str) -> Result<Option<TagPerson>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM tag_person WHERE source = ?1 LIMIT 1"#,
+			params![value],
+			|v| TagPerson::try_from(v)
+		).optional()?)
+	}
+
+
+	// Person Alt
+
+	pub fn add_person_alt(&self, person: &TagPersonAlt) -> Result<()> {
+		self.lock()?.execute(r#"INSERT INTO tag_person_alt (name, person_id) VALUES (?1, ?2)"#,
+		params![
+			&person.name, &person.person_id
+		])?;
+
+		Ok(())
+	}
+
+	pub fn get_person_alt_by_name(&self, value: &str) -> Result<Option<TagPersonAlt>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM tag_person_alt WHERE name = ?1 LIMIT 1"#,
+			params![value],
+			|v| TagPersonAlt::try_from(v)
 		).optional()?)
 	}
 }

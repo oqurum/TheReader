@@ -362,10 +362,11 @@ impl<'a> TryFrom<&Row<'a>> for File {
 
 pub struct NewTagPerson {
 	pub source: String,
-	pub r#type: i64,
+	pub type_of: i64,
 
 	pub name: String,
 	pub description: Option<String>,
+	pub birth_date: Option<String>,
 
 	pub updated_at: DateTime<Utc>,
 	pub created_at: DateTime<Utc>,
@@ -376,7 +377,7 @@ pub struct TagPerson {
 	pub id: i64,
 
 	pub source: String,
-	pub r#type: i64,
+	pub type_of: i64,
 
 	pub name: String,
 	pub description: Option<String>,
@@ -396,7 +397,7 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 			id: value.get(0)?,
 
 			source: value.get(1)?,
-			r#type: value.get(2)?,
+			type_of: value.get(2)?,
 
 			name: value.get(3)?,
 			description: value.get(4)?,
@@ -404,6 +405,26 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 
 			created_at: Utc.timestamp_millis(value.get(6)?),
 			updated_at: Utc.timestamp_millis(value.get(7)?),
+		})
+	}
+}
+
+
+// Tag Person Alt
+
+#[derive(Debug, Serialize)]
+pub struct TagPersonAlt {
+	pub person_id: i64,
+	pub name: String,
+}
+
+impl<'a> TryFrom<&Row<'a>> for TagPersonAlt {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			person_id: value.get(0)?,
+			name: value.get(1)?,
 		})
 	}
 }
