@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::database::Database;
+use crate::{database::Database, ThumbnailLocation};
 
 
 // TODO: A should stop boolean
@@ -146,7 +146,10 @@ impl Task for TaskUpdateInvalidMetadata {
 
 								// Both have a poster and they're both different.
 								(true, true) if meta.thumb_url != fm_meta.thumb_url => {
-									// TODO: Remove old poster.
+									// Remove old poster.
+									let loc = ThumbnailLocation::from(fm_meta.thumb_url.unwrap());
+									let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
+									tokio::fs::remove_file(path).await?;
 								}
 
 								_ => ()

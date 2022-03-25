@@ -32,7 +32,7 @@ impl Metadata for OpenLibraryMetadata {
 			book.find(bookie::BookSearch::Identifier)
 		};
 
-		// TODO: Handle ids better "amazon:{id}", "amazon_uk:{id}", "goodreads:{id}", "isbn:{id}", "google:{id}", "uuid:{id}"
+		// TODO: Handle ids better "amazon:{id}", "amazon_uk:{id}", "goodreads:{id}", "isbn:{id}", "google:{id}", "uuid:{id}", "urn:isbn:{id}"
 
 		println!("[OL]: try_parse with ids: {:?}", found);
 
@@ -126,9 +126,7 @@ impl OpenLibraryMetadata {
 			}
 		}
 
-
-
-		// TODO: Parse record.publish_date | Variations i've seen: "2018", "October 1, 1988", unknown if more types
+		// TODO: Parse record.publish_date | Variations i've seen: "2018", "October 1, 1988", "2001 November", unknown if more types
 
 		let source_id = match book_info.isbn_13.first().or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first())) {
 			Some(v) => v,

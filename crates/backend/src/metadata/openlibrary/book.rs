@@ -131,7 +131,10 @@ pub struct Contributor {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TableOfContent {
 	level: i64,
-	label: String,
+	label: Option<String>,
 	title: String,
-	pagenum: String,
+	pagenum: Option<String>,
+
+	#[serde(rename = "type")]
+	type_of: Option<KeyItem>,
 }
