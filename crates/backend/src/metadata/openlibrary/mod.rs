@@ -32,6 +32,8 @@ impl Metadata for OpenLibraryMetadata {
 			book.find(bookie::BookSearch::Identifier)
 		};
 
+		// TODO: Handle ids better "amazon:{id}", "amazon_uk:{id}", "goodreads:{id}", "isbn:{id}", "google:{id}", "uuid:{id}"
+
 		println!("[OL]: try_parse with ids: {:?}", found);
 
 
@@ -55,7 +57,11 @@ impl Metadata for OpenLibraryMetadata {
 
 impl OpenLibraryMetadata {
 	pub async fn request(&self, id: BookId, db: &Database) -> Result<Option<MetadataItem>> {
-		let mut book_info = book::get_book_by_id(&id).await?;
+		let mut book_info = if let Some(v) = book::get_book_by_id(&id).await? {
+			v
+		} else {
+			return Ok(None);
+		};
 
 
 		// Find Authors.
@@ -86,6 +92,8 @@ impl OpenLibraryMetadata {
 
 		// Now we'll grab the Authors.
 		for auth_id in authors_found {
+			println!("[OL]: Grabbing Author: {}", auth_id);
+
 			match author::get_author_from_url(&auth_id).await {
 				Ok(author) => {
 					if db.get_person_by_name(&author.name)?.is_some() {
@@ -96,17 +104,19 @@ impl OpenLibraryMetadata {
 						source: self.prefix_text(auth_id),
 						type_of: 0,
 						name: author.name,
-						description: Some(author.bio),
-						birth_date: Some(author.birth_date),
+						description: author.bio.map(|v| v.into_content()),
+						birth_date: author.birth_date,
 						updated_at: Utc::now(),
 						created_at: Utc::now(),
 					})?;
 
-					for alt_name in author.alternate_names {
-						db.add_person_alt(&table::TagPersonAlt {
-							person_id,
-							name: alt_name,
-						})?;
+					if let Some(alts) = author.alternate_names {
+						for name in alts {
+							db.add_person_alt(&table::TagPersonAlt {
+								person_id,
+								name,
+							})?;
+						}
 					}
 
 					people.push(person_id.to_string());
@@ -120,7 +130,7 @@ impl OpenLibraryMetadata {
 
 		// TODO: Parse record.publish_date | Variations i've seen: "2018", "October 1, 1988", unknown if more types
 
-		let source_id = match book_info.isbn_13.first().or_else(|| book_info.isbn_10.first()) {
+		let source_id = match book_info.isbn_13.first().or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first())) {
 			Some(v) => v,
 			None => return Ok(None)
 		};
@@ -220,6 +230,30 @@ pub struct KeyItem {
 pub struct TypeValueItem {
 	r#type: String, // TODO: Handle Types
 	value: String
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RecordDescription {
+	Text(String),
+	SpecificType(TypeValueItem)
+}
+
+impl RecordDescription {
+	pub fn content(&self) -> &str {
+		match self {
+			Self::Text(v) => v.as_str(),
+			Self::SpecificType(v) => v.value.as_str(),
+		}
+	}
+
+	pub fn into_content(self) -> String {
+		match self {
+			Self::Text(v) => v,
+			Self::SpecificType(v) => v.value,
+		}
+	}
 }
 
 

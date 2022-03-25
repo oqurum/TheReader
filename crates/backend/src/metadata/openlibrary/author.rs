@@ -44,29 +44,30 @@ pub mod json {
 	use std::collections::HashMap;
 
 	use serde::{Deserialize, Serialize};
-	use crate::metadata::openlibrary::{KeyItem, TypeValueItem};
+	use crate::metadata::openlibrary::{KeyItem, TypeValueItem, RecordDescription};
 
 	#[derive(Debug, Serialize, Deserialize)]
 	#[serde(deny_unknown_fields)]
 	pub struct AuthorJson {
-		pub bio: String,
+		pub id: Option<i64>,
+		pub bio: Option<RecordDescription>,
 		pub r#type: KeyItem,
-		pub remote_ids: HashMap<String, String>, // TODO: Figure out all names: viaf, isni, wikidata
+		pub remote_ids: Option<HashMap<String, String>>, // TODO: Figure out all names: viaf, isni, wikidata
 		pub name: String,
-		pub entity_type: String,
-		pub title: String,
-		pub personal_name: String,
-		pub source_records: Vec<String>,
-		pub alternate_names: Vec<String>,
-		pub photos: Vec<i64>,
+		pub entity_type: Option<String>,
+		pub title: Option<String>,
+		pub personal_name: Option<String>,
+		pub source_records: Option<Vec<String>>,
+		pub alternate_names: Option<Vec<String>>,
+		pub photos: Option<Vec<i64>>,
 		pub key: String,
-		pub links: Vec<Link>,
-		pub wikipedia: String,
-		pub birth_date: String,
-		pub latest_revision: usize,
+		pub links: Option<Vec<Link>>,
+		pub wikipedia: Option<String>,
+		pub birth_date: Option<String>,
+		pub latest_revision: Option<usize>,
 		pub revision: usize,
-		pub created: TypeValueItem,
-		pub last_modified: TypeValueItem,
+		pub created: Option<TypeValueItem>,
+		pub last_modified: Option<TypeValueItem>,
 	}
 
 	#[derive(Debug, Serialize, Deserialize)]

@@ -3,13 +3,18 @@ use std::collections::HashMap;
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 
-use super::{KeyItem, TypeValueItem};
+use super::{KeyItem, TypeValueItem, RecordDescription};
 
 
-pub async fn get_book_by_id(id: &BookId) -> Result<BookInfo> {
+pub async fn get_book_by_id(id: &BookId) -> Result<Option<BookInfo>> {
 	let resp = reqwest::get(id.get_json_url()).await?;
 
-	Ok(resp.json().await?)
+	if resp.status().is_success() {
+		Ok(Some(resp.json().await?))
+	} else {
+		Ok(None)
+	}
+
 }
 
 
@@ -64,13 +69,19 @@ impl BookId {
 
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct BookInfo {
 	pub publishers: Vec<String>,
-	pub number_of_pages: usize,
+	pub number_of_pages: Option<usize>,
+	pub series: Option<Vec<String>>,
+	pub genres: Option<Vec<String>>,
 	pub description: Option<RecordDescription>,
 	pub contributors: Option<Vec<Contributor>>,
 	pub series: Option<Vec<String>>,
-	pub covers: Vec<usize>,
+	pub subtitle: Option<String>,
+	pub full_title: Option<String>,
+	pub work_titles: Option<Vec<String>>,
+	pub covers: Option<Vec<usize>>,
 	pub local_id: Option<Vec<String>>,
 	pub physical_format: Option<String>,
 	pub key: String,
@@ -80,48 +91,43 @@ pub struct BookInfo {
 	pub subjects: Option<Vec<String>>,
 	pub edition_name: Option<String>,
 	pub pagination: Option<String>,
-	// pub classifications: ,
+	pub classifications: Option<serde_json::Value>, // TODO: Unknown.
 	pub source_records: Option<Vec<String>>,
 	pub title: String,
-	pub identifiers: HashMap<String, Vec<String>>, // TODO: Enum Key names (amazon, google, librarything, goodreads, etc..)
-	pub languages: Vec<KeyItem>,
+	pub identifiers: Option<HashMap<String, Vec<String>>>, // TODO: Enum Key names (amazon, google, librarything, goodreads, etc..)
+	pub languages: Option<Vec<KeyItem>>,
 	pub publish_date: String,
+	pub first_sentence: Option<String>,
 	pub copyright_date: Option<String>,
 	pub works: Vec<KeyItem>,
 	pub r#type: KeyItem,
 	pub physical_dimensions: Option<String>,
-	pub ocaid: String,
-	pub isbn_10: Vec<String>,
+	pub ocaid: Option<String>,
+	pub isbn_10: Option<Vec<String>>,
 	pub isbn_13: Vec<String>,
 	pub lccn: Option<Vec<String>>,
 	pub oclc_numbers: Option<Vec<String>>,
 	pub lc_classifications: Option<Vec<String>>,
 	pub latest_revision: usize,
+	pub by_statement: Option<String>,
+	pub weight: Option<String>,
 	pub revision: usize,
+	pub table_of_contents: Option<Vec<TableOfContent>>,
 	pub created: TypeValueItem,
 	pub last_modified: TypeValueItem,
 }
 
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum RecordDescription {
-	Text(String),
-	SpecificType(TypeValueItem)
-}
-
-impl RecordDescription {
-	pub fn content(&self) -> &str {
-		match self {
-			Self::Text(v) => v.as_str(),
-			Self::SpecificType(v) => v.value.as_str(),
-		}
-	}
-}
-
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct Contributor {
 	role: String,
-	name: String
+	name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TableOfContent {
+	level: i64,
+	label: String,
+	title: String,
+	pagenum: String,
 }
