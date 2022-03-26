@@ -18,7 +18,6 @@ pub struct MetadataItem {
 	pub rating: f64,
 	pub thumb_url: Option<String>,
 
-	pub creator: Option<String>,
 	pub publisher: Option<String>,
 
 	pub tags_genre: Option<String>,
@@ -54,19 +53,18 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			description: value.get(5)?,
 			rating: value.get(6)?,
 			thumb_url: value.get(7)?,
-			creator: value.get(8)?,
-			publisher: value.get(9)?,
-			tags_genre: value.get(10)?,
-			tags_collection: value.get(11)?,
-			tags_author: value.get(12)?,
-			tags_country: value.get(13)?,
-			available_at: value.get(14)?,
-			year: value.get(15)?,
-			refreshed_at: Utc.timestamp_millis(value.get(16)?),
-			created_at: Utc.timestamp_millis(value.get(17)?),
-			updated_at: Utc.timestamp_millis(value.get(18)?),
-			deleted_at: value.get::<_, Option<_>>(19)?.map(|v| Utc.timestamp_millis(v)),
-			hash: value.get(20)?
+			publisher: value.get(8)?,
+			tags_genre: value.get(9)?,
+			tags_collection: value.get(10)?,
+			tags_author: value.get(11)?,
+			tags_country: value.get(12)?,
+			available_at: value.get(13)?,
+			year: value.get(14)?,
+			refreshed_at: Utc.timestamp_millis(value.get(15)?),
+			created_at: Utc.timestamp_millis(value.get(16)?),
+			updated_at: Utc.timestamp_millis(value.get(17)?),
+			deleted_at: value.get::<_, Option<_>>(18)?.map(|v| Utc.timestamp_millis(v)),
+			hash: value.get(19)?
 		})
 	}
 }
@@ -488,19 +486,18 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 					description: value.get(16)?,
 					rating: value.get(17)?,
 					thumb_url: value.get(18)?,
-					creator: value.get(19)?,
-					publisher: value.get(20)?,
-					tags_genre: value.get(21)?,
-					tags_collection: value.get(22)?,
-					tags_author: value.get(23)?,
-					tags_country: value.get(24)?,
-					available_at: value.get(25)?,
-					year: value.get(26)?,
-					refreshed_at: Utc.timestamp_millis(value.get(27)?),
-					created_at: Utc.timestamp_millis(value.get(28)?),
-					updated_at: Utc.timestamp_millis(value.get(29)?),
-					deleted_at: value.get::<_, Option<_>>(30)?.map(|v| Utc.timestamp_millis(v)),
-					hash: value.get(31)?
+					publisher: value.get(19)?,
+					tags_genre: value.get(20)?,
+					tags_collection: value.get(21)?,
+					tags_author: value.get(22)?,
+					tags_country: value.get(23)?,
+					available_at: value.get(24)?,
+					year: value.get(25)?,
+					refreshed_at: Utc.timestamp_millis(value.get(26)?),
+					created_at: Utc.timestamp_millis(value.get(27)?),
+					updated_at: Utc.timestamp_millis(value.get(28)?),
+					deleted_at: value.get::<_, Option<_>>(29)?.map(|v| Utc.timestamp_millis(v)),
+					hash: value.get(30)?
 				}))
 				.transpose()?
 		})

@@ -41,11 +41,10 @@ impl Metadata for LocalMetadata {
 				description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
 				rating: 0.0,
 				thumb_url: None,
-				creator: book.find(BookSearch::Creator).map(|mut v| v.remove(0)),
 				publisher: book.find(BookSearch::Publisher).map(|mut v| v.remove(0)),
 				tags_genre: None,
 				tags_collection: None,
-				tags_author: None,
+				tags_author: book.find(BookSearch::Creator).map(|v| v.join("|")), // TODO: Check if Author is in Database
 				tags_country: None,
 				refreshed_at: now,
 				created_at: now,

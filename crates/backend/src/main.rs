@@ -363,7 +363,7 @@ async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookList
 				let (title, author, icon_path) = if let Some(meta) = meta {
 					(
 						meta.title.or(meta.original_title).unwrap_or_default(),
-						meta.creator.unwrap_or_default(),
+						meta.tags_author.unwrap_or_default(), // TODO: Need to grab first Author and return it.
 						meta.thumb_url.map(|url| format!("/api/book/{}/res/{}", file.id, url))
 					)
 				} else {

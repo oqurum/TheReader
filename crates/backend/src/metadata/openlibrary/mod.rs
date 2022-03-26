@@ -168,7 +168,6 @@ impl OpenLibraryMetadata {
 			description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 			rating: 0.0,
 			thumb_url,
-			creator: None,
 			publisher: None,
 			tags_genre: None,
 			tags_collection: None,
