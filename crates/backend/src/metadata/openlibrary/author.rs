@@ -94,7 +94,7 @@ pub mod rfd {
 			#[serde(rename = "authorList")]
 			pub authors: Option<Vec<AuthorList>>,
 
-			pub contributor: Option<String>,
+			pub contributor: Option<Vec<String>>,
 
 			// title: String,
 			// publisher: String,
