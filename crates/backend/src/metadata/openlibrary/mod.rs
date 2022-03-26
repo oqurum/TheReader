@@ -112,10 +112,13 @@ impl OpenLibraryMetadata {
 
 					if let Some(alts) = author.alternate_names {
 						for name in alts {
-							db.add_person_alt(&table::TagPersonAlt {
+							// Ignore errors. Errors should just be UNIQUE constraint failed
+							if let Err(e) = db.add_person_alt(&table::TagPersonAlt {
 								person_id,
 								name,
-							})?;
+							}) {
+								eprintln!("[OL]: Add Alt Name Error: {e}");
+							}
 						}
 					}
 
