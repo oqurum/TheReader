@@ -20,6 +20,7 @@ pub async fn get_book_by_id(id: &BookId) -> Result<Option<BookInfo>> {
 
 
 /// https://openlibrary.org/dev/docs/api/books
+#[derive(Debug)]
 pub enum BookId {
 	// OpenLibrary Id
 	Work(String),
@@ -59,9 +60,7 @@ impl BookId {
 		match value {
 			v if v.starts_with("OL") && v.ends_with('W') => Some(Self::Work(v)),
 			v if v.starts_with("OL") && v.ends_with('M') => Some(Self::Edition(v)),
-			v if v.chars().all(|v| ('0'..='9').contains(&v)) => Some(Self::Isbn(v)),
-
-			_ => None
+			_ => crate::metadata::parse_book_id(&value).into_possible_isbn_value().map(Self::Isbn)
 		}
 	}
 }
@@ -81,8 +80,12 @@ pub struct BookInfo {
 	pub full_title: Option<String>,
 	pub work_titles: Option<Vec<String>>,
 	pub covers: Option<Vec<i64>>,
-	pub notes: Option<String>,
+	pub notes: Option<RecordDescription>,
+	pub ia_box_id: Option<Vec<String>>,
+	pub ia_loaded_id: Option<Vec<String>>,
 	pub publish_country: Option<String>,
+	pub translation_of: Option<String>,
+	pub translated_from: Option<Vec<KeyItem>>,
 	pub other_titles: Option<Vec<String>>,
 	pub dewey_decimal_class: Option<Vec<String>>,
 	pub local_id: Option<Vec<String>>,
@@ -100,7 +103,7 @@ pub struct BookInfo {
 	pub identifiers: Option<HashMap<String, Vec<String>>>, // TODO: Enum Key names (amazon, google, librarything, goodreads, etc..)
 	pub languages: Option<Vec<KeyItem>>,
 	pub publish_date: String,
-	pub first_sentence: Option<String>,
+	pub first_sentence: Option<RecordDescription>,
 	pub copyright_date: Option<String>,
 	pub works: Vec<KeyItem>,
 	pub r#type: KeyItem,

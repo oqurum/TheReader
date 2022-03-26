@@ -64,6 +64,7 @@ pub mod json {
 		pub links: Option<Vec<Link>>,
 		pub wikipedia: Option<String>,
 		pub birth_date: Option<String>,
+		pub death_date: Option<String>,
 		pub latest_revision: Option<usize>,
 		pub revision: usize,
 		pub created: Option<TypeValueItem>,

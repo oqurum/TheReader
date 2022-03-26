@@ -32,8 +32,6 @@ impl Metadata for OpenLibraryMetadata {
 			book.find(bookie::BookSearch::Identifier)
 		};
 
-		// TODO: Handle ids better "amazon:{id}", "amazon_uk:{id}", "goodreads:{id}", "isbn:{id}", "google:{id}", "uuid:{id}", "urn:isbn:{id}"
-
 		println!("[OL]: try_parse with ids: {:?}", found);
 
 
