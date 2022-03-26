@@ -14,7 +14,17 @@ pub async fn get_book_by_id(id: &BookId) -> Result<Option<BookInfo>> {
 	} else {
 		Ok(None)
 	}
+}
 
+
+pub async fn search_for_books(type_of: BookSearchType, query: &str) -> Result<Option<BookSearchContainer>> {
+	let resp = reqwest::get(type_of.get_api_url(query)).await?;
+
+	if resp.status().is_success() {
+		Ok(Some(resp.json().await?))
+	} else {
+		Ok(None)
+	}
 }
 
 
@@ -64,6 +74,123 @@ impl BookId {
 		}
 	}
 }
+
+
+pub enum BookSearchType {
+	Query,
+	Title,
+	Author,
+}
+
+impl BookSearchType {
+	pub fn get_api_url(&self, value: &str) -> String {
+		format!("http://openlibrary.org/search.json?{}={}", self.key(), serde_urlencoded::to_string(value).unwrap())
+	}
+
+	pub fn key(&self) -> &str {
+		match self {
+			Self::Query => "q",
+			Self::Title => "title",
+			Self::Author => "author",
+		}
+	}
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BookSearchContainer {
+	#[serde(rename = "numFound")]
+	pub num_found: i64,
+	pub start: i64,
+	#[serde(rename = "numFoundExact")]
+	pub num_found_exact: bool,
+	#[serde(rename = "docs")]
+	pub items: Vec<BookSearchItem>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BookSearchItem {
+	pub key: String,
+	#[serde(rename = "type")]
+	pub type_of: String,
+
+	pub seed: Option<Vec<String>>,
+	pub title: Option<String>,
+	pub title_suggest: Option<String>,
+	pub has_fulltext: Option<bool>,
+	pub edition_count: Option<i64>,
+	pub edition_key: Option<Vec<String>>,
+	pub publish_date: Option<Vec<String>>,
+	pub publish_year: Option<Vec<i64>>,
+	pub first_publish_year: Option<i64>,
+	pub number_of_pages_median: Option<i64>,
+	pub lccn: Option<Vec<String>>,
+	pub publish_place: Option<Vec<String>>,
+	pub oclc: Option<Vec<String>>,
+	pub contributor: Option<Vec<String>>,
+	pub lcc: Option<Vec<String>>,
+	pub ddc: Option<Vec<String>>,
+	pub isbn: Option<Vec<String>>,
+	pub last_modified_i: Option<i64>,
+	pub ia: Option<Vec<String>>,
+	pub ebook_count_i: Option<i64>,
+	pub public_scan_b: Option<bool>,
+	pub lending_edition_s: Option<String>,
+	pub lending_identifier_s: Option<String>,
+	pub printdisabled_s: Option<String>,
+	pub cover_edition_key: Option<String>,
+	pub cover_i: Option<i64>,
+	pub first_sentence: Option<Vec<String>>,
+	pub publisher: Option<Vec<String>>,
+	pub language: Option<Vec<String>>,
+	pub author_key: Option<Vec<String>>,
+	pub author_name: Option<Vec<String>>,
+	pub author_alternative_name: Option<Vec<String>>,
+	pub person: Option<Vec<String>>,
+	pub place: Option<Vec<String>>,
+	pub subject: Option<Vec<String>>,
+	pub time: Option<Vec<String>>,
+	pub id_alibris_id: Option<Vec<String>>,
+	pub id_amazon: Option<Vec<String>>,
+	pub id_amazon_ca_asin: Option<Vec<String>>,
+	pub id_amazon_co_uk_asin: Option<Vec<String>>,
+	pub id_amazon_de_asin: Option<Vec<String>>,
+	pub id_amazon_it_asin: Option<Vec<String>>,
+	pub id_bibliothèque_nationale_de_france: Option<Vec<String>>,
+	pub id_canadian_national_library_archive: Option<Vec<String>>,
+	pub id_depósito_legal: Option<Vec<String>>,
+	pub id_goodreads: Option<Vec<String>>,
+	pub id_google: Option<Vec<String>>,
+	pub id_hathi_trust: Option<Vec<String>>,
+	pub id_librarything: Option<Vec<String>>,
+	pub id_librivox: Option<Vec<String>>,
+	pub id_nla: Option<Vec<String>>,
+	pub id_overdrive: Option<Vec<String>>,
+	pub id_paperback_swap: Option<Vec<String>>,
+	pub id_project_gutenberg: Option<Vec<String>>,
+	pub id_scribd: Option<Vec<String>>,
+	pub id_standard_ebooks: Option<Vec<String>>,
+	pub ia_loaded_id: Option<Vec<String>>,
+	pub ia_box_id: Option<Vec<String>>,
+	pub ia_collection_s: Option<String>,
+	pub publisher_facet: Option<Vec<String>>,
+	pub person_key: Option<Vec<String>>,
+	pub place_key: Option<Vec<String>>,
+	pub time_facet: Option<Vec<String>>,
+	pub person_facet: Option<Vec<String>>,
+	pub subject_facet: Option<Vec<String>>,
+	#[serde(rename = "_version_")]
+	pub version: Option<i64>,
+	pub place_facet: Option<Vec<String>>,
+	pub lcc_sort: Option<String>,
+	pub author_facet: Option<Vec<String>>,
+	pub subject_key: Option<Vec<String>>,
+	pub ddc_sort: Option<String>,
+	pub time_key: Option<Vec<String>>,
+}
+
 
 
 

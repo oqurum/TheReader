@@ -40,11 +40,59 @@ fn into_url(url_or_path: &str) -> String {
 }
 
 
+
+pub async fn search_for_authors(value: &str) -> Result<Option<json::AuthorSearchContainer>> {
+	let resp = reqwest::get(
+		format!(
+			"http://openlibrary.org/search/authors.json?q={}",
+			serde_urlencoded::to_string(value).unwrap()
+		)
+	).await?;
+
+	if resp.status().is_success() {
+		Ok(Some(resp.json().await?))
+	} else {
+		Ok(None)
+	}
+}
+
+
 pub mod json {
 	use std::collections::HashMap;
 
 	use serde::{Deserialize, Serialize};
 	use crate::metadata::openlibrary::{KeyItem, TypeValueItem, RecordDescription};
+
+	#[derive(Debug, Serialize, Deserialize)]
+	pub struct AuthorSearchContainer {
+		#[serde(rename = "numFound")]
+		pub num_found: i64,
+		pub start: i64,
+		#[serde(rename = "numFoundExact")]
+		pub num_found_exact: bool,
+		#[serde(rename = "docs")]
+		pub items: Vec<AuthorSearchItem>,
+	}
+
+	#[derive(Debug, Serialize, Deserialize)]
+	#[serde(deny_unknown_fields)]
+	pub struct AuthorSearchItem {
+		pub key: Option<String>,
+		#[serde(rename = "type")]
+		pub type_of: Option<String>,
+
+		pub name: Option<String>,
+		pub alternate_names: Option<Vec<String>>,
+		pub birth_date: Option<String>,
+		pub death_date: Option<String>,
+		pub date: Option<String>,
+		pub top_work: Option<String>,
+		pub work_count: Option<i64>,
+		pub top_subjects: Option<Vec<String>>,
+		#[serde(rename = "_version_")]
+		pub version: Option<i64>,
+	}
+
 
 	#[derive(Debug, Serialize, Deserialize)]
 	#[serde(deny_unknown_fields)]
@@ -78,7 +126,6 @@ pub mod json {
 		pub r#type: KeyItem,
 	}
 }
-
 
 pub mod rfd {
 	use serde::{Deserialize, Serialize};

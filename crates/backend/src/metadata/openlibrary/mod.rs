@@ -185,7 +185,7 @@ impl OpenLibraryMetadata {
 	}
 }
 
-pub enum SearchId {
+pub enum CoverId {
 	Id(String),
 
 	Isbn(String),
@@ -197,7 +197,7 @@ pub enum SearchId {
 	LibraryThing(String)
 }
 
-impl SearchId {
+impl CoverId {
 	pub fn get_api_url(&self) -> String {
 		format!("https://covers.openlibrary.org/b/{}/{}-L.jpg", self.key(), self.value())
 	}
