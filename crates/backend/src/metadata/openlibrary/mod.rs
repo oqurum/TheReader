@@ -133,7 +133,7 @@ impl OpenLibraryMetadata {
 			}
 		}
 
-		// TODO: Parse record.publish_date | Variations i've seen: "2018", "October 1, 1988", "2001 November", unknown if more types
+		// TODO: Parse record.publish_date | Millions of different variations. No specifics' were followed.
 
 		let source_id = match book_info.isbn_13.first().or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first())) {
 			Some(v) => v,
@@ -144,7 +144,7 @@ impl OpenLibraryMetadata {
 
 		// Download thumb url and store it.
 		if let Some(thumb_id) = book_info.covers.as_ref().and_then(|v| v.iter().find(|v| **v != -1)).copied() {
-			let resp = reqwest::get(format!("https://covers.openlibrary.org/b/id/{}-L.jpg", thumb_id)).await?;
+			let resp = reqwest::get(CoverId::Id(thumb_id.to_string()).get_api_url()).await?;
 
 			if resp.status().is_success() {
 				let bytes = resp.bytes().await?;
@@ -186,7 +186,7 @@ impl OpenLibraryMetadata {
 }
 
 pub enum CoverId {
-	Id(String),
+	Id(String), // TODO: number
 
 	Isbn(String),
 	Oclc(String),
