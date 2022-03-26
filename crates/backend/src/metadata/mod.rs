@@ -1,7 +1,12 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::database::{table::{MetadataItem, File}, Database};
+
+use self::local::LocalMetadata;
+use self::openlibrary::OpenLibraryMetadata;
 
 pub mod audible;
 pub mod commonsensemedia;
@@ -34,65 +39,32 @@ pub trait Metadata {
 
 	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>>;
 
-	// TODO: Search
+	async fn search(&mut self, _search: &str) -> Result<Vec<SearchItem>> {
+		Ok(Vec::new())
+	}
 }
 
 // TODO: Utilize current metadata in try_parse.
-pub async fn get_metadata(file: &File, meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataItem>> {
+pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataItem>> {
 	return_if_found!(openlibrary::OpenLibraryMetadata.try_parse(file, db).await);
 
 	// TODO: Don't re-scan file if we already have metadata from file.
-	local::LocalMetadata.try_parse(file, db).await
+	LocalMetadata.try_parse(file, db).await
 }
 
 
+pub async fn search_all_agents(search: &str) -> Result<HashMap<&'static str, Vec<SearchItem>>> {
+	let mut map = HashMap::new();
 
+	map.insert(
+		OpenLibraryMetadata.get_prefix(),
+		OpenLibraryMetadata.search(search).await?,
+	);
 
-// TODO: Handle ids better "amazon:{id}", "amazon_uk:{id}", "goodreads:{id}", "isbn:{id}", "google:{id}", "uuid:{id}", "urn:uuid:{id}", "urn:isbn:{id}"
-// TODO: Move into another file?
-pub fn parse_book_id(value: &str) -> IdType {
-	if let Some((prefix, suffix)) = value.rsplit_once(':') {
-		let prefix = prefix.to_lowercase().replace(' ', "");
-		let suffix = suffix.trim().to_owned();
-
-		match prefix.as_str() {
-			"urn:isbn" |
-			"isbn" => IdType::Isbn(suffix),
-
-			"urn:uuid" |
-			"uuid" => IdType::Uuid(suffix),
-
-			_ => IdType::UnknownKeyValue(prefix, suffix),
-		}
-	} else {
-		IdType::UnknownValue(value.trim().to_string())
-	}
+	Ok(map)
 }
 
-pub enum IdType {
-	Isbn(String),
-	Uuid(String),
 
-	UnknownKeyValue(String, String),
-	UnknownValue(String)
-}
-
-impl IdType {
-	pub fn get_possible_isbn_value(&self) -> Option<&str> {
-		match self {
-			Self::UnknownValue(v) if v.chars().all(|v| ('0'..='9').contains(&v)) => Some(v.as_str()),
-			Self::Isbn(v) => Some(v.as_str()),
-
-			_ => None,
-		}
-	}
-
-	pub fn into_possible_isbn_value(self) -> Option<String> {
-		match self {
-			Self::UnknownValue(v) if v.chars().all(|v| ('0'..='9').contains(&v)) => Some(v),
-			Self::Isbn(v) => Some(v),
-
-			_ => None,
-		}
-	}
+pub struct SearchItem {
+	//
 }

@@ -8,7 +8,7 @@ use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
-use super::Metadata;
+use super::{Metadata, SearchItem};
 
 pub mod book;
 pub mod author;
@@ -50,6 +50,12 @@ impl Metadata for OpenLibraryMetadata {
 		}
 
 		Ok(None)
+	}
+
+	async fn search(&mut self, search: &str) -> Result<Vec<SearchItem>> {
+		//
+
+		Ok(Vec::new())
 	}
 }
 

@@ -60,7 +60,7 @@ impl BookId {
 		match value {
 			v if v.starts_with("OL") && v.ends_with('W') => Some(Self::Work(v)),
 			v if v.starts_with("OL") && v.ends_with('M') => Some(Self::Edition(v)),
-			_ => crate::metadata::parse_book_id(&value).into_possible_isbn_value().map(Self::Isbn)
+			_ => bookie::parse_book_id(&value).into_possible_isbn_value().map(Self::Isbn)
 		}
 	}
 }
