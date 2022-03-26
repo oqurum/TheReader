@@ -161,7 +161,6 @@ pub async fn init() -> Result<Database> {
 			"id"			INTEGER NOT NULL,
 
 			"source" 		TEXT NOT NULL,
-			"type"			INTEGER NOT NULL,
 
 			"name"			TEXT NOT NULL COLLATE NOCASE,
 			"description"	TEXT,

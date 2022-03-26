@@ -377,7 +377,6 @@ pub struct TagPerson {
 	pub id: i64,
 
 	pub source: String,
-	pub type_of: i64,
 
 	pub name: String,
 	pub description: Option<String>,
@@ -397,14 +396,13 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 			id: value.get(0)?,
 
 			source: value.get(1)?,
-			type_of: value.get(2)?,
 
-			name: value.get(3)?,
-			description: value.get(4)?,
-			birth_date: value.get(5)?,
+			name: value.get(2)?,
+			description: value.get(3)?,
+			birth_date: value.get(4)?,
 
-			created_at: Utc.timestamp_millis(value.get(6)?),
-			updated_at: Utc.timestamp_millis(value.get(7)?),
+			created_at: Utc.timestamp_millis(value.get(5)?),
+			updated_at: Utc.timestamp_millis(value.get(6)?),
 		})
 	}
 }
