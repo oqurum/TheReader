@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use bookie::BookSearch;
 use chrono::Utc;
 
-use crate::{database::{table::{File, MetadataItem}, Database}, ThumbnailType};
+use crate::{database::{table::{File, MetadataItem, MetadataItemCached}, Database}, ThumbnailType};
 
 use super::Metadata;
 
@@ -32,6 +32,8 @@ impl Metadata for LocalMetadata {
 				.map(|mut v| v.remove(0))
 				.map(|url| book.read_path_as_bytes(&url));
 
+			let authors = book.find(BookSearch::Creator);
+
 			(MetadataItem {
 				id: 0,
 				source: format!("{}:{}", self.get_prefix(), book.get_unique_id()?),
@@ -41,10 +43,12 @@ impl Metadata for LocalMetadata {
 				description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
 				rating: 0.0,
 				thumb_url: None,
-				publisher: book.find(BookSearch::Publisher).map(|mut v| v.remove(0)),
+				cached: MetadataItemCached::default()
+					.publisher_optional(book.find(BookSearch::Publisher).map(|mut v| v.remove(0)))
+					.author_optional(authors.as_ref().and_then(|v| v.first().cloned())),
 				tags_genre: None,
 				tags_collection: None,
-				tags_author: book.find(BookSearch::Creator).map(|v| v.join("|")), // TODO: Check if Author is in Database
+				tags_author: authors.map(|v| v.join("|")), // TODO: Check if Author is in Database
 				tags_country: None,
 				refreshed_at: now,
 				created_at: now,

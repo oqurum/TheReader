@@ -1,7 +1,7 @@
 use books_common::Progression;
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
-use serde::{Serialize, Serializer};
+use serde::{Serialize, Serializer, Deserialize};
 
 
 // Metadata
@@ -18,7 +18,8 @@ pub struct MetadataItem {
 	pub rating: f64,
 	pub thumb_url: Option<String>,
 
-	pub publisher: Option<String>,
+	// TODO: Make table for all tags. Include publisher in it. Remove country.
+	pub cached: MetadataItemCached,
 
 	pub tags_genre: Option<String>,
 	pub tags_collection: Option<String>,
@@ -53,7 +54,9 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			description: value.get(5)?,
 			rating: value.get(6)?,
 			thumb_url: value.get(7)?,
-			publisher: value.get(8)?,
+			cached: value.get::<_, Option<String>>(8)?
+				.map(|v| MetadataItemCached::from_string(&v))
+				.unwrap_or_default(),
 			tags_genre: value.get(9)?,
 			tags_collection: value.get(10)?,
 			tags_author: value.get(11)?,
@@ -68,6 +71,55 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 		})
 	}
 }
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct MetadataItemCached {
+	pub author: Option<String>,
+	pub publisher: Option<String>,
+}
+
+impl MetadataItemCached {
+	pub fn as_string(&self) -> String {
+		serde_urlencoded::to_string(&self).unwrap()
+	}
+
+	/// Returns `None` if string is empty.
+	pub fn as_string_optional(&self) -> Option<String> {
+		Some(self.as_string()).filter(|v| !v.is_empty())
+	}
+
+	pub fn from_string<V: AsRef<str>>(value: V) -> Self {
+		serde_urlencoded::from_str(value.as_ref()).unwrap()
+	}
+
+	pub fn author(mut self, value: String) -> Self {
+		self.author = Some(value);
+		self
+	}
+
+	pub fn publisher(mut self, value: String) -> Self {
+		self.publisher = Some(value);
+		self
+	}
+
+	pub fn author_optional(mut self, value: Option<String>) -> Self {
+		if value.is_some() {
+			self.author = value;
+		}
+
+		self
+	}
+
+	pub fn publisher_optional(mut self, value: Option<String>) -> Self {
+		if value.is_some() {
+			self.publisher = value;
+		}
+
+		self
+	}
+}
+
+
 
 
 // Notes
@@ -486,7 +538,9 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 					description: value.get(16)?,
 					rating: value.get(17)?,
 					thumb_url: value.get(18)?,
-					publisher: value.get(19)?,
+					cached: value.get::<_, Option<String>>(19)?
+						.map(|v| MetadataItemCached::from_string(&v))
+						.unwrap_or_default(),
 					tags_genre: value.get(20)?,
 					tags_collection: value.get(21)?,
 					tags_author: value.get(22)?,

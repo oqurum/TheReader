@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
+use crate::{database::{table::{MetadataItem, File, self, MetadataItemCached}, Database}, ThumbnailType};
 use super::{Metadata, SearchItem};
 
 pub mod book;
@@ -166,7 +166,8 @@ impl OpenLibraryMetadata {
 			description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 			rating: 0.0,
 			thumb_url,
-			publisher: None,
+			cached: MetadataItemCached::default()
+				.author_optional(people.first().cloned()),
 			tags_genre: None,
 			tags_collection: None,
 			tags_author: Some(people.join("|")).filter(|v| !v.is_empty()),

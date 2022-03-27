@@ -76,7 +76,7 @@ pub async fn init() -> Result<Database> {
 			"rating"				FLOAT,
 			"thumb_url"				TEXT,
 
-			"publisher"				TEXT,
+			"cached"				TEXT,
 
 			"tags_genre"			TEXT,
 			"tags_collection"		TEXT,
@@ -469,7 +469,7 @@ impl Database {
 			.execute(r#"
 				INSERT INTO metadata_item (
 					source, file_item_count, title, original_title, description, rating, thumb_url,
-					publisher,
+					cached,
 					tags_genre, tags_collection, tags_author, tags_country,
 					available_at, year,
 					refreshed_at, created_at, updated_at, deleted_at,
@@ -478,7 +478,7 @@ impl Database {
 				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)"#,
 				params![
 					&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_url,
-					&meta.publisher,
+					&meta.cached.as_string_optional(),
 					&meta.tags_genre, &meta.tags_collection, &meta.tags_author, &meta.tags_country,
 					&meta.available_at, &meta.year,
 					&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
@@ -508,7 +508,7 @@ impl Database {
 		.execute(r#"
 			UPDATE metadata_item SET
 				source = ?2, file_item_count = ?3, title = ?4, original_title = ?5, description = ?6, rating = ?7, thumb_url = ?8,
-				publisher = ?9,
+				cached = ?9,
 				tags_genre = ?10, tags_collection = ?11, tags_author = ?12, tags_country = ?13,
 				available_at = ?14, year = ?15,
 				refreshed_at = ?16, created_at = ?17, updated_at = ?18, deleted_at = ?19,
@@ -517,7 +517,7 @@ impl Database {
 			params![
 				meta.id,
 				&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_url,
-				&meta.publisher,
+				&meta.cached.as_string_optional(),
 				&meta.tags_genre, &meta.tags_collection, &meta.tags_author, &meta.tags_country,
 				&meta.available_at, &meta.year,
 				&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),

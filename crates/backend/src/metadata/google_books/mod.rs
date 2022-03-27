@@ -7,7 +7,7 @@ use bookie::Book;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::{table::{MetadataItem, File}, Database}, ThumbnailType};
+use crate::{database::{table::{MetadataItem, File, MetadataItemCached}, Database}, ThumbnailType};
 use super::{Metadata, SearchItem};
 
 pub struct GoogleBooksMetadata;
@@ -96,7 +96,9 @@ impl GoogleBooksMetadata {
 			description: Some(book.volume_info.description),
 			rating: 0.0,
 			thumb_url,
-			publisher: Some(book.volume_info.publisher),
+			cached: MetadataItemCached::default()
+				.publisher(book.volume_info.publisher)
+				.author_optional(book.volume_info.authors.first().cloned()),
 			tags_genre: None,
 			tags_collection: None,
 			// TODO: Check to see if we have author names in Database.
