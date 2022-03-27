@@ -412,9 +412,9 @@ dependencies = [
  "serde",
  "serde-xml-rs",
  "serde_json",
- "serde_urlencoded",
  "sha2",
  "tokio",
+ "urlencoding",
 ]
 
 [[package]]

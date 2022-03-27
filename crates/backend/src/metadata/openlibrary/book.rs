@@ -84,7 +84,7 @@ pub enum BookSearchType {
 
 impl BookSearchType {
 	pub fn get_api_url(&self, value: &str) -> String {
-		format!("http://openlibrary.org/search.json?{}={}", self.key(), serde_urlencoded::to_string(value).unwrap())
+		format!("http://openlibrary.org/search.json?{}={}", self.key(), urlencoding::encode(value))
 	}
 
 	pub fn key(&self) -> &str {

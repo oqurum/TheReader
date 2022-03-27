@@ -45,7 +45,7 @@ pub async fn search_for_authors(value: &str) -> Result<Option<json::AuthorSearch
 	let resp = reqwest::get(
 		format!(
 			"http://openlibrary.org/search/authors.json?q={}",
-			serde_urlencoded::to_string(value).unwrap()
+			urlencoding::encode(value)
 		)
 	).await?;
 

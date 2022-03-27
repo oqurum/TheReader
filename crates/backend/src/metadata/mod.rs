@@ -5,11 +5,15 @@ use async_trait::async_trait;
 
 use crate::database::{table::{MetadataItem, File}, Database};
 
-use self::local::LocalMetadata;
-use self::openlibrary::OpenLibraryMetadata;
+use self::{
+	google_books::GoogleBooksMetadata,
+	local::LocalMetadata,
+	openlibrary::OpenLibraryMetadata
+};
 
 pub mod audible;
 pub mod commonsensemedia;
+pub mod google_books;
 pub mod goodreads;
 pub mod local;
 pub mod openlibrary;
@@ -45,8 +49,10 @@ pub trait Metadata {
 }
 
 // TODO: Utilize current metadata in try_parse.
+// TODO: Order which metadata should be tried.
 pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataItem>> {
-	return_if_found!(openlibrary::OpenLibraryMetadata.try_parse(file, db).await);
+	return_if_found!(OpenLibraryMetadata.try_parse(file, db).await);
+	return_if_found!(GoogleBooksMetadata.try_parse(file, db).await);
 
 	// TODO: Don't re-scan file if we already have metadata from file.
 	LocalMetadata.try_parse(file, db).await
@@ -59,6 +65,11 @@ pub async fn search_all_agents(search: &str) -> Result<HashMap<&'static str, Vec
 	map.insert(
 		OpenLibraryMetadata.get_prefix(),
 		OpenLibraryMetadata.search(search).await?,
+	);
+
+	map.insert(
+		GoogleBooksMetadata.get_prefix(),
+		GoogleBooksMetadata.search(search).await?,
 	);
 
 	Ok(map)

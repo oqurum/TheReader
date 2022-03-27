@@ -1,7 +1,5 @@
 // https://openlibrary.org/developers/api
 
-// TODO: Handle Author
-
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;
