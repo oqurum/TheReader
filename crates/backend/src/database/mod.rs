@@ -98,6 +98,18 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+	// Metadata People
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "metadata_person" (
+			"metadata_id"	INTEGER NOT NULL,
+			"person_id"		INTEGER NOT NULL,
+
+			UNIQUE(metadata_id, person_id)
+		);"#,
+		[]
+	)?;
+
+
 	// TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
 	// File Note
 	conn.execute(
@@ -379,6 +391,7 @@ impl Database {
 		Ok(())
 	}
 
+
 	// Progression
 
 	pub fn add_or_update_progress(&self, user_id: i64, file_id: i64, progress: Progression) -> Result<()> {
@@ -578,6 +591,29 @@ impl Database {
 			params![id],
 			|v| MetadataItem::try_from(v)
 		).optional()?)
+	}
+
+
+	// Metadata Person
+
+	pub fn add_meta_person(&self, person: &MetadataPerson) -> Result<()> {
+		self.lock()?.execute(r#"INSERT INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
+		params![
+			&person.metadata_id,
+			&person.person_id
+		])?;
+
+		Ok(())
+	}
+
+	pub fn remove_meta_person(&self, person: &MetadataPerson) -> Result<()> {
+		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE metadata_id = ?1 AND person_id = ?2"#,
+		params![
+			&person.metadata_id,
+			&person.person_id
+		])?;
+
+		Ok(())
 	}
 
 

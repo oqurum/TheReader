@@ -1,7 +1,7 @@
-use books_common::Progression;
+use books_common::{Progression, MetadataItemCached};
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
-use serde::{Serialize, Serializer, Deserialize};
+use serde::{Serialize, Serializer};
 
 
 // Metadata
@@ -72,54 +72,25 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 	}
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct MetadataItemCached {
-	pub author: Option<String>,
-	pub publisher: Option<String>,
+
+// Tag Person Alt
+
+#[derive(Debug, Serialize)]
+pub struct MetadataPerson {
+	pub metadata_id: i64,
+	pub person_id: i64,
 }
 
-impl MetadataItemCached {
-	pub fn as_string(&self) -> String {
-		serde_urlencoded::to_string(&self).unwrap()
-	}
+impl<'a> TryFrom<&Row<'a>> for MetadataPerson {
+	type Error = rusqlite::Error;
 
-	/// Returns `None` if string is empty.
-	pub fn as_string_optional(&self) -> Option<String> {
-		Some(self.as_string()).filter(|v| !v.is_empty())
-	}
-
-	pub fn from_string<V: AsRef<str>>(value: V) -> Self {
-		serde_urlencoded::from_str(value.as_ref()).unwrap()
-	}
-
-	pub fn author(mut self, value: String) -> Self {
-		self.author = Some(value);
-		self
-	}
-
-	pub fn publisher(mut self, value: String) -> Self {
-		self.publisher = Some(value);
-		self
-	}
-
-	pub fn author_optional(mut self, value: Option<String>) -> Self {
-		if value.is_some() {
-			self.author = value;
-		}
-
-		self
-	}
-
-	pub fn publisher_optional(mut self, value: Option<String>) -> Self {
-		if value.is_some() {
-			self.publisher = value;
-		}
-
-		self
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			metadata_id: value.get(0)?,
+			person_id: value.get(1)?,
+		})
 	}
 }
-
-
 
 
 // Notes

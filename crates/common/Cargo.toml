@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+serde_urlencoded = "0.7"
 
 anyhow = "1.0"

@@ -1,9 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::BookSearch;
+use books_common::MetadataItemCached;
 use chrono::Utc;
 
-use crate::{database::{table::{File, MetadataItem, MetadataItemCached}, Database}, ThumbnailType};
+use crate::{database::{table::{File, MetadataItem}, Database}, ThumbnailType};
 
 use super::Metadata;
 
@@ -17,7 +18,7 @@ impl Metadata for LocalMetadata {
 		"local"
 	}
 
-	async fn try_parse(&mut self, file: &File, _db: &Database) -> Result<Option<MetadataItem>> {
+	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>> {
 		// Wrapped to prevent "future cannot be sent between threads safely"
 		let (mut meta, opt_thumb_url) = {
 			let mut book = match bookie::load_from_path(&file.path)? {
@@ -34,6 +35,18 @@ impl Metadata for LocalMetadata {
 
 			let authors = book.find(BookSearch::Creator);
 
+			let main_author = if let Some(person) = authors.as_ref()
+				.and_then(|v| v.first())
+				.map(|v| db.get_person_by_name(v))
+				.transpose()?
+				.flatten()
+			{
+				Some(person.name)
+			} else {
+				None
+			};
+
+
 			(MetadataItem {
 				id: 0,
 				source: format!("{}:{}", self.get_prefix(), book.get_unique_id()?),
@@ -45,7 +58,7 @@ impl Metadata for LocalMetadata {
 				thumb_url: None,
 				cached: MetadataItemCached::default()
 					.publisher_optional(book.find(BookSearch::Publisher).map(|mut v| v.remove(0)))
-					.author_optional(authors.as_ref().and_then(|v| v.first().cloned())),
+					.author_optional(main_author),
 				tags_genre: None,
 				tags_collection: None,
 				tags_author: authors.map(|v| v.join("|")), // TODO: Check if Author is in Database

@@ -79,3 +79,52 @@ pub struct BasicDirectory {
 	pub library_id: i64,
 	pub path: String
 }
+
+
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct MetadataItemCached {
+	pub author: Option<String>,
+	pub publisher: Option<String>,
+}
+
+impl MetadataItemCached {
+	pub fn as_string(&self) -> String {
+		serde_urlencoded::to_string(&self).unwrap()
+	}
+
+	/// Returns `None` if string is empty.
+	pub fn as_string_optional(&self) -> Option<String> {
+		Some(self.as_string()).filter(|v| !v.is_empty())
+	}
+
+	pub fn from_string<V: AsRef<str>>(value: V) -> Self {
+		serde_urlencoded::from_str(value.as_ref()).unwrap()
+	}
+
+	pub fn author(mut self, value: String) -> Self {
+		self.author = Some(value);
+		self
+	}
+
+	pub fn publisher(mut self, value: String) -> Self {
+		self.publisher = Some(value);
+		self
+	}
+
+	pub fn author_optional(mut self, value: Option<String>) -> Self {
+		if value.is_some() {
+			self.author = value;
+		}
+
+		self
+	}
+
+	pub fn publisher_optional(mut self, value: Option<String>) -> Self {
+		if value.is_some() {
+			self.publisher = value;
+		}
+
+		self
+	}
+}

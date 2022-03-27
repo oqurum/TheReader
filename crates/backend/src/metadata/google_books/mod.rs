@@ -4,10 +4,11 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
+use books_common::MetadataItemCached;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::{table::{MetadataItem, File, MetadataItemCached}, Database}, ThumbnailType};
+use crate::{database::{table::{MetadataItem, File}, Database}, ThumbnailType};
 use super::{Metadata, SearchItem};
 
 pub struct GoogleBooksMetadata;

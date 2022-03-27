@@ -2,10 +2,11 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use books_common::MetadataItemCached;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::{table::{MetadataItem, File, self, MetadataItemCached}, Database}, ThumbnailType};
+use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
 use super::{Metadata, SearchItem};
 
 pub mod book;
@@ -91,6 +92,7 @@ impl OpenLibraryMetadata {
 		};
 
 		let mut people = Vec::new();
+		let mut main_person = None;
 
 		// Now we'll grab the Authors.
 		for auth_id in authors_found {
@@ -98,14 +100,20 @@ impl OpenLibraryMetadata {
 
 			match author::get_author_from_url(&auth_id).await {
 				Ok(author) => {
-					if db.get_person_by_name(&author.name)?.is_some() {
+					if let Some(person) = db.get_person_by_name(&author.name)? {
+						people.push(person.id.to_string());
+
+						if main_person.is_none() {
+							main_person = Some(person.name);
+						}
+
 						continue;
 					}
 
 					let person_id = db.add_person(&table::NewTagPerson {
 						source: self.prefix_text(auth_id),
 						type_of: 0,
-						name: author.name,
+						name: author.name.clone(),
 						description: author.bio.map(|v| v.into_content()),
 						birth_date: author.birth_date,
 						updated_at: Utc::now(),
@@ -125,6 +133,10 @@ impl OpenLibraryMetadata {
 					}
 
 					people.push(person_id.to_string());
+
+					if main_person.is_none() {
+						main_person = Some(author.name);
+					}
 				}
 
 				Err(e) => eprintln!("[METADATA]: OpenLibrary Error: {}", e),
@@ -156,7 +168,6 @@ impl OpenLibraryMetadata {
 			}
 		}
 
-
 		Ok(Some(MetadataItem {
 			id: 0,
 			file_item_count: 1,
@@ -167,7 +178,7 @@ impl OpenLibraryMetadata {
 			rating: 0.0,
 			thumb_url,
 			cached: MetadataItemCached::default()
-				.author_optional(people.first().cloned()),
+				.author_optional(main_person),
 			tags_genre: None,
 			tags_collection: None,
 			tags_author: Some(people.join("|")).filter(|v| !v.is_empty()),
