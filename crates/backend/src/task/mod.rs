@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::Database, ThumbnailLocation};
+use crate::{database::Database, ThumbnailLocation, metadata::{MetadataReturned, get_metadata}};
 
 
 // TODO: A should stop boolean
@@ -104,9 +104,9 @@ impl Task for TaskUpdateInvalidMetadata {
 				for file in db.get_files_of_no_metadata()? {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
-						match crate::metadata::get_metadata(&file, None, db).await {
+						match get_metadata(&file, None, db).await {
 							Ok(meta) => {
-								if let Some(meta) = meta {
+								if let Some(MetadataReturned { meta, authors }) = meta {
 									let meta = db.add_or_increment_metadata(&meta)?;
 									db.update_file_metadata_id(file.id, meta.id)?;
 								}
@@ -126,8 +126,8 @@ impl Task for TaskUpdateInvalidMetadata {
 
 				let fm = db.find_file_by_id_with_metadata(file_id)?.unwrap();
 
-				match crate::metadata::get_metadata(&fm.file, fm.meta.as_ref(), db).await {
-					Ok(Some(mut meta)) => {
+				match get_metadata(&fm.file, fm.meta.as_ref(), db).await {
+					Ok(Some(MetadataReturned { mut meta, authors })) => {
 						if let Some(fm_meta) = fm.meta {
 							meta.id = fm_meta.id;
 							meta.rating = fm_meta.rating;

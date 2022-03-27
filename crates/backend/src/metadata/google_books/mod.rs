@@ -9,7 +9,7 @@ use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::{table::{MetadataItem, File}, Database}, ThumbnailType};
-use super::{Metadata, SearchItem};
+use super::{Metadata, SearchItem, MetadataReturned};
 
 pub struct GoogleBooksMetadata;
 
@@ -19,7 +19,7 @@ impl Metadata for GoogleBooksMetadata {
 		"googlebooks"
 	}
 
-	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>> {
+	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataReturned>> {
 		// Wrapped b/c "future cannot be send between threads safely"
 		let found = {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
@@ -54,7 +54,7 @@ impl Metadata for GoogleBooksMetadata {
 }
 
 impl GoogleBooksMetadata {
-	pub async fn request(&self, id: String, db: &Database) -> Result<Option<MetadataItem>> {
+	pub async fn request(&self, id: String, db: &Database) -> Result<Option<MetadataReturned>> {
 		let resp = reqwest::get(format!("https://www.googleapis.com/books/v1/volumes?q={}", BookSearchKeyword::Isbn.combile_string(&id))).await?;
 
 		let book = if resp.status().is_success() {
@@ -88,30 +88,33 @@ impl GoogleBooksMetadata {
 
 		let now = Utc::now();
 
-		Ok(Some(MetadataItem {
-			id: 0,
-			file_item_count: 1,
-			source: format!("{}:{}", self.get_prefix(), book.id),
-			title: Some(book.volume_info.title.clone()),
-			original_title: Some(book.volume_info.title),
-			description: Some(book.volume_info.description),
-			rating: 0.0,
-			thumb_url,
-			cached: MetadataItemCached::default()
-				.publisher(book.volume_info.publisher)
-				.author_optional(book.volume_info.authors.first().cloned()),
-			tags_genre: None,
-			tags_collection: None,
-			// TODO: Check to see if we have author names in Database.
-			tags_author: Some(book.volume_info.authors.join("|")).filter(|v| !v.is_empty()),
-			tags_country: None,
-			refreshed_at: now,
-			created_at: now,
-			updated_at: now,
-			deleted_at: None,
-			available_at: None,
-			year: None,
-			hash: String::new(),
+		Ok(Some(MetadataReturned {
+			authors: Vec::new(),
+			meta: MetadataItem {
+				id: 0,
+				file_item_count: 1,
+				source: format!("{}:{}", self.get_prefix(), book.id),
+				title: Some(book.volume_info.title.clone()),
+				original_title: Some(book.volume_info.title),
+				description: Some(book.volume_info.description),
+				rating: 0.0,
+				thumb_url,
+				cached: MetadataItemCached::default()
+					.publisher(book.volume_info.publisher)
+					.author_optional(book.volume_info.authors.first().cloned()),
+				tags_genre: None,
+				tags_collection: None,
+				// TODO: Check to see if we have author names in Database.
+				tags_author: Some(book.volume_info.authors.join("|")).filter(|v| !v.is_empty()),
+				tags_country: None,
+				refreshed_at: now,
+				created_at: now,
+				updated_at: now,
+				deleted_at: None,
+				available_at: None,
+				year: None,
+				hash: String::new(),
+			}
 		}))
 	}
 }

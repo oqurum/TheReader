@@ -41,7 +41,7 @@ pub trait Metadata {
 
 	fn get_prefix(&self) -> &'static str;
 
-	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>>;
+	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataReturned>>;
 
 	async fn search(&mut self, _search: &str) -> Result<Vec<SearchItem>> {
 		Ok(Vec::new())
@@ -50,7 +50,7 @@ pub trait Metadata {
 
 // TODO: Utilize current metadata in try_parse.
 // TODO: Order which metadata should be tried.
-pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataItem>> {
+pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataReturned>> {
 	return_if_found!(OpenLibraryMetadata.try_parse(file, db).await);
 	return_if_found!(GoogleBooksMetadata.try_parse(file, db).await);
 
@@ -78,4 +78,12 @@ pub async fn search_all_agents(search: &str) -> Result<HashMap<&'static str, Vec
 
 pub struct SearchItem {
 	//
+}
+
+
+#[derive(Debug)]
+pub struct MetadataReturned {
+	pub authors: Vec<String>,
+
+	pub meta: MetadataItem
 }

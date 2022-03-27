@@ -7,7 +7,7 @@ use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
-use super::{Metadata, SearchItem};
+use super::{Metadata, SearchItem, MetadataReturned};
 
 pub mod book;
 pub mod author;
@@ -22,7 +22,7 @@ impl Metadata for OpenLibraryMetadata {
 		"openlibrary"
 	}
 
-	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>> {
+	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataReturned>> {
 		use bookie::Book;
 
 		// Wrapped b/c "future cannot be send between threads safely"
@@ -59,7 +59,7 @@ impl Metadata for OpenLibraryMetadata {
 }
 
 impl OpenLibraryMetadata {
-	pub async fn request(&self, id: BookId, db: &Database) -> Result<Option<MetadataItem>> {
+	pub async fn request(&self, id: BookId, db: &Database) -> Result<Option<MetadataReturned>> {
 		let mut book_info = if let Some(v) = book::get_book_by_id(&id).await? {
 			v
 		} else {
@@ -168,28 +168,32 @@ impl OpenLibraryMetadata {
 			}
 		}
 
-		Ok(Some(MetadataItem {
-			id: 0,
-			file_item_count: 1,
-			source: format!("{}:{}", self.get_prefix(), source_id),
-			title: Some(book_info.title.clone()),
-			original_title: Some(book_info.title),
-			description: book_info.description.as_ref().map(|v| v.content().to_owned()),
-			rating: 0.0,
-			thumb_url,
-			cached: MetadataItemCached::default()
-				.author_optional(main_person),
-			tags_genre: None,
-			tags_collection: None,
-			tags_author: Some(people.join("|")).filter(|v| !v.is_empty()),
-			tags_country: None,
-			refreshed_at: Utc::now(),
-			created_at: Utc::now(),
-			updated_at: Utc::now(),
-			deleted_at: None,
-			available_at: None,
-			year: None,
-			hash: String::new(),
+		Ok(Some(MetadataReturned {
+			authors: Vec::new(),
+
+			meta: MetadataItem {
+				id: 0,
+				file_item_count: 1,
+				source: format!("{}:{}", self.get_prefix(), source_id),
+				title: Some(book_info.title.clone()),
+				original_title: Some(book_info.title),
+				description: book_info.description.as_ref().map(|v| v.content().to_owned()),
+				rating: 0.0,
+				thumb_url,
+				cached: MetadataItemCached::default()
+					.author_optional(main_person),
+				tags_genre: None,
+				tags_collection: None,
+				tags_author: Some(people.join("|")).filter(|v| !v.is_empty()),
+				tags_country: None,
+				refreshed_at: Utc::now(),
+				created_at: Utc::now(),
+				updated_at: Utc::now(),
+				deleted_at: None,
+				available_at: None,
+				year: None,
+				hash: String::new(),
+			}
 		}))
 	}
 }

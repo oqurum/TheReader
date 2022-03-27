@@ -6,7 +6,7 @@ use chrono::Utc;
 
 use crate::{database::{table::{File, MetadataItem}, Database}, ThumbnailType};
 
-use super::Metadata;
+use super::{Metadata, MetadataReturned};
 
 
 
@@ -18,7 +18,7 @@ impl Metadata for LocalMetadata {
 		"local"
 	}
 
-	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataItem>> {
+	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataReturned>> {
 		// Wrapped to prevent "future cannot be sent between threads safely"
 		let (mut meta, opt_thumb_url) = {
 			let mut book = match bookie::load_from_path(&file.path)? {
@@ -89,6 +89,9 @@ impl Metadata for LocalMetadata {
 			None => None
 		};
 
-		Ok(Some(meta))
+		Ok(Some(MetadataReturned {
+			authors: Vec::new(),
+			meta,
+		}))
 	}
 }
