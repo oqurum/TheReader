@@ -508,7 +508,7 @@ impl Database {
 		.execute(r#"
 			UPDATE metadata_item SET
 				source = ?2, file_item_count = ?3, title = ?4, original_title = ?5, description = ?6, rating = ?7, thumb_url = ?8,
-				publisher = ?0,
+				publisher = ?9,
 				tags_genre = ?10, tags_collection = ?11, tags_author = ?12, tags_country = ?13,
 				available_at = ?14, year = ?15,
 				refreshed_at = ?16, created_at = ?17, updated_at = ?18, deleted_at = ?19,
