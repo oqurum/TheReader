@@ -5,7 +5,7 @@ use std::io::Read;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post, delete};
 
-use books_common::{Chapter, MediaItem, api, Progression, LibraryColl};
+use books_common::{Chapter, MediaItem, api, Progression, LibraryColl, MetadataItemCached};
 use bookie::Book;
 use futures::TryStreamExt;
 
@@ -119,6 +119,7 @@ async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Jso
 	web::Json(if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
 		// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
 		let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+		// TODO: Not needed ^
 
 		Some(api::GetBookIdResponse {
 			progress: db.get_progress(0, *file_id).unwrap().map(|v| v.into()),
@@ -127,7 +128,8 @@ async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Jso
 				id: file.id,
 
 				title: book.package.metadata.dcmes_elements.get("title").unwrap().iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
-				author: book.package.metadata.get_creators().first().map(|v| v.to_string()).unwrap_or_default(),
+				cached: MetadataItemCached::default()
+					.author_optional(book.package.metadata.get_creators().first().map(|v| v.to_string())),
 				icon_path: None, // TODO
 
 				chapter_count: book.chapter_count(),
@@ -360,21 +362,21 @@ async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookList
 			.unwrap()
 			.into_iter()
 			.map(|FileWithMetadata { file, meta }| {
-				let (title, author, icon_path) = if let Some(meta) = meta {
+				let (title, cached, icon_path) = if let Some(meta) = meta {
 					(
 						meta.title.or(meta.original_title).unwrap_or_default(),
-						meta.tags_author.unwrap_or_default(), // TODO: Need to grab first Author and return it.
+						meta.cached,
 						meta.thumb_url.map(|url| format!("/api/book/{}/res/{}", file.id, url))
 					)
 				} else {
-					(String::new(), String::new(), None)
+					(String::new(), MetadataItemCached::default(), None)
 				};
 
 				MediaItem {
 					id: file.id,
 
 					title,
-					author,
+					cached,
 					// TODO: Cache images
 					icon_path,
 

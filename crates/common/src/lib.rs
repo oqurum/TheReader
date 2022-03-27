@@ -9,7 +9,7 @@ pub struct MediaItem {
 	pub id: i64,
 
 	pub title: String,
-	pub author: String,
+	pub cached: MetadataItemCached,
 	pub icon_path: Option<String>,
 
 	pub chapter_count: usize,

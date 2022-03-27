@@ -168,7 +168,15 @@ impl LibraryPage {
 				</div>
 				<div class="info">
 					<div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>
-					<div class="author" title={ item.author.clone() }>{ item.author.clone() }</div>
+					{
+						if let Some(author) = item.cached.author.as_ref() {
+							html! {
+								<div class="author" title={ author.clone() }>{ author.clone() }</div>
+							}
+						} else {
+							html! {}
+						}
+					}
 				</div>
 			</Link<Route>>
 		}
