@@ -4,9 +4,9 @@ use bookie::BookSearch;
 use books_common::MetadataItemCached;
 use chrono::Utc;
 
-use crate::{database::table::{File, MetadataItem, self}, ThumbnailType};
+use crate::{database::table::{File, MetadataItem}, ThumbnailType};
 
-use super::{Metadata, MetadataReturned};
+use super::{Metadata, MetadataReturned, AuthorInfo};
 
 
 
@@ -37,17 +37,15 @@ impl Metadata for LocalMetadata {
 			let publisher = book.find(BookSearch::Publisher).map(|mut v| v.remove(0));
 			let authors = book.find(BookSearch::Creator)
 				.map(|items| items.into_iter()
-					.map(|name| (
-						table::NewTagPerson {
-							source: source.clone(),
-							name,
-							description: None,
-							birth_date: None,
-							updated_at: Utc::now(),
-							created_at: Utc::now(),
-						},
-						None
-					))
+					.map(|name| AuthorInfo {
+						source: source.clone(),
+						name,
+						other_names: None,
+						description: None,
+						cover_image: None,
+						birth_date: None,
+						death_date: None,
+					})
 					.collect::<Vec<_>>()
 				);
 

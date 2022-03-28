@@ -6,10 +6,10 @@ use books_common::MetadataItemCached;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::table::{MetadataItem, File, self}, ThumbnailType};
+use crate::{database::table::{MetadataItem, File}, ThumbnailType};
 use self::book::BookSearchType;
 
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorSearchInfo};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo};
 
 pub mod book;
 pub mod author;
@@ -60,7 +60,7 @@ impl Metadata for OpenLibraryMetadata {
 					let mut authors = Vec::new();
 
 					for item in found.items {
-						authors.push(SearchItem::Author(AuthorSearchInfo {
+						authors.push(SearchItem::Author(AuthorInfo {
 							source: self.prefix_text(item.key.as_deref().unwrap()),
 							cover_image: Some(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url()),
 							name: item.name.unwrap(),
@@ -152,17 +152,15 @@ impl OpenLibraryMetadata {
 
 			match author::get_author_from_url(&auth_id).await {
 				Ok(author) => {
-					authors.push((
-						table::NewTagPerson {
-							source: self.prefix_text(auth_id),
-							name: author.name.clone(),
-							description: author.bio.map(|v| v.into_content()),
-							birth_date: author.birth_date,
-							updated_at: Utc::now(),
-							created_at: Utc::now(),
-						},
-						author.alternate_names
-					));
+					authors.push(AuthorInfo {
+						source: self.prefix_text(auth_id),
+						name: author.name.clone(),
+						other_names: author.alternate_names,
+						description: author.bio.map(|v| v.into_content()),
+						cover_image: Some(self::CoverId::Olid(author.key).get_author_cover_url()),
+						birth_date: author.birth_date,
+						death_date: author.death_date,
+					});
 				}
 
 				Err(e) => eprintln!("[METADATA]: OpenLibrary Error: {}", e),

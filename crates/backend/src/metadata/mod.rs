@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use chrono::Utc;
 
 use crate::database::{table::{MetadataItem, File, self}, Database};
 
@@ -85,13 +86,12 @@ pub enum SearchFor {
 
 #[derive(Debug)]
 pub enum SearchItem {
-	Author(AuthorSearchInfo),
+	Author(AuthorInfo),
 	Book(MetadataItem)
 }
 
-// TODO: Replace MetadataReturned.authors with this.
 #[derive(Debug)]
-pub struct AuthorSearchInfo {
+pub struct AuthorInfo {
 	pub source: String,
 
 	pub cover_image: Option<String>,
@@ -108,7 +108,7 @@ pub struct AuthorSearchInfo {
 #[derive(Debug)]
 pub struct MetadataReturned {
 	// Person, Alt Names
-	pub authors: Option<Vec<(table::NewTagPerson, Option<Vec<String>>)>>,
+	pub authors: Option<Vec<AuthorInfo>>,
 	pub publisher: Option<String>,
 	// TODO: Add More.
 
@@ -122,9 +122,9 @@ impl MetadataReturned {
 		let mut person_ids = Vec::new();
 
 		if let Some(authors_with_alts) = self.authors.take() {
-			for (author, other_names) in authors_with_alts {
+			for author_info in authors_with_alts {
 				// Check if we already have a person by that name anywhere in the two database tables.
-				if let Some(person) = db.get_person_by_name(&author.name)? {
+				if let Some(person) = db.get_person_by_name(&author_info.name)? {
 					person_ids.push(person.id);
 
 					if main_author.is_none() {
@@ -134,9 +134,19 @@ impl MetadataReturned {
 					continue;
 				}
 
+				let author = table::NewTagPerson {
+					source: author_info.source,
+					name: author_info.name,
+					description: author_info.description,
+					birth_date: author_info.birth_date,
+					// TODO: death_date: author_info.death_date,
+					updated_at: Utc::now(),
+					created_at: Utc::now(),
+				};
+
 				let person_id = db.add_person(&author)?;
 
-				if let Some(alts) = other_names {
+				if let Some(alts) = author_info.other_names {
 					for name in alts {
 						// Ignore errors. Errors should just be UNIQUE constraint failed
 						if let Err(e) = db.add_person_alt(&table::TagPersonAlt {
