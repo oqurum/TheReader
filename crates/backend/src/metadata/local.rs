@@ -18,7 +18,7 @@ impl Metadata for LocalMetadata {
 		"local"
 	}
 
-	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
+	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
 		// Wrapped to prevent "future cannot be sent between threads safely"
 		let (mut meta, opt_thumb_url, authors, publisher) = {
 			let mut book = match bookie::load_from_path(&file.path)? {

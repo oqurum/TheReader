@@ -19,14 +19,14 @@ impl Metadata for GoogleBooksMetadata {
 		"googlebooks"
 	}
 
-	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
+	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
 		// Wrapped b/c "future cannot be send between threads safely"
 		let found = {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
 			book.find(bookie::BookSearch::Identifier)
 		};
 
-		println!("[METADATA][GB]: try_parse with ids: {:?}", found);
+		println!("[METADATA][GB]: get_metadata_from_file with ids: {:?}", found);
 
 
 		if let Some(idents) = found {
@@ -38,7 +38,7 @@ impl Metadata for GoogleBooksMetadata {
 
 				match self.request(id).await {
 					Ok(Some(v)) => return Ok(Some(v)),
-					a => eprintln!("GoogleBooksMetadata::try_parse {:?}", a)
+					a => eprintln!("GoogleBooksMetadata::get_metadata_from_file {:?}", a)
 				}
 			}
 		}

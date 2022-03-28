@@ -22,7 +22,7 @@ impl Metadata for OpenLibraryMetadata {
 		"openlibrary"
 	}
 
-	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
+	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
 		use bookie::Book;
 
 		// Wrapped b/c "future cannot be send between threads safely"
@@ -31,7 +31,7 @@ impl Metadata for OpenLibraryMetadata {
 			book.find(bookie::BookSearch::Identifier)
 		};
 
-		println!("[OL]: try_parse with ids: {:?}", found);
+		println!("[OL]: get_metadata_from_file with ids: {:?}", found);
 
 
 		if let Some(idents) = found {
@@ -43,7 +43,7 @@ impl Metadata for OpenLibraryMetadata {
 
 				match self.request(id).await {
 					Ok(Some(v)) => return Ok(Some(v)),
-					a => eprintln!("OpenLibraryMetadata::try_parse {:?}", a)
+					a => eprintln!("OpenLibraryMetadata::get_metadata_from_file {:?}", a)
 				}
 			}
 		}

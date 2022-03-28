@@ -41,21 +41,21 @@ pub trait Metadata {
 
 	fn get_prefix(&self) -> &'static str;
 
-	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataReturned>>;
+	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>>;
 
 	async fn search(&mut self, _search: &str) -> Result<Vec<SearchItem>> {
 		Ok(Vec::new())
 	}
 }
 
-// TODO: Utilize current metadata in try_parse.
+// TODO: Utilize current metadata in get_metadata_from_file.
 // TODO: Order which metadata should be tried.
 pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataReturned>> {
-	return_if_found!(OpenLibraryMetadata.try_parse(file).await);
-	return_if_found!(GoogleBooksMetadata.try_parse(file).await);
+	return_if_found!(OpenLibraryMetadata.get_metadata_from_file(file).await);
+	return_if_found!(GoogleBooksMetadata.get_metadata_from_file(file).await);
 
 	// TODO: Don't re-scan file if we already have metadata from file.
-	LocalMetadata.try_parse(file).await
+	LocalMetadata.get_metadata_from_file(file).await
 }
 
 
