@@ -398,7 +398,6 @@ impl<'a> TryFrom<&Row<'a>> for File {
 #[derive(Debug)]
 pub struct NewTagPerson {
 	pub source: String,
-	pub type_of: i64,
 
 	pub name: String,
 	pub description: Option<String>,

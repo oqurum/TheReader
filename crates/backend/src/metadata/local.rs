@@ -40,7 +40,6 @@ impl Metadata for LocalMetadata {
 					.map(|name| (
 						table::NewTagPerson {
 							source: source.clone(),
-							type_of: 0,
 							name,
 							description: None,
 							birth_date: None,

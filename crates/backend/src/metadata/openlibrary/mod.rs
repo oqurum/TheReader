@@ -102,7 +102,6 @@ impl OpenLibraryMetadata {
 					authors.push((
 						table::NewTagPerson {
 							source: self.prefix_text(auth_id),
-							type_of: 0,
 							name: author.name.clone(),
 							description: author.bio.map(|v| v.into_content()),
 							birth_date: author.birth_date,

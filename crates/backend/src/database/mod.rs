@@ -619,11 +619,11 @@ impl Database {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
-			INSERT INTO tag_person (source, type, name, description, birth_date, updated_at, created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+			INSERT INTO tag_person (source, name, description, birth_date, updated_at, created_at)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6)
 		"#,
 		params![
-			&person.source, &person.type_of, &person.name, &person.description, &person.birth_date,
+			&person.source, &person.name, &person.description, &person.birth_date,
 			person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 		])?;
 
