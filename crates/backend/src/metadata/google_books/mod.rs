@@ -102,11 +102,6 @@ impl GoogleBooksMetadata {
 				cached: MetadataItemCached::default()
 					.publisher(book.volume_info.publisher)
 					.author_optional(book.volume_info.authors.first().cloned()),
-				tags_genre: None,
-				tags_collection: None,
-				// TODO: Check to see if we have author names in Database.
-				tags_author: Some(book.volume_info.authors.join("|")).filter(|v| !v.is_empty()),
-				tags_country: None,
 				refreshed_at: now,
 				created_at: now,
 				updated_at: now,

@@ -21,11 +21,6 @@ pub struct MetadataItem {
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
 	pub cached: MetadataItemCached,
 
-	pub tags_genre: Option<String>,
-	pub tags_collection: Option<String>,
-	pub tags_author: Option<String>,
-	pub tags_country: Option<String>,
-
 	#[serde(serialize_with = "serialize_datetime")]
 	pub refreshed_at: DateTime<Utc>,
 	#[serde(serialize_with = "serialize_datetime")]
@@ -39,6 +34,29 @@ pub struct MetadataItem {
 	pub year: Option<i64>,
 
 	pub hash: String
+}
+
+impl Default for MetadataItem {
+    fn default() -> Self {
+        Self {
+			id: Default::default(),
+			source: Default::default(),
+			file_item_count: Default::default(),
+			title: Default::default(),
+			original_title: Default::default(),
+			description: Default::default(),
+			rating: Default::default(),
+			thumb_url: Default::default(),
+			cached: Default::default(),
+			refreshed_at: Utc::now(),
+			created_at: Utc::now(),
+			updated_at: Utc::now(),
+			deleted_at: Default::default(),
+			available_at: Default::default(),
+			year: Default::default(),
+			hash: Default::default()
+		}
+    }
 }
 
 impl<'a> TryFrom<&Row<'a>> for MetadataItem {
@@ -57,17 +75,13 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			cached: value.get::<_, Option<String>>(8)?
 				.map(|v| MetadataItemCached::from_string(&v))
 				.unwrap_or_default(),
-			tags_genre: value.get(9)?,
-			tags_collection: value.get(10)?,
-			tags_author: value.get(11)?,
-			tags_country: value.get(12)?,
-			available_at: value.get(13)?,
-			year: value.get(14)?,
-			refreshed_at: Utc.timestamp_millis(value.get(15)?),
-			created_at: Utc.timestamp_millis(value.get(16)?),
-			updated_at: Utc.timestamp_millis(value.get(17)?),
-			deleted_at: value.get::<_, Option<_>>(18)?.map(|v| Utc.timestamp_millis(v)),
-			hash: value.get(19)?
+			available_at: value.get(9)?,
+			year: value.get(10)?,
+			refreshed_at: Utc.timestamp_millis(value.get(11)?),
+			created_at: Utc.timestamp_millis(value.get(12)?),
+			updated_at: Utc.timestamp_millis(value.get(13)?),
+			deleted_at: value.get::<_, Option<_>>(14)?.map(|v| Utc.timestamp_millis(v)),
+			hash: value.get(15)?
 		})
 	}
 }
@@ -512,17 +526,13 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 					cached: value.get::<_, Option<String>>(19)?
 						.map(|v| MetadataItemCached::from_string(&v))
 						.unwrap_or_default(),
-					tags_genre: value.get(20)?,
-					tags_collection: value.get(21)?,
-					tags_author: value.get(22)?,
-					tags_country: value.get(23)?,
-					available_at: value.get(24)?,
-					year: value.get(25)?,
-					refreshed_at: Utc.timestamp_millis(value.get(26)?),
-					created_at: Utc.timestamp_millis(value.get(27)?),
-					updated_at: Utc.timestamp_millis(value.get(28)?),
-					deleted_at: value.get::<_, Option<_>>(29)?.map(|v| Utc.timestamp_millis(v)),
-					hash: value.get(30)?
+					available_at: value.get(20)?,
+					year: value.get(21)?,
+					refreshed_at: Utc.timestamp_millis(value.get(22)?),
+					created_at: Utc.timestamp_millis(value.get(23)?),
+					updated_at: Utc.timestamp_millis(value.get(24)?),
+					deleted_at: value.get::<_, Option<_>>(25)?.map(|v| Utc.timestamp_millis(v)),
+					hash: value.get(26)?
 				}))
 				.transpose()?
 		})

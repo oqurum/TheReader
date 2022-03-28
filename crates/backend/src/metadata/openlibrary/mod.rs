@@ -182,10 +182,6 @@ impl OpenLibraryMetadata {
 				thumb_url,
 				cached: MetadataItemCached::default()
 					.author_optional(main_person),
-				tags_genre: None,
-				tags_collection: None,
-				tags_author: Some(people.join("|")).filter(|v| !v.is_empty()),
-				tags_country: None,
 				refreshed_at: Utc::now(),
 				created_at: Utc::now(),
 				updated_at: Utc::now(),

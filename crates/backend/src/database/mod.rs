@@ -483,16 +483,14 @@ impl Database {
 				INSERT INTO metadata_item (
 					source, file_item_count, title, original_title, description, rating, thumb_url,
 					cached,
-					tags_genre, tags_collection, tags_author, tags_country,
 					available_at, year,
 					refreshed_at, created_at, updated_at, deleted_at,
 					hash
 				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)"#,
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)"#,
 				params![
 					&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_url,
 					&meta.cached.as_string_optional(),
-					&meta.tags_genre, &meta.tags_collection, &meta.tags_author, &meta.tags_country,
 					&meta.available_at, &meta.year,
 					&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
 					meta.deleted_at.as_ref().map(|v| v.timestamp_millis()),
@@ -522,16 +520,14 @@ impl Database {
 			UPDATE metadata_item SET
 				source = ?2, file_item_count = ?3, title = ?4, original_title = ?5, description = ?6, rating = ?7, thumb_url = ?8,
 				cached = ?9,
-				tags_genre = ?10, tags_collection = ?11, tags_author = ?12, tags_country = ?13,
-				available_at = ?14, year = ?15,
-				refreshed_at = ?16, created_at = ?17, updated_at = ?18, deleted_at = ?19,
-				hash = ?20
+				available_at = ?10, year = ?11,
+				refreshed_at = ?12, created_at = ?13, updated_at = ?14, deleted_at = ?15,
+				hash = ?16
 			WHERE id = ?1"#,
 			params![
 				meta.id,
 				&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_url,
 				&meta.cached.as_string_optional(),
-				&meta.tags_genre, &meta.tags_collection, &meta.tags_author, &meta.tags_country,
 				&meta.available_at, &meta.year,
 				&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
 				meta.deleted_at.as_ref().map(|v| v.timestamp_millis()),
@@ -597,7 +593,7 @@ impl Database {
 	// Metadata Person
 
 	pub fn add_meta_person(&self, person: &MetadataPerson) -> Result<()> {
-		self.lock()?.execute(r#"INSERT INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
+		self.lock()?.execute(r#"INSERT IGNORE INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
 		params![
 			&person.metadata_id,
 			&person.person_id

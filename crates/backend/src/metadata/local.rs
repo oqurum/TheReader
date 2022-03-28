@@ -59,10 +59,6 @@ impl Metadata for LocalMetadata {
 				cached: MetadataItemCached::default()
 					.publisher_optional(book.find(BookSearch::Publisher).map(|mut v| v.remove(0)))
 					.author_optional(main_author),
-				tags_genre: None,
-				tags_collection: None,
-				tags_author: authors.map(|v| v.join("|")), // TODO: Check if Author is in Database
-				tags_country: None,
 				refreshed_at: now,
 				created_at: now,
 				updated_at: now,
