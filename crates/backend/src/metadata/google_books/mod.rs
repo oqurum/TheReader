@@ -9,7 +9,7 @@ use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::table::{MetadataItem, File}, ThumbnailType};
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor, SearchForBooksBy};
 
 pub struct GoogleBooksMetadata;
 
@@ -46,8 +46,52 @@ impl Metadata for GoogleBooksMetadata {
 		Ok(None)
 	}
 
-	async fn search(&mut self, _search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
-		Ok(Vec::new())
+	async fn search(&mut self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
+		match search_for {
+			SearchFor::Author => Ok(Vec::new()),
+
+			SearchFor::Book(specifically) => {
+				let url = format!("https://www.googleapis.com/books/v1/volumes?q={}", match specifically {
+					SearchForBooksBy::AuthorName => BookSearchKeyword::InAuthor.combile_string(search),
+					SearchForBooksBy::Contents |
+					SearchForBooksBy::Query => search.to_string(),
+					SearchForBooksBy::Title => BookSearchKeyword::InTitle.combile_string(search),
+				});
+
+				let resp = reqwest::get(url).await?;
+
+				if resp.status().is_success() {
+					let books_cont = resp.json::<BookVolumesContainer>().await?;
+
+					let mut books = Vec::new();
+
+					for item in books_cont.items {
+						books.push(SearchItem::Book(MetadataItem {
+							id: 0,
+							file_item_count: 1,
+							source: self.prefix_text(&item.id),
+							title: Some(item.volume_info.title.clone()),
+							original_title: Some(item.volume_info.title),
+							description: Some(item.volume_info.description),
+							rating: item.volume_info.average_rating,
+							thumb_url: Some(format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", item.id)),
+							cached: MetadataItemCached::default(),
+							refreshed_at: Utc::now(),
+							created_at: Utc::now(),
+							updated_at: Utc::now(),
+							deleted_at: None,
+							available_at: None,
+							year: None,
+							hash: String::new(),
+						}));
+					}
+
+					Ok(books)
+				} else {
+					return Ok(Vec::new());
+				}
+			}
+		}
 	}
 }
 
@@ -92,11 +136,11 @@ impl GoogleBooksMetadata {
 			meta: MetadataItem {
 				id: 0,
 				file_item_count: 1,
-				source: format!("{}:{}", self.get_prefix(), book.id),
+				source: self.prefix_text(book.id),
 				title: Some(book.volume_info.title.clone()),
 				original_title: Some(book.volume_info.title),
 				description: Some(book.volume_info.description),
-				rating: 0.0,
+				rating: book.volume_info.average_rating,
 				thumb_url,
 				cached: MetadataItemCached::default()
 					.publisher(book.volume_info.publisher)
