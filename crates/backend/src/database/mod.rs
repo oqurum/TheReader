@@ -593,7 +593,7 @@ impl Database {
 	// Metadata Person
 
 	pub fn add_meta_person(&self, person: &MetadataPerson) -> Result<()> {
-		self.lock()?.execute(r#"INSERT IGNORE INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
+		self.lock()?.execute(r#"INSERT OR IGNORE INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
 		params![
 			&person.metadata_id,
 			&person.person_id
