@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 use crate::{database::table::{MetadataItem, File}, ThumbnailType};
 use self::book::BookSearchType;
 
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo, SearchForBooksBy};
 
 pub mod book;
 pub mod author;
@@ -77,8 +77,15 @@ impl Metadata for OpenLibraryMetadata {
 				}
 			}
 
-			SearchFor::Book => {
-				if let Some(found) = book::search_for_books(BookSearchType::Title, value).await? {
+			SearchFor::Book(specifically) => {
+				let type_of_search = match specifically {
+					SearchForBooksBy::AuthorName => BookSearchType::Author,
+					SearchForBooksBy::Contents |
+					SearchForBooksBy::Query => BookSearchType::Query,
+					SearchForBooksBy::Title => BookSearchType::Title,
+				};
+
+				if let Some(found) = book::search_for_books(type_of_search, value).await? {
 					let mut books = Vec::new();
 
 					for item in found.items {

@@ -79,8 +79,16 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 
 #[derive(Debug, Clone, Copy)]
 pub enum SearchFor {
-	Book, // TODO: Allow specifics. Ex: Regular Query, Title, Author Name, Contents
+	Book(SearchForBooksBy),
 	Author,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum SearchForBooksBy {
+	Query,
+	Title,
+	AuthorName,
+	Contents,
 }
 
 
