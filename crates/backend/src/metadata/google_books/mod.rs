@@ -9,7 +9,7 @@ use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::table::{MetadataItem, File}, ThumbnailType};
-use super::{Metadata, SearchItem, MetadataReturned};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
 
 pub struct GoogleBooksMetadata;
 
@@ -46,9 +46,7 @@ impl Metadata for GoogleBooksMetadata {
 		Ok(None)
 	}
 
-	async fn search(&mut self, search: &str) -> Result<Vec<SearchItem>> {
-		//
-
+	async fn search(&mut self, _search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		Ok(Vec::new())
 	}
 }

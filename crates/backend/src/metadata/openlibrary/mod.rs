@@ -7,7 +7,9 @@ use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::table::{MetadataItem, File, self}, ThumbnailType};
-use super::{Metadata, SearchItem, MetadataReturned};
+use self::book::BookSearchType;
+
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorSearchInfo};
 
 pub mod book;
 pub mod author;
@@ -51,10 +53,61 @@ impl Metadata for OpenLibraryMetadata {
 		Ok(None)
 	}
 
-	async fn search(&mut self, search: &str) -> Result<Vec<SearchItem>> {
-		//
+	async fn search(&mut self, value: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
+		match search_for {
+			SearchFor::Author => {
+				if let Some(found) = author::search_for_authors(value).await? {
+					let mut authors = Vec::new();
 
-		Ok(Vec::new())
+					for item in found.items {
+						authors.push(SearchItem::Author(AuthorSearchInfo {
+							source: self.prefix_text(item.key.as_deref().unwrap()),
+							cover_image: Some(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url()),
+							name: item.name.unwrap(),
+							other_names: item.alternate_names,
+							description: None,
+							birth_date: item.birth_date,
+							death_date: item.death_date,
+						}));
+					}
+
+					Ok(authors)
+				} else {
+					Ok(Vec::new())
+				}
+			}
+
+			SearchFor::Book => {
+				if let Some(found) = book::search_for_books(BookSearchType::Title, value).await? {
+					let mut books = Vec::new();
+
+					for item in found.items {
+						books.push(SearchItem::Book(MetadataItem {
+							id: 0,
+							file_item_count: 1,
+							source: format!("{}:{}", self.get_prefix(), &item.key),
+							title: item.title.clone(),
+							original_title: item.title,
+							description: None,
+							rating: 0.0,
+							thumb_url: item.cover_edition_key.map(|v| CoverId::Olid(v).get_book_cover_url()),
+							cached: MetadataItemCached::default(),
+							refreshed_at: Utc::now(),
+							created_at: Utc::now(),
+							updated_at: Utc::now(),
+							deleted_at: None,
+							available_at: None,
+							year: item.first_publish_year,
+							hash: String::new(),
+						}));
+					}
+
+					Ok(books)
+				} else {
+					Ok(Vec::new())
+				}
+			}
+		}
 	}
 }
 
@@ -127,7 +180,7 @@ impl OpenLibraryMetadata {
 
 		// Download thumb url and store it.
 		if let Some(thumb_id) = book_info.covers.as_ref().and_then(|v| v.iter().find(|v| **v != -1)).copied() {
-			let resp = reqwest::get(CoverId::Id(thumb_id.to_string()).get_api_url()).await?;
+			let resp = reqwest::get(CoverId::Id(thumb_id.to_string()).get_book_cover_url()).await?;
 
 			if resp.status().is_success() {
 				let bytes = resp.bytes().await?;
@@ -167,6 +220,9 @@ impl OpenLibraryMetadata {
 	}
 }
 
+// TODO: Rate-Limited:
+// The cover access by ids OTHER THAN CoverID and OLID are rate-limited.
+// Currently only 100 requests/IP are allowed for every 5 minutes.
 pub enum CoverId {
 	Id(String), // TODO: number
 
@@ -180,8 +236,13 @@ pub enum CoverId {
 }
 
 impl CoverId {
-	pub fn get_api_url(&self) -> String {
+	pub fn get_book_cover_url(&self) -> String {
 		format!("https://covers.openlibrary.org/b/{}/{}-L.jpg", self.key(), self.value())
+	}
+
+	// TODO: Ensure we only use id, olid
+	pub fn get_author_cover_url(&self) -> String {
+		format!("https://covers.openlibrary.org/a/{}/{}-L.jpg", self.key(), self.value())
 	}
 
 	pub fn key(&self) -> &str {

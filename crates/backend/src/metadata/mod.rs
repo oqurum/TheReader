@@ -43,7 +43,7 @@ pub trait Metadata {
 
 	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>>;
 
-	async fn search(&mut self, _search: &str) -> Result<Vec<SearchItem>> {
+	async fn search(&mut self, _search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		Ok(Vec::new())
 	}
 }
@@ -59,25 +59,49 @@ pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Databa
 }
 
 
-pub async fn search_all_agents(search: &str) -> Result<HashMap<&'static str, Vec<SearchItem>>> {
+pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<HashMap<&'static str, Vec<SearchItem>>> {
 	let mut map = HashMap::new();
 
 	map.insert(
 		OpenLibraryMetadata.get_prefix(),
-		OpenLibraryMetadata.search(search).await?,
+		OpenLibraryMetadata.search(search, search_for).await?,
 	);
 
 	map.insert(
 		GoogleBooksMetadata.get_prefix(),
-		GoogleBooksMetadata.search(search).await?,
+		GoogleBooksMetadata.search(search, search_for).await?,
 	);
 
 	Ok(map)
 }
 
 
-pub struct SearchItem {
-	//
+#[derive(Debug, Clone, Copy)]
+pub enum SearchFor {
+	Book, // TODO: Allow specifics. Ex: Regular Query, Title, Author Name, Contents
+	Author,
+}
+
+
+#[derive(Debug)]
+pub enum SearchItem {
+	Author(AuthorSearchInfo),
+	Book(MetadataItem)
+}
+
+// TODO: Replace MetadataReturned.authors with this.
+#[derive(Debug)]
+pub struct AuthorSearchInfo {
+	pub source: String,
+
+	pub cover_image: Option<String>,
+
+	pub name: String,
+	pub other_names: Option<Vec<String>>,
+	pub description: Option<String>,
+
+	pub birth_date: Option<String>,
+	pub death_date: Option<String>,
 }
 
 
