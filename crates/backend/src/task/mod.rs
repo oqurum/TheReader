@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::Database, ThumbnailLocation, metadata::{MetadataReturned, get_metadata}};
+use crate::{database::{Database, table::MetadataPerson}, ThumbnailLocation, metadata::{MetadataReturned, get_metadata}};
 
 
 // TODO: A should stop boolean
@@ -116,6 +116,13 @@ impl Task for TaskUpdateInvalidMetadata {
 
 									let meta = db.add_or_increment_metadata(&meta)?;
 									db.update_file_metadata_id(file.id, meta.id)?;
+
+									for person_id in author_ids {
+										db.add_meta_person(&MetadataPerson {
+											metadata_id: meta.id,
+											person_id,
+										})?;
+									}
 								}
 							}
 
@@ -175,6 +182,13 @@ impl Task for TaskUpdateInvalidMetadata {
 						}
 
 						db.update_metadata(&meta)?;
+
+						for person_id in author_ids {
+							db.add_meta_person(&MetadataPerson {
+								metadata_id: meta.id,
+								person_id,
+							})?;
+						}
 					}
 
 					Ok(None) => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
