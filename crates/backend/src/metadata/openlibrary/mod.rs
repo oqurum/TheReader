@@ -6,7 +6,7 @@ use books_common::MetadataItemCached;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
+use crate::{database::table::{MetadataItem, File, self}, ThumbnailType};
 use super::{Metadata, SearchItem, MetadataReturned};
 
 pub mod book;
@@ -22,7 +22,7 @@ impl Metadata for OpenLibraryMetadata {
 		"openlibrary"
 	}
 
-	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataReturned>> {
+	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
 		use bookie::Book;
 
 		// Wrapped b/c "future cannot be send between threads safely"
@@ -41,7 +41,7 @@ impl Metadata for OpenLibraryMetadata {
 					None => continue
 				};
 
-				match self.request(id, db).await {
+				match self.request(id).await {
 					Ok(Some(v)) => return Ok(Some(v)),
 					a => eprintln!("OpenLibraryMetadata::try_parse {:?}", a)
 				}
@@ -59,7 +59,7 @@ impl Metadata for OpenLibraryMetadata {
 }
 
 impl OpenLibraryMetadata {
-	pub async fn request(&self, id: BookId, db: &Database) -> Result<Option<MetadataReturned>> {
+	pub async fn request(&self, id: BookId) -> Result<Option<MetadataReturned>> {
 		let mut book_info = if let Some(v) = book::get_book_by_id(&id).await? {
 			v
 		} else {
@@ -91,8 +91,7 @@ impl OpenLibraryMetadata {
 				.collect()
 		};
 
-		let mut people = Vec::new();
-		let mut main_person = None;
+		let mut authors = Vec::new();
 
 		// Now we'll grab the Authors.
 		for auth_id in authors_found {
@@ -100,43 +99,18 @@ impl OpenLibraryMetadata {
 
 			match author::get_author_from_url(&auth_id).await {
 				Ok(author) => {
-					if let Some(person) = db.get_person_by_name(&author.name)? {
-						people.push(person.id.to_string());
-
-						if main_person.is_none() {
-							main_person = Some(person.name);
-						}
-
-						continue;
-					}
-
-					let person_id = db.add_person(&table::NewTagPerson {
-						source: self.prefix_text(auth_id),
-						type_of: 0,
-						name: author.name.clone(),
-						description: author.bio.map(|v| v.into_content()),
-						birth_date: author.birth_date,
-						updated_at: Utc::now(),
-						created_at: Utc::now(),
-					})?;
-
-					if let Some(alts) = author.alternate_names {
-						for name in alts {
-							// Ignore errors. Errors should just be UNIQUE constraint failed
-							if let Err(e) = db.add_person_alt(&table::TagPersonAlt {
-								person_id,
-								name,
-							}) {
-								eprintln!("[OL]: Add Alt Name Error: {e}");
-							}
-						}
-					}
-
-					people.push(person_id.to_string());
-
-					if main_person.is_none() {
-						main_person = Some(author.name);
-					}
+					authors.push((
+						table::NewTagPerson {
+							source: self.prefix_text(auth_id),
+							type_of: 0,
+							name: author.name.clone(),
+							description: author.bio.map(|v| v.into_content()),
+							birth_date: author.birth_date,
+							updated_at: Utc::now(),
+							created_at: Utc::now(),
+						},
+						author.alternate_names
+					));
 				}
 
 				Err(e) => eprintln!("[METADATA]: OpenLibrary Error: {}", e),
@@ -169,7 +143,8 @@ impl OpenLibraryMetadata {
 		}
 
 		Ok(Some(MetadataReturned {
-			authors: Vec::new(),
+			authors: Some(authors).filter(|v| !v.is_empty()),
+			publisher: book_info.publishers.first().cloned(),
 
 			meta: MetadataItem {
 				id: 0,
@@ -180,8 +155,7 @@ impl OpenLibraryMetadata {
 				description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 				rating: 0.0,
 				thumb_url,
-				cached: MetadataItemCached::default()
-					.author_optional(main_person),
+				cached: MetadataItemCached::default(),
 				refreshed_at: Utc::now(),
 				created_at: Utc::now(),
 				updated_at: Utc::now(),

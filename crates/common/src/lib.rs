@@ -102,6 +102,16 @@ impl MetadataItemCached {
 		serde_urlencoded::from_str(value.as_ref()).unwrap()
 	}
 
+	pub fn overwrite_with(&mut self, value: Self) {
+		if value.author.is_some() {
+			self.author = value.author;
+		}
+
+		if value.publisher.is_some() {
+			self.publisher = value.publisher;
+		}
+	}
+
 	pub fn author(mut self, value: String) -> Self {
 		self.author = Some(value);
 		self

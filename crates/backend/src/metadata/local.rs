@@ -4,7 +4,7 @@ use bookie::BookSearch;
 use books_common::MetadataItemCached;
 use chrono::Utc;
 
-use crate::{database::{table::{File, MetadataItem}, Database}, ThumbnailType};
+use crate::{database::table::{File, MetadataItem, self}, ThumbnailType};
 
 use super::{Metadata, MetadataReturned};
 
@@ -18,14 +18,15 @@ impl Metadata for LocalMetadata {
 		"local"
 	}
 
-	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataReturned>> {
+	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
 		// Wrapped to prevent "future cannot be sent between threads safely"
-		let (mut meta, opt_thumb_url) = {
+		let (mut meta, opt_thumb_url, authors, publisher) = {
 			let mut book = match bookie::load_from_path(&file.path)? {
 				Some(v) => v,
 				None => return Ok(None)
 			};
 
+			let source = self.prefix_text(book.get_unique_id()?);
 			let now = Utc::now();
 
 			let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
@@ -33,32 +34,34 @@ impl Metadata for LocalMetadata {
 				.map(|mut v| v.remove(0))
 				.map(|url| book.read_path_as_bytes(&url));
 
-			let authors = book.find(BookSearch::Creator);
-
-			let main_author = if let Some(person) = authors.as_ref()
-				.and_then(|v| v.first())
-				.map(|v| db.get_person_by_name(v))
-				.transpose()?
-				.flatten()
-			{
-				Some(person.name)
-			} else {
-				None
-			};
-
+			let publisher = book.find(BookSearch::Publisher).map(|mut v| v.remove(0));
+			let authors = book.find(BookSearch::Creator)
+				.map(|items| items.into_iter()
+					.map(|name| (
+						table::NewTagPerson {
+							source: source.clone(),
+							type_of: 0,
+							name,
+							description: None,
+							birth_date: None,
+							updated_at: Utc::now(),
+							created_at: Utc::now(),
+						},
+						None
+					))
+					.collect::<Vec<_>>()
+				);
 
 			(MetadataItem {
 				id: 0,
-				source: format!("{}:{}", self.get_prefix(), book.get_unique_id()?),
+				source,
 				file_item_count: 1,
 				title: title.clone(),
 				original_title: title,
 				description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
 				rating: 0.0,
 				thumb_url: None,
-				cached: MetadataItemCached::default()
-					.publisher_optional(book.find(BookSearch::Publisher).map(|mut v| v.remove(0)))
-					.author_optional(main_author),
+				cached: MetadataItemCached::default(),
 				refreshed_at: now,
 				created_at: now,
 				updated_at: now,
@@ -66,7 +69,7 @@ impl Metadata for LocalMetadata {
 				available_at: None,
 				year: None,
 				hash: String::new() // TODO: Should not be a file hash. Multiple files can use the same Metadata.
-			}, opt_thumb_url)
+			}, opt_thumb_url, authors, publisher)
 		};
 
 		meta.thumb_url = match opt_thumb_url {
@@ -86,7 +89,8 @@ impl Metadata for LocalMetadata {
 		};
 
 		Ok(Some(MetadataReturned {
-			authors: Vec::new(),
+			authors,
+			publisher,
 			meta,
 		}))
 	}

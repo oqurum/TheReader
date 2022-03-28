@@ -106,7 +106,14 @@ impl Task for TaskUpdateInvalidMetadata {
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
 						match get_metadata(&file, None, db).await {
 							Ok(meta) => {
-								if let Some(MetadataReturned { meta, authors }) = meta {
+								if let Some(mut ret) = meta {
+									let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db)?;
+
+									let MetadataReturned { mut meta, publisher, .. } = ret;
+
+									// TODO: Store Publisher inside Database
+									meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+
 									let meta = db.add_or_increment_metadata(&meta)?;
 									db.update_file_metadata_id(file.id, meta.id)?;
 								}
@@ -120,19 +127,27 @@ impl Task for TaskUpdateInvalidMetadata {
 				}
 			}
 
-			// TODO: Check if we're refreshing metadata.
+			// TODO: Check how long it has been since we've refreshed metadata if auto-ran.
 			UpdatingMetadata::Single(file_id) => {
 				println!("Finding Metadata for File ID: {}", file_id);
 
 				let fm = db.find_file_by_id_with_metadata(file_id)?.unwrap();
 
 				match get_metadata(&fm.file, fm.meta.as_ref(), db).await {
-					Ok(Some(MetadataReturned { mut meta, authors })) => {
+					Ok(Some(mut ret)) => {
+						let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db)?;
+
+						let MetadataReturned { mut meta, publisher, .. } = ret;
+
+						// TODO: Store Publisher inside Database
+						meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+
 						if let Some(fm_meta) = fm.meta {
 							meta.id = fm_meta.id;
 							meta.rating = fm_meta.rating;
 							meta.deleted_at = fm_meta.deleted_at;
 							meta.file_item_count = fm_meta.file_item_count;
+							meta.cached.overwrite_with(fm_meta.cached);
 
 							if fm_meta.title != fm_meta.original_title {
 								meta.title = fm_meta.title;

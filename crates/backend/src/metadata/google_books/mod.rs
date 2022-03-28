@@ -8,7 +8,7 @@ use books_common::MetadataItemCached;
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::{table::{MetadataItem, File}, Database}, ThumbnailType};
+use crate::{database::table::{MetadataItem, File}, ThumbnailType};
 use super::{Metadata, SearchItem, MetadataReturned};
 
 pub struct GoogleBooksMetadata;
@@ -19,7 +19,7 @@ impl Metadata for GoogleBooksMetadata {
 		"googlebooks"
 	}
 
-	async fn try_parse(&mut self, file: &File, db: &Database) -> Result<Option<MetadataReturned>> {
+	async fn try_parse(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
 		// Wrapped b/c "future cannot be send between threads safely"
 		let found = {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
@@ -36,7 +36,7 @@ impl Metadata for GoogleBooksMetadata {
 					None => continue
 				};
 
-				match self.request(id, db).await {
+				match self.request(id).await {
 					Ok(Some(v)) => return Ok(Some(v)),
 					a => eprintln!("GoogleBooksMetadata::try_parse {:?}", a)
 				}
@@ -54,7 +54,7 @@ impl Metadata for GoogleBooksMetadata {
 }
 
 impl GoogleBooksMetadata {
-	pub async fn request(&self, id: String, db: &Database) -> Result<Option<MetadataReturned>> {
+	pub async fn request(&self, id: String) -> Result<Option<MetadataReturned>> {
 		let resp = reqwest::get(format!("https://www.googleapis.com/books/v1/volumes?q={}", BookSearchKeyword::Isbn.combile_string(&id))).await?;
 
 		let book = if resp.status().is_success() {
@@ -89,7 +89,8 @@ impl GoogleBooksMetadata {
 		let now = Utc::now();
 
 		Ok(Some(MetadataReturned {
-			authors: Vec::new(),
+			authors: None,
+			publisher: None,
 			meta: MetadataItem {
 				id: 0,
 				file_item_count: 1,
