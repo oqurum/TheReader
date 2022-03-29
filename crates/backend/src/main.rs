@@ -52,7 +52,7 @@ async fn load_book_thumbnail(path: web::Path<i64>, db: web::Data<Database>) -> H
 
 	let file = db.find_file_by_id_with_metadata(book_id).unwrap().unwrap();
 
-	if let Some(path) = file.meta.and_then(|v| v.thumb_url) {
+	if let Some(path) = file.meta.and_then(|v| v.thumb_path) {
 		let loc = ThumbnailLocation::from(path);
 
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
@@ -366,7 +366,7 @@ async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookList
 					(
 						meta.title.or(meta.original_title).unwrap_or_default(),
 						meta.cached,
-						meta.thumb_url.map(|url| format!("/api/book/{}/res/{}", file.id, url))
+						meta.thumb_path.map(|url| format!("/api/book/{}/res/{}", file.id, url))
 					)
 				} else {
 					(String::new(), MetadataItemCached::default(), None)

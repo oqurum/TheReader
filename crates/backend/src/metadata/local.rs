@@ -57,7 +57,7 @@ impl Metadata for LocalMetadata {
 				original_title: title,
 				description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
 				rating: 0.0,
-				thumb_url: None,
+				thumb_path: None,
 				cached: MetadataItemCached::default(),
 				refreshed_at: now,
 				created_at: now,
@@ -69,7 +69,7 @@ impl Metadata for LocalMetadata {
 			}, opt_thumb_url, authors, publisher)
 		};
 
-		meta.thumb_url = match opt_thumb_url {
+		meta.thumb_path = match opt_thumb_url {
 			Some(book_file_path) => {
 				let image = book_file_path?;
 

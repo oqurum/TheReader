@@ -160,16 +160,16 @@ impl Task for TaskUpdateInvalidMetadata {
 								meta.title = fm_meta.title;
 							}
 
-							match (meta.thumb_url.is_some(), fm_meta.thumb_url.is_some()) {
+							match (meta.thumb_path.is_some(), fm_meta.thumb_path.is_some()) {
 								// No new thumb, but we have an old one. Set old one as new one.
 								(false, true) => {
-									meta.thumb_url = fm_meta.thumb_url;
+									meta.thumb_path = fm_meta.thumb_path;
 								}
 
 								// Both have a poster and they're both different.
-								(true, true) if meta.thumb_url != fm_meta.thumb_url => {
+								(true, true) if meta.thumb_path != fm_meta.thumb_path => {
 									// Remove old poster.
-									let loc = ThumbnailLocation::from(fm_meta.thumb_url.unwrap());
+									let loc = ThumbnailLocation::from(fm_meta.thumb_path.unwrap());
 									let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
 									tokio::fs::remove_file(path).await?;
 								}
