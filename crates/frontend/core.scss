@@ -84,6 +84,12 @@ body {
 	align-content: center;
 }
 
+/* POPUP AT SPECIFIC POINT */
+.popup-at-point {
+	position: absolute;
+	z-index: 50;
+}
+
 /* READER CONTAINER */
 
 .reading-container {
@@ -306,6 +312,29 @@ body {
 					text-decoration: underline;
 				}
 			}
+		}
+	}
+}
+
+
+
+/* MENU LIST */
+
+.menu-list {
+	background-color: var(--surface1);
+	padding: 0.5em 0px;
+
+	user-select: none;
+
+	> .menu-item {
+		color: var(--text2);
+		font-size: var(--font-size-2);
+		padding: 0px 1em;
+		cursor: pointer;
+
+		&:hover {
+			background-color: var(--surface3);
+			color: var(--text1);
 		}
 	}
 }

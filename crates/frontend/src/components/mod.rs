@@ -1,7 +1,9 @@
-pub mod reader;
 pub mod navbar;
 pub mod notes;
+pub mod popup;
+pub mod reader;
 
 pub use navbar::NavbarModule;
-pub use reader::Reader;
 pub use notes::Notes;
+pub use popup::{Popup, PopupType};
+pub use reader::Reader;
