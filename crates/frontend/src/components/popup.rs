@@ -19,9 +19,11 @@ impl PopupType {
 	pub fn should_exit(self, element: Element) -> bool {
 		match self {
 			// If we clicked .popup
-			Self::FullOverlay => element.class_list().contains("popup"),
+			Self::FullOverlay if element.class_list().contains("popup") => true,
 			// If we didn't click inside of the container
-			Self::AtPoint(_, _) => !does_parent_contain_class(element, "popup-at-point"),
+			Self::AtPoint(_, _) if !does_parent_contain_class(&element, "popup-at-point") => true,
+			// Otherwise just check for a "data-close-popup" attribute
+			_ => does_parent_contain_attribute(&element, "yew-close-popup")
 		}
 	}
 }
@@ -46,6 +48,8 @@ pub enum Msg {
 
 pub struct Popup {
 	node_ref: NodeRef,
+	#[allow(clippy::type_complexity)]
+	closure: Arc<Mutex<Option<Closure<dyn FnMut(MouseEvent)>>>>,
 }
 
 impl Component for Popup {
@@ -55,6 +59,7 @@ impl Component for Popup {
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
 			node_ref: NodeRef::default(),
+			closure: Arc::new(Mutex::new(None)),
 		}
 	}
 
@@ -87,7 +92,13 @@ impl Component for Popup {
 	fn rendered(&mut self, ctx: &Context<Self>, _first_render: bool) {
 		// TODO: On render check dimensions of and adjust "AtPoint"
 
-		let closure = Arc::new(Mutex::new(None));
+		// FIX: rendered would be called again if we clicked an element containing another onclick event.
+		// Resulted in our previous event being overwritten but not removed from the listener.
+		if let Some(func) = (*self.closure.lock().unwrap()).take() {
+			let _ = body().remove_event_listener_with_callback("click", func.as_ref().unchecked_ref());
+		}
+
+		let closure = Arc::new(Mutex::default());
 		let c2 = closure.clone();
 
 		let viewing = ctx.props().type_of;
@@ -106,18 +117,31 @@ impl Component for Popup {
 		let _ = body().add_event_listener_with_callback("click", on_click.as_ref().unchecked_ref());
 
 		*closure.lock().unwrap() = Some(on_click);
+
+		self.closure = closure;
 	}
 
 	fn destroy(&mut self, _ctx: &Context<Self>) {
-		//
+		let func = (*self.closure.lock().unwrap()).take().unwrap();
+		let _ = body().remove_event_listener_with_callback("click", func.as_ref().unchecked_ref());
 	}
 }
 
-fn does_parent_contain_class(element: Element, value: &str) -> bool {
+fn does_parent_contain_class(element: &Element, value: &str) -> bool {
 	if element.class_list().contains(value) {
 		true
 	} else if let Some(element) = element.parent_element() {
-		does_parent_contain_class(element, value)
+		does_parent_contain_class(&element, value)
+	} else {
+		false
+	}
+}
+
+fn does_parent_contain_attribute(element: &Element, value: &str) -> bool {
+	if element.has_attribute(value) {
+		true
+	} else if let Some(element) = element.parent_element() {
+		does_parent_contain_attribute(&element, value)
 	} else {
 		false
 	}
