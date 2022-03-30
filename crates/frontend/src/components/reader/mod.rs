@@ -280,7 +280,7 @@ impl Component for Reader {
 				</div>
 
 				<div class="pages" style={pages_style}>
-					<div class="frames" style={format!("top: calc(-{}% - {}px);", self.viewing_chapter * 100, self.viewing_chapter as f32 * 3.5)}>
+					<div class="frames" style={format!("top: -{}%;", self.viewing_chapter * 100)}>
 						{ for frames.into_iter().map(|v| Html::VRef(v.into())) }
 					</div>
 				</div>

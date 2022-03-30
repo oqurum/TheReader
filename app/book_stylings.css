@@ -35,4 +35,13 @@ body.double-page {
 a[href], a[href]:hover, a[href]:visited, a[href]:active {
 	color: #7f79e0 !important;
 	font-weight: bold;
+	text-decoration: none;
+}
+
+
+
+/* BOOK FIXES */
+
+a {
+	text-decoration: none;
 }

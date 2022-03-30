@@ -215,7 +215,6 @@ impl Book for EpubBook {
 					("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
 					("img", "src") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
 					("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-					("a", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
 					_ => return attr
 				};
 				attr
