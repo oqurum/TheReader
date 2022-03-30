@@ -4,7 +4,7 @@ use wasm_bindgen::{prelude::Closure, JsCast};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
-use crate::{Route, request};
+use crate::{Route, request, components::{Popup, PopupType}};
 
 
 #[derive(Properties, PartialEq)]
@@ -12,6 +12,7 @@ pub struct Property {
 	pub library_id: i64,
 }
 
+#[derive(Clone)]
 pub enum Msg {
 	// Requests
 	RequestMediaItems,
@@ -22,6 +23,7 @@ pub enum Msg {
 	// Events
 	OnScroll(i32),
 	PosterItem(PosterItem),
+	ClosePopup,
 
 	Ignore
 }
@@ -33,6 +35,8 @@ pub struct LibraryPage {
 	total_media_count: i64,
 
 	is_fetching_media_items: bool,
+
+	media_popup: Option<(DisplayOverlay, i64)>,
 }
 
 impl Component for LibraryPage {
@@ -45,11 +49,16 @@ impl Component for LibraryPage {
 			media_items: None,
 			total_media_count: 0,
 			is_fetching_media_items: false,
+			media_popup: None,
 		}
 	}
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			Msg::ClosePopup => {
+				self.media_popup = None;
+			}
+
 			Msg::RequestMediaItems => {
 				if self.is_fetching_media_items {
 					return false;
@@ -87,7 +96,11 @@ impl Component for LibraryPage {
 			}
 
 			Msg::PosterItem(item) => match item {
-				PosterItem::Meta(file_id) => {
+				PosterItem::ShowPopup(type_of, media_id) => {
+					self.media_popup = Some((type_of, media_id));
+				}
+
+				PosterItem::UpdateMeta(file_id) => {
 					ctx.link()
 					.send_future(async move {
 						request::update_metadata(&api::PostMetadataBody::File(file_id)).await;
@@ -112,6 +125,35 @@ impl Component for LibraryPage {
 				<div class="library-list normal">
 					{ for items.iter().map(|item| Self::render_media_item(item, ctx.link())) }
 					// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
+
+					{
+						if let Some((overlay_type, meta_id)) = self.media_popup {
+							match overlay_type {
+								DisplayOverlay::Edit => {
+									html! {
+										<Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+											<h1>{"Edit"}</h1>
+										</Popup>
+									}
+								}
+
+								DisplayOverlay::More(x, y) => {
+									html! {
+										<Popup type_of={ PopupType::AtPoint(x, y) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+											<div class="menu-list">
+												<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
+												<div class="menu-item" yew-close-popup="" onclick={Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))}>{ "Refresh Metadata" }</div>
+												<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
+												<div class="menu-item" yew-close-popup="">{ "Show Info" }</div>
+											</div>
+										</Popup>
+									}
+								}
+							}
+						} else {
+							html! {}
+						}
+					}
 				</div>
 			}
 		} else {
@@ -149,20 +191,36 @@ impl Component for LibraryPage {
 }
 
 impl LibraryPage {
+	fn on_click_prevdef_stopprop(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
+		scope.callback(move |e: MouseEvent| {
+			e.prevent_default();
+			e.stop_propagation();
+			msg.clone()
+		})
+	}
+
+	fn on_click_prevdef(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
+		scope.callback(move |e: MouseEvent| {
+			e.prevent_default();
+			msg.clone()
+		})
+	}
+
+	// TODO: Move into own struct.
 	fn render_media_item(item: &MediaItem, scope: &Scope<Self>) -> Html {
-		let file_id = item.id;
-		let on_click_meta = scope.callback(move |e: MouseEvent| {
+		let item_id = item.id;
+		let on_click_more = scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
 			e.stop_propagation();
 
-			Msg::PosterItem(PosterItem::Meta(file_id))
+			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More(e.page_x(), e.page_y()), item_id))
 		});
 
 		html! {
 			<Link<Route> to={Route::ReadBook { book_id: item.id as usize }} classes={ classes!("library-item") }>
 				<div class="poster">
 					<div class="bottom-right">
-						<span class="material-icons" onclick={on_click_meta} title="Update Metadata">{ "search" }</span>
+						<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
 					</div>
 					<img src={ if item.icon_path.is_some() { format!("/api/book/{}/thumbnail", item.id) } else { String::from("/images/missingthumbnail.jpg") } } />
 				</div>
@@ -201,6 +259,17 @@ impl LibraryPage {
 	}
 }
 
+#[derive(Clone)]
 pub enum PosterItem {
-	Meta(i64)
+	// Poster Specific Buttons
+	ShowPopup(DisplayOverlay, i64),
+
+	// Popup Events
+	UpdateMeta(i64)
+}
+
+#[derive(Clone, Copy)]
+pub enum DisplayOverlay {
+	Edit,
+	More(i32, i32)
 }
