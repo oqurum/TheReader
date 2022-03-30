@@ -201,16 +201,6 @@ export function js_update_pages_with_inlined_css(iframe) {
 	}
 
 
-	// Set <img> / <svg> max-height to document.body.clientHeight
-	// Fix for images going over document height
-	for (const element of document.getElementsByTagName('img')) {
-		element.style.maxHeight = document.body.clientHeight + 'px';
-	}
-
-	for (const element of document.getElementsByTagName('svg')) {
-		element.style.maxHeight = document.body.clientHeight + 'px';
-	}
-
 	for(let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
 
@@ -241,6 +231,18 @@ export function js_update_pages_with_inlined_css(iframe) {
 			}
 		}
 	}
+
+	// Set <img>, <image>, <svg> max-height to document.body.clientHeight
+	// Fix for images going over document height
+	[
+		document.getElementsByTagName('img'),
+		document.getElementsByTagName('image'),
+		document.getElementsByTagName('svg')
+	].forEach(tags => {
+		for (const element of tags) {
+			element.style.maxHeight = document.body.clientHeight + 'px';
+		}
+	});
 }
 
 // FIX: For some reason the inline CSS will not be the top priority.
