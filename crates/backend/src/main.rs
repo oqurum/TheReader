@@ -70,7 +70,7 @@ struct ChapterInfo {
 }
 
 #[get("/api/book/{id}/pages/{pages}")]
-async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> web::Json<ChapterInfo> {
+async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> web::Json<api::GetChaptersResponse> {
 	let (book_id, chapters) = path.into_inner();
 
 	let file = db.find_file_by_id(book_id).unwrap().unwrap();
@@ -100,6 +100,7 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 		// TODO: Return file names along with Chapter. Useful for redirecting to certain chapter for <a> tags.
 
 		chapters.push(Chapter {
+			file_path: book.get_page_path(),
 			value: chap,
 			html: book.read_page_as_string(Some(&path), Some(&[
 				include_str!("../../../app/book_stylings.css")
@@ -107,7 +108,10 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 		});
 	}
 
-	web::Json(ChapterInfo {
+	web::Json(api::GetChaptersResponse {
+		offset: start_chap,
+		limit: end_chap - start_chap,
+		total: book.chapter_count(),
 		chapters
 	})
 }

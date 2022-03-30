@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter};
 
 
 // Libraries
@@ -26,13 +26,22 @@ pub struct GetBookListResponse {
 	pub items: Vec<MediaItem>
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct BookListQuery {
 	pub library: usize,
 	pub offset: Option<usize>,
 	pub limit: Option<usize>,
 }
 
+
+
+#[derive(Serialize, Deserialize)]
+pub struct GetChaptersResponse {
+	pub offset: usize,
+	pub limit: usize,
+	pub total: usize,
+	pub chapters: Vec<Chapter>
+}
 
 
 // Options

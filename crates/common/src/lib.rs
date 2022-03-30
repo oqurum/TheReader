@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::{Serialize, Deserialize};
 
 
@@ -50,6 +52,7 @@ pub enum Progression {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Chapter {
+	pub file_path: PathBuf,
 	pub value: usize,
 	pub html: String
 }

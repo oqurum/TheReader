@@ -4,7 +4,7 @@
 
 use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex};
 
-use books_common::{MediaItem, Chapter, api::GetBookIdResponse, Progression};
+use books_common::{MediaItem, Chapter, api::{GetBookIdResponse, GetChaptersResponse}, Progression};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};
@@ -18,13 +18,6 @@ pub enum PageDisplay {
 	SinglePage,
 	DoublePage,
 	CustomAmount(usize)
-}
-
-
-
-#[derive(serde::Deserialize)]
-pub struct ChapterInfo {
-	chapters: Vec<Chapter>
 }
 
 
@@ -79,7 +72,7 @@ pub enum Msg {
 
 	// Retrive
 	RetrieveBook(GetBookIdResponse),
-	RetrievePages(ChapterInfo),
+	RetrievePages(GetChaptersResponse),
 }
 
 #[derive(Properties, PartialEq)]

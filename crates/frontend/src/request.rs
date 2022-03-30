@@ -3,8 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody}, Progression};
-use crate::pages::reading::ChapterInfo;
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse}, Progression};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
@@ -54,7 +53,7 @@ pub async fn get_book_info(id: usize) -> GetBookIdResponse {
 	fetch("GET", &format!("/api/book/{}", id), Option::<&()>::None).await.unwrap()
 }
 
-pub async fn get_book_pages(book_id: i64, start: usize, end: usize) -> ChapterInfo {
+pub async fn get_book_pages(book_id: i64, start: usize, end: usize) -> GetChaptersResponse {
 	fetch("GET", &format!("/api/book/{}/pages/{}-{}", book_id, start, end), Option::<&()>::None).await.unwrap()
 }
 
