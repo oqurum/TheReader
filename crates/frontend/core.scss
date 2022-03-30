@@ -48,9 +48,49 @@ body {
 }
 
 
+:where(h1, h2, h3, h4, h5, h6, dt) {
+	color: var(--text1);
+}
 
+:where(a[href]),
 :where(a[href]):visited {
 	color: var(--text1);
+
+	&:hover {
+		text-decoration: inherit;
+	}
+}
+
+
+:where(input, button, textarea, select),
+:where(input[type="file"])::-webkit-file-upload-button {
+	color: var(--text1);
+	background: var(--surface1);
+}
+
+.button {
+	display: inline-flex;
+	white-space: nowrap;
+
+	font-size: var(--font-size-fluid-0);
+
+	padding-inline: var(--size-2);
+	padding-block: var(--size-1);
+
+	color: var(--blue-1);
+	border: var(--border-size-2) solid var(--brand);
+	background-color: transparent;
+	border-radius: var(--radius-2);
+
+	&:hover {
+		background-color: var(--surface1);
+		color: var(--text1);
+	}
+
+	&:active {
+		position: relative;
+		inset-block-start: 2px;
+	}
 }
 
 

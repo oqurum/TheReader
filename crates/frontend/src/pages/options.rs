@@ -84,7 +84,7 @@ impl Component for OptionsPage {
 				<div class="options-page">
 					<h2>{ "Tasks" }</h2>
 
-					<button onclick={ ctx.link().callback_future(|_| async {
+					<button class="button" onclick={ ctx.link().callback_future(|_| async {
 						request::run_task().await;
 						Msg::Ignore
 					}) }>{ "Run Library Scan + Metadata Updater" }</button>
@@ -99,7 +99,7 @@ impl Component for OptionsPage {
 								html! {
 									<>
 										<h3>{ v.name.clone() }</h3>
-										<button onclick={ ctx.link().batch_callback(move|_| {
+										<button class="button" onclick={ ctx.link().batch_callback(move|_| {
 											vec![
 												Msg::UpdatePopup(api::ModifyOptionsBody {
 													library: Some(BasicLibrary {
@@ -117,7 +117,7 @@ impl Component for OptionsPage {
 													let path = v.clone();
 
 													html! {
-														<li><button onclick={ ctx.link().batch_callback(move |_| {
+														<li><button class="button" onclick={ ctx.link().batch_callback(move |_| {
 															vec![
 																Msg::UpdatePopup(api::ModifyOptionsBody {
 																	library: None,
@@ -132,13 +132,13 @@ impl Component for OptionsPage {
 													}
 												})
 											}
-											<li><button onclick={ctx.link().callback(move |_| Msg::DisplayPopup(1, lib_id))}>{ "Add New" }</button></li>
+											<li><button class="button" onclick={ctx.link().callback(move |_| Msg::DisplayPopup(1, lib_id))}>{ "Add New" }</button></li>
 										</ul>
 									</>
 								}
 							})
 					}
-					<button onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, 0))}>{ "Add Library" }</button>
+					<button class="button" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, 0))}>{ "Add Library" }</button>
 
 					{ self.render_popup(ctx) }
 				</div>
@@ -184,7 +184,7 @@ impl OptionsPage {
 								})
 							}) } />
 
-							<button onclick={ ctx.link().callback(|_| Msg::RequestUpdateOptions(true)) }>{"Create"}</button>
+							<button class="button" onclick={ ctx.link().callback(|_| Msg::RequestUpdateOptions(true)) }>{"Create"}</button>
 						</div>
 					</div>
 				},
@@ -208,7 +208,7 @@ impl OptionsPage {
 								})
 							}) } />
 
-							<button onclick={ ctx.link().callback(|_| Msg::RequestUpdateOptions(true)) }>{"Create"}</button>
+							<button class="button" onclick={ ctx.link().callback(|_| Msg::RequestUpdateOptions(true)) }>{"Create"}</button>
 						</div>
 					</div>
 				},
