@@ -86,7 +86,8 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 			},
 			|(a, b)| {
 				let start_chap = a.parse::<usize>().unwrap();
-				(start_chap, if b.trim().is_empty() { book.chapter_count().saturating_sub(1) } else { b.parse::<usize>().unwrap() })
+				let chap_count = book.chapter_count();
+				(start_chap, if b.trim().is_empty() { chap_count } else { chap_count.min(b.parse().unwrap()) })
 			}
 		);
 
