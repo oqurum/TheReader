@@ -1,6 +1,5 @@
 // TODO: Handle resizing.
 // TODO: Allow custom sizes.
-// TODO: Batch chapter grabs. Add progress bar at bottom of page.
 
 use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex};
 
@@ -12,13 +11,6 @@ use yew::{prelude::*, html::Scope};
 use crate::request;
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
-
-
-pub enum PageDisplay {
-	SinglePage,
-	DoublePage,
-	CustomAmount(usize)
-}
 
 
 pub struct GeneratePage {
@@ -132,11 +124,12 @@ impl Component for ReadingBook {
 				let chaps_generated = chaps.values().filter(|v| v.is_generated).count();
 				self.last_grabbed_count = self.last_grabbed_count.saturating_sub(1);
 
+				drop(chaps);
+
 				if chaps_generated == self.book.as_ref().unwrap().chapter_count {
-					drop(chaps);
 					self.on_all_frames_generated();
 				} else if self.last_grabbed_count == 0 {
-					log::info!("Grabbed: {}", chaps_generated);
+					self.update_chapter_pages();
 					ctx.link().send_message(Msg::SendGetChapters(chaps_generated, chaps_generated + 3));
 				}
 			}
@@ -205,8 +198,6 @@ impl Component for ReadingBook {
 	}
 
 	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-		self.update_chapter_pages();
-
 		if first_render {
 			let id = ctx.props().id;
 
@@ -298,9 +289,19 @@ fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: 
 }
 
 
+
+#[derive(Clone, Copy)]
+pub enum PageDisplay {
+	SinglePage = 0,
+	DoublePage,
+	// VerticalPage,
+}
+
+
 #[wasm_bindgen(module = "/js_generate_pages.js")]
 extern "C" {
 	// TODO: Sometimes will be 0. Example: if cover image is larger than body height. (Need to auto-resize.)
 	fn get_iframe_page_count(iframe: &HtmlIFrameElement) -> usize;
 	fn js_update_pages_with_inlined_css(iframe: &HtmlIFrameElement);
+	fn js_set_page_display_style(iframe: &HtmlIFrameElement, display: usize);
 }

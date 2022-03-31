@@ -342,3 +342,25 @@ export function js_get_page_from_byte_position(iframe, position) {
 	findTextPos(document.body);
 	return page;
 }
+
+/**
+ * @param {HTMLIFrameElement} iframe
+ * @param {number} display
+**/
+export function js_set_page_display_style(iframe, display) {
+	let document = iframe.contentDocument;
+
+	switch (display) {
+		// Single Page
+		case 0:
+			document.body.classList.remove('double-page');
+			document.body.classList.add('single-page');
+			break;
+
+		// Double Page
+		case 1:
+			document.body.classList.remove('single-page');
+			document.body.classList.add('double-page');
+			break;
+	}
+}
