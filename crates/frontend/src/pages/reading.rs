@@ -84,6 +84,7 @@ pub struct ReadingBook {
 	progress: Option<Progression>,
 	book: Option<Rc<MediaItem>>,
 	chapters: Rc<Mutex<HashMap<usize, ChapterContents>>>,
+	last_grabbed_count: usize,
 	// TODO: Cache pages
 
 	book_dimensions: Option<(i32, i32)>,
@@ -98,6 +99,7 @@ impl Component for ReadingBook {
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
 			chapters: Rc::new(Mutex::new(HashMap::new())),
+			last_grabbed_count: 0,
 			progress: None,
 			book: None,
 
@@ -128,14 +130,19 @@ impl Component for ReadingBook {
 				}
 
 				let chaps_generated = chaps.values().filter(|v| v.is_generated).count();
+				self.last_grabbed_count = self.last_grabbed_count.saturating_sub(1);
 
 				if chaps_generated == self.book.as_ref().unwrap().chapter_count {
 					drop(chaps);
 					self.on_all_frames_generated();
+				} else if self.last_grabbed_count == 0 {
+					log::info!("Grabbed: {}", chaps_generated);
+					ctx.link().send_message(Msg::SendGetChapters(chaps_generated, chaps_generated + 3));
 				}
 			}
 
 			Msg::RetrievePages(info) => {
+				self.last_grabbed_count = info.limit;
 				// Reverse iterator since for some reason chapter "generation" works from LIFO
 				for chap in info.chapters.into_iter().rev() {
 					log::info!("Generating Chapter {}", chap.value + 1);
@@ -146,8 +153,8 @@ impl Component for ReadingBook {
 			Msg::RetrieveBook(resp) => {
 				self.book = Some(Rc::new(resp.media));
 				self.progress = resp.progress;
-
-				ctx.link().send_message(Msg::SendGetChapters(0, self.book.as_ref().unwrap().chapter_count));
+				// TODO: Check to see if we have progress. If so, generate those pages first.
+				ctx.link().send_message(Msg::SendGetChapters(0, 3));
 			}
 
 			Msg::SendGetChapters(start, end) => {
