@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex};
+use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex, path::PathBuf};
 
 use books_common::{MediaItem, Progression, Chapter};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
@@ -17,7 +17,7 @@ extern "C" {
 	fn js_get_current_byte_pos(iframe: &HtmlIFrameElement) -> Option<usize>;
 	fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize) -> Option<usize>;
 
-	fn js_update_pages_with_inlined_css(iframe: &HtmlIFrameElement);
+	fn js_update_iframe_after_load(iframe: &HtmlIFrameElement, chapter: usize, handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>);
 	fn js_set_page_display_style(iframe: &HtmlIFrameElement, display: u8);
 }
 
@@ -87,6 +87,8 @@ pub enum Msg {
 	GenerateIFrameLoaded(GenerateChapter),
 
 	// Event
+	HandleJsRedirect(usize, String, Option<String>),
+
 	Touch(TouchMsg),
 	NextPage,
 	PreviousPage,
@@ -113,6 +115,8 @@ pub struct Reader {
 	viewing_chapter: usize,
 	// TODO: Decide if we want to keep. Not really needed since we can aquire it based off of self.cached_pages[self.total_page_position].chapter
 
+	handle_js_redirect_clicks: Closure<dyn FnMut(usize, String)>,
+
 	handle_touch_start: Option<Closure<dyn FnMut(TouchEvent)>>,
 	handle_touch_end: Option<Closure<dyn FnMut(TouchEvent)>>,
 	handle_touch_cancel: Option<Closure<dyn FnMut(TouchEvent)>>,
@@ -124,7 +128,16 @@ impl Component for Reader {
 	type Message = Msg;
 	type Properties = Property;
 
-	fn create(_ctx: &Context<Self>) -> Self {
+	fn create(ctx: &Context<Self>) -> Self {
+		let link = ctx.link().clone();
+		let handle_js_redirect_clicks = Closure::wrap(Box::new(move |chapter: usize, path: String| {
+			let (file_path, id_value) = path.split_once('#')
+				.map(|(a, b)| (a.to_string(), Some(b.to_string())))
+				.unwrap_or((path, None));
+
+			link.send_message(Msg::HandleJsRedirect(chapter, file_path, id_value));
+		}) as Box<dyn FnMut(usize, String)>);
+
 		Self {
 			cached_display: ChapterDisplay::DoublePage,
 			cached_dimensions: None,
@@ -135,6 +148,8 @@ impl Component for Reader {
 
 			total_page_position: 0,
 			viewing_chapter: 0, // TODO: Add after "frames loaded" event. // ctx.props().progress.map(|v| match v { Progression::Ebook { chapter, page } => chapter as usize, _ => 0 }).unwrap_or_default(),
+
+			handle_js_redirect_clicks,
 
 			handle_touch_cancel: None,
 			handle_touch_end: None,
@@ -147,6 +162,21 @@ impl Component for Reader {
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
 			Msg::Ignore => return false,
+
+			Msg::HandleJsRedirect(chapter, file_path, id_name) => {
+				let file_path = PathBuf::from(file_path);
+
+				let chaps = ctx.props().chapters.lock().unwrap();
+
+				// TODO: Ensure we handle any paths which go to a parent directory. eg: "../file.html"
+				// let mut path = chaps.chapters.iter().find(|v| v.value == chapter).unwrap().file_path.clone();
+				// path.pop();
+
+				if let Some(chap) = chaps.chapters.iter().find(|v| v.file_path == file_path) {
+					self.set_chapter(chap.value);
+					// TODO: Handle id_name
+				}
+			}
 
 			Msg::SetPage(new_page) => {
 				return self.set_page(new_page);
@@ -257,7 +287,7 @@ impl Component for Reader {
 			}
 
 			Msg::GenerateIFrameLoaded(page) => {
-				js_update_pages_with_inlined_css(&page.iframe);
+				js_update_iframe_after_load(&page.iframe, page.chapter.value, &self.handle_js_redirect_clicks);
 
 				if let Entry::Occupied(mut v) = self.generated_chapters.entry(page.chapter.value) {
 					let chap = v.get_mut();

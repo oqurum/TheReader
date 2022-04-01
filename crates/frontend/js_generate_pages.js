@@ -182,9 +182,22 @@ const LOAD_JS = [
 
 /**
  * @param {HTMLIFrameElement} iframe
+ * @param {number} chapter
+ * @param {(number, string) => void} handle_redirect_click
 **/
-export function js_update_pages_with_inlined_css(iframe) {
+export function js_update_iframe_after_load(iframe, chapter, handle_redirect_click) {
 	let document = iframe.contentDocument;
+
+	document.querySelectorAll('a[href]')
+	.forEach(element => {
+		const path = element.getAttribute('href');
+		element.href = 'javascript:;';
+		// TODO: Use single listener for whole iframe.
+		element.addEventListener('click', event => {
+			event.preventDefault();
+			handle_redirect_click(chapter, path);
+		});
+	});
 
 	for (const link of LOAD_STYLES) {
 		let external = document.createElement('link');
