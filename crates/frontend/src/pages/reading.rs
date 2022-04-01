@@ -4,16 +4,26 @@
 use std::{rc::Rc, sync::Mutex};
 
 use books_common::{MediaItem, api::{GetBookIdResponse, GetChaptersResponse}, Progression};
+use wasm_bindgen::JsCast;
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::{request, components::reader::LoadedChapters};
+use crate::{request, components::reader::{LoadedChapters, ChapterDisplay}};
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum SidebarType {
+	Notes,
+	Settings
+}
+
 pub enum Msg {
 	// Event
-	ToggleNotesVisibility,
+	ToggleSidebar(SidebarType),
+	OnChangeSelection(ChapterDisplay),
+	UpdateDimensions,
 
 	// Send
 	SendGetChapters(usize, usize),
@@ -29,6 +39,7 @@ pub struct Property {
 }
 
 pub struct ReadingBook {
+	book_display: ChapterDisplay,
 	progress: Option<Progression>,
 	book: Option<Rc<MediaItem>>,
 	chapters: Rc<Mutex<LoadedChapters>>,
@@ -37,7 +48,11 @@ pub struct ReadingBook {
 
 	book_dimensions: Option<(i32, i32)>,
 
-	notes_visible: bool
+	sidebar_visible: Option<SidebarType>,
+
+	// Refs
+	ref_width: NodeRef,
+	ref_height: NodeRef,
 }
 
 impl Component for ReadingBook {
@@ -46,6 +61,7 @@ impl Component for ReadingBook {
 
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
+			book_display: ChapterDisplay::DoublePage,
 			chapters: Rc::new(Mutex::new(LoadedChapters::new())),
 			last_grabbed_count: 0,
 			progress: None,
@@ -53,14 +69,39 @@ impl Component for ReadingBook {
 
 			book_dimensions: Some((1040, 548)),
 
-			notes_visible: false
+			sidebar_visible: None,
+
+			ref_width: NodeRef::default(),
+			ref_height: NodeRef::default(),
 		}
 	}
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
-			Msg::ToggleNotesVisibility => {
-				self.notes_visible = !self.notes_visible;
+			Msg::UpdateDimensions => {
+				let width = self.ref_width.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
+				let height = self.ref_height.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
+				self.book_dimensions = Some((width, height));
+			}
+
+			Msg::OnChangeSelection(change) => {
+				if let Some((dim_x, _)) = self.book_dimensions.as_mut() {
+					if self.book_display != change {
+						match change {
+							ChapterDisplay::SinglePage => *dim_x /= 2,
+							ChapterDisplay::DoublePage => *dim_x *= 2,
+						}
+					}
+				}
+
+				self.book_display = change;
+			}
+
+			Msg::ToggleSidebar(type_of) => {
+				match self.sidebar_visible {
+					Some(v) if v == type_of => { self.sidebar_visible = None; },
+					_ => self.sidebar_visible = Some(type_of),
+				}
 			}
 
 			Msg::RetrievePages(mut info) => {
@@ -86,6 +127,8 @@ impl Component for ReadingBook {
 				.send_future(async move {
 					Msg::RetrievePages(request::get_book_pages(book_id, start, end).await)
 				});
+
+				return false;
 			}
 		}
 
@@ -104,17 +147,50 @@ impl Component for ReadingBook {
 			html! {
 				<div class="reading-container">
 					<div class="book">
-						<Notes visible={self.notes_visible} book={Rc::clone(book)} />
+						{
+							if let Some(visible) = self.sidebar_visible {
+								match visible {
+									SidebarType::Notes => html! { <Notes book={Rc::clone(book)} /> },
+									SidebarType::Settings => html! {
+										<div class="settings">
+											<div>
+												<input value={width.to_string()} ref={self.ref_width.clone()} type="number" />
+												<span>{ "x" }</span>
+												<input value={height.to_string()} ref={self.ref_height.clone()} type="number" />
+											</div>
+											<button onclick={ctx.link().callback(|_| Msg::UpdateDimensions)}>{"Update Dimensions"}</button>
+											<div>
+											<select onchange={
+												ctx.link()
+												.callback(|e: Event| Msg::OnChangeSelection(
+													e.target().unwrap()
+													.unchecked_into::<web_sys::HtmlSelectElement>()
+													.value()
+													.parse::<u8>().unwrap()
+													.into()
+												))
+											}>
+												<option value="0" selected={self.book_display == ChapterDisplay::SinglePage}>{ "Single Page" }</option>
+												<option value="1" selected={self.book_display == ChapterDisplay::DoublePage}>{ "Double Page" }</option>
+											</select>
+											</div>
+										</div>
+									},
+								}
+							} else {
+								html! {}
+							}
+						}
 						<div class="tools">
-							<div class="tool-item" title="Open/Close the Notebook" onclick={ctx.link().callback(|_| Msg::ToggleNotesVisibility)}>{ "📝" }</div>
-							// <div class="tool-item" title="Book Summary">{ "📝" }</div>
+							<div class="tool-item" title="Open/Close the Notebook" onclick={ctx.link().callback(|_| Msg::ToggleSidebar(SidebarType::Notes))}>{ "📝" }</div>
+							<div class="tool-item" title="Open/Close the Settings" onclick={ctx.link().callback(|_| Msg::ToggleSidebar(SidebarType::Settings))}>{ "⚙️" }</div>
 						</div>
 						<Reader
+							display={self.book_display}
 							progress={self.progress}
 							book={Rc::clone(book)}
 							chapters={Rc::clone(&self.chapters)}
-							width={width}
-							height={height}
+							dimensions={(width, height)}
 							on_chapter_request={ctx.link().callback(|(s, e)| Msg::SendGetChapters(s, e))}
 						/>
 					</div>

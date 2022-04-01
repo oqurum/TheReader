@@ -18,7 +18,7 @@ extern "C" {
 	fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize) -> Option<usize>;
 
 	fn js_update_pages_with_inlined_css(iframe: &HtmlIFrameElement);
-	fn js_set_page_display_style(iframe: &HtmlIFrameElement, display: usize);
+	fn js_set_page_display_style(iframe: &HtmlIFrameElement, display: u8);
 }
 
 
@@ -47,9 +47,9 @@ pub struct Property {
 	pub chapters: Rc<Mutex<LoadedChapters>>,
 
 	pub progress: Option<Progression>,
+	pub display: ChapterDisplay,
 
-	pub width: i32,
-	pub height: i32,
+	pub dimensions: (i32, i32),
 	// pub ratio: (usize, usize)
 }
 
@@ -82,7 +82,10 @@ pub enum Msg {
 
 
 pub struct Reader {
-	pub generated_chapters: HashMap<usize, ChapterContents>,
+	// Cached from External Source
+	cached_display: ChapterDisplay,
+	cached_dimensions: Option<(i32, i32)>,
+	generated_chapters: HashMap<usize, ChapterContents>,
 
 	total_page_position: usize,
 
@@ -100,8 +103,11 @@ impl Component for Reader {
 	type Message = Msg;
 	type Properties = Property;
 
-	fn create(ctx: &Context<Self>) -> Self {
+	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
+			cached_display: ChapterDisplay::DoublePage,
+			cached_dimensions: None,
+
 			generated_chapters: HashMap::new(),
 			total_page_position: 0,
 			viewing_chapter: 0, // TODO: Add after "frames loaded" event. // ctx.props().progress.map(|v| match v { Progression::Ebook { chapter, page } => chapter as usize, _ => 0 }).unwrap_or_default(),
@@ -293,7 +299,7 @@ impl Component for Reader {
 		let page_count = self.page_count();
 		let frames = self.get_frames(ctx.props());
 
-		let pages_style = format!("width: {}px; height: {}px;", ctx.props().width, ctx.props().height);
+		let pages_style = format!("width: {}px; height: {}px;", ctx.props().dimensions.0, ctx.props().dimensions.1);
 
 		let progress_precentage = format!("width: {}%;", (self.total_page_position + 1) as f64 / page_count as f64 * 100.0);
 
@@ -304,6 +310,7 @@ impl Component for Reader {
 					<a onclick={ctx.link().callback(|_| Msg::PreviousPage)}>{"Previous Page"}</a>
 					<span>{self.total_page_position + 1} {"/"} {page_count} {" pages"}</span>
 					<a onclick={ctx.link().callback(|_| Msg::NextPage)}>{"Next Page"}</a>
+					<a onclick={ctx.link().callback(move |_| Msg::SetPage(page_count - 1))}>{"Last Page"}</a>
 				</div>
 
 				<div class="pages" style={pages_style}>
@@ -317,9 +324,22 @@ impl Component for Reader {
 	}
 
 	fn changed(&mut self, ctx: &Context<Self>) -> bool {
-		log::info!("changed");
+		let props = ctx.props();
 
-		if let Some(prog) = ctx.props().progress.filter(|_| self.have_all_chapters_passed_init_generation(ctx.props())) {
+		if self.cached_display != props.display || self.cached_dimensions != Some(props.dimensions) {
+			self.cached_display = props.display;
+			self.cached_dimensions = Some(props.dimensions);
+
+			for chap in self.generated_chapters.values() {
+				js_set_page_display_style(&chap.iframe, props.display.into());
+				update_iframe_size(Some(props.dimensions), &chap.iframe);
+			}
+
+			self.update_chapter_pages();
+		}
+
+
+		if let Some(prog) = props.progress.filter(|_| self.have_all_chapters_passed_init_generation(props)) {
 			match prog {
 				Progression::Ebook { chapter, page, char_pos } if self.viewing_chapter == 0 => {
 					// TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
@@ -340,14 +360,13 @@ impl Component for Reader {
 			}
 		} else {
 			// Continue loading chapters
-			let props = ctx.props();
 			let chaps = props.chapters.lock().unwrap();
 
 			// Reverse iterator since for some reason chapter "generation" works from LIFO
 			for chap in chaps.chapters.iter().rev() {
 				if let Entry::Vacant(v) = self.generated_chapters.entry(chap.value) {
 					log::info!("Generating Chapter {}", chap.value + 1);
-					v.insert(generate_pages(Some((props.width, props.height)), chap.clone(), ctx.link().clone()));
+					v.insert(generate_pages(Some(props.dimensions), chap.clone(), ctx.link().clone()));
 				}
 			}
 		}
@@ -519,11 +538,28 @@ impl Reader {
 
 
 
-#[derive(Clone, Copy)]
-pub enum PageDisplay {
+#[derive(Clone, Copy, PartialEq)]
+pub enum ChapterDisplay {
 	SinglePage = 0,
 	DoublePage,
 	// VerticalPage,
+}
+
+impl From<u8> for ChapterDisplay {
+	fn from(value: u8) -> Self {
+		match value {
+			0 => Self::SinglePage,
+			1 => Self::DoublePage,
+			_ => unimplemented!()
+		}
+	}
+}
+
+
+impl From<ChapterDisplay> for u8 {
+	fn from(val: ChapterDisplay) -> Self {
+		val as u8
+	}
 }
 
 
@@ -539,15 +575,7 @@ fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: 
 	let iframe = create_iframe();
 	iframe.set_attribute("srcdoc", chapter.html.as_str()).unwrap();
 
-	{
-		let (width, height) = match book_dimensions { // TODO: Use Option.unzip once stable.
-			Some((a, b)) => (a, b),
-			None => (gloo_utils::body().client_width().max(0), gloo_utils::body().client_height().max(0)),
-		};
-
-		iframe.style().set_property("width", &format!("{}px", width)).unwrap();
-		iframe.style().set_property("height", &format!("{}px", height)).unwrap();
-	}
+	update_iframe_size(book_dimensions, &iframe);
 
 	let new_frame = iframe.clone();
 
@@ -569,6 +597,16 @@ fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: 
 		on_load: f,
 		is_generated: false
 	}
+}
+
+fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameElement) {
+	let (width, height) = match book_dimensions { // TODO: Use Option.unzip once stable.
+		Some((a, b)) => (a, b),
+		None => (gloo_utils::body().client_width().max(0), gloo_utils::body().client_height().max(0)),
+	};
+
+	iframe.style().set_property("width", &format!("{}px", width)).unwrap();
+	iframe.style().set_property("height", &format!("{}px", height)).unwrap();
 }
 
 pub struct GenerateChapter {

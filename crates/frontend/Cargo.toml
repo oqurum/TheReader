@@ -49,6 +49,7 @@ features = [
 	"Document",
 	"Element",
 	"HtmlIFrameElement",
+	"HtmlSelectElement",
 	"CssStyleDeclaration",
 	"Touch",
 	"TouchEvent",

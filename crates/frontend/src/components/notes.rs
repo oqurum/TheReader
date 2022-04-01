@@ -10,13 +10,12 @@ use crate::request;
 
 #[derive(Properties)]
 pub struct Property {
-	pub book: Rc<MediaItem>,
-	pub visible: bool
+	pub book: Rc<MediaItem>
 }
 
 impl PartialEq for Property {
 	fn eq(&self, other: &Self) -> bool {
-		self.visible == other.visible
+		self.book == other.book
 	}
 }
 
@@ -103,19 +102,15 @@ impl Component for Notes {
 	}
 
 	fn view(&self, ctx: &Context<Self>) -> Html {
-		if ctx.props().visible {
-			html! {
-				<div class="notes">
-					<div id="notary"></div>
-				</div>
-			}
-		} else {
-			html! {}
+		html! {
+			<div class="notes">
+				<div id="notary"></div>
+			</div>
 		}
 	}
 
 	fn rendered(&mut self, ctx: &Context<Self>, _first_render: bool) {
-		if !self.is_initiated && ctx.props().visible {
+		if !self.is_initiated {
 			let quill = Quill::new(
 				"#notary",
 				&JsValue::from_serde(&serde_json::json!({
