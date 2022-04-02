@@ -163,7 +163,7 @@ impl Component for Reader {
 		match msg {
 			Msg::Ignore => return false,
 
-			Msg::HandleJsRedirect(chapter, file_path, id_name) => {
+			Msg::HandleJsRedirect(_chapter, file_path, _id_name) => {
 				let file_path = PathBuf::from(file_path);
 
 				let chaps = ctx.props().chapters.lock().unwrap();
@@ -179,7 +179,7 @@ impl Component for Reader {
 			}
 
 			Msg::SetPage(new_page) => {
-				return self.set_page(new_page);
+				return self.set_page(new_page.min(self.page_count().saturating_sub(1)));
 			}
 
 			Msg::NextPage => {
@@ -188,9 +188,9 @@ impl Component for Reader {
 				}
 
 				// Double check all chapters if we're currently switching from first page.
-				if self.total_page_position == 0 {
-					self.update_cached_pages();
-				}
+				// if self.total_page_position == 0 {
+				// 	self.update_cached_pages();
+				// }
 
 				self.set_page(self.total_page_position + 1);
 
@@ -299,7 +299,7 @@ impl Component for Reader {
 				if chaps_generated == ctx.props().book.chapter_count {
 					self.on_all_frames_generated();
 				} else if chaps_generated == self.generated_chapters.len() {
-					self.update_cached_pages();
+					// self.update_cached_pages();
 					ctx.props().on_chapter_request.emit((chaps_generated, chaps_generated + 3));
 				}
 			}
@@ -477,12 +477,10 @@ impl Reader {
 
 	fn set_page(&mut self, new_total_page: usize) -> bool {
 		if let Some(page) = self.cached_pages.get(new_total_page) {
-			if self.viewing_chapter == page.chapter {
-				self.generated_chapters.get(&self.viewing_chapter).unwrap().set_page(page.chapter_local_page);
-			}
-
 			self.total_page_position = new_total_page;
 			self.viewing_chapter = page.chapter;
+
+			self.generated_chapters.get(&self.viewing_chapter).unwrap().set_page(page.chapter_local_page);
 
 			true
 		} else {
