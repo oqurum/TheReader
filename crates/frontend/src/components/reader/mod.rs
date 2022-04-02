@@ -60,7 +60,7 @@ pub struct Property {
 	pub book: Rc<MediaItem>,
 	pub chapters: Rc<Mutex<LoadedChapters>>,
 
-	pub progress: Option<Progression>,
+	pub progress: Rc<Mutex<Option<Progression>>>,
 	pub display: ChapterDisplay,
 
 	pub dimensions: (i32, i32),
@@ -309,7 +309,7 @@ impl Component for Reader {
 		}
 
 
-		if let Some(prog) = props.progress.filter(|_| self.have_all_chapters_passed_init_generation(props)) {
+		if let Some(prog) = props.progress.lock().unwrap().filter(|_| self.have_all_chapters_passed_init_generation(props)) {
 			match prog {
 				Progression::Ebook { chapter, page, char_pos } if self.viewing_chapter == 0 => {
 					// TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
@@ -485,15 +485,21 @@ impl Reader {
 
 		let last_page = self.page_count().saturating_sub(1);
 
+		let stored_prog = Rc::clone(&ctx.props().progress);
+
 		ctx.link()
 		.send_future(async move {
 			match page {
 				0 => {
+					*stored_prog.lock().unwrap() = None;
+
 					request::remove_book_progress(book_id).await;
 				}
 
 				// TODO: Figure out what the last page of each book actually is.
 				v if v as usize == last_page => {
+					*stored_prog.lock().unwrap() = Some(Progression::Complete);
+
 					request::update_book_progress(book_id, &Progression::Complete).await;
 				}
 
@@ -503,6 +509,8 @@ impl Reader {
 						chapter,
 						page
 					};
+
+					*stored_prog.lock().unwrap() = Some(progression);
 
 					request::update_book_progress(book_id, &progression).await;
 				}

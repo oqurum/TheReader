@@ -40,7 +40,7 @@ pub struct Property {
 
 pub struct ReadingBook {
 	book_display: ChapterDisplay,
-	progress: Option<Progression>,
+	progress: Rc<Mutex<Option<Progression>>>,
 	book: Option<Rc<MediaItem>>,
 	chapters: Rc<Mutex<LoadedChapters>>,
 	last_grabbed_count: usize,
@@ -64,7 +64,7 @@ impl Component for ReadingBook {
 			book_display: ChapterDisplay::DoublePage,
 			chapters: Rc::new(Mutex::new(LoadedChapters::new())),
 			last_grabbed_count: 0,
-			progress: None,
+			progress: Rc::new(Mutex::new(None)),
 			book: None,
 
 			book_dimensions: Some((1040, 548)),
@@ -115,7 +115,7 @@ impl Component for ReadingBook {
 
 			Msg::RetrieveBook(resp) => {
 				self.book = Some(Rc::new(resp.media));
-				self.progress = resp.progress;
+				*self.progress.lock().unwrap() = resp.progress;
 				// TODO: Check to see if we have progress. If so, generate those pages first.
 				ctx.link().send_message(Msg::SendGetChapters(0, 3));
 			}
@@ -187,7 +187,7 @@ impl Component for ReadingBook {
 						</div>
 						<Reader
 							display={self.book_display}
-							progress={self.progress}
+							progress={Rc::clone(&self.progress)}
 							book={Rc::clone(book)}
 							chapters={Rc::clone(&self.chapters)}
 							dimensions={(width, height)}
