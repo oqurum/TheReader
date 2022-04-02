@@ -179,7 +179,7 @@ impl Component for Reader {
 			}
 
 			Msg::SetPage(new_page) => {
-				return self.set_page(new_page.min(self.page_count().saturating_sub(1)));
+				return self.set_page(new_page.min(self.page_count().saturating_sub(1)), ctx);
 			}
 
 			Msg::NextPage => {
@@ -192,27 +192,7 @@ impl Component for Reader {
 				// 	self.update_cached_pages();
 				// }
 
-				self.set_page(self.total_page_position + 1);
-
-				let (chapter, page, char_pos, book_id) = (
-					self.viewing_chapter as i64,
-					self.total_page_position as i64,
-					js_get_current_byte_pos(&self.generated_chapters.get(&self.viewing_chapter).unwrap().iframe).map(|v| v as i64).unwrap_or(-1),
-					ctx.props().book.id
-				);
-
-				ctx.link()
-				.send_future(async move {
-					let progression = Progression::Ebook {
-						char_pos,
-						chapter,
-						page
-					};
-
-					request::update_book_progress(book_id, &progression).await;
-
-					Msg::Ignore
-				});
+				self.set_page(self.total_page_position + 1, ctx);
 			}
 
 			Msg::PreviousPage => {
@@ -220,31 +200,7 @@ impl Component for Reader {
 					return false;
 				}
 
-				self.set_page(self.total_page_position - 1);
-
-				let (chapter, page, char_pos, book_id) = (
-					self.viewing_chapter as i64,
-					self.total_page_position as i64,
-					js_get_current_byte_pos(&self.generated_chapters.get(&self.viewing_chapter).unwrap().iframe).map(|v| v as i64).unwrap_or(-1),
-					ctx.props().book.id
-				);
-
-				ctx.link()
-				.send_future(async move {
-					if page == 0 {
-						request::remove_book_progress(book_id).await;
-					} else {
-						let progression = Progression::Ebook {
-							char_pos,
-							chapter,
-							page
-						};
-
-						request::update_book_progress(book_id, &progression).await;
-					}
-
-					Msg::Ignore
-				});
+				self.set_page(self.total_page_position - 1, ctx);
 			}
 
 			Msg::Touch(msg) => match msg {
@@ -475,12 +431,14 @@ impl Reader {
 		// TODO: Remove .filter from fn view Reader progress. Replace with event.
 	}
 
-	fn set_page(&mut self, new_total_page: usize) -> bool {
+	fn set_page(&mut self, new_total_page: usize, ctx: &Context<Self>) -> bool {
 		if let Some(page) = self.cached_pages.get(new_total_page) {
 			self.total_page_position = new_total_page;
 			self.viewing_chapter = page.chapter;
 
 			self.generated_chapters.get(&self.viewing_chapter).unwrap().set_page(page.chapter_local_page);
+
+			self.upload_progress(ctx);
 
 			true
 		} else {
@@ -515,6 +473,43 @@ impl Reader {
 		}
 
 		items
+	}
+
+	fn upload_progress(&self, ctx: &Context<Self>) {
+		let (chapter, page, char_pos, book_id) = (
+			self.viewing_chapter as i64,
+			self.total_page_position as i64,
+			js_get_current_byte_pos(&self.generated_chapters.get(&self.viewing_chapter).unwrap().iframe).map(|v| v as i64).unwrap_or(-1),
+			ctx.props().book.id
+		);
+
+		let last_page = self.page_count().saturating_sub(1);
+
+		ctx.link()
+		.send_future(async move {
+			match page {
+				0 => {
+					request::remove_book_progress(book_id).await;
+				}
+
+				// TODO: Figure out what the last page of each book actually is.
+				v if v as usize == last_page => {
+					request::update_book_progress(book_id, &Progression::Complete).await;
+				}
+
+				_ => {
+					let progression = Progression::Ebook {
+						char_pos,
+						chapter,
+						page
+					};
+
+					request::update_book_progress(book_id, &progression).await;
+				}
+			}
+
+			Msg::Ignore
+		});
 	}
 }
 
