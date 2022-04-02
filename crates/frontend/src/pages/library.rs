@@ -129,10 +129,10 @@ impl Component for LibraryPage {
 					{
 						if let Some((overlay_type, meta_id)) = self.media_popup {
 							match overlay_type {
-								DisplayOverlay::Edit => {
+								DisplayOverlay::Info => {
 									html! {
 										<Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-											<h1>{"Edit"}</h1>
+											<h1>{"Info"}</h1>
 										</Popup>
 									}
 								}
@@ -144,7 +144,7 @@ impl Component for LibraryPage {
 												<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
 												<div class="menu-item" yew-close-popup="" onclick={Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))}>{ "Refresh Metadata" }</div>
 												<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-												<div class="menu-item" yew-close-popup="">{ "Show Info" }</div>
+												<div class="menu-item" yew-close-popup="" onclick={Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info, meta_id)))}>{ "Show Info" }</div>
 											</div>
 										</Popup>
 									}
@@ -265,11 +265,11 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay, i64),
 
 	// Popup Events
-	UpdateMeta(i64)
+	UpdateMeta(i64),
 }
 
 #[derive(Clone, Copy)]
 pub enum DisplayOverlay {
-	Edit,
+	Info,
 	More(i32, i32)
 }

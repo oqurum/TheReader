@@ -160,19 +160,19 @@ impl Component for ReadingBook {
 											</div>
 											<button onclick={ctx.link().callback(|_| Msg::UpdateDimensions)}>{"Update Dimensions"}</button>
 											<div>
-											<select onchange={
-												ctx.link()
-												.callback(|e: Event| Msg::OnChangeSelection(
-													e.target().unwrap()
-													.unchecked_into::<web_sys::HtmlSelectElement>()
-													.value()
-													.parse::<u8>().unwrap()
-													.into()
-												))
-											}>
-												<option value="0" selected={self.book_display == ChapterDisplay::SinglePage}>{ "Single Page" }</option>
-												<option value="1" selected={self.book_display == ChapterDisplay::DoublePage}>{ "Double Page" }</option>
-											</select>
+												<select onchange={
+													ctx.link()
+													.callback(|e: Event| Msg::OnChangeSelection(
+														e.target().unwrap()
+														.unchecked_into::<web_sys::HtmlSelectElement>()
+														.value()
+														.parse::<u8>().unwrap()
+														.into()
+													))
+												}>
+													<option value="0" selected={self.book_display == ChapterDisplay::SinglePage}>{ "Single Page" }</option>
+													<option value="1" selected={self.book_display == ChapterDisplay::DoublePage}>{ "Double Page" }</option>
+												</select>
 											</div>
 										</div>
 									},
