@@ -145,6 +145,15 @@ function doesContainAnyText(element) {
 }
 
 
+
+const IGNORE_ELEMENT_NAMES = [
+	'table',
+	'hr',
+	'br',
+	'img',
+	'svg',
+];
+
 /**
  * @param {HTMLElement} element
  * @param {number} bodyWidth
@@ -154,8 +163,7 @@ function canFlattenElement(element, bodyWidth) {
 	// let cs = getComputedStyle(element);
 
 	if (!element.hasAttribute('border') && // No displayed border
-		element.localName != 'table' &&
-		element.localName != 'hr' &&
+		!IGNORE_ELEMENT_NAMES.includes(element.localName) &&
 		element.children.length != 1 // TODO: Optimize. Fix for tableFlattening (<div>/<a> -> <a>)
 	) {
 		return true;
@@ -228,8 +236,9 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 			!doesContainAnyText(child)
 		) {
 			// TODO: Flatten is removing <br> for some reason.
+			console.log('Flatten:', child);
 			while (child.firstChild != null) {
-				child.parentElement.appendChild(child.firstChild);
+				child.before(child.firstChild);
 			}
 
 			child.remove();
