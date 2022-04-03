@@ -143,6 +143,27 @@ body {
 		justify-content: center;
 		align-items: center;
 		height: 100%;
+
+		&.overlay-tools > .reader {
+			> .navbar {
+				position: absolute;
+				width: 100%;
+				z-index: 100;
+				background-color: var(--surface3);
+				opacity: 0;
+				transition: opacity 0.25s;
+
+				&:hover {
+					opacity: 1;
+				}
+			}
+
+			> .progress {
+				position: absolute;
+				z-index: 101;
+				bottom: 0;
+			}
+		}
 	}
 }
 

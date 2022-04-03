@@ -5,7 +5,7 @@ use std::{rc::Rc, sync::Mutex};
 
 use books_common::{MediaItem, api::{GetBookIdResponse, GetChaptersResponse}, Progression};
 use wasm_bindgen::JsCast;
-use web_sys::HtmlInputElement;
+use web_sys::{HtmlInputElement, Element};
 use yew::prelude::*;
 
 use crate::{request, components::reader::{LoadedChapters, ChapterDisplay}};
@@ -46,13 +46,14 @@ pub struct ReadingBook {
 	last_grabbed_count: usize,
 	// TODO: Cache pages
 
-	book_dimensions: Option<(i32, i32)>,
+	book_dimensions: (Option<i32>, Option<i32>),
 
 	sidebar_visible: Option<SidebarType>,
 
 	// Refs
-	ref_width: NodeRef,
-	ref_height: NodeRef,
+	ref_width_input: NodeRef,
+	ref_height_input: NodeRef,
+	ref_book_container: NodeRef,
 }
 
 impl Component for ReadingBook {
@@ -67,25 +68,26 @@ impl Component for ReadingBook {
 			progress: Rc::new(Mutex::new(None)),
 			book: None,
 
-			book_dimensions: Some((1040, 548)),
+			book_dimensions: (Some(1040), Some(548)),
 
 			sidebar_visible: None,
 
-			ref_width: NodeRef::default(),
-			ref_height: NodeRef::default(),
+			ref_width_input: NodeRef::default(),
+			ref_height_input: NodeRef::default(),
+			ref_book_container: NodeRef::default(),
 		}
 	}
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
 			Msg::UpdateDimensions => {
-				let width = self.ref_width.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
-				let height = self.ref_height.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
-				self.book_dimensions = Some((width, height));
+				let width = self.ref_width_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
+				let height = self.ref_height_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
+				self.book_dimensions = (Some(width).filter(|v| *v > 0), Some(height).filter(|v| *v > 0));
 			}
 
 			Msg::OnChangeSelection(change) => {
-				if let Some((dim_x, _)) = self.book_dimensions.as_mut() {
+				if let Some(dim_x) = self.book_dimensions.0.as_mut() {
 					if self.book_display != change {
 						match change {
 							ChapterDisplay::SinglePage => *dim_x /= 2,
@@ -137,16 +139,24 @@ impl Component for ReadingBook {
 
 	fn view(&self, ctx: &Context<Self>) -> Html {
 		if let Some(book) = self.book.as_ref() {
-			let (width, height) = match self.book_dimensions { // TODO: Use Option.unzip once stable.
-				Some((a, b)) => (a, b),
-				None => (gloo_utils::body().client_width().max(0), gloo_utils::body().client_height().max(0)),
-			};
+			let is_y_full_screen = self.book_dimensions.1.is_none();
+
+			let (width, height) = (
+				self.book_dimensions.0.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)),
+				self.book_dimensions.1.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)),
+			);
 
 			// TODO: Loading screen until all chapters have done initial generation.
 
+			let book_class = if is_y_full_screen {
+				"book overlay-tools"
+			}  else {
+				"book"
+			};
+
 			html! {
 				<div class="reading-container">
-					<div class="book">
+					<div class={book_class} ref={self.ref_book_container.clone()}>
 						{
 							if let Some(visible) = self.sidebar_visible {
 								match visible {
@@ -154,9 +164,9 @@ impl Component for ReadingBook {
 									SidebarType::Settings => html! {
 										<div class="settings">
 											<div>
-												<input value={width.to_string()} ref={self.ref_width.clone()} type="number" />
+												<input value={width.to_string()} ref={self.ref_width_input.clone()} type="number" />
 												<span>{ "x" }</span>
-												<input value={height.to_string()} ref={self.ref_height.clone()} type="number" />
+												<input value={height.to_string()} ref={self.ref_height_input.clone()} type="number" />
 											</div>
 											<button onclick={ctx.link().callback(|_| Msg::UpdateDimensions)}>{"Update Dimensions"}</button>
 											<div>
