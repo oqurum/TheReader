@@ -2,6 +2,8 @@
 
 // TODO: Handle errors
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
@@ -174,7 +176,7 @@ impl GoogleBooksMetadata {
 				rating: value.volume_info.average_rating.unwrap_or_default(),
 				thumb_path: thumb_url,
 				cached: MetadataItemCached::default()
-					.publisher(value.volume_info.publisher)
+					.publisher_optional(value.volume_info.publisher)
 					.author_optional(value.volume_info.authors.and_then(|v| v.first().cloned())),
 				refreshed_at: now,
 				created_at: now,
@@ -257,7 +259,8 @@ pub struct BookVolumeVolumeInfo {
 	pub authors: Option<Vec<String>>,
 	pub average_rating: Option<f64>,
 	pub ratings_count: Option<i64>,
-	pub publisher: String,
+	pub dimensions: Option<HashMap<String, String>>,
+	pub publisher: Option<String>,
 	pub published_date: String,
 	pub description: Option<String>,
 	pub industry_identifiers: Vec<BookVolumeVolumeInfoIndustryIdentifiers>,
@@ -265,12 +268,12 @@ pub struct BookVolumeVolumeInfo {
 	pub page_count: Option<i64>,
 	pub printed_page_count: Option<i64>,
 	pub print_type: String,
-	pub categories: Vec<String>,
+	pub categories: Option<Vec<String>>,
 	pub maturity_rating: String,
 	pub allow_anon_logging: bool,
 	pub content_version: String,
 	pub panelization_summary: Option<BookVolumeVolumeInfoPanelizationSummary>,
-	pub image_links: BookVolumeVolumeInfoImageLinks,
+	pub image_links: Option<BookVolumeVolumeInfoImageLinks>,
 	pub language: String,
 	pub preview_link: String,
 	pub info_link: String,

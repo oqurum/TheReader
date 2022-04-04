@@ -156,6 +156,8 @@ pub struct BookSearchItem {
 	pub place: Option<Vec<String>>,
 	pub subject: Option<Vec<String>>,
 	pub time: Option<Vec<String>>,
+	// TODO: HashMap all of these.
+	pub id_abebooks_de: Option<Vec<String>>,
 	pub id_alibris_id: Option<Vec<String>>,
 	pub id_amazon: Option<Vec<String>>,
 	pub id_amazon_ca_asin: Option<Vec<String>>,
@@ -165,7 +167,10 @@ pub struct BookSearchItem {
 	pub id_bibliothèque_nationale_de_france: Option<Vec<String>>,
 	#[serde(rename = "id_bodleian__oxford_university")]
 	pub id_bodleian_oxford_university: Option<Vec<String>>,
+	pub id_british_library: Option<Vec<String>>,
+	pub id_british_national_bibliography: Option<Vec<String>>,
 	pub id_canadian_national_library_archive: Option<Vec<String>>,
+	pub id_yakaboo: Option<Vec<String>>,
 	pub id_depósito_legal: Option<Vec<String>>,
 	pub id_goodreads: Option<Vec<String>>,
 	pub id_google: Option<Vec<String>>,

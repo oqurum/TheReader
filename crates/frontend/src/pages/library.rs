@@ -5,7 +5,7 @@ use web_sys::HtmlInputElement;
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
-use crate::{Route, request, components::{Popup, PopupType}};
+use crate::{Route, request, components::{Popup, PopupType}, util};
 
 
 #[derive(Properties, PartialEq)]
@@ -229,7 +229,7 @@ impl Component for LibraryPage {
 																										<div class="book-info">
 																											<h4>{ item.name.clone() }</h4>
 																											<span>{ item.author.clone().unwrap_or_default() }</span>
-																											<p>{ item.description.clone().map(|mut v| { v.truncate(300); v }).unwrap_or_default() }</p>
+																											<p>{ item.description.clone().map(|mut v| { util::truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
 																										</div>
 																									</div>
 																								}

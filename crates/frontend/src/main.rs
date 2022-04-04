@@ -3,6 +3,7 @@ use yew_router::prelude::*;
 
 use components::NavbarModule;
 
+mod util;
 mod pages;
 mod request;
 mod components;

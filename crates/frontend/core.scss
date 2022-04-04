@@ -424,11 +424,13 @@ body {
 		overflow-y: auto;
 
 		> h2 {
-			margin-bottom: 1em;
+			margin-bottom: 0.5em;
 		}
 
 		> .book-search-items {
-			//
+			max-height: 25em;
+			overflow-y: auto;
+			background-color: var(--surface1);
 
 			> .book-search-item {
 				display: flex;
