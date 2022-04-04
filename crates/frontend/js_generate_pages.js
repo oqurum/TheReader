@@ -235,8 +235,6 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 		if (canFlattenElement(child, document.body.clientWidth) &&
 			!doesContainAnyText(child)
 		) {
-			// TODO: Flatten is removing <br> for some reason.
-			console.log('Flatten:', child);
 			while (child.firstChild != null) {
 				child.before(child.firstChild);
 			}

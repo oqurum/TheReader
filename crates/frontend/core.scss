@@ -137,6 +137,7 @@ body {
 .reading-container {
 	height: 100%;
 	width: 100%;
+	overflow: hidden;
 
 	> .book {
 		display: flex;

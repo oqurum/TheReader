@@ -170,6 +170,7 @@ impl Component for ReadingBook {
 											</div>
 											<button onclick={ctx.link().callback(|_| Msg::UpdateDimensions)}>{"Update Dimensions"}</button>
 											<div>
+												// TODO: Specify based on book type. Epub/Mobi (Single, Double) - PDF (Scroll)
 												<select onchange={
 													ctx.link()
 													.callback(|e: Event| Msg::OnChangeSelection(
