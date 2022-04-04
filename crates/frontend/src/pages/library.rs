@@ -36,7 +36,7 @@ pub struct LibraryPage {
 
 	is_fetching_media_items: bool,
 
-	media_popup: Option<(DisplayOverlay, i64)>,
+	media_popup: Option<DisplayOverlay>,
 }
 
 impl Component for LibraryPage {
@@ -96,8 +96,8 @@ impl Component for LibraryPage {
 			}
 
 			Msg::PosterItem(item) => match item {
-				PosterItem::ShowPopup(type_of, media_id) => {
-					self.media_popup = Some((type_of, media_id));
+				PosterItem::ShowPopup(type_of) => {
+					self.media_popup = Some(type_of);
 				}
 
 				PosterItem::UpdateMeta(file_id) => {
@@ -127,9 +127,9 @@ impl Component for LibraryPage {
 					// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
 
 					{
-						if let Some((overlay_type, meta_id)) = self.media_popup {
+						if let Some(overlay_type) = self.media_popup {
 							match overlay_type {
-								DisplayOverlay::Info => {
+								DisplayOverlay::Info { meta_id } => {
 									html! {
 										<Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
 											<h1>{"Info"}</h1>
@@ -137,14 +137,15 @@ impl Component for LibraryPage {
 									}
 								}
 
-								DisplayOverlay::More(x, y) => {
+								DisplayOverlay::More { meta_id, mouse_pos } => {
 									html! {
-										<Popup type_of={ PopupType::AtPoint(x, y) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+										<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
 											<div class="menu-list">
 												<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
 												<div class="menu-item" yew-close-popup="" onclick={Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))}>{ "Refresh Metadata" }</div>
+												<div class="menu-item" yew-close-popup="" onclick={Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))}>{ "Search For Book" }</div>
 												<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info, meta_id)))}>{ "Show Info" }</div>
+												<div class="menu-item" yew-close-popup="" onclick={Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))}>{ "Show Info" }</div>
 											</div>
 										</Popup>
 									}
@@ -191,6 +192,7 @@ impl Component for LibraryPage {
 }
 
 impl LibraryPage {
+	/// A Callback which calls "prevent_default" and "stop_propagation"
 	fn on_click_prevdef_stopprop(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
 		scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
@@ -199,6 +201,7 @@ impl LibraryPage {
 		})
 	}
 
+	/// A Callback which calls "prevent_default"
 	fn on_click_prevdef(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
 		scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
@@ -208,12 +211,12 @@ impl LibraryPage {
 
 	// TODO: Move into own struct.
 	fn render_media_item(item: &MediaItem, scope: &Scope<Self>) -> Html {
-		let item_id = item.id;
+		let meta_id = item.id;
 		let on_click_more = scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
 			e.stop_propagation();
 
-			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More(e.page_x(), e.page_y()), item_id))
+			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { meta_id, mouse_pos: (e.page_x(), e.page_y()) }))
 		});
 
 		html! {
@@ -262,7 +265,7 @@ impl LibraryPage {
 #[derive(Clone)]
 pub enum PosterItem {
 	// Poster Specific Buttons
-	ShowPopup(DisplayOverlay, i64),
+	ShowPopup(DisplayOverlay),
 
 	// Popup Events
 	UpdateMeta(i64),
@@ -270,6 +273,11 @@ pub enum PosterItem {
 
 #[derive(Clone, Copy)]
 pub enum DisplayOverlay {
-	Info,
-	More(i32, i32)
+	Info {
+		meta_id: i64
+	},
+	More {
+		meta_id: i64,
+		mouse_pos: (i32, i32)
+	}
 }
