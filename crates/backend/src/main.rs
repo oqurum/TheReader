@@ -357,6 +357,33 @@ async fn update_item_metadata(body: web::Json<api::PostMetadataBody>) -> HttpRes
 	HttpResponse::Ok().finish()
 }
 
+#[get("/api/metadata/search")]
+async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> web::Json<api::MetadataSearchResponse> {
+	let search = metadata::search_all_agents(
+		&body.query,
+		metadata::SearchFor::Book(metadata::SearchForBooksBy::Query)
+	).await.unwrap();
+
+	web::Json(api::MetadataSearchResponse {
+		items: search.into_iter()
+			.map(|(a, b)| (
+				a.to_owned(),
+				b.into_iter().map(|v| {
+					let book = match v {
+						metadata::SearchItem::Book(v) => v,
+						_ => unreachable!()
+					};
+
+					api::MetadataSearchItem {
+						name: book.original_title.or(book.title).unwrap_or_else(|| String::from("Unknown title")),
+						thumbnail: book.thumb_path
+					}
+				}).collect()
+			))
+			.collect()
+	})
+}
+
 
 // TODO: Add body requests for specific books
 #[get("/api/books")]
@@ -469,6 +496,7 @@ async fn main() -> std::io::Result<()> {
 			.service(update_options_remove)
 			.service(run_task)
 			.service(update_item_metadata)
+			.service(get_metadata_search)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

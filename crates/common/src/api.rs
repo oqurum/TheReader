@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Deserialize};
 
 use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter};
@@ -67,6 +69,21 @@ pub enum PostMetadataBody {
 }
 
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetMetadataSearch {
+	pub query: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MetadataSearchResponse {
+	pub items: HashMap<String, Vec<MetadataSearchItem>>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MetadataSearchItem {
+	pub thumbnail: Option<String>,
+	pub name: String,
+}
 
 // Task
 

@@ -18,7 +18,11 @@ pub async fn get_book_by_id(id: &BookId) -> Result<Option<BookInfo>> {
 
 
 pub async fn search_for_books(type_of: BookSearchType, query: &str) -> Result<Option<BookSearchContainer>> {
-	let resp = reqwest::get(type_of.get_api_url(query)).await?;
+	let url = type_of.get_api_url(query);
+
+	println!("[METADATA][OPEN LIBRARY]: Search URL: {}", url);
+
+	let resp = reqwest::get(url).await?;
 
 	if resp.status().is_success() {
 		Ok(Some(resp.json().await?))
@@ -159,6 +163,8 @@ pub struct BookSearchItem {
 	pub id_amazon_de_asin: Option<Vec<String>>,
 	pub id_amazon_it_asin: Option<Vec<String>>,
 	pub id_bibliothèque_nationale_de_france: Option<Vec<String>>,
+	#[serde(rename = "id_bodleian__oxford_university")]
+	pub id_bodleian_oxford_university: Option<Vec<String>>,
 	pub id_canadian_national_library_archive: Option<Vec<String>>,
 	pub id_depósito_legal: Option<Vec<String>>,
 	pub id_goodreads: Option<Vec<String>>,
@@ -172,6 +178,7 @@ pub struct BookSearchItem {
 	pub id_project_gutenberg: Option<Vec<String>>,
 	pub id_scribd: Option<Vec<String>>,
 	pub id_standard_ebooks: Option<Vec<String>>,
+	pub id_wikidata: Option<Vec<String>>,
 	pub ia_loaded_id: Option<Vec<String>>,
 	pub ia_box_id: Option<Vec<String>>,
 	pub ia_collection_s: Option<String>,
@@ -179,6 +186,7 @@ pub struct BookSearchItem {
 	pub person_key: Option<Vec<String>>,
 	pub place_key: Option<Vec<String>>,
 	pub time_facet: Option<Vec<String>>,
+	pub subtitle: Option<String>,
 	pub person_facet: Option<Vec<String>>,
 	pub subject_facet: Option<Vec<String>>,
 	#[serde(rename = "_version_")]

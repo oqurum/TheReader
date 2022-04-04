@@ -42,12 +42,14 @@ fn into_url(url_or_path: &str) -> String {
 
 
 pub async fn search_for_authors(value: &str) -> Result<Option<json::AuthorSearchContainer>> {
-	let resp = reqwest::get(
-		format!(
-			"http://openlibrary.org/search/authors.json?q={}",
-			urlencoding::encode(value)
-		)
-	).await?;
+	let url = format!(
+		"http://openlibrary.org/search/authors.json?q={}",
+		urlencoding::encode(value)
+	);
+
+	println!("[METADATA][OPEN LIBRARY]: Search URL: {}", url);
+
+	let resp = reqwest::get(url).await?;
 
 	if resp.status().is_success() {
 		Ok(Some(resp.json().await?))

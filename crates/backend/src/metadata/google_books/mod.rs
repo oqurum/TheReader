@@ -58,6 +58,9 @@ impl Metadata for GoogleBooksMetadata {
 					SearchForBooksBy::Title => BookSearchKeyword::InTitle.combile_string(search),
 				});
 
+
+				println!("[METADATA][GOOGLE BOOKS]: Search URL: {}", url);
+
 				let resp = reqwest::get(url).await?;
 
 				if resp.status().is_success() {
@@ -72,8 +75,8 @@ impl Metadata for GoogleBooksMetadata {
 							source: self.prefix_text(&item.id),
 							title: Some(item.volume_info.title.clone()),
 							original_title: Some(item.volume_info.title),
-							description: Some(item.volume_info.description),
-							rating: item.volume_info.average_rating,
+							description: item.volume_info.description,
+							rating: item.volume_info.average_rating.unwrap_or_default(),
 							thumb_path: Some(format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", item.id)),
 							cached: MetadataItemCached::default(),
 							refreshed_at: Utc::now(),
@@ -139,12 +142,12 @@ impl GoogleBooksMetadata {
 				source: self.prefix_text(book.id),
 				title: Some(book.volume_info.title.clone()),
 				original_title: Some(book.volume_info.title),
-				description: Some(book.volume_info.description),
-				rating: book.volume_info.average_rating,
+				description: book.volume_info.description,
+				rating: book.volume_info.average_rating.unwrap_or_default(),
 				thumb_path: thumb_url,
 				cached: MetadataItemCached::default()
 					.publisher(book.volume_info.publisher)
-					.author_optional(book.volume_info.authors.first().cloned()),
+					.author_optional(book.volume_info.authors.and_then(|v| v.first().cloned())),
 				refreshed_at: now,
 				created_at: now,
 				updated_at: now,
@@ -214,7 +217,7 @@ pub struct BookVolumeItem {
 	pub volume_info: BookVolumeVolumeInfo,
 	// pub sale_info: BookVolumeSaleInfo,
 	pub access_info: BookVolumeAccessInfo,
-	pub search_info: BookVolumeSearchInfo,
+	pub search_info: Option<BookVolumeSearchInfo>,
 }
 
 
@@ -223,12 +226,12 @@ pub struct BookVolumeItem {
 pub struct BookVolumeVolumeInfo {
 	pub title: String,
 	pub subtitle: Option<String>,
-	pub authors: Vec<String>,
-	pub average_rating: f64,
-	pub ratings_count: i64,
+	pub authors: Option<Vec<String>>,
+	pub average_rating: Option<f64>,
+	pub ratings_count: Option<i64>,
 	pub publisher: String,
 	pub published_date: String,
-	pub description: String,
+	pub description: Option<String>,
 	pub industry_identifiers: Vec<BookVolumeVolumeInfoIndustryIdentifiers>,
 	pub reading_modes: BookVolumeVolumeInfoReadingModes,
 	pub page_count: Option<i64>,
@@ -237,7 +240,7 @@ pub struct BookVolumeVolumeInfo {
 	pub maturity_rating: String,
 	pub allow_anon_logging: bool,
 	pub content_version: String,
-	pub panelization_summary: BookVolumeVolumeInfoPanelizationSummary,
+	pub panelization_summary: Option<BookVolumeVolumeInfoPanelizationSummary>,
 	pub image_links: BookVolumeVolumeInfoImageLinks,
 	pub language: String,
 	pub preview_link: String,
