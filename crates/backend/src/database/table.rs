@@ -10,6 +10,8 @@ use serde::{Serialize, Serializer};
 pub struct MetadataItem {
 	pub id: i64,
 
+	pub library_id: i64,
+
 	pub source: String,
 	pub file_item_count: i64,
 	pub title: Option<String>,
@@ -40,6 +42,7 @@ impl Default for MetadataItem {
     fn default() -> Self {
         Self {
 			id: Default::default(),
+			library_id: Default::default(),
 			source: Default::default(),
 			file_item_count: Default::default(),
 			title: Default::default(),
@@ -65,23 +68,24 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
 		Ok(Self {
 			id: value.get(0)?,
-			source: value.get(1)?,
-			file_item_count: value.get(2)?,
-			title: value.get(3)?,
-			original_title: value.get(4)?,
-			description: value.get(5)?,
-			rating: value.get(6)?,
-			thumb_path: value.get(7)?,
-			cached: value.get::<_, Option<String>>(8)?
+			library_id: value.get(1)?,
+			source: value.get(2)?,
+			file_item_count: value.get(3)?,
+			title: value.get(4)?,
+			original_title: value.get(5)?,
+			description: value.get(6)?,
+			rating: value.get(7)?,
+			thumb_path: value.get(8)?,
+			cached: value.get::<_, Option<String>>(9)?
 				.map(|v| MetadataItemCached::from_string(&v))
 				.unwrap_or_default(),
-			available_at: value.get(9)?,
-			year: value.get(10)?,
-			refreshed_at: Utc.timestamp_millis(value.get(11)?),
-			created_at: Utc.timestamp_millis(value.get(12)?),
-			updated_at: Utc.timestamp_millis(value.get(13)?),
-			deleted_at: value.get::<_, Option<_>>(14)?.map(|v| Utc.timestamp_millis(v)),
-			hash: value.get(15)?
+			available_at: value.get(10)?,
+			year: value.get(11)?,
+			refreshed_at: Utc.timestamp_millis(value.get(12)?),
+			created_at: Utc.timestamp_millis(value.get(13)?),
+			updated_at: Utc.timestamp_millis(value.get(14)?),
+			deleted_at: value.get::<_, Option<_>>(15)?.map(|v| Utc.timestamp_millis(v)),
+			hash: value.get(16)?
 		})
 	}
 }
@@ -516,23 +520,24 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 				.ok()
 				.map(|_: i64| std::result::Result::<_, Self::Error>::Ok(MetadataItem {
 					id: value.get(11)?,
-					source: value.get(12)?,
-					file_item_count: value.get(13)?,
-					title: value.get(14)?,
-					original_title: value.get(15)?,
-					description: value.get(16)?,
-					rating: value.get(17)?,
-					thumb_path: value.get(18)?,
-					cached: value.get::<_, Option<String>>(19)?
+					library_id: value.get(12)?,
+					source: value.get(13)?,
+					file_item_count: value.get(14)?,
+					title: value.get(15)?,
+					original_title: value.get(16)?,
+					description: value.get(17)?,
+					rating: value.get(18)?,
+					thumb_path: value.get(19)?,
+					cached: value.get::<_, Option<String>>(20)?
 						.map(|v| MetadataItemCached::from_string(&v))
 						.unwrap_or_default(),
-					available_at: value.get(20)?,
-					year: value.get(21)?,
-					refreshed_at: Utc.timestamp_millis(value.get(22)?),
-					created_at: Utc.timestamp_millis(value.get(23)?),
-					updated_at: Utc.timestamp_millis(value.get(24)?),
-					deleted_at: value.get::<_, Option<_>>(25)?.map(|v| Utc.timestamp_millis(v)),
-					hash: value.get(26)?
+					available_at: value.get(21)?,
+					year: value.get(22)?,
+					refreshed_at: Utc.timestamp_millis(value.get(23)?),
+					created_at: Utc.timestamp_millis(value.get(24)?),
+					updated_at: Utc.timestamp_millis(value.get(25)?),
+					deleted_at: value.get::<_, Option<_>>(26)?.map(|v| Utc.timestamp_millis(v)),
+					hash: value.get(27)?
 				}))
 				.transpose()?
 		})

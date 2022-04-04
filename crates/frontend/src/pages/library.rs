@@ -1,4 +1,4 @@
-use books_common::{MediaItem, api};
+use books_common::{api, DisplayItem};
 use gloo_utils::{document, window};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::HtmlInputElement;
@@ -33,7 +33,7 @@ pub enum Msg {
 pub struct LibraryPage {
 	on_scroll_fn: Option<Closure<dyn FnMut()>>,
 
-	media_items: Option<Vec<MediaItem>>,
+	media_items: Option<Vec<DisplayItem>>,
 	total_media_count: i64,
 
 	is_fetching_media_items: bool,
@@ -111,7 +111,7 @@ impl Component for LibraryPage {
 				PosterItem::UpdateMeta(file_id) => {
 					ctx.link()
 					.send_future(async move {
-						request::update_metadata(&api::PostMetadataBody::File(file_id)).await;
+						request::update_metadata(&api::PostMetadataBody::AutoMatchByFileId(file_id)).await;
 
 						Msg::Ignore
 					});
@@ -165,7 +165,7 @@ impl Component for LibraryPage {
 									}
 								}
 
-								DisplayOverlay::SearchForBook { meta_id, title, response } => {
+								&DisplayOverlay::SearchForBook { meta_id, ref title, ref response } => {
 									let input_id = "external-book-search-input";
 
 									html! {
@@ -183,8 +183,6 @@ impl Component for LibraryPage {
 														e.prevent_default();
 
 														let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
-
-														log::info!("{:?}", input.value());
 
 														Msg::BookSearchResults(request::search_for_books(&input.value()).await)
 													})
@@ -205,11 +203,27 @@ impl Component for LibraryPage {
 																					{
 																						for items.iter()
 																							.map(|item| {
+																								let source = item.source.clone();
+
 																								html! { // TODO: Place into own component.
 																									<div
 																										class="book-search-item"
 																										yew-close-popup=""
-																										// TODO: onclick
+																										onclick={
+																											ctx.link()
+																											.callback_future(move |_| {
+																												let source = source.clone();
+
+																												async move {
+																													request::update_metadata(&api::PostMetadataBody::UpdateMetaBySource {
+																														meta_id,
+																														source
+																													}).await;
+
+																													Msg::Ignore
+																												}
+																											})
+																										}
 																									>
 																										<img src={ item.thumbnail.clone().unwrap_or_default() } />
 																										<div class="book-info">
@@ -295,7 +309,7 @@ impl LibraryPage {
 	}
 
 	// TODO: Move into own struct.
-	fn render_media_item(item: &MediaItem, scope: &Scope<Self>) -> Html {
+	fn render_media_item(item: &DisplayItem, scope: &Scope<Self>) -> Html {
 		let meta_id = item.id;
 		let on_click_more = scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
@@ -310,7 +324,7 @@ impl LibraryPage {
 					<div class="bottom-right">
 						<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
 					</div>
-					<img src={ if item.icon_path.is_some() { format!("/api/book/{}/thumbnail", item.id) } else { String::from("/images/missingthumbnail.jpg") } } />
+					<img src={ if item.has_thumbnail { format!("/api/metadata/{}/thumbnail", item.id) } else { String::from("/images/missingthumbnail.jpg") } } />
 				</div>
 				<div class="info">
 					<div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>

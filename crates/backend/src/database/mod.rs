@@ -68,6 +68,8 @@ pub async fn init() -> Result<Database> {
 		r#"CREATE TABLE IF NOT EXISTS "metadata_item" (
 			"id"					INTEGER NOT NULL,
 
+			"library_id" 			INTEGER,
+
 			"source"				TEXT,
 			"file_item_count"		INTEGER,
 			"title"					TEXT,
@@ -391,6 +393,13 @@ impl Database {
 		Ok(())
 	}
 
+	pub fn change_files_metadata_id(&self, old_metadata_id: i64, new_metadata_id: i64) -> Result<usize> {
+		Ok(self.lock()?
+		.execute(r#"UPDATE file SET metadata_id = ?1 WHERE metadata_id = ?2"#,
+			params![new_metadata_id, old_metadata_id]
+		)?)
+	}
+
 
 	// Progression
 
@@ -481,15 +490,17 @@ impl Database {
 			self.lock()?
 			.execute(r#"
 				INSERT INTO metadata_item (
-					source, file_item_count, title, original_title, description, rating, thumb_url,
+					library_id, source, file_item_count,
+					title, original_title, description, rating, thumb_url,
 					cached,
 					available_at, year,
 					refreshed_at, created_at, updated_at, deleted_at,
 					hash
 				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)"#,
+				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
 				params![
-					&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_path,
+					meta.library_id, &meta.source, &meta.file_item_count,
+					&meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_path,
 					&meta.cached.as_string_optional(),
 					&meta.available_at, &meta.year,
 					&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
@@ -518,15 +529,17 @@ impl Database {
 		self.lock()?
 		.execute(r#"
 			UPDATE metadata_item SET
-				source = ?2, file_item_count = ?3, title = ?4, original_title = ?5, description = ?6, rating = ?7, thumb_url = ?8,
-				cached = ?9,
-				available_at = ?10, year = ?11,
-				refreshed_at = ?12, created_at = ?13, updated_at = ?14, deleted_at = ?15,
-				hash = ?16
+				library_id = ?2, source = ?3, file_item_count = ?4,
+				title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
+				cached = ?10,
+				available_at = ?11, year = ?12,
+				refreshed_at = ?13, created_at = ?14, updated_at = ?15, deleted_at = ?16,
+				hash = ?17
 			WHERE id = ?1"#,
 			params![
 				meta.id,
-				&meta.source, &meta.file_item_count, &meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_path,
+				meta.library_id, &meta.source, &meta.file_item_count,
+				&meta.title, &meta.original_title, &meta.description, &meta.rating, &meta.thumb_path,
 				&meta.cached.as_string_optional(),
 				&meta.available_at, &meta.year,
 				&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
@@ -572,6 +585,16 @@ impl Database {
 		Ok(())
 	}
 
+	pub fn set_metadata_file_count(&self, id: i64, file_count: usize) -> Result<()> {
+		self.lock()?
+		.execute(
+			r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
+			params![id, file_count]
+		)?;
+
+		Ok(())
+	}
+
 	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
 	pub fn get_metadata_by_source(&self, source: &str) -> Result<Option<MetadataItem>> {
 		Ok(self.lock()?.query_row(
@@ -589,6 +612,22 @@ impl Database {
 		).optional()?)
 	}
 
+	pub fn remove_metadata_by_id(&self, id: i64) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM metadata_item WHERE id = ?1"#,
+			params![id]
+		)?)
+	}
+
+	pub fn get_metadata_by(&self, library: usize, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare(r#"SELECT * FROM metadata_item WHERE library_id = ?1 LIMIT ?2 OFFSET ?3"#)?;
+
+		let map = conn.query_map([library, limit, offset], |v| MetadataItem::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
 
 	// Metadata Person
 
@@ -607,6 +646,15 @@ impl Database {
 		params![
 			&person.metadata_id,
 			&person.person_id
+		])?;
+
+		Ok(())
+	}
+
+	pub fn remove_persons_by_meta_id(&self, id: i64) -> Result<()> {
+		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE metadata_id = ?1"#,
+		params![
+			id
 		])?;
 
 		Ok(())

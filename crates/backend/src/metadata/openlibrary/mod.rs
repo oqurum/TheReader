@@ -53,6 +53,22 @@ impl Metadata for OpenLibraryMetadata {
 		Ok(None)
 	}
 
+	async fn get_metadata_by_source_id(&mut self, value: &str) -> Result<Option<MetadataReturned>> {
+		let id = match BookId::make_assumptions(value.to_string()) {
+			Some(v) => v,
+			None => return Ok(None)
+		};
+
+		match self.request(id).await {
+			Ok(Some(v)) => Ok(Some(v)),
+			a => {
+				eprintln!("OpenLibraryMetadata::get_metadata_by_source_id {:?}", a);
+
+				Ok(None)
+			}
+		}
+	}
+
 	async fn search(&mut self, value: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		match search_for {
 			SearchFor::Author => {
@@ -91,6 +107,7 @@ impl Metadata for OpenLibraryMetadata {
 					for item in found.items {
 						books.push(SearchItem::Book(MetadataItem {
 							id: 0,
+							library_id: 0,
 							file_item_count: 1,
 							source: format!("{}:{}", self.get_prefix(), &item.key),
 							title: item.title.clone(),
@@ -205,6 +222,7 @@ impl OpenLibraryMetadata {
 
 			meta: MetadataItem {
 				id: 0,
+				library_id: 0,
 				file_item_count: 1,
 				source: format!("{}:{}", self.get_prefix(), source_id),
 				title: Some(book_info.title.clone()),

@@ -52,6 +52,7 @@ impl Metadata for LocalMetadata {
 			(MetadataItem {
 				id: 0,
 				source,
+				library_id: 0,
 				file_item_count: 1,
 				title: title.clone(),
 				original_title: title,

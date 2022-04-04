@@ -5,11 +5,11 @@ use std::io::Read;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post, delete};
 
-use books_common::{Chapter, MediaItem, api, Progression, LibraryColl, MetadataItemCached};
+use books_common::{Chapter, MediaItem, api, Progression, LibraryColl, MetadataItemCached, DisplayItem};
 use bookie::Book;
 use futures::TryStreamExt;
 
-use crate::database::{Database, table::FileWithMetadata};
+use crate::{database::Database, task::queue_task_priority};
 
 pub mod config;
 pub mod database;
@@ -46,13 +46,13 @@ async fn load_resource(path: web::Path<(i64, String)>, db: web::Data<Database>) 
 		.body(body)
 }
 
-#[get("/api/book/{id}/thumbnail")]
-async fn load_book_thumbnail(path: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+#[get("/api/metadata/{id}/thumbnail")]
+async fn load_metadata_thumbnail(path: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
 	let book_id = path.into_inner();
 
-	let file = db.find_file_by_id_with_metadata(book_id).unwrap().unwrap();
+	let meta = db.get_metadata_by_id(book_id).unwrap();
 
-	if let Some(path) = file.meta.and_then(|v| v.thumb_path) {
+	if let Some(path) = meta.and_then(|v| v.thumb_path) {
 		let loc = ThumbnailLocation::from(path);
 
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
@@ -330,7 +330,7 @@ async fn run_task(modify: web::Json<api::RunTaskBody>) -> HttpResponse {
 	}
 
 	if modify.run_metadata {
-		queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::Invalid));
+		queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchInvalid));
 	}
 
 	HttpResponse::Ok().finish()
@@ -342,17 +342,15 @@ async fn run_task(modify: web::Json<api::RunTaskBody>) -> HttpResponse {
 // TODO: Use for frontend updating instead of attempting to auto-match. Will retreive metadata source name.
 #[post("/api/metadata")]
 async fn update_item_metadata(body: web::Json<api::PostMetadataBody>) -> HttpResponse {
-	std::thread::spawn(move || {
-		let rt = tokio::runtime::Runtime::new().unwrap();
+	match body.into_inner() {
+		api::PostMetadataBody::AutoMatchByFileId(file_id) => {
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchSingleFileId(file_id)));
+		}
 
-		rt.block_on(async {
-			match body.into_inner() {
-				api::PostMetadataBody::File(file_id) => {
-					queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::Single(file_id)));
-				}
-			}
-		});
-	});
+		api::PostMetadataBody::UpdateMetaBySource { meta_id, source } => {
+			queue_task_priority(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::SpecificMatchSingleMetaId { meta_id, source }));
+		}
+	}
 
 	HttpResponse::Ok().finish()
 }
@@ -393,39 +391,16 @@ async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> web::J
 async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> web::Json<api::GetBookListResponse> {
 	web::Json(api::GetBookListResponse {
 		count: db.get_file_count().unwrap(),
-		items: db.get_files_with_metadata_by(query.library, query.offset.unwrap_or(0), query.limit.unwrap_or(50))
+		items: db.get_metadata_by(query.library, query.offset.unwrap_or(0), query.limit.unwrap_or(50))
 			.unwrap()
 			.into_iter()
-			.map(|FileWithMetadata { file, meta }| {
-				let (title, cached, icon_path) = if let Some(meta) = meta {
-					(
-						meta.title.or(meta.original_title).unwrap_or_default(),
-						meta.cached,
-						meta.thumb_path.map(|url| format!("/api/book/{}/res/{}", file.id, url))
-					)
-				} else {
-					(String::new(), MetadataItemCached::default(), None)
-				};
+			.map(|meta| {
+				DisplayItem {
+					id: meta.id,
 
-				MediaItem {
-					id: file.id,
-
-					title,
-					cached,
-					// TODO: Cache images
-					icon_path,
-
-					chapter_count: file.chapter_count as usize,
-
-					path: file.path,
-
-					file_name: file.file_name,
-					file_type: file.file_type,
-					file_size: file.file_size,
-
-					modified_at: file.modified_at.timestamp_millis(),
-					accessed_at: file.accessed_at.timestamp_millis(),
-					created_at: file.created_at.timestamp_millis(),
+					title: meta.title.or(meta.original_title).unwrap_or_default(),
+					cached: meta.cached,
+					has_thumbnail: meta.thumb_path.is_some()
 				}
 			})
 			.collect()
@@ -485,7 +460,7 @@ async fn main() -> std::io::Result<()> {
 			.service(load_book_debug)
 			.service(load_book)
 			.service(load_pages)
-			.service(load_book_thumbnail)
+			.service(load_metadata_thumbnail)
 			.service(load_resource)
 			.service(load_book_list)
 			.service(progress_book_add)

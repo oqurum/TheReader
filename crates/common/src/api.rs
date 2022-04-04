@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem};
 
 
 // Libraries
@@ -25,7 +25,7 @@ pub struct GetBookIdResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetBookListResponse {
 	pub count: i64,
-	pub items: Vec<MediaItem>
+	pub items: Vec<DisplayItem>
 }
 
 #[derive(Deserialize)]
@@ -65,7 +65,12 @@ pub struct ModifyOptionsBody {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PostMetadataBody {
-	File(i64)
+	AutoMatchByFileId(i64),
+
+	UpdateMetaBySource {
+		meta_id: i64,
+		source: String,
+	}
 }
 
 

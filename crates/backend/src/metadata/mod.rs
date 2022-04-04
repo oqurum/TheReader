@@ -44,7 +44,11 @@ pub trait Metadata {
 
 	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>>;
 
-	async fn search(&mut self, _search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
+	async fn get_metadata_by_source_id(&mut self, _value: &str) -> Result<Option<MetadataReturned>> {
+		Ok(None)
+	}
+
+	async fn search(&mut self, _search: &str, _search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		Ok(Vec::new())
 	}
 }
@@ -58,6 +62,16 @@ pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Databa
 	// TODO: Don't re-scan file if we already have metadata from file.
 	LocalMetadata.get_metadata_from_file(file).await
 }
+
+pub async fn get_metadata_by_source(source: &str, value: &str) -> Result<Option<MetadataReturned>> {
+	match source {
+		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_metadata_by_source_id(value).await,
+		v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_metadata_by_source_id(value).await,
+
+		_ => Ok(None)
+	}
+}
+
 
 
 pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<HashMap<&'static str, Vec<SearchItem>>> {

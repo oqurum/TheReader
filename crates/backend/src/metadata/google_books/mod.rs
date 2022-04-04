@@ -1,5 +1,6 @@
 // https://developers.google.com/books/docs/v1/getting_started
 
+// TODO: Handle errors
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -36,7 +37,7 @@ impl Metadata for GoogleBooksMetadata {
 					None => continue
 				};
 
-				match self.request(id).await {
+				match self.request_query(id).await {
 					Ok(Some(v)) => return Ok(Some(v)),
 					a => eprintln!("GoogleBooksMetadata::get_metadata_from_file {:?}", a)
 				}
@@ -44,6 +45,17 @@ impl Metadata for GoogleBooksMetadata {
 		}
 
 		Ok(None)
+	}
+
+	async fn get_metadata_by_source_id(&mut self, value: &str) -> Result<Option<MetadataReturned>> {
+		match self.request_singular_id(value).await {
+			Ok(Some(v)) => Ok(Some(v)),
+			a => {
+				eprintln!("GoogleBooksMetadata::get_metadata_by_source_id {:?}", a);
+
+				Ok(None)
+			}
+		}
 	}
 
 	async fn search(&mut self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
@@ -71,6 +83,7 @@ impl Metadata for GoogleBooksMetadata {
 					for item in books_cont.items {
 						books.push(SearchItem::Book(MetadataItem {
 							id: 0,
+							library_id: 0,
 							file_item_count: 1,
 							source: self.prefix_text(&item.id),
 							title: Some(item.volume_info.title.clone()),
@@ -99,7 +112,7 @@ impl Metadata for GoogleBooksMetadata {
 }
 
 impl GoogleBooksMetadata {
-	pub async fn request(&self, id: String) -> Result<Option<MetadataReturned>> {
+	pub async fn request_query(&self, id: String) -> Result<Option<MetadataReturned>> {
 		let resp = reqwest::get(format!("https://www.googleapis.com/books/v1/volumes?q={}", BookSearchKeyword::Isbn.combile_string(&id))).await?;
 
 		let book = if resp.status().is_success() {
@@ -114,11 +127,25 @@ impl GoogleBooksMetadata {
 			return Ok(None);
 		};
 
+		self.compile_book_volume_item(book).await
+	}
 
+	pub async fn request_singular_id(&self, id: &str) -> Result<Option<MetadataReturned>> {
+		let resp = reqwest::get(format!("https://www.googleapis.com/books/v1/volumes/{}", id)).await?;
+
+		if resp.status().is_success() {
+			self.compile_book_volume_item(resp.json().await?).await
+		} else {
+			Ok(None)
+		}
+	}
+
+
+	async fn compile_book_volume_item(&self, value: BookVolumeItem) -> Result<Option<MetadataReturned>> {
 		let mut thumb_url = None;
 
 		// Download thumb url and store it.
-		let resp = reqwest::get(format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", book.id)).await?;
+		let resp = reqwest::get(format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", value.id)).await?;
 
 		if resp.status().is_success() {
 			let bytes = resp.bytes().await?;
@@ -138,16 +165,17 @@ impl GoogleBooksMetadata {
 			publisher: None,
 			meta: MetadataItem {
 				id: 0,
+				library_id: 0,
 				file_item_count: 1,
-				source: self.prefix_text(book.id),
-				title: Some(book.volume_info.title.clone()),
-				original_title: Some(book.volume_info.title),
-				description: book.volume_info.description,
-				rating: book.volume_info.average_rating.unwrap_or_default(),
+				source: self.prefix_text(value.id),
+				title: Some(value.volume_info.title.clone()),
+				original_title: Some(value.volume_info.title),
+				description: value.volume_info.description,
+				rating: value.volume_info.average_rating.unwrap_or_default(),
 				thumb_path: thumb_url,
 				cached: MetadataItemCached::default()
-					.publisher(book.volume_info.publisher)
-					.author_optional(book.volume_info.authors.and_then(|v| v.first().cloned())),
+					.publisher(value.volume_info.publisher)
+					.author_optional(value.volume_info.authors.and_then(|v| v.first().cloned())),
 				refreshed_at: now,
 				created_at: now,
 				updated_at: now,
@@ -235,6 +263,7 @@ pub struct BookVolumeVolumeInfo {
 	pub industry_identifiers: Vec<BookVolumeVolumeInfoIndustryIdentifiers>,
 	pub reading_modes: BookVolumeVolumeInfoReadingModes,
 	pub page_count: Option<i64>,
+	pub printed_page_count: Option<i64>,
 	pub print_type: String,
 	pub categories: Vec<String>,
 	pub maturity_rating: String,
@@ -275,7 +304,13 @@ pub struct BookVolumeVolumeInfoPanelizationSummary {
 pub struct BookVolumeVolumeInfoImageLinks {
 	pub small_thumbnail: String,
 	pub thumbnail: String,
+	pub small: Option<String>,
+	pub medium: Option<String>,
+	pub large: Option<String>,
+	pub extra_large: Option<String>,
 }
+
+// TODO: function to return largest size available. Otherwise use current way
 
 
 #[derive(Debug, Serialize, Deserialize)]

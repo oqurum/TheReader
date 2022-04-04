@@ -7,6 +7,22 @@ pub mod api;
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DisplayItem {
+	pub id: i64,
+
+	pub title: String,
+	pub cached: MetadataItemCached,
+	pub has_thumbnail: bool,
+}
+
+impl PartialEq for DisplayItem {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
+	}
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MediaItem {
 	pub id: i64,
 

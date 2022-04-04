@@ -137,4 +137,13 @@ impl IdType {
 			_ => None,
 		}
 	}
+
+	pub fn into_possible_single_value(self) -> Option<String> {
+		match self {
+			Self::Isbn(v) => Some(v),
+			Self::Uuid(v) => Some(v),
+			Self::UnknownKeyValue(_, v) => Some(v),
+			Self::UnknownValue(v) => Some(v),
+		}
+	}
 }
