@@ -71,7 +71,7 @@ impl Component for Popup {
 		match ctx.props().type_of {
 			PopupType::FullOverlay => html! {
 				<div ref={self.node_ref.clone()} class="popup">
-					<div class="popup-container">
+					<div class={classes!("popup-container", ctx.props().classes.clone())}>
 						{ for ctx.props().children.iter() }
 					</div>
 				</div>

@@ -375,6 +375,9 @@ async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> web::J
 					};
 
 					api::MetadataSearchItem {
+						source: book.source,
+						author: book.cached.author,
+						description: book.description,
 						name: book.original_title.or(book.title).unwrap_or_else(|| String::from("Unknown title")),
 						thumbnail: book.thumb_path
 					}

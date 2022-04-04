@@ -81,7 +81,10 @@ pub struct MetadataSearchResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetadataSearchItem {
+	pub source: String,
+	pub author: Option<String>,
 	pub thumbnail: Option<String>,
+	pub description: Option<String>,
 	pub name: String,
 }
 
