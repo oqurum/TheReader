@@ -195,7 +195,7 @@ impl BookSearchKeyword {
 
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookVolumesContainer {
 	pub kind: String,
 	#[serde(rename = "totalItems")]
@@ -246,7 +246,7 @@ pub struct BookVolumeVolumeInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookVolumeVolumeInfoIndustryIdentifiers {
 	#[serde(rename = "type")]
 	pub type_of: String,
@@ -254,7 +254,7 @@ pub struct BookVolumeVolumeInfoIndustryIdentifiers {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookVolumeVolumeInfoReadingModes {
 	pub text: bool,
 	pub image: bool,

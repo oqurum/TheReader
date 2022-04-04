@@ -75,7 +75,7 @@ pub mod json {
 	}
 
 	#[derive(Debug, Serialize, Deserialize)]
-	#[serde(deny_unknown_fields)]
+	#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 	pub struct AuthorSearchItem {
 		pub key: Option<String>,
 		#[serde(rename = "type")]
@@ -95,7 +95,7 @@ pub mod json {
 
 
 	#[derive(Debug, Serialize, Deserialize)]
-	#[serde(deny_unknown_fields)]
+	#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 	pub struct AuthorJson {
 		pub id: Option<i64>,
 		pub bio: Option<RecordDescription>,

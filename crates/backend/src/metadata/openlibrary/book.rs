@@ -110,7 +110,7 @@ pub struct BookSearchContainer {
 
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookSearchItem {
 	pub key: String,
 	#[serde(rename = "type")]
@@ -195,7 +195,7 @@ pub struct BookSearchItem {
 
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookInfo {
 	pub publishers: Vec<String>,
 	pub number_of_pages: Option<usize>,
