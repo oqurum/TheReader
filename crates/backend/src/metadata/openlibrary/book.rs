@@ -176,6 +176,7 @@ pub struct BookSearchItem {
 	pub id_google: Option<Vec<String>>,
 	pub id_hathi_trust: Option<Vec<String>>,
 	pub id_librarything: Option<Vec<String>>,
+	pub id_isfdb: Option<Vec<String>>,
 	pub id_librivox: Option<Vec<String>>,
 	pub id_nla: Option<Vec<String>>,
 	pub id_overdrive: Option<Vec<String>>,

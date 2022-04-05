@@ -68,7 +68,7 @@ impl Metadata for GoogleBooksMetadata {
 				let url = format!("https://www.googleapis.com/books/v1/volumes?q={}", match specifically {
 					SearchForBooksBy::AuthorName => BookSearchKeyword::InAuthor.combile_string(search),
 					SearchForBooksBy::Contents |
-					SearchForBooksBy::Query => search.to_string(),
+					SearchForBooksBy::Query => urlencoding::encode(search).to_string(),
 					SearchForBooksBy::Title => BookSearchKeyword::InTitle.combile_string(search),
 				});
 
@@ -263,10 +263,11 @@ pub struct BookVolumeVolumeInfo {
 	pub publisher: Option<String>,
 	pub published_date: String,
 	pub description: Option<String>,
-	pub industry_identifiers: Vec<BookVolumeVolumeInfoIndustryIdentifiers>,
+	pub industry_identifiers: Option<Vec<BookVolumeVolumeInfoIndustryIdentifiers>>,
 	pub reading_modes: BookVolumeVolumeInfoReadingModes,
 	pub page_count: Option<i64>,
 	pub printed_page_count: Option<i64>,
+	pub series_info: Option<serde_json::Value>,
 	pub print_type: String,
 	pub categories: Option<Vec<String>>,
 	pub maturity_rating: String,
