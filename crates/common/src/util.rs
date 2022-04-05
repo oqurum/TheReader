@@ -2,6 +2,36 @@ use chrono::{DateTime, Utc, TimeZone};
 use serde::{Serializer, Deserializer, Deserialize};
 
 
+pub const FILE_SIZE_IDENTIFIERS: [&str; 4] = ["B", "KB", "MB", "GB"];
+
+
+
+
+
+pub fn file_size_bytes_to_readable_string(value: i64) -> String {
+	let mut size = value as f64;
+
+	// 1024
+
+	let mut index = 0;
+	while size > 1024.0 && index != 3 {
+		size /= 1024.0;
+		index += 1;
+	}
+
+	if index + 1 == FILE_SIZE_IDENTIFIERS.len() {
+		format!("{}{}", (size * 100.0).floor() / 100.0, FILE_SIZE_IDENTIFIERS[index])
+	} else {
+		format!("{}{}", size.floor(), FILE_SIZE_IDENTIFIERS[index])
+	}
+
+}
+
+
+
+
+
+// Serde
 
 pub fn serialize_datetime<S>(value: &DateTime<Utc>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
 	s.serialize_i64(value.timestamp_millis())
