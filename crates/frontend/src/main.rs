@@ -65,6 +65,9 @@ pub enum Route {
 	#[at("/library/:library_id")]
 	ViewLibrary { library_id: i64 },
 
+	#[at("/view/:meta_id")]
+	ViewMeta { meta_id: usize },
+
 	#[at("/read/:book_id")]
 	ReadBook { book_id: usize },
 
@@ -82,6 +85,10 @@ fn switch(route: &Route, _link: Scope<Model>) -> Html {
 	match route.clone() {
 		Route::ViewLibrary { library_id } => {
 			html! { <pages::LibraryPage library_id={library_id}  /> }
+		}
+
+		Route::ViewMeta { meta_id } => {
+			html! { <pages::MediaView id={meta_id}  /> }
 		}
 
 		Route::ReadBook { book_id } => {

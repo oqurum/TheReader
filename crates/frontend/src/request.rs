@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse}, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse}, Progression};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
@@ -23,6 +23,14 @@ pub async fn update_metadata(value: &PostMetadataBody) {
 		"/api/metadata",
 		Some(value)
 	).await.ok();
+}
+
+pub async fn get_media_view(metadata_id: usize) -> MediaViewResponse {
+	fetch(
+		"GET",
+		&format!("/api/metadata/{}", metadata_id),
+		Option::<&()>::None
+	).await.unwrap()
 }
 
 

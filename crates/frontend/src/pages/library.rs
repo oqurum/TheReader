@@ -327,7 +327,7 @@ impl LibraryPage {
 		});
 
 		html! {
-			<Link<Route> to={Route::ReadBook { book_id: item.id as usize }} classes={ classes!("library-item") }>
+			<Link<Route> to={Route::ViewMeta { meta_id: item.id as usize }} classes={ classes!("library-item") }>
 				<div class="poster">
 					<div class="bottom-right">
 						<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>

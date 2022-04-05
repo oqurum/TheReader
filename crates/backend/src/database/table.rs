@@ -1,4 +1,4 @@
-use books_common::{Progression, MetadataItemCached};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem};
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
@@ -6,6 +6,7 @@ use serde::{Serialize, Serializer};
 
 // Metadata
 
+// TODO: Place into common
 #[derive(Debug, Clone, Serialize)]
 pub struct MetadataItem {
 	pub id: i64,
@@ -39,8 +40,8 @@ pub struct MetadataItem {
 }
 
 impl Default for MetadataItem {
-    fn default() -> Self {
-        Self {
+	fn default() -> Self {
+		Self {
 			id: Default::default(),
 			library_id: Default::default(),
 			source: Default::default(),
@@ -59,7 +60,7 @@ impl Default for MetadataItem {
 			year: Default::default(),
 			hash: Default::default()
 		}
-    }
+	}
 }
 
 impl<'a> TryFrom<&Row<'a>> for MetadataItem {
@@ -87,6 +88,30 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			deleted_at: value.get::<_, Option<_>>(15)?.map(|v| Utc.timestamp_millis(v)),
 			hash: value.get(16)?
 		})
+	}
+}
+
+impl From<MetadataItem> for DisplayMetaItem {
+	fn from(val: MetadataItem) -> Self {
+		DisplayMetaItem {
+			id: val.id,
+			library_id: val.library_id,
+			source: val.source,
+			file_item_count: val.file_item_count,
+			title: val.title,
+			original_title: val.original_title,
+			description: val.description,
+			rating: val.rating,
+			thumb_path: val.thumb_path,
+			cached: val.cached,
+			refreshed_at: val.refreshed_at,
+			created_at: val.created_at,
+			updated_at: val.updated_at,
+			deleted_at: val.deleted_at,
+			available_at: val.available_at,
+			year: val.year,
+			hash: val.hash,
+		}
 	}
 }
 
@@ -394,6 +419,28 @@ impl<'a> TryFrom<&Row<'a>> for File {
 			created_at: Utc.timestamp_millis(value.get(10)?),
 		})
 	}
+}
+
+impl From<File> for MediaItem {
+    fn from(file: File) -> Self {
+        Self {
+            id: file.id,
+
+			path: file.path,
+
+            file_name: file.file_name,
+            file_type: file.file_type,
+            file_size: file.file_size,
+
+			library_id: file.library_id,
+			metadata_id: file.metadata_id,
+			chapter_count: file.chapter_count as usize,
+
+            modified_at: file.modified_at.timestamp_millis(),
+            accessed_at: file.accessed_at.timestamp_millis(),
+            created_at: file.created_at.timestamp_millis(),
+        }
+    }
 }
 
 

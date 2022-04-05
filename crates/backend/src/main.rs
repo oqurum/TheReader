@@ -1,3 +1,5 @@
+#![allow(clippy::manual_map)]
+
 // TODO: Ping/Pong if currently viewing book. View time. How long been on page. Etc.
 
 use std::io::Read;
@@ -5,7 +7,7 @@ use std::io::Read;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post, delete};
 
-use books_common::{Chapter, MediaItem, api, Progression, LibraryColl, MetadataItemCached, DisplayItem};
+use books_common::{Chapter, api, Progression, LibraryColl, DisplayItem};
 use bookie::Book;
 use futures::TryStreamExt;
 
@@ -122,33 +124,10 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 #[get("/api/book/{id}")]
 async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
 	web::Json(if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
-		// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
-		let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
-		// TODO: Not needed ^
-
 		Some(api::GetBookIdResponse {
 			progress: db.get_progress(0, *file_id).unwrap().map(|v| v.into()),
 
-			media: MediaItem {
-				id: file.id,
-
-				title: book.package.metadata.dcmes_elements.get("title").unwrap().iter().find_map(|v| v.value.as_ref().cloned()).unwrap_or_default(),
-				cached: MetadataItemCached::default()
-					.author_optional(book.package.metadata.get_creators().first().map(|v| v.to_string())),
-				icon_path: None, // TODO
-
-				chapter_count: book.chapter_count(),
-
-				path: file.path,
-
-				file_name: file.file_name,
-				file_type: file.file_type,
-				file_size: file.file_size,
-
-				modified_at: file.modified_at.timestamp_millis(),
-				accessed_at: file.accessed_at.timestamp_millis(),
-				created_at: file.created_at.timestamp_millis(),
-			}
+			media: file.into()
 		})
 	} else {
 		None
@@ -340,7 +319,7 @@ async fn run_task(modify: web::Json<api::RunTaskBody>) -> HttpResponse {
 // Metadata
 
 // TODO: Use for frontend updating instead of attempting to auto-match. Will retreive metadata source name.
-#[post("/api/metadata")]
+#[post("/api/metadata")] // TODO: use media_id in url
 async fn update_item_metadata(body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	match body.into_inner() {
 		api::PostMetadataBody::AutoMatchByFileId(file_id) => {
@@ -353,6 +332,26 @@ async fn update_item_metadata(body: web::Json<api::PostMetadataBody>) -> HttpRes
 	}
 
 	HttpResponse::Ok().finish()
+}
+
+#[get("/api/metadata/{id}")]
+async fn get_all_metadata_comp(meta_id: web::Path<i64>, db: web::Data<Database>) -> web::Json<api::MediaViewResponse> {
+	let meta = db.get_metadata_by_id(*meta_id).unwrap().unwrap();
+
+	let (mut media, mut progress) = (Vec::new(), Vec::new());
+
+	for file in db.get_files_by_metadata_id(meta.id).unwrap() {
+		let prog = db.get_progress(0, file.id).unwrap();
+
+		media.push(file.into());
+		progress.push(prog.map(|v| v.into()));
+	}
+
+	web::Json(api::MediaViewResponse {
+		metadata: meta.into(),
+		media,
+		progress,
+	})
 }
 
 #[get("/api/metadata/search")]
@@ -475,6 +474,7 @@ async fn main() -> std::io::Result<()> {
 			.service(run_task)
 			.service(update_item_metadata)
 			.service(get_metadata_search)
+			.service(get_all_metadata_comp)
 
 			.service(actix_files::Files::new("/js", "../../app/public/js"))
 			.service(actix_files::Files::new("/css", "../../app/public/css"))

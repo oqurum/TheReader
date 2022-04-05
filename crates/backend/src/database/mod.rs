@@ -380,6 +380,16 @@ impl Database {
 		).optional()?)
 	}
 
+	pub fn get_files_by_metadata_id(&self, metadata_id: i64) -> Result<Vec<File>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id=?1")?;
+
+		let map = conn.query_map([metadata_id], |v| File::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
 	pub fn get_file_count(&self) -> Result<i64> {
 		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
 	}

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem};
 
 
 // Libraries
@@ -62,6 +62,14 @@ pub struct ModifyOptionsBody {
 
 
 // Metadata
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MediaViewResponse {
+	pub metadata: DisplayMetaItem,
+	pub media: Vec<MediaItem>,
+	pub progress: Vec<Option<Progression>>,
+}
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PostMetadataBody {
