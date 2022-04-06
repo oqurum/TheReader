@@ -125,8 +125,16 @@ impl Component for LibraryPage {
 			}
 
 			Msg::PosterItem(item) => match item {
-				PosterItem::ShowPopup(type_of) => {
-					self.media_popup = Some(type_of);
+				PosterItem::ShowPopup(new_disp) => {
+					if let Some(old_disp) = self.media_popup.as_mut() {
+						if *old_disp == new_disp {
+							self.media_popup = None;
+						} else {
+							self.media_popup = Some(new_disp);
+						}
+					} else {
+						self.media_popup = Some(new_disp);
+					}
 				}
 
 				PosterItem::UpdateMeta(file_id) => {
@@ -405,4 +413,19 @@ pub enum DisplayOverlay {
 		input_value: Option<String>,
 		response: Option<api::MetadataSearchResponse>
 	},
+}
+
+impl PartialEq for DisplayOverlay {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Self::Info { meta_id: l_id }, Self::Info { meta_id: r_id }) => l_id == r_id,
+			(Self::More { meta_id: l_id, .. }, Self::More { meta_id: r_id, .. }) => l_id == r_id,
+			(
+				Self::SearchForBook { meta_id: l_id, input_value: l_val, .. },
+				Self::SearchForBook { meta_id: r_id, input_value: r_val, .. }
+			) => l_id == r_id && l_val == r_val,
+
+			_ => false
+		}
+	}
 }
