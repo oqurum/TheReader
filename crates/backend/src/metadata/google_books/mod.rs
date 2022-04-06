@@ -261,7 +261,7 @@ pub struct BookVolumeVolumeInfo {
 	pub ratings_count: Option<i64>,
 	pub dimensions: Option<HashMap<String, String>>,
 	pub publisher: Option<String>,
-	pub published_date: String,
+	pub published_date: Option<String>,
 	pub description: Option<String>,
 	pub industry_identifiers: Option<Vec<BookVolumeVolumeInfoIndustryIdentifiers>>,
 	pub reading_modes: BookVolumeVolumeInfoReadingModes,
@@ -272,6 +272,7 @@ pub struct BookVolumeVolumeInfo {
 	pub categories: Option<Vec<String>>,
 	pub maturity_rating: String,
 	pub allow_anon_logging: bool,
+	pub comics_content: Option<bool>,
 	pub content_version: String,
 	pub panelization_summary: Option<BookVolumeVolumeInfoPanelizationSummary>,
 	pub image_links: Option<BookVolumeVolumeInfoImageLinks>,
@@ -300,7 +301,9 @@ pub struct BookVolumeVolumeInfoReadingModes {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct BookVolumeVolumeInfoPanelizationSummary {
 	pub contains_epub_bubbles: bool,
+	pub epub_bubble_version: Option<String>,
 	pub contains_image_bubbles: bool,
+	pub image_bubble_version: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
