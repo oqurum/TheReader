@@ -71,7 +71,7 @@ impl DisplayMetaItem {
 	}
 
 	pub fn get_title(&self) -> String {
-		self.title.as_ref().or(self.original_title.as_ref()).cloned().unwrap()
+		self.title.as_ref().or(self.original_title.as_ref()).cloned().unwrap_or_else(|| String::from("No Title"))
 	}
 }
 
