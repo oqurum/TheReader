@@ -1,7 +1,7 @@
 use books_common::{api, DisplayItem};
-use gloo_utils::{document, window};
+use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::HtmlInputElement;
+use web_sys::{HtmlInputElement, HtmlElement};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
@@ -27,6 +27,8 @@ pub enum Msg {
 	PosterItem(PosterItem),
 	ClosePopup,
 
+	InitEventListenerAfterMediaItems,
+
 	Ignore
 }
 
@@ -39,6 +41,8 @@ pub struct LibraryPage {
 	is_fetching_media_items: bool,
 
 	media_popup: Option<DisplayOverlay>,
+
+	library_list_ref: NodeRef,
 }
 
 impl Component for LibraryPage {
@@ -52,6 +56,7 @@ impl Component for LibraryPage {
 			total_media_count: 0,
 			is_fetching_media_items: false,
 			media_popup: None,
+			library_list_ref: NodeRef::default()
 		}
 	}
 
@@ -59,6 +64,21 @@ impl Component for LibraryPage {
 		match msg {
 			Msg::ClosePopup => {
 				self.media_popup = None;
+			}
+
+			Msg::InitEventListenerAfterMediaItems => {
+				let lib_list_ref = self.library_list_ref.clone();
+				let link = ctx.link().clone();
+
+				let func = Closure::wrap(Box::new(move || {
+					let lib_list = lib_list_ref.cast::<HtmlElement>().unwrap();
+
+					link.send_message(Msg::OnScroll(lib_list.client_height() + lib_list.scroll_top()));
+				}) as Box<dyn FnMut()>);
+
+				let _ = self.library_list_ref.cast::<HtmlElement>().unwrap().add_event_listener_with_callback("scroll", func.as_ref().unchecked_ref());
+
+				self.on_scroll_fn = Some(func);
 			}
 
 			Msg::RequestMediaItems => {
@@ -97,7 +117,7 @@ impl Component for LibraryPage {
 			}
 
 			Msg::OnScroll(scroll_y) => {
-				let scroll_height = document().body().unwrap().scroll_height();
+				let scroll_height = self.library_list_ref.cast::<HtmlElement>().unwrap().scroll_height();
 
 				if scroll_height - scroll_y < 600 && self.can_req_more() {
 					ctx.link().send_message(Msg::RequestMediaItems);
@@ -131,137 +151,139 @@ impl Component for LibraryPage {
 			// let remaining = (self.total_media_count as usize - items.len()).min(50);
 
 			html! {
-				<div class="library-list normal">
-					{ for items.iter().map(|item| Self::render_media_item(item, ctx.link())) }
-					// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
+				<div class="main-content-view">
+					<div class="library-list normal" ref={ self.library_list_ref.clone() }>
+						{ for items.iter().map(|item| Self::render_media_item(item, ctx.link())) }
+						// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
 
-					{
-						if let Some(overlay_type) = self.media_popup.as_ref() {
-							match overlay_type {
-								DisplayOverlay::Info { meta_id: _ } => {
-									html! {
-										<Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-											<h1>{"Info"}</h1>
-										</Popup>
+						{
+							if let Some(overlay_type) = self.media_popup.as_ref() {
+								match overlay_type {
+									DisplayOverlay::Info { meta_id: _ } => {
+										html! {
+											<Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+												<h1>{"Info"}</h1>
+											</Popup>
+										}
 									}
-								}
 
-								&DisplayOverlay::More { meta_id, mouse_pos } => {
-									html! {
-										<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-											<div class="menu-list">
-												<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
-													Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))
-												}>{ "Refresh Metadata" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
-													Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None, response: None })))
-												}>{ "Search For Book" }</div>
-												<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
-													Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))
-												}>{ "Show Info" }</div>
-											</div>
-										</Popup>
+									&DisplayOverlay::More { meta_id, mouse_pos } => {
+										html! {
+											<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+												<div class="menu-list">
+													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))
+													}>{ "Refresh Metadata" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None, response: None })))
+													}>{ "Search For Book" }</div>
+													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))
+													}>{ "Show Info" }</div>
+												</div>
+											</Popup>
+										}
 									}
-								}
 
-								&DisplayOverlay::SearchForBook { meta_id, ref input_value, ref response } => {
-									let input_id = "external-book-search-input";
+									&DisplayOverlay::SearchForBook { meta_id, ref input_value, ref response } => {
+										let input_id = "external-book-search-input";
 
-									let input_value = if let Some(v) = input_value {
-										v.to_string()
-									} else {
-										let items = self.media_items.as_ref().unwrap();
-										items.iter().find(|v| v.id == meta_id).unwrap().title.clone()
-									};
+										let input_value = if let Some(v) = input_value {
+											v.to_string()
+										} else {
+											let items = self.media_items.as_ref().unwrap();
+											items.iter().find(|v| v.id == meta_id).unwrap().title.clone()
+										};
 
-									html! {
-										<Popup
-											type_of={ PopupType::FullOverlay }
-											on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-											classes={ classes!("external-book-search-popup") }
-										>
-											<h1>{"Book Search"}</h1>
+										html! {
+											<Popup
+												type_of={ PopupType::FullOverlay }
+												on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
+												classes={ classes!("external-book-search-popup") }
+											>
+												<h1>{"Book Search"}</h1>
 
-											<form>
-												<input id={input_id} name="book_search" placeholder="Search For Title" value={ input_value } />
-												<button onclick={
-													ctx.link().callback_future(move |e: MouseEvent| async move {
-														e.prevent_default();
+												<form>
+													<input id={input_id} name="book_search" placeholder="Search For Title" value={ input_value } />
+													<button onclick={
+														ctx.link().callback_future(move |e: MouseEvent| async move {
+															e.prevent_default();
 
-														let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
+															let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
 
-														Msg::BookSearchResults(input.value(), request::search_for_books(&input.value()).await)
-													})
-												}>{ "Search" }</button>
-											</form>
+															Msg::BookSearchResults(input.value(), request::search_for_books(&input.value()).await)
+														})
+													}>{ "Search" }</button>
+												</form>
 
-											<div class="external-book-search-container">
-												{
-													if let Some(resp) = response {
-														html! {
-															{
-																for resp.items.iter()
-																	.map(|(site, items)| {
-																		html! {
-																			<>
-																				<h2>{ site.clone() }</h2>
-																				<div class="book-search-items">
-																					{
-																						for items.iter()
-																							.map(|item| {
-																								let source = item.source.clone();
+												<div class="external-book-search-container">
+													{
+														if let Some(resp) = response {
+															html! {
+																{
+																	for resp.items.iter()
+																		.map(|(site, items)| {
+																			html! {
+																				<>
+																					<h2>{ site.clone() }</h2>
+																					<div class="book-search-items">
+																						{
+																							for items.iter()
+																								.map(|item| {
+																									let source = item.source.clone();
 
-																								html! { // TODO: Place into own component.
-																									<div
-																										class="book-search-item"
-																										yew-close-popup=""
-																										onclick={
-																											ctx.link()
-																											.callback_future(move |_| {
-																												let source = source.clone();
+																									html! { // TODO: Place into own component.
+																										<div
+																											class="book-search-item"
+																											yew-close-popup=""
+																											onclick={
+																												ctx.link()
+																												.callback_future(move |_| {
+																													let source = source.clone();
 
-																												async move {
-																													request::update_metadata(&api::PostMetadataBody::UpdateMetaBySource {
-																														meta_id,
-																														source
-																													}).await;
+																													async move {
+																														request::update_metadata(&api::PostMetadataBody::UpdateMetaBySource {
+																															meta_id,
+																															source
+																														}).await;
 
-																													Msg::Ignore
-																												}
-																											})
-																										}
-																									>
-																										<img src={ item.thumbnail.clone().unwrap_or_default() } />
-																										<div class="book-info">
-																											<h4>{ item.name.clone() }</h4>
-																											<span>{ item.author.clone().unwrap_or_default() }</span>
-																											<p>{ item.description.clone().map(|mut v| { util::truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
+																														Msg::Ignore
+																													}
+																												})
+																											}
+																										>
+																											<img src={ item.thumbnail.clone().unwrap_or_default() } />
+																											<div class="book-info">
+																												<h4>{ item.name.clone() }</h4>
+																												<span>{ item.author.clone().unwrap_or_default() }</span>
+																												<p>{ item.description.clone().map(|mut v| { util::truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
+																											</div>
 																										</div>
-																									</div>
-																								}
-																							})
-																					}
-																				</div>
-																			</>
-																		}
-																	})
+																									}
+																								})
+																						}
+																					</div>
+																				</>
+																			}
+																		})
+																}
 															}
+														} else {
+															html! {}
 														}
-													} else {
-														html! {}
 													}
-												}
-											</div>
-										</Popup>
+												</div>
+											</Popup>
+										}
 									}
 								}
+							} else {
+								html! {}
 							}
-						} else {
-							html! {}
 						}
-					}
+					</div>
 				</div>
 			}
 		} else {
@@ -272,28 +294,17 @@ impl Component for LibraryPage {
 	}
 
 	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-		if first_render {
-			let link = ctx.link().clone();
-			let func = Closure::wrap(Box::new(move || {
-				link.send_message(Msg::OnScroll(
-					(
-						window().inner_height().map(|v| v.as_f64().unwrap()).unwrap_or_default() +
-						window().scroll_y().unwrap_or_default()
-					) as i32
-				));
-			}) as Box<dyn FnMut()>);
-
-			let _ = document().add_event_listener_with_callback("scroll", func.as_ref().unchecked_ref());
-
-			self.on_scroll_fn = Some(func);
-
+		if self.on_scroll_fn.is_none() && self.library_list_ref.get().is_some() {
+			ctx.link().send_message(Msg::InitEventListenerAfterMediaItems);
+		} else if first_render {
 			ctx.link().send_message(Msg::RequestMediaItems);
 		}
 	}
 
 	fn destroy(&mut self, _ctx: &Context<Self>) {
+		// TODO: Determine if still needed.
 		if let Some(f) = self.on_scroll_fn.take() {
-			let _ = document().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
+			let _ = self.library_list_ref.cast::<HtmlElement>().unwrap().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
 		}
 	}
 }

@@ -36,9 +36,12 @@ impl Component for HomePage {
 	fn view(&self, ctx: &Context<Self>) -> Html {
 		if let Some(items) = self.library_items.as_deref() {
 			html! {
-				<div class="homepage">
-					<div class="homepage">
-						{ for items.iter().map(|item| Self::render_library_item(item, ctx.link())) }
+				<div class="home-view-container">
+					<div class="sidebar">
+						{ for items.iter().map(|item| Self::render_sidebar_library_item(item, ctx.link())) }
+					</div>
+					<div class="main-content-view">
+						//
 					</div>
 				</div>
 			}
@@ -60,9 +63,9 @@ impl Component for HomePage {
 }
 
 impl HomePage {
-	fn render_library_item(item: &LibraryColl, _scope: &Scope<Self>) -> Html {
+	fn render_sidebar_library_item(item: &LibraryColl, _scope: &Scope<Self>) -> Html {
 		html! {
-			<Link<Route> to={Route::ViewLibrary { library_id: item.id }} classes={ classes!("library") }>
+			<Link<Route> to={Route::ViewLibrary { library_id: item.id }} classes={ classes!("sidebar-item", "library") }>
 				{ item.name.clone() }
 			</Link<Route>>
 		}
