@@ -283,8 +283,6 @@ body {
 	flex-direction: row;
 	flex-wrap: wrap;
 
-	margin-left: 1em;
-
 	/* NORMAL */
 	&.normal .library-item {
 		width: 165px;
@@ -295,8 +293,7 @@ body {
 		cursor: pointer;
 		display: flex;
 		flex-direction: column;
-		margin-right: 2em;
-		margin-bottom: 2em;
+		margin: 1em;
 
 		/* PLACEHOLDER */
 		&.placeholder {
@@ -431,6 +428,7 @@ body {
 			max-height: 25em;
 			overflow-y: auto;
 			background-color: var(--surface1);
+			margin-right: 10px;
 
 			> .book-search-item {
 				display: flex;
