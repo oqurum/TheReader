@@ -117,7 +117,7 @@ body {
 /* POPUP */
 .popup {
 	background-color: rgba(0, 0, 0, 0.3);
-	position: absolute;
+	position: fixed;
 	z-index: 100;
 	top: 0;
 	left: 0;
