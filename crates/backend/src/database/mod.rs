@@ -701,11 +701,29 @@ impl Database {
 	}
 
 	pub fn search_person_list(&self, query: &str, offset: usize, limit: usize) -> Result<Vec<TagPerson>> {
+		let mut escape_char = '\\';
+		// Change our escape character if it's in the query.
+		if query.contains(escape_char) {
+			for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
+				if !query.contains(car) {
+					escape_char = car;
+					break;
+				}
+			}
+		}
+
+		let sql = format!(
+			r#"SELECT * FROM tag_person WHERE name LIKE '%{}%' ESCAPE '{}' LIMIT ?1 OFFSET ?2"#,
+			query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
+			escape_char
+		);
+
+
 		let this = self.lock()?;
 
-		let mut conn = this.prepare(r#"SELECT * FROM tag_person WHERE name = ?1 LIMIT ?2 OFFSET ?3"#)?;
+		let mut conn = this.prepare(&sql)?;
 
-		let map = conn.query_map(params![query, limit, offset], |v| TagPerson::try_from(v))?;
+		let map = conn.query_map(params![limit, offset], |v| TagPerson::try_from(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
