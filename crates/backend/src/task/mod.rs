@@ -351,15 +351,20 @@ impl Task for TaskUpdatePeople {
 
 					// Download thumb url and store it.
 					if let Some(url) = new_person.cover_image_url {
-						let resp = reqwest::get(url).await?;
+						let resp = reqwest::get(&url).await?;
 
 						if resp.status().is_success() {
 							let bytes = resp.bytes().await?;
 
-							match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-								Ok(path) => old_person.thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
-								Err(e) => {
-									eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
+							// TODO: Used for Open Library. We don't check to see if we actually have an image yet.
+							if bytes.len() > 1000 {
+								println!("Cover URL: {}", url);
+
+								match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
+									Ok(path) => old_person.thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
+									Err(e) => {
+										eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
+									}
 								}
 							}
 						} else {
