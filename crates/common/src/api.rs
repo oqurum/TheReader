@@ -68,12 +68,9 @@ pub struct MediaViewResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PostMetadataBody {
-	AutoMatchByMetaId(i64),
+	AutoMatchByMetaId,
 
-	UpdateMetaBySource {
-		meta_id: i64,
-		source: String,
-	}
+	UpdateMetaBySource(String)
 }
 
 

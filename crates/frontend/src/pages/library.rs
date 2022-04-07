@@ -140,7 +140,7 @@ impl Component for LibraryPage {
 				PosterItem::UpdateMeta(meta_id) => {
 					ctx.link()
 					.send_future(async move {
-						request::update_metadata(&api::PostMetadataBody::AutoMatchByMetaId(meta_id)).await;
+						request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchByMetaId).await;
 
 						Msg::Ignore
 					});
@@ -254,10 +254,7 @@ impl Component for LibraryPage {
 																													let source = source.clone();
 
 																													async move {
-																														request::update_metadata(&api::PostMetadataBody::UpdateMetaBySource {
-																															meta_id,
-																															source
-																														}).await;
+																														request::update_metadata(meta_id, &api::PostMetadataBody::UpdateMetaBySource(source)).await;
 
 																														Msg::Ignore
 																													}

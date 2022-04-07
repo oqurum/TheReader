@@ -132,7 +132,7 @@ impl Component for AuthorListPage {
 				PosterItem::UpdateMeta(person_id) => {
 					ctx.link()
 					.send_future(async move {
-						request::update_metadata(&api::PostMetadataBody::AutoMatchByMetaId(person_id)).await;
+						// request::update_metadata(person_id, &api::PostMetadataBody::AutoMatchByMetaId).await;
 
 						Msg::Ignore
 					});

@@ -28,14 +28,16 @@ async fn load_metadata_thumbnail(path: web::Path<i64>, db: web::Data<Database>) 
 // Metadata
 
 // TODO: Use for frontend updating instead of attempting to auto-match. Will retreive metadata source name.
-#[post("/api/metadata")] // TODO: use media_id in url
-pub async fn update_item_metadata(body: web::Json<api::PostMetadataBody>) -> HttpResponse {
+#[post("/api/metadata/{id}")]
+pub async fn update_item_metadata(meta_id: web::Path<i64>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
+	let meta_id = *meta_id;
+
 	match body.into_inner() {
-		api::PostMetadataBody::AutoMatchByMetaId(file_id) => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchMetaId(file_id)));
+		api::PostMetadataBody::AutoMatchByMetaId => {
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchMetaId(meta_id)));
 		}
 
-		api::PostMetadataBody::UpdateMetaBySource { meta_id, source } => {
+		api::PostMetadataBody::UpdateMetaBySource(source) => {
 			queue_task_priority(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::SpecificMatchSingleMetaId { meta_id, source }));
 		}
 	}
