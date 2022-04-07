@@ -137,10 +137,10 @@ impl Component for LibraryPage {
 					}
 				}
 
-				PosterItem::UpdateMeta(file_id) => {
+				PosterItem::UpdateMeta(meta_id) => {
 					ctx.link()
 					.send_future(async move {
-						request::update_metadata(&api::PostMetadataBody::AutoMatchByFileId(file_id)).await;
+						request::update_metadata(&api::PostMetadataBody::AutoMatchByMetaId(meta_id)).await;
 
 						Msg::Ignore
 					});

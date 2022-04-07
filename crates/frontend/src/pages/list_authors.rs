@@ -129,14 +129,14 @@ impl Component for AuthorListPage {
 					}
 				}
 
-				// PosterItem::UpdateMeta(file_id) => {
-				// 	ctx.link()
-				// 	.send_future(async move {
-				// 		request::update_metadata(&api::PostMetadataBody::AutoMatchByFileId(file_id)).await;
+				PosterItem::UpdateMeta(person_id) => {
+					ctx.link()
+					.send_future(async move {
+						request::update_metadata(&api::PostMetadataBody::AutoMatchByMetaId(person_id)).await;
 
-				// 		Msg::Ignore
-				// 	});
-				// }
+						Msg::Ignore
+					});
+				}
 			}
 
 			Msg::ClosePopup => {
@@ -176,9 +176,9 @@ impl Component for AuthorListPage {
 											<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
 												<div class="menu-list">
 													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
-													// <div class="menu-item" yew-close-popup="" onclick={
-													// 	Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(person_id)))
-													// }>{ "Refresh Metadata" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(person_id)))
+													}>{ "Refresh Metadata" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
 														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
 													}>{ "Search For Person" }</div>
@@ -381,7 +381,7 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay),
 
 	// Popup Events
-	// UpdateMeta(i64),
+	UpdateMeta(i64),
 }
 
 

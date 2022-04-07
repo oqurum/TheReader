@@ -85,7 +85,7 @@ impl Task for TaskLibraryScan {
 #[derive(Clone)]
 pub enum UpdatingMetadata {
 	AutoMatchInvalid,
-	AutoMatchSingleFileId(i64),
+	AutoMatchMetaId(i64),
 	SpecificMatchSingleMetaId {
 		meta_id: i64,
 		source: String,
@@ -143,66 +143,68 @@ impl Task for TaskUpdateInvalidMetadata {
 			}
 
 			// TODO: Check how long it has been since we've refreshed metadata if auto-ran.
-			UpdatingMetadata::AutoMatchSingleFileId(file_id) => {
-				println!("Finding Metadata for File ID: {}", file_id);
+			UpdatingMetadata::AutoMatchMetaId(meta_id) => {
+				println!("Finding Metadata for current Metadata ID: {}", meta_id);
 
-				let fm = db.find_file_by_id_with_metadata(file_id)?.unwrap();
+				// TODO: Remove file aspect of get_metadata or add Vec<File> to get_metadata
 
-				match get_metadata(&fm.file, fm.meta.as_ref(), db).await {
-					Ok(Some(mut ret)) => {
-						let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
+				// let fm = db.find_file_by_id_with_metadata(meta_id)?.unwrap();
 
-						let MetadataReturned { mut meta, publisher, .. } = ret;
+				// match get_metadata(&fm.file, fm.meta.as_ref(), db).await {
+				// 	Ok(Some(mut ret)) => {
+				// 		let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
-						// TODO: Store Publisher inside Database
-						meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+				// 		let MetadataReturned { mut meta, publisher, .. } = ret;
 
-						if let Some(fm_meta) = fm.meta {
-							meta.id = fm_meta.id;
-							meta.library_id = fm_meta.library_id;
-							meta.rating = fm_meta.rating;
-							meta.deleted_at = fm_meta.deleted_at;
-							meta.file_item_count = fm_meta.file_item_count;
-							meta.cached.overwrite_with(fm_meta.cached);
+				// 		// TODO: Store Publisher inside Database
+				// 		meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
-							if fm_meta.title != fm_meta.original_title {
-								meta.title = fm_meta.title;
-							}
+				// 		if let Some(fm_meta) = fm.meta {
+				// 			meta.id = fm_meta.id;
+				// 			meta.library_id = fm_meta.library_id;
+				// 			meta.rating = fm_meta.rating;
+				// 			meta.deleted_at = fm_meta.deleted_at;
+				// 			meta.file_item_count = fm_meta.file_item_count;
+				// 			meta.cached.overwrite_with(fm_meta.cached);
 
-							match (meta.thumb_path.is_some(), fm_meta.thumb_path.is_some()) {
-								// No new thumb, but we have an old one. Set old one as new one.
-								(false, true) => {
-									meta.thumb_path = fm_meta.thumb_path;
-								}
+				// 			if fm_meta.title != fm_meta.original_title {
+				// 				meta.title = fm_meta.title;
+				// 			}
 
-								// Both have a poster and they're both different.
-								(true, true) if meta.thumb_path != fm_meta.thumb_path => {
-									// Remove old poster.
-									let loc = ThumbnailLocation::from(fm_meta.thumb_path.unwrap());
-									let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
-									tokio::fs::remove_file(path).await?;
-								}
+				// 			match (meta.thumb_path.is_some(), fm_meta.thumb_path.is_some()) {
+				// 				// No new thumb, but we have an old one. Set old one as new one.
+				// 				(false, true) => {
+				// 					meta.thumb_path = fm_meta.thumb_path;
+				// 				}
 
-								_ => ()
-							}
+				// 				// Both have a poster and they're both different.
+				// 				(true, true) if meta.thumb_path != fm_meta.thumb_path => {
+				// 					// Remove old poster.
+				// 					let loc = ThumbnailLocation::from(fm_meta.thumb_path.unwrap());
+				// 					let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
+				// 					tokio::fs::remove_file(path).await?;
+				// 				}
 
-							// TODO: Only if metadata exists and IS the same source.
-							meta.created_at = fm_meta.created_at;
-						}
+				// 				_ => ()
+				// 			}
 
-						db.update_metadata(&meta)?;
+				// 			// TODO: Only if metadata exists and IS the same source.
+				// 			meta.created_at = fm_meta.created_at;
+				// 		}
 
-						for person_id in author_ids {
-							db.add_meta_person(&MetadataPerson {
-								metadata_id: meta.id,
-								person_id,
-							})?;
-						}
-					}
+				// 		db.update_metadata(&meta)?;
 
-					Ok(None) => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
-					Err(e) => eprintln!("Metadata Grabber Error: {}", e)
-				}
+				// 		for person_id in author_ids {
+				// 			db.add_meta_person(&MetadataPerson {
+				// 				metadata_id: meta.id,
+				// 				person_id,
+				// 			})?;
+				// 		}
+				// 	}
+
+				// 	Ok(None) => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
+				// 	Err(e) => eprintln!("Metadata Grabber Error: {}", e)
+				// }
 			}
 
 			UpdatingMetadata::SpecificMatchSingleMetaId { meta_id: old_meta_id, source } => {

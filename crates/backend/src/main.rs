@@ -322,8 +322,8 @@ async fn run_task(modify: web::Json<api::RunTaskBody>) -> HttpResponse {
 #[post("/api/metadata")] // TODO: use media_id in url
 async fn update_item_metadata(body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	match body.into_inner() {
-		api::PostMetadataBody::AutoMatchByFileId(file_id) => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchSingleFileId(file_id)));
+		api::PostMetadataBody::AutoMatchByMetaId(file_id) => {
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchMetaId(file_id)));
 		}
 
 		api::PostMetadataBody::UpdateMetaBySource { meta_id, source } => {
