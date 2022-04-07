@@ -115,7 +115,7 @@ impl Task for TaskUpdateInvalidMetadata {
 						match get_metadata(&file, None, db).await {
 							Ok(meta) => {
 								if let Some(mut ret) = meta {
-									let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db)?;
+									let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
 									let MetadataReturned { mut meta, publisher, .. } = ret;
 
@@ -150,7 +150,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 				match get_metadata(&fm.file, fm.meta.as_ref(), db).await {
 					Ok(Some(mut ret)) => {
-						let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db)?;
+						let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
 						let MetadataReturned { mut meta, publisher, .. } = ret;
 
@@ -241,7 +241,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 							let old_meta = db.get_metadata_by_id(old_meta_id)?.unwrap();
 
-							let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db)?;
+							let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
 							let MetadataReturned { mut meta, publisher, .. } = new_meta;
 

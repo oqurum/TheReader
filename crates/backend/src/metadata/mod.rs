@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use books_common::SearchFor;
 use chrono::Utc;
 
-use crate::database::{table::{MetadataItem, File, self}, Database};
+use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
 
 use self::{
 	google_books::GoogleBooksMetadata,
@@ -125,7 +125,7 @@ pub struct MetadataReturned {
 
 impl MetadataReturned {
 	/// Returns (Main Author, Person IDs)
-	pub fn add_or_ignore_authors_into_database(&mut self, db: &Database) -> Result<(Option<String>, Vec<i64>)> {
+	pub async fn add_or_ignore_authors_into_database(&mut self, db: &Database) -> Result<(Option<String>, Vec<i64>)> {
 		let mut main_author = None;
 		let mut person_ids = Vec::new();
 
@@ -142,12 +142,33 @@ impl MetadataReturned {
 					continue;
 				}
 
+				let mut thumb_url = None;
+
+				// Download thumb url and store it.
+				if let Some(url) = author_info.cover_image {
+					let resp = reqwest::get(url).await?;
+
+					if resp.status().is_success() {
+						let bytes = resp.bytes().await?;
+
+						match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
+							Ok(path) => thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
+							Err(e) => {
+								eprintln!("add_or_ignore_authors_into_database Error: {}", e);
+							}
+						}
+					} else {
+						let text = resp.text().await;
+						eprintln!("add_or_ignore_authors_into_database Error: {:?}", text);
+					}
+				}
+
 				let author = table::NewTagPerson {
 					source: author_info.source,
 					name: author_info.name,
 					description: author_info.description,
 					birth_date: author_info.birth_date,
-					thumb_url: author_info.cover_image,
+					thumb_url,
 					// TODO: death_date: author_info.death_date,
 					updated_at: Utc::now(),
 					created_at: Utc::now(),
