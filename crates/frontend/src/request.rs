@@ -70,6 +70,7 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
 	if let Some(value) = limit {
 		url += "limit=";
 		url += &value.to_string();
+		url += "&";
 	}
 
 	if let Some(value) = query {
