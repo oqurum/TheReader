@@ -250,10 +250,7 @@ impl Component for AuthorListPage {
 																													let source = source.clone();
 
 																													async move {
-																														// request::update_metadata(&api::PostMetadataBody::UpdateMetaBySource {
-																														// 	person_id,
-																														// 	source
-																														// }).await;
+																														request::update_person(person_id, &api::PostPersonBody::UpdateBySource(source)).await;
 
 																														Msg::Ignore
 																													}
