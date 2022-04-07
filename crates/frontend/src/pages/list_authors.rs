@@ -86,7 +86,7 @@ impl Component for AuthorListPage {
 
 				ctx.link()
 				.send_future(async move {
-					Msg::PeopleListResults(request::get_people(offset, None).await)
+					Msg::PeopleListResults(request::get_people(None, offset, None).await)
 				});
 			}
 

@@ -58,7 +58,7 @@ pub async fn update_person(id: i64, value: &PostPersonBody) {
 	).await.ok();
 }
 
-pub async fn get_people(offset: Option<usize>, limit: Option<usize>) -> GetPeopleResponse {
+pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Option<usize>) -> GetPeopleResponse {
 	let mut url = String::from("/api/people?");
 
 	if let Some(value) = offset {
@@ -72,7 +72,16 @@ pub async fn get_people(offset: Option<usize>, limit: Option<usize>) -> GetPeopl
 		url += &value.to_string();
 	}
 
-	fetch("GET", &url, Option::<&()>::None).await.unwrap()
+	if let Some(value) = query {
+		url += "query=";
+		url += &urlencoding::encode(value);
+	}
+
+	fetch(
+		"GET",
+		&url,
+		Option::<&()>::None
+	).await.unwrap()
 }
 
 

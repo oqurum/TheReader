@@ -166,6 +166,7 @@ pub struct RunTaskBody {
 pub struct SimpleListQuery {
 	pub offset: Option<usize>,
 	pub limit: Option<usize>,
+	pub query: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

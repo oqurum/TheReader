@@ -9,13 +9,12 @@ use crate::{database::Database, task::{self, queue_task_priority}, queue_task, T
 pub async fn load_author_list(
 	db: web::Data<Database>,
 	query: web::Query<api::SimpleListQuery>,
-	body: web::Json<api::GetPeopleSearch>
 ) -> web::Json<api::GetPeopleResponse> {
 	let offset = query.offset.unwrap_or(0);
 	let limit = query.offset.unwrap_or(50);
 
 	// Return Searched People
-	if let Some(query) = body.query.as_deref() {
+	if let Some(query) = query.query.as_deref() {
 		let items = db.search_person_list(query, offset, limit)
 			.unwrap()
 			.into_iter()
