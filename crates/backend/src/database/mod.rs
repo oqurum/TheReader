@@ -179,6 +179,8 @@ pub async fn init() -> Result<Database> {
 			"description"	TEXT,
 			"birth_date"	TEXT,
 
+			"thumb_url"		TEXT,
+
 			"updated_at" 	DATETIME NOT NULL,
 			"created_at" 	DATETIME NOT NULL,
 
@@ -677,11 +679,11 @@ impl Database {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
-			INSERT INTO tag_person (source, name, description, birth_date, updated_at, created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+			INSERT INTO tag_person (source, name, description, birth_date, thumb_url, updated_at, created_at)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 		"#,
 		params![
-			&person.source, &person.name, &person.description, &person.birth_date,
+			&person.source, &person.name, &person.description, &person.birth_date, &person.thumb_url,
 			person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 		])?;
 

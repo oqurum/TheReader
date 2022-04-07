@@ -21,6 +21,8 @@ pub struct Person {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
+	pub thumb_url: Option<String>,
+
 	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
 	pub updated_at: DateTime<Utc>,
 	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]

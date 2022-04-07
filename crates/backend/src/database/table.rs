@@ -454,6 +454,8 @@ pub struct NewTagPerson {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
+	pub thumb_url: Option<String>,
+
 	pub updated_at: DateTime<Utc>,
 	pub created_at: DateTime<Utc>,
 }
@@ -467,6 +469,8 @@ pub struct TagPerson {
 	pub name: String,
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
+
+	pub thumb_url: Option<String>,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub updated_at: DateTime<Utc>,
@@ -487,22 +491,25 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 			description: value.get(3)?,
 			birth_date: value.get(4)?,
 
-			created_at: Utc.timestamp_millis(value.get(5)?),
-			updated_at: Utc.timestamp_millis(value.get(6)?),
+			thumb_url: value.get(5)?,
+
+			created_at: Utc.timestamp_millis(value.get(6)?),
+			updated_at: Utc.timestamp_millis(value.get(7)?),
 		})
 	}
 }
 
-impl Into<Person> for TagPerson {
-	fn into(self) -> Person {
+impl From<TagPerson> for Person {
+	fn from(val: TagPerson) -> Self {
 		Person {
-			id: self.id,
-			source: self.source,
-			name: self.name,
-			description: self.description,
-			birth_date: self.birth_date,
-			updated_at: self.updated_at,
-			created_at: self.created_at,
+			id: val.id,
+			source: val.source,
+			name: val.name,
+			description: val.description,
+			birth_date: val.birth_date,
+			thumb_url: val.thumb_url,
+			updated_at: val.updated_at,
+			created_at: val.created_at,
 		}
 	}
 }

@@ -147,6 +147,7 @@ impl MetadataReturned {
 					name: author_info.name,
 					description: author_info.description,
 					birth_date: author_info.birth_date,
+					thumb_url: author_info.cover_image,
 					// TODO: death_date: author_info.death_date,
 					updated_at: Utc::now(),
 					created_at: Utc::now(),
