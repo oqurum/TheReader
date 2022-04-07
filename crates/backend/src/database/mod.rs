@@ -688,6 +688,16 @@ impl Database {
 		Ok(conn.last_insert_rowid())
 	}
 
+	pub fn get_person_list(&self, offset: usize, limit: usize) -> Result<Vec<TagPerson>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare(r#"SELECT * FROM tag_person LIMIT ?1 OFFSET ?2"#)?;
+
+		let map = conn.query_map([limit, offset], |v| TagPerson::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
 	pub fn get_person_by_name(&self, value: &str) -> Result<Option<TagPerson>> {
 		let person = self.lock()?.query_row(
 			r#"SELECT * FROM tag_person WHERE name = ?1 LIMIT 1"#,
@@ -720,6 +730,9 @@ impl Database {
 		).optional()?)
 	}
 
+	pub fn get_person_count(&self) -> Result<usize> {
+		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM tag_person"#, [], |v| v.get(0))?)
+	}
 
 	// Person Alt
 

@@ -71,6 +71,9 @@ pub enum Route {
 	#[at("/read/:book_id")]
 	ReadBook { book_id: usize },
 
+	#[at("/people")]
+	People,
+
 	#[at("/options")]
 	Options,
 
@@ -93,6 +96,10 @@ fn switch(route: &Route, _link: Scope<Model>) -> Html {
 
 		Route::ReadBook { book_id } => {
 			html! { <pages::ReadingBook id={book_id}  /> }
+		}
+
+		Route::People => {
+			html! { <pages::AuthorListPage /> }
 		}
 
 		Route::Options => {

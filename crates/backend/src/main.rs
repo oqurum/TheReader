@@ -95,14 +95,14 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 
 	let path = format!("/api/book/{}/res", book_id);
 
-	let mut chapters = Vec::new();
+	let mut items = Vec::new();
 
 	for chap in start_chap..end_chap {
 		book.set_chapter(chap);
 
 		// TODO: Return file names along with Chapter. Useful for redirecting to certain chapter for <a> tags.
 
-		chapters.push(Chapter {
+		items.push(Chapter {
 			file_path: book.get_page_path(),
 			value: chap,
 			html: book.read_page_as_string(Some(&path), Some(&[
@@ -115,7 +115,7 @@ async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> 
 		offset: start_chap,
 		limit: end_chap - start_chap,
 		total: book.chapter_count(),
-		chapters
+		items
 	})
 }
 
@@ -407,6 +407,26 @@ async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookList
 }
 
 
+#[get("/api/people")]
+async fn load_author_list(db: web::Data<Database>, query: web::Query<api::SimpleListQuery>) -> web::Json<api::GetPeopleResponse> {
+	let offset = query.offset.unwrap_or(0);
+	let limit = query.offset.unwrap_or(50);
+
+	let items = db.get_person_list(offset, limit)
+		.unwrap()
+		.into_iter()
+		.map(|v| v.into())
+		.collect();
+
+	web::Json(api::GetPeopleResponse {
+		offset,
+		limit,
+		total: db.get_person_count().unwrap(),
+		items
+	})
+}
+
+
 #[get("/api/libraries")]
 async fn load_library_list(db: web::Data<Database>) -> web::Json<api::GetLibrariesResponse> {
 	web::Json(api::GetLibrariesResponse {
@@ -444,7 +464,7 @@ async fn main() -> std::io::Result<()> {
 
 	task::start_task_manager(db_data.clone());
 
-	println!("Starting HTTP Server");
+	println!("Starting HTTP Server on port 8084");
 
 	HttpServer::new(move || {
 		App::new()
@@ -462,12 +482,13 @@ async fn main() -> std::io::Result<()> {
 			.service(load_metadata_thumbnail)
 			.service(load_resource)
 			.service(load_book_list)
+			.service(load_author_list)
+			.service(load_library_list)
 			.service(progress_book_add)
 			.service(progress_book_delete)
 			.service(notes_book_get)
 			.service(notes_book_add)
 			.service(notes_book_delete)
-			.service(load_library_list)
 			.service(load_options)
 			.service(update_options_add)
 			.service(update_options_remove)

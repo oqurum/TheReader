@@ -1,4 +1,4 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person};
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
@@ -490,6 +490,20 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 			created_at: Utc.timestamp_millis(value.get(5)?),
 			updated_at: Utc.timestamp_millis(value.get(6)?),
 		})
+	}
+}
+
+impl Into<Person> for TagPerson {
+	fn into(self) -> Person {
+		Person {
+			id: self.id,
+			source: self.source,
+			name: self.name,
+			description: self.description,
+			birth_date: self.birth_date,
+			updated_at: self.updated_at,
+			created_at: self.created_at,
+		}
 	}
 }
 

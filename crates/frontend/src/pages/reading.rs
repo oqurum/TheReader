@@ -112,7 +112,7 @@ impl Component for ReadingBook {
 				self.last_grabbed_count = info.limit;
 				chap_container.total = info.total;
 
-				chap_container.chapters.append(&mut info.chapters);
+				chap_container.chapters.append(&mut info.items);
 			}
 
 			Msg::RetrieveBook(resp) => {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person};
 
 
 // Libraries
@@ -37,13 +37,8 @@ pub struct BookListQuery {
 
 
 
-#[derive(Serialize, Deserialize)]
-pub struct GetChaptersResponse {
-	pub offset: usize,
-	pub limit: usize,
-	pub total: usize,
-	pub chapters: Vec<Chapter>
-}
+pub type GetChaptersResponse = QueryListResponse<Chapter>;
+pub type GetPeopleResponse = QueryListResponse<Person>;
 
 
 // Options
@@ -109,4 +104,20 @@ pub struct RunTaskBody {
 	pub run_search: bool,
 	#[serde(default)]
 	pub run_metadata: bool
+}
+
+
+
+#[derive(Deserialize)]
+pub struct SimpleListQuery {
+	pub offset: Option<usize>,
+	pub limit: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct QueryListResponse<V> {
+	pub offset: usize,
+	pub limit: usize,
+	pub total: usize,
+	pub items: Vec<V>
 }

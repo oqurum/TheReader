@@ -9,6 +9,31 @@ pub mod api;
 pub mod util;
 
 
+// Used for People View
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Person {
+	pub id: i64,
+
+	pub source: String,
+
+	pub name: String,
+	pub description: Option<String>,
+	pub birth_date: Option<String>,
+
+	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+	pub created_at: DateTime<Utc>,
+}
+
+impl PartialEq for Person {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
+	}
+}
+
+
 // Used for Library View
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

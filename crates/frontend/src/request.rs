@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse}, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse}, Progression};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
@@ -36,6 +36,27 @@ pub async fn get_media_view(metadata_id: usize) -> MediaViewResponse {
 
 pub async fn search_for_books(search: &str) -> MetadataSearchResponse {
 	fetch("GET", &format!("/api/metadata/search?query={}", urlencoding::encode(search)), Option::<&()>::None).await.unwrap()
+}
+
+
+// People
+
+
+pub async fn get_people(offset: Option<usize>, limit: Option<usize>) -> GetPeopleResponse {
+	let mut url = String::from("/api/people?");
+
+	if let Some(value) = offset {
+		url += "offset=";
+		url += &value.to_string();
+		url += "&";
+	}
+
+	if let Some(value) = limit {
+		url += "limit=";
+		url += &value.to_string();
+	}
+
+	fetch("GET", &url, Option::<&()>::None).await.unwrap()
 }
 
 
