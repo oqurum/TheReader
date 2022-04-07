@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType};
 
 
 // Libraries
@@ -80,15 +80,53 @@ pub enum PostMetadataBody {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetMetadataSearch {
 	pub query: String,
+	pub search_type: SearchType,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetadataSearchResponse {
-	pub items: HashMap<String, Vec<MetadataSearchItem>>
+	pub items: HashMap<String, Vec<SearchItem>>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MetadataSearchItem {
+pub enum SearchItem {
+	Book(MetadataBookSearchItem),
+	Person(MetadataPersonSearchItem),
+}
+
+impl SearchItem {
+	pub fn as_book(&self) -> &MetadataBookSearchItem {
+		match self {
+			Self::Book(v) => v,
+			_ => unreachable!()
+		}
+	}
+
+	pub fn as_person(&self) -> &MetadataPersonSearchItem {
+		match self {
+			Self::Person(v) => v,
+			_ => unreachable!()
+		}
+	}
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MetadataPersonSearchItem {
+	pub source: String,
+
+	pub cover_image: Option<String>,
+
+	pub name: String,
+	pub other_names: Option<Vec<String>>,
+	pub description: Option<String>,
+
+	pub birth_date: Option<String>,
+	pub death_date: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MetadataBookSearchItem {
 	pub source: String,
 	pub author: Option<String>,
 	pub thumbnail: Option<String>,

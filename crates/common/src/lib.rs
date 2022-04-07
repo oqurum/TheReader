@@ -260,3 +260,23 @@ impl MetadataItemCached {
 		self
 	}
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum SearchType {
+	Book,
+	Person
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum SearchFor {
+	Book(SearchForBooksBy),
+	Person,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum SearchForBooksBy {
+	Query,
+	Title,
+	AuthorName,
+	Contents,
+}

@@ -598,6 +598,40 @@ body {
 	}
 }
 
+.external-person-search-popup {
+	//
+
+	> .external-person-search-container {
+		overflow-y: auto;
+
+		> h2 {
+			margin-bottom: 0.5em;
+		}
+
+		> .person-search-items {
+			max-height: 25em;
+			overflow-y: auto;
+			background-color: var(--surface1);
+			margin-right: 10px;
+
+			> .person-search-item {
+				display: flex;
+				margin-bottom: 0.5em;
+				cursor: pointer;
+
+				> img {
+					height: 8em;
+				}
+
+				> .person-info {
+					//
+				}
+			}
+		}
+	}
+}
+
+
 
 .person-container {
 	display: flex;
@@ -605,12 +639,17 @@ body {
 	transition: border 0.25s;
 	padding: 0.5em;
 	width: 10em;
+	cursor: pointer;
 
 	border-radius: var(--radius-2);
 	border: var(--border-size-1) solid transparent;
 
 	&:hover {
 		border-color: var(--brand);
+
+		> .photo > .bottom-right {
+			display: block;
+		}
 	}
 
 	> .photo {
@@ -624,6 +663,14 @@ body {
 			height: 100%;
 			object-fit: cover;
 			border-radius: var(--radius-blob-5);
+		}
+
+		.bottom-right {
+			z-index: 99;
+			position: absolute;
+			bottom: 0px;
+			right: 3px;
+			display: none;
 		}
 	}
 

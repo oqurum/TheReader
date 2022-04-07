@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use books_common::SearchFor;
 use chrono::Utc;
 
 use crate::database::{table::{MetadataItem, File, self}, Database};
@@ -88,21 +89,6 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 	);
 
 	Ok(map)
-}
-
-
-#[derive(Debug, Clone, Copy)]
-pub enum SearchFor {
-	Book(SearchForBooksBy),
-	Author,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum SearchForBooksBy {
-	Query,
-	Title,
-	AuthorName,
-	Contents,
 }
 
 

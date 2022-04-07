@@ -1,4 +1,4 @@
-use books_common::{api, DisplayItem};
+use books_common::{api, DisplayItem, SearchType};
 use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlInputElement, HtmlElement};
@@ -221,7 +221,7 @@ impl Component for LibraryPage {
 
 															let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
 
-															Msg::BookSearchResults(input.value(), request::search_for_books(&input.value()).await)
+															Msg::BookSearchResults(input.value(), request::search_for(&input.value(), SearchType::Book).await)
 														})
 													}>{ "Search" }</button>
 												</form>
@@ -240,6 +240,8 @@ impl Component for LibraryPage {
 																						{
 																							for items.iter()
 																								.map(|item| {
+																									let item = item.as_book();
+
 																									let source = item.source.clone();
 
 																									html! { // TODO: Place into own component.

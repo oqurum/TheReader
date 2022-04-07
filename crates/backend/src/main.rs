@@ -7,7 +7,7 @@ use std::io::Read;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{get, web, App, HttpServer, cookie::SameSite, HttpResponse, post, delete};
 
-use books_common::{Chapter, api, Progression, LibraryColl, DisplayItem};
+use books_common::{Chapter, api, Progression, LibraryColl, DisplayItem, SearchType, SearchFor, SearchForBooksBy};
 use bookie::Book;
 use futures::TryStreamExt;
 
@@ -358,7 +358,11 @@ async fn get_all_metadata_comp(meta_id: web::Path<i64>, db: web::Data<Database>)
 async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> web::Json<api::MetadataSearchResponse> {
 	let search = metadata::search_all_agents(
 		&body.query,
-		metadata::SearchFor::Book(metadata::SearchForBooksBy::Query)
+		match body.search_type {
+			// TODO: Allow for use in Query.
+			SearchType::Book => SearchFor::Book(SearchForBooksBy::Query),
+			SearchType::Person => SearchFor::Person
+		}
 	).await.unwrap();
 
 	web::Json(api::MetadataSearchResponse {
@@ -366,17 +370,31 @@ async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> web::J
 			.map(|(a, b)| (
 				a.to_owned(),
 				b.into_iter().map(|v| {
-					let book = match v {
-						metadata::SearchItem::Book(v) => v,
-						_ => unreachable!()
-					};
+					match v {
+						metadata::SearchItem::Book(book) => {
+							api::SearchItem::Book(api::MetadataBookSearchItem {
+								source: book.source,
+								author: book.cached.author,
+								description: book.description,
+								name: book.original_title.or(book.title).unwrap_or_else(|| String::from("Unknown title")),
+								thumbnail: book.thumb_path
+							})
+						}
 
-					api::MetadataSearchItem {
-						source: book.source,
-						author: book.cached.author,
-						description: book.description,
-						name: book.original_title.or(book.title).unwrap_or_else(|| String::from("Unknown title")),
-						thumbnail: book.thumb_path
+						metadata::SearchItem::Author(author) => {
+							api::SearchItem::Person(api::MetadataPersonSearchItem {
+								source: author.source,
+
+								cover_image: author.cover_image,
+
+								name: author.name,
+								other_names: author.other_names,
+								description: author.description,
+
+								birth_date: author.birth_date,
+								death_date: author.death_date,
+							})
+						}
 					}
 				}).collect()
 			))

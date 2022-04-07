@@ -2,14 +2,14 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use books_common::MetadataItemCached;
+use books_common::{MetadataItemCached, SearchForBooksBy};
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::table::{MetadataItem, File}, ThumbnailType};
 use self::book::BookSearchType;
 
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo, SearchForBooksBy};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo};
 
 pub mod book;
 pub mod author;
@@ -71,7 +71,7 @@ impl Metadata for OpenLibraryMetadata {
 
 	async fn search(&mut self, value: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		match search_for {
-			SearchFor::Author => {
+			SearchFor::Person => {
 				if let Some(found) = author::search_for_authors(value).await? {
 					let mut authors = Vec::new();
 

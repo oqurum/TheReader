@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse}, Progression};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse}, Progression, SearchFor, SearchForBooksBy, SearchType};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
@@ -34,8 +34,16 @@ pub async fn get_media_view(metadata_id: usize) -> MediaViewResponse {
 }
 
 
-pub async fn search_for_books(search: &str) -> MetadataSearchResponse {
-	fetch("GET", &format!("/api/metadata/search?query={}", urlencoding::encode(search)), Option::<&()>::None).await.unwrap()
+pub async fn search_for(search: &str, search_for: SearchType) -> MetadataSearchResponse {
+	fetch(
+		"GET",
+		&format!(
+			"/api/metadata/search?query={}&search_type={}",
+			urlencoding::encode(search),
+			serde_json::to_string(&search_for).unwrap().replace('"', "")
+		),
+		Option::<&()>::None
+	).await.unwrap()
 }
 
 

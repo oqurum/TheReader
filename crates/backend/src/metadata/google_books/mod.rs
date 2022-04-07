@@ -7,12 +7,12 @@ use std::collections::HashMap;
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
-use books_common::MetadataItemCached;
+use books_common::{MetadataItemCached, SearchForBooksBy};
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::table::{MetadataItem, File}, ThumbnailType};
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor, SearchForBooksBy};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
 
 pub struct GoogleBooksMetadata;
 
@@ -62,7 +62,7 @@ impl Metadata for GoogleBooksMetadata {
 
 	async fn search(&mut self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		match search_for {
-			SearchFor::Author => Ok(Vec::new()),
+			SearchFor::Person => Ok(Vec::new()),
 
 			SearchFor::Book(specifically) => {
 				let url = format!("https://www.googleapis.com/books/v1/volumes?q={}", match specifically {
