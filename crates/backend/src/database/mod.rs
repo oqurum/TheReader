@@ -700,6 +700,16 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
+	pub fn search_person_list(&self, query: &str, offset: usize, limit: usize) -> Result<Vec<TagPerson>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare(r#"SELECT * FROM tag_person WHERE name = ?1 LIMIT ?2 OFFSET ?3"#)?;
+
+		let map = conn.query_map(params![query, limit, offset], |v| TagPerson::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
 	pub fn get_person_by_name(&self, value: &str) -> Result<Option<TagPerson>> {
 		let person = self.lock()?.query_row(
 			r#"SELECT * FROM tag_person WHERE name = ?1 LIMIT 1"#,

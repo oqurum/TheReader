@@ -4,26 +4,51 @@ use books_common::api;
 use crate::{database::Database, task::{self, queue_task_priority}, queue_task, ThumbnailLocation};
 
 
+// Get List Of People and Search For People
 #[get("/api/people")]
-pub async fn load_author_list(db: web::Data<Database>, query: web::Query<api::SimpleListQuery>) -> web::Json<api::GetPeopleResponse> {
+pub async fn load_author_list(
+	db: web::Data<Database>,
+	query: web::Query<api::SimpleListQuery>,
+	body: web::Json<api::GetPeopleSearch>
+) -> web::Json<api::GetPeopleResponse> {
 	let offset = query.offset.unwrap_or(0);
 	let limit = query.offset.unwrap_or(50);
 
-	let items = db.get_person_list(offset, limit)
-		.unwrap()
-		.into_iter()
-		.map(|v| v.into())
-		.collect();
+	// Return Searched People
+	if let Some(query) = body.query.as_deref() {
+		let items = db.search_person_list(query, offset, limit)
+			.unwrap()
+			.into_iter()
+			.map(|v| v.into())
+			.collect();
 
-	web::Json(api::GetPeopleResponse {
-		offset,
-		limit,
-		total: db.get_person_count().unwrap(),
-		items
-	})
+		web::Json(api::GetPeopleResponse {
+			offset,
+			limit,
+			total: 0, // TODO
+			items
+		})
+	}
+
+	// Return All People
+	else {
+		let items = db.get_person_list(offset, limit)
+			.unwrap()
+			.into_iter()
+			.map(|v| v.into())
+			.collect();
+
+		web::Json(api::GetPeopleResponse {
+			offset,
+			limit,
+			total: db.get_person_count().unwrap(),
+			items
+		})
+	}
 }
 
 
+// Person Thumbnail
 #[get("/api/person/{id}/thumbnail")]
 async fn load_person_thumbnail(person_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
 	let meta = db.get_person_by_id(*person_id).unwrap();
@@ -40,7 +65,7 @@ async fn load_person_thumbnail(person_id: web::Path<i64>, db: web::Data<Database
 }
 
 
-
+// Person Tasks - Update Person, Overwrite Person with another source.
 #[post("/api/person/{id}")]
 pub async fn update_person_data(meta_id: web::Path<i64>, body: web::Json<api::PostPersonBody>) -> HttpResponse {
 	let person_id = *meta_id;
@@ -57,3 +82,6 @@ pub async fn update_person_data(meta_id: web::Path<i64>, body: web::Json<api::Po
 
 	HttpResponse::Ok().finish()
 }
+
+
+// Search People

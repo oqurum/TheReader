@@ -53,6 +53,11 @@ pub enum PostPersonBody {
 	UpdateBySource(String),
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetPeopleSearch {
+	pub query: Option<String>
+}
+
 
 
 // Options
