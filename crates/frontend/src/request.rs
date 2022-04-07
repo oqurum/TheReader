@@ -3,7 +3,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse}, Progression, SearchType};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse, PostPersonBody}, Progression, SearchType};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
@@ -49,6 +49,14 @@ pub async fn search_for(search: &str, search_for: SearchType) -> MetadataSearchR
 
 // People
 
+
+pub async fn update_person(id: i64, value: &PostPersonBody) {
+	let _: Option<String> = fetch(
+		"POST",
+		&format!("/api/person/{}", id),
+		Some(value)
+	).await.ok();
+}
 
 pub async fn get_people(offset: Option<usize>, limit: Option<usize>) -> GetPeopleResponse {
 	let mut url = String::from("/api/people?");

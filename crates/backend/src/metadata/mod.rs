@@ -43,11 +43,22 @@ pub trait Metadata {
 
 	fn get_prefix(&self) -> &'static str;
 
+	// Metadata
+
 	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>>;
 
 	async fn get_metadata_by_source_id(&mut self, _value: &str) -> Result<Option<MetadataReturned>> {
 		Ok(None)
 	}
+
+	// Person
+
+	async fn get_person_by_source_id(&mut self, _value: &str) -> Result<Option<AuthorInfo>> {
+		Ok(None)
+	}
+
+
+	// Both
 
 	async fn search(&mut self, _search: &str, _search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		Ok(Vec::new())
@@ -92,17 +103,31 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 }
 
 
+pub async fn get_person_by_source(source: &str, value: &str) -> Result<Option<AuthorInfo>> {
+	match source {
+		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_person_by_source_id(value).await,
+		v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_person_by_source_id(value).await,
+
+		_ => Ok(None)
+	}
+}
+
+
+
+
 #[derive(Debug)]
 pub enum SearchItem {
 	Author(AuthorInfo),
 	Book(MetadataItem)
 }
 
+
+
 #[derive(Debug)]
 pub struct AuthorInfo {
 	pub source: String,
 
-	pub cover_image: Option<String>,
+	pub cover_image_url: Option<String>,
 
 	pub name: String,
 	pub other_names: Option<Vec<String>>,
@@ -145,7 +170,7 @@ impl MetadataReturned {
 				let mut thumb_url = None;
 
 				// Download thumb url and store it.
-				if let Some(url) = author_info.cover_image {
+				if let Some(url) = author_info.cover_image_url {
 					let resp = reqwest::get(url).await?;
 
 					if resp.status().is_success() {

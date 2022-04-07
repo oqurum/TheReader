@@ -41,6 +41,8 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 			.service(metadata::get_metadata_search)
 			.service(metadata::get_all_metadata_comp)
 			.service(person::load_author_list)
+			.service(person::load_person_thumbnail)
+			.service(person::update_person_data)
 			.service(options::load_options)
 			.service(options::update_options_add)
 			.service(options::update_options_remove)

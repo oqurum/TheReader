@@ -29,6 +29,16 @@ pub struct Person {
 	pub created_at: DateTime<Utc>,
 }
 
+impl Person {
+	pub fn get_thumb_url(&self) -> String {
+		if self.thumb_url.is_some() {
+			format!("/api/person/{}/thumbnail", self.id)
+		} else {
+			String::from("/images/missingperson.jpg")
+		}
+	}
+}
+
 impl PartialEq for Person {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id

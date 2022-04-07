@@ -96,7 +96,7 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> we
 							api::SearchItem::Person(api::MetadataPersonSearchItem {
 								source: author.source,
 
-								cover_image: author.cover_image,
+								cover_image: author.cover_image_url,
 
 								name: author.name,
 								other_names: author.other_names,

@@ -24,6 +24,7 @@ impl Metadata for OpenLibraryMetadata {
 		"openlibrary"
 	}
 
+
 	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
 		use bookie::Book;
 
@@ -69,6 +70,27 @@ impl Metadata for OpenLibraryMetadata {
 		}
 	}
 
+
+	async fn get_person_by_source_id(&mut self, value: &str) -> Result<Option<AuthorInfo>> {
+		match author::get_author_from_url(value).await? {
+			Some(author) => {
+				Ok(Some(AuthorInfo {
+					source: self.prefix_text(value),
+					name: author.name.clone(),
+					other_names: author.alternate_names,
+					description: author.bio.map(|v| v.into_content()),
+					// Using value since it should always be value "OLXXXXXA" which is Olid
+					cover_image_url: Some(self::CoverId::Olid(value.to_string()).get_author_cover_url()),
+					birth_date: author.birth_date,
+					death_date: author.death_date,
+				}))
+			}
+
+			None => Ok(None)
+		}
+	}
+
+
 	async fn search(&mut self, value: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
 		match search_for {
 			SearchFor::Person => {
@@ -78,7 +100,7 @@ impl Metadata for OpenLibraryMetadata {
 					for item in found.items {
 						authors.push(SearchItem::Author(AuthorInfo {
 							source: self.prefix_text(item.key.as_deref().unwrap()),
-							cover_image: Some(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url()),
+							cover_image_url: Some(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url()),
 							name: item.name.unwrap(),
 							other_names: item.alternate_names,
 							description: None,
@@ -175,19 +197,21 @@ impl OpenLibraryMetadata {
 			println!("[OL]: Grabbing Author: {}", auth_id);
 
 			match author::get_author_from_url(&auth_id).await {
-				Ok(author) => {
+				Ok(Some(author)) => {
 					authors.push(AuthorInfo {
 						source: self.prefix_text(auth_id),
 						name: author.name.clone(),
 						other_names: author.alternate_names,
 						description: author.bio.map(|v| v.into_content()),
-						cover_image: Some(self::CoverId::Olid(author.key).get_author_cover_url()),
+						cover_image_url: Some(self::CoverId::Olid(author.key).get_author_cover_url()),
 						birth_date: author.birth_date,
 						death_date: author.death_date,
 					});
 				}
 
-				Err(e) => eprintln!("[METADATA]: OpenLibrary Error: {}", e),
+				Ok(None) => eprintln!("[METADATA][OL]: Unable to find Author"),
+
+				Err(e) => eprintln!("[METADATA][OL]: OpenLibrary Error: {}", e),
 			}
 		}
 

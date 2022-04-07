@@ -38,7 +38,21 @@ pub struct BookListQuery {
 
 
 pub type GetChaptersResponse = QueryListResponse<Chapter>;
+
+
+
+// People
+
 pub type GetPeopleResponse = QueryListResponse<Person>;
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum PostPersonBody {
+	AutoMatchById,
+
+	UpdateBySource(String),
+}
+
 
 
 // Options

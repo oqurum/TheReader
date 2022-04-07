@@ -3,10 +3,11 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 use actix_web::web;
 use anyhow::Result;
 use async_trait::async_trait;
+use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::{Database, table::MetadataPerson}, ThumbnailLocation, metadata::{MetadataReturned, get_metadata, get_metadata_by_source}};
+use crate::{database::{Database, table}, ThumbnailLocation, metadata::{MetadataReturned, get_metadata, get_metadata_by_source, get_person_by_source}, ThumbnailType};
 
 
 // TODO: A should stop boolean
@@ -82,6 +83,8 @@ impl Task for TaskLibraryScan {
 
 
 
+// Metadata
+
 #[derive(Clone)]
 pub enum UpdatingMetadata {
 	AutoMatchInvalid,
@@ -126,7 +129,7 @@ impl Task for TaskUpdateInvalidMetadata {
 									db.update_file_metadata_id(file.id, meta.id)?;
 
 									for person_id in author_ids {
-										db.add_meta_person(&MetadataPerson {
+										db.add_meta_person(&table::MetadataPerson {
 											metadata_id: meta.id,
 											person_id,
 										})?;
@@ -282,7 +285,7 @@ impl Task for TaskUpdateInvalidMetadata {
 							db.remove_persons_by_meta_id(old_meta_id)?;
 
 							for person_id in author_ids {
-								db.add_meta_person(&MetadataPerson {
+								db.add_meta_person(&table::MetadataPerson {
 									metadata_id: meta.id,
 									person_id,
 								})?;
@@ -296,11 +299,107 @@ impl Task for TaskUpdateInvalidMetadata {
 			}
 		}
 
-
 		Ok(())
 	}
 
 	fn name(&self) ->  &'static str {
 		"Updating Metadata"
+	}
+}
+
+
+
+// People
+
+#[derive(Clone)]
+pub enum UpdatingPeople {
+	AutoUpdateById(i64),
+	UpdatePersonWithSource {
+		person_id: i64,
+		source: String,
+	}
+}
+
+
+pub struct TaskUpdatePeople {
+	state: UpdatingPeople
+}
+
+impl TaskUpdatePeople {
+	pub fn new(state: UpdatingPeople) -> Self {
+		Self {
+			state
+		}
+	}
+}
+
+
+#[async_trait]
+impl Task for TaskUpdatePeople {
+	async fn run(&mut self, db: &Database) -> Result<()> {
+		match self.state.clone() {
+			UpdatingPeople::AutoUpdateById(person_id) => {
+				let mut old_person = db.get_person_by_id(person_id)?.unwrap();
+
+				let (source, value) = old_person.source.split_once(':').unwrap();
+
+				if let Some(new_person) = get_person_by_source(source, value).await? {
+					// TODO: Need to make sure it doesn't conflict with alt names or normal names if different.
+					if old_person.name != new_person.name {
+						println!("TODO: Old Name {:?} != New Name {:?}", old_person.name, new_person.name);
+					}
+
+					// Download thumb url and store it.
+					if let Some(url) = new_person.cover_image_url {
+						let resp = reqwest::get(url).await?;
+
+						if resp.status().is_success() {
+							let bytes = resp.bytes().await?;
+
+							match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
+								Ok(path) => old_person.thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
+								Err(e) => {
+									eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
+								}
+							}
+						} else {
+							let text = resp.text().await;
+							eprintln!("UpdatingPeople::AutoUpdateById (image request) Error: {:?}", text);
+						}
+					}
+
+					if let Some(alts) = new_person.other_names {
+						for name in alts {
+							// Ignore errors. Errors should just be UNIQUE constraint failed
+							if let Err(e) = db.add_person_alt(&table::TagPersonAlt {
+								person_id,
+								name,
+							}) {
+								eprintln!("[TASK]: Add Alt Name Error: {e}");
+							}
+						}
+					}
+
+					old_person.birth_date = new_person.birth_date;
+					old_person.description = new_person.description;
+					old_person.source = new_person.source;
+					old_person.updated_at = Utc::now();
+
+					db.update_person(&old_person).unwrap();
+				} else {
+					println!("[TASK] Unable to find person to auto-update");
+				}
+			}
+
+			UpdatingPeople::UpdatePersonWithSource { person_id, source } => {
+				unimplemented!("UpdatingPeople::UpdatePersonWithSource: {:?}, {:?}", person_id, source);
+			}
+		}
+
+		Ok(())
+	}
+
+	fn name(&self) ->  &'static str {
+		"Updating Person"
 	}
 }

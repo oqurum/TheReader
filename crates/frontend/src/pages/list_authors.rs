@@ -129,10 +129,10 @@ impl Component for AuthorListPage {
 					}
 				}
 
-				PosterItem::UpdateMeta(person_id) => {
+				PosterItem::UpdatePerson(person_id) => {
 					ctx.link()
 					.send_future(async move {
-						// request::update_metadata(person_id, &api::PostMetadataBody::AutoMatchByMetaId).await;
+						request::update_person(person_id, &api::PostPersonBody::AutoMatchById).await;
 
 						Msg::Ignore
 					});
@@ -177,8 +177,8 @@ impl Component for AuthorListPage {
 												<div class="menu-list">
 													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(person_id)))
-													}>{ "Refresh Metadata" }</div>
+														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
+													}>{ "Refresh Person" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
 														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
 													}>{ "Search For Person" }</div>
@@ -348,7 +348,7 @@ impl AuthorListPage {
 					<div class="bottom-right">
 						<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
 					</div>
-					<img src="/images/missingperson.jpg" />
+					<img src={ item.get_thumb_url() } />
 				</div>
 				<span class="title">{ item.name.clone() }</span>
 			</div>
@@ -381,7 +381,7 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay),
 
 	// Popup Events
-	UpdateMeta(i64),
+	UpdatePerson(i64),
 }
 
 

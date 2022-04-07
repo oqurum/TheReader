@@ -736,6 +736,28 @@ impl Database {
 		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM tag_person"#, [], |v| v.get(0))?)
 	}
 
+	pub fn update_person(&self, person: &TagPerson) -> Result<()> {
+		self.lock()?
+		.execute(r#"
+			UPDATE tag_person SET
+				source = ?2,
+				name = ?3,
+				description = ?4,
+				birth_date = ?5,
+				thumb_url = ?6,
+				updated_at = ?7,
+				created_at = ?8
+			WHERE id = ?1"#,
+			params![
+				person.id,
+				&person.source, &person.name, &person.description, &person.birth_date, &person.thumb_url,
+				person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
+			]
+		)?;
+
+		Ok(())
+	}
+
 	// Person Alt
 
 	pub fn add_person_alt(&self, person: &TagPersonAlt) -> Result<()> {

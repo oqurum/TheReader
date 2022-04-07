@@ -42,7 +42,7 @@ impl Metadata for LocalMetadata {
 						name,
 						other_names: None,
 						description: None,
-						cover_image: None,
+						cover_image_url: None,
 						birth_date: None,
 						death_date: None,
 					})
