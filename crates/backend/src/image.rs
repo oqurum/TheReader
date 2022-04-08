@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use books_common::ThumbnailPath;
 use sha2::{Sha256, Digest};
 
 
@@ -70,9 +71,9 @@ impl ThumbnailLocation {
 	}
 }
 
-impl From<String> for ThumbnailLocation {
-	fn from(value: String) -> Self {
-		let (prefix, suffix) = value.split_once(':').unwrap();
+impl From<ThumbnailPath> for ThumbnailLocation {
+	fn from(value: ThumbnailPath) -> Self {
+		let (prefix, suffix) = value.get_prefix_suffix().unwrap();
 
 		match ThumbnailType::from(prefix) {
 			ThumbnailType::Local => Self::Local(suffix.to_owned()),

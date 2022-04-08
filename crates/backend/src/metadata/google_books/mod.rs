@@ -94,7 +94,7 @@ impl Metadata for GoogleBooksMetadata {
 							original_title: Some(item.volume_info.title),
 							description: item.volume_info.description,
 							rating: item.volume_info.average_rating.unwrap_or_default(),
-							thumb_path: Some(format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", item.id)),
+							thumb_path: format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", item.id).into(),
 							cached: MetadataItemCached::default(),
 							refreshed_at: Utc::now(),
 							created_at: Utc::now(),
@@ -176,7 +176,7 @@ impl GoogleBooksMetadata {
 				original_title: Some(value.volume_info.title),
 				description: value.volume_info.description,
 				rating: value.volume_info.average_rating.unwrap_or_default(),
-				thumb_path: thumb_url,
+				thumb_path: thumb_url.into(),
 				cached: MetadataItemCached::default()
 					.publisher_optional(value.volume_info.publisher)
 					.author_optional(value.volume_info.authors.and_then(|v| v.first().cloned())),

@@ -7,6 +7,9 @@ use util::*;
 
 pub mod api;
 pub mod util;
+pub mod specific;
+
+pub use specific::*;
 
 
 // Used for People View
@@ -21,7 +24,7 @@ pub struct Person {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
-	pub thumb_url: Option<String>,
+	pub thumb_url: ThumbnailPath,
 
 	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
 	pub updated_at: DateTime<Utc>,
@@ -78,7 +81,7 @@ pub struct DisplayMetaItem {
 	pub original_title: Option<String>,
 	pub description: Option<String>,
 	pub rating: f64,
-	pub thumb_path: Option<String>,
+	pub thumb_path: ThumbnailPath,
 
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
 	pub cached: MetadataItemCached,

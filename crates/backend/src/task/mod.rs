@@ -189,7 +189,7 @@ impl Task for TaskUpdateInvalidMetadata {
 							// Both have a poster and they're both different.
 							(true, true) if meta.thumb_path != fm_meta.thumb_path => {
 								// Remove old poster.
-								let loc = ThumbnailLocation::from(fm_meta.thumb_path.unwrap());
+								let loc = ThumbnailLocation::from(fm_meta.thumb_path);
 								let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
 								tokio::fs::remove_file(path).await?;
 							}
@@ -275,7 +275,7 @@ impl Task for TaskUpdateInvalidMetadata {
 								// Both have a poster and they're both different.
 								(true, true) if meta.thumb_path != old_meta.thumb_path => {
 									// Remove old poster.
-									let loc = ThumbnailLocation::from(old_meta.thumb_path.unwrap());
+									let loc = ThumbnailLocation::from(old_meta.thumb_path);
 									let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
 									tokio::fs::remove_file(path).await?;
 								}
@@ -384,7 +384,7 @@ impl TaskUpdatePeople {
 						println!("Cover URL: {}", url);
 
 						match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-							Ok(path) => old_person.thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
+							Ok(path) => old_person.thumb_url = ThumbnailType::Metadata.prefix_text(&path).into(),
 							Err(e) => {
 								eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
 							}

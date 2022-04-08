@@ -265,7 +265,7 @@ impl Component for LibraryPage {
 																												})
 																											}
 																										>
-																											<img src={ item.thumbnail.clone().unwrap_or_default() } />
+																											<img src={ item.thumbnail.to_string() } />
 																											<div class="book-info">
 																												<h4>{ item.name.clone() }</h4>
 																												<span>{ item.author.clone().unwrap_or_default() }</span>

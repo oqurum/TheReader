@@ -1,4 +1,4 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, ThumbnailPath};
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
@@ -19,7 +19,7 @@ pub struct MetadataItem {
 	pub original_title: Option<String>,
 	pub description: Option<String>,
 	pub rating: f64,
-	pub thumb_path: Option<String>,
+	pub thumb_path: ThumbnailPath,
 
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
 	pub cached: MetadataItemCached,
@@ -76,7 +76,7 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			original_title: value.get(5)?,
 			description: value.get(6)?,
 			rating: value.get(7)?,
-			thumb_path: value.get(8)?,
+			thumb_path: ThumbnailPath(value.get(8)?),
 			cached: value.get::<_, Option<String>>(9)?
 				.map(|v| MetadataItemCached::from_string(&v))
 				.unwrap_or_default(),
@@ -454,7 +454,7 @@ pub struct NewTagPerson {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
-	pub thumb_url: Option<String>,
+	pub thumb_url: ThumbnailPath,
 
 	pub updated_at: DateTime<Utc>,
 	pub created_at: DateTime<Utc>,
@@ -470,7 +470,7 @@ pub struct TagPerson {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
-	pub thumb_url: Option<String>,
+	pub thumb_url: ThumbnailPath,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub updated_at: DateTime<Utc>,
@@ -491,7 +491,7 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 			description: value.get(3)?,
 			birth_date: value.get(4)?,
 
-			thumb_url: value.get(5)?,
+			thumb_url: ThumbnailPath(value.get(5)?),
 
 			created_at: Utc.timestamp_millis(value.get(6)?),
 			updated_at: Utc.timestamp_millis(value.get(7)?),
@@ -595,7 +595,7 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 					original_title: value.get(16)?,
 					description: value.get(17)?,
 					rating: value.get(18)?,
-					thumb_path: value.get(19)?,
+					thumb_path: ThumbnailPath(value.get(19)?),
 					cached: value.get::<_, Option<String>>(20)?
 						.map(|v| MetadataItemCached::from_string(&v))
 						.unwrap_or_default(),

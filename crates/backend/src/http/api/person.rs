@@ -53,7 +53,7 @@ pub async fn load_author_list(
 async fn load_person_thumbnail(person_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
 	let meta = db.get_person_by_id(*person_id).unwrap();
 
-	if let Some(path) = meta.and_then(|v| v.thumb_url) {
+	if let Some(path) = meta.map(|v| v.thumb_url) {
 		let loc = ThumbnailLocation::from(path);
 
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
