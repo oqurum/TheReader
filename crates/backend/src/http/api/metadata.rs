@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpResponse, post};
 
-use books_common::{api, SearchType, SearchFor, SearchForBooksBy};
+use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Person};
 
 use crate::{database::Database, task::{queue_task_priority, self}, ThumbnailLocation, queue_task, metadata};
 
@@ -58,10 +58,15 @@ pub async fn get_all_metadata_comp(meta_id: web::Path<i64>, db: web::Data<Databa
 		progress.push(prog.map(|v| v.into()));
 	}
 
+	let people = db.get_person_list_by_meta_id(meta.id).unwrap();
+
 	web::Json(api::MediaViewResponse {
 		metadata: meta.into(),
 		media,
 		progress,
+		people: people.into_iter()
+			.map(|p| p.into())
+			.collect(),
 	})
 }
 

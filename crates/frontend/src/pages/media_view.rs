@@ -40,7 +40,7 @@ impl Component for MediaView {
 	}
 
 	fn view(&self, _ctx: &Context<Self>) -> Html {
-		if let Some(MediaViewResponse { metadata, media, progress }) = self.media.as_ref() {
+		if let Some(MediaViewResponse { people, metadata, media, progress }) = self.media.as_ref() {
 			let media_prog = media.iter().zip(progress.iter());
 
 			html! {
@@ -87,14 +87,14 @@ impl Component for MediaView {
 					</section>
 
 					<section>
-						<h2>{ "Creators" }</h2>
+						<h2>{ "People" }</h2>
 						<div class="authors-container">
 							{
-								for metadata.cached.author.clone().into_iter().map(|name| {
+								for people.iter().map(|person| {
 									html! {
 										<div class="person-item">
-											<div class="photo"><img src="/images/missingperson.jpg" /></div>
-											<span class="title">{ name }</span>
+											<div class="photo"><img src={ person.get_thumb_url() } /></div>
+											<span class="title">{ person.name.clone() }</span>
 										</div>
 									}
 								})

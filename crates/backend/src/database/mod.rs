@@ -727,6 +727,21 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
+	pub fn get_person_list_by_meta_id(&self, id: i64) -> Result<Vec<TagPerson>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare(r#"
+			SELECT tag_person.* FROM metadata_person
+			LEFT JOIN
+				tag_person ON tag_person.id = metadata_person.person_id
+			WHERE metadata_id = ?1
+		"#)?;
+
+		let map = conn.query_map([id], |v| TagPerson::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
 	pub fn search_person_list(&self, query: &str, offset: usize, limit: usize) -> Result<Vec<TagPerson>> {
 		let mut escape_char = '\\';
 		// Change our escape character if it's in the query.
