@@ -410,6 +410,8 @@ impl TaskUpdatePeople {
 			old_person.updated_at = Utc::now();
 
 			db.update_person(&old_person).unwrap();
+
+			// TODO: Update Metadata cache
 		} else {
 			println!("[TASK] Unable to find person to auto-update");
 		}

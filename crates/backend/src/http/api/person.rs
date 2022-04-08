@@ -126,11 +126,10 @@ pub async fn update_person_data(meta_id: web::Path<i64>, body: web::Json<api::Po
 
 			// Delete Old Person
 			db.remove_person_by_id(old_person.id).unwrap();
+
+			// TODO: Update Metadata cache
 		}
 	}
 
 	HttpResponse::Ok().finish()
 }
-
-
-// Search People

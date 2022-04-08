@@ -165,7 +165,7 @@ impl Component for AuthorListPage {
 			html! {
 				<div class="person-view-container">
 					<div class="person-list" ref={ self.author_list_ref.clone() }>
-						{ for items.iter().map(|item| Self::render_media_item(item, ctx.link())) }
+						{ for items.iter().map(|item| self.render_media_item(item, ctx.link())) }
 						// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
 
 						{
@@ -424,13 +424,16 @@ impl AuthorListPage {
 	}
 
 	// TODO: Move into own struct.
-	fn render_media_item(item: &Person, scope: &Scope<Self>) -> Html {
+	fn render_media_item(&self, item: &Person, scope: &Scope<Self>) -> Html {
 		let person_id = item.id;
+		let author_list_ref = self.author_list_ref.clone();
 		let on_click_more = scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
 			e.stop_propagation();
 
-			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { person_id, mouse_pos: (e.page_x(), e.page_y()) }))
+			let scroll = author_list_ref.cast::<HtmlElement>().unwrap().scroll_top();
+
+			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { person_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
 		});
 
 		html! {

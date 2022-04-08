@@ -161,7 +161,7 @@ impl Component for LibraryPage {
 			html! {
 				<div class="main-content-view">
 					<div class="library-list normal" ref={ self.library_list_ref.clone() }>
-						{ for items.iter().map(|item| Self::render_media_item(item, ctx.link())) }
+						{ for items.iter().map(|item| self.render_media_item(item, ctx.link())) }
 						// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
 
 						{
@@ -202,8 +202,12 @@ impl Component for LibraryPage {
 											v.to_string()
 										} else {
 											let items = self.media_items.as_ref().unwrap();
-											items.iter().find(|v| v.id == meta_id).unwrap().title.clone()
+											let item = items.iter().find(|v| v.id == meta_id).unwrap();
+
+											format!("{} {}", item.title.clone(), item.cached.author.as_deref().unwrap_or_default())
 										};
+
+										let input_value = input_value.trim().to_string();
 
 										html! {
 											<Popup
@@ -335,13 +339,16 @@ impl LibraryPage {
 	}
 
 	// TODO: Move into own struct.
-	fn render_media_item(item: &DisplayItem, scope: &Scope<Self>) -> Html {
+	fn render_media_item(&self, item: &DisplayItem, scope: &Scope<Self>) -> Html {
 		let meta_id = item.id;
+		let library_list_ref = self.library_list_ref.clone();
 		let on_click_more = scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
 			e.stop_propagation();
 
-			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { meta_id, mouse_pos: (e.page_x(), e.page_y()) }))
+			let scroll = library_list_ref.cast::<HtmlElement>().unwrap().scroll_top();
+
+			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { meta_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
 		});
 
 		html! {
