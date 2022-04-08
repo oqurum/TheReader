@@ -18,7 +18,8 @@ pub enum Msg {
 
 	// Results
 	PeopleListResults(api::GetPeopleResponse),
-	PersonSearchResults(String, api::MetadataSearchResponse),
+	PersonUpdateSearchResults(String, api::MetadataSearchResponse),
+	PersonCombineSearchResults(String, Vec<Person>),
 
 	// Events
 	OnScroll(i32),
@@ -101,8 +102,15 @@ impl Component for AuthorListPage {
 				}
 			}
 
-			Msg::PersonSearchResults(search_value, resp) => {
+			Msg::PersonUpdateSearchResults(search_value, resp) => {
 				if let Some(DisplayOverlay::SearchForPerson { response, input_value, .. }) = self.media_popup.as_mut() {
+					*response = Some(resp);
+					*input_value = Some(search_value);
+				}
+			}
+
+			Msg::PersonCombineSearchResults(search_value, resp) => {
+				if let Some(DisplayOverlay::CombinePersonWith { response, input_value, .. }) = self.media_popup.as_mut() {
 					*response = Some(resp);
 					*input_value = Some(search_value);
 				}
@@ -182,6 +190,9 @@ impl Component for AuthorListPage {
 													<div class="menu-item" yew-close-popup="" onclick={
 														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
 													}>{ "Search For Person" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
+													} title="Join Person into Another">{ "Join Into Person" }</div>
 													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
 														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
@@ -217,7 +228,7 @@ impl Component for AuthorListPage {
 
 															let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
 
-															Msg::PersonSearchResults(input.value(), request::search_for(&input.value(), SearchType::Person).await)
+															Msg::PersonUpdateSearchResults(input.value(), request::search_for(&input.value(), SearchType::Person).await)
 														})
 													}>{ "Search" }</button>
 												</form>
@@ -271,6 +282,89 @@ impl Component for AuthorListPage {
 																			}
 																		})
 																}
+															}
+														} else {
+															html! {}
+														}
+													}
+												</div>
+											</Popup>
+										}
+									}
+
+									&DisplayOverlay::CombinePersonWith { person_id, ref input_value, ref response } => {
+										let input_id = "external-person-search-input";
+
+										let input_value = if let Some(v) = input_value {
+											v.to_string()
+										} else {
+											let items = self.media_items.as_ref().unwrap();
+											items.iter().find(|v| v.id == person_id).unwrap().name.clone()
+										};
+
+										html! {
+											<Popup
+												type_of={ PopupType::FullOverlay }
+												on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
+												classes={ classes!("external-person-search-popup") }
+											>
+												<h1>{"Person Search"}</h1>
+
+												<form>
+													<input id={input_id} name="person_search" placeholder="Search For Person" value={ input_value } />
+													<button onclick={
+														ctx.link().callback_future(move |e: MouseEvent| async move {
+															e.prevent_default();
+
+															let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
+
+															Msg::PersonCombineSearchResults(input.value(), request::get_people(Some(&input.value()), None, None).await.items)
+														})
+													}>{ "Search" }</button>
+												</form>
+
+												<div class="external-person-search-container">
+													{
+														if let Some(resp) = response {
+															html! {
+																<>
+																	<h2>{ "Media Items" }</h2>
+																	<div class="person-search-items">
+																		{
+																			for resp.iter().filter(|p| p.id != person_id).map(|item| {
+																				let other_person = item.id;
+
+																				html! { // TODO: Place into own component.
+																					<div
+																						class="person-search-item"
+																						yew-close-popup=""
+																						onclick={
+																							ctx.link()
+																							.callback_future(move |_| {
+																								async move {
+																									request::update_person(
+																										person_id,
+																										&api::PostPersonBody::CombinePersonWith(other_person)
+																									).await;
+
+																									Msg::Ignore
+																								}
+																							})
+																						}
+																					>
+																						<img src={ item.get_thumb_url() } />
+																						<div class="person-info">
+																							<h4>{ item.name.clone() }</h4>
+																							<p>{ item.description.clone()
+																									.map(|mut v| { util::truncate_on_indices(&mut v, 300); v })
+																									.unwrap_or_default() }</p>
+																						</div>
+																					</div>
+																				}
+																			})
+																		}
+																	</div>
+																</>
 															}
 														} else {
 															html! {}
@@ -397,6 +491,12 @@ pub enum DisplayOverlay {
 		person_id: i64,
 		input_value: Option<String>,
 		response: Option<api::MetadataSearchResponse>
+	},
+
+	CombinePersonWith {
+		person_id: i64,
+		input_value: Option<String>,
+		response: Option<Vec<Person>>
 	},
 }
 

@@ -51,6 +51,8 @@ pub enum PostPersonBody {
 	AutoMatchById,
 
 	UpdateBySource(String),
+
+	CombinePersonWith(i64),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -672,6 +672,33 @@ impl Database {
 		Ok(())
 	}
 
+	pub fn remove_meta_person_by_person_id(&self, id: i64) -> Result<()> {
+		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE person_id = ?1"#,
+		params![
+			id
+		])?;
+
+		Ok(())
+	}
+
+	pub fn transfer_meta_person(&self, from_id: i64, to_id: i64) -> Result<usize> {
+		Ok(self.lock()?.execute(r#"UPDATE metadata_person SET person_id = ?2 WHERE person_id = ?1"#,
+		params![
+			from_id,
+			to_id
+		])?)
+	}
+
+	pub fn get_meta_person_list(&self, id: i64) -> Result<Vec<MetadataPerson>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare(r#"SELECT * FROM metadata_person WHERE metadata_id = ?1"#)?;
+
+		let map = conn.query_map([id], |v| MetadataPerson::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
 
 	// Person
 
@@ -786,6 +813,14 @@ impl Database {
 		Ok(())
 	}
 
+	pub fn remove_person_by_id(&self, id: i64) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM tag_person WHERE id = ?1"#,
+			params![id]
+		)?)
+	}
+
+
 	// Person Alt
 
 	pub fn add_person_alt(&self, person: &TagPersonAlt) -> Result<()> {
@@ -803,5 +838,30 @@ impl Database {
 			params![value],
 			|v| TagPersonAlt::try_from(v)
 		).optional()?)
+	}
+
+	pub fn remove_person_alt(&self, tag_person: &TagPersonAlt) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM tag_person_alt WHERE name = ?1 AND person_id = ?2"#,
+			params![
+				&tag_person.name,
+				&tag_person.person_id
+			]
+		)?)
+	}
+
+	pub fn remove_person_alt_by_person_id(&self, id: i64) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM tag_person_alt WHERE person_id = ?1"#,
+			params![id]
+		)?)
+	}
+
+	pub fn transfer_person_alt(&self, from_id: i64, to_id: i64) -> Result<usize> {
+		Ok(self.lock()?.execute(r#"UPDATE OR IGNORE tag_person_alt SET person_id = ?2 WHERE person_id = ?1"#,
+		params![
+			from_id,
+			to_id
+		])?)
 	}
 }
