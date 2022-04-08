@@ -18,78 +18,82 @@ impl Metadata for LocalMetadata {
 		"local"
 	}
 
-	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
-		// Wrapped to prevent "future cannot be sent between threads safely"
-		let (mut meta, opt_thumb_url, authors, publisher) = {
-			let mut book = match bookie::load_from_path(&file.path)? {
-				Some(v) => v,
-				None => return Ok(None)
+	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
+		for file in files {
+			// Wrapped to prevent "future cannot be sent between threads safely"
+			let (mut meta, opt_thumb_url, authors, publisher) = {
+				let mut book = match bookie::load_from_path(&file.path)? {
+					Some(v) => v,
+					None => continue,
+				};
+
+				let source = self.prefix_text(book.get_unique_id()?);
+				let now = Utc::now();
+
+				let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
+				let opt_thumb_url = book.find(BookSearch::CoverImage)
+					.map(|mut v| v.remove(0))
+					.map(|url| book.read_path_as_bytes(&url));
+
+				let publisher = book.find(BookSearch::Publisher).map(|mut v| v.remove(0));
+				let authors = book.find(BookSearch::Creator)
+					.map(|items| items.into_iter()
+						.map(|name| AuthorInfo {
+							source: source.clone(),
+							name,
+							other_names: None,
+							description: None,
+							cover_image_url: None,
+							birth_date: None,
+							death_date: None,
+						})
+						.collect::<Vec<_>>()
+					);
+
+				(MetadataItem {
+					id: 0,
+					source,
+					library_id: 0,
+					file_item_count: 1,
+					title: title.clone(),
+					original_title: title,
+					description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
+					rating: 0.0,
+					thumb_path: None,
+					cached: MetadataItemCached::default(),
+					refreshed_at: now,
+					created_at: now,
+					updated_at: now,
+					deleted_at: None,
+					available_at: None,
+					year: None,
+					hash: String::new() // TODO: Should not be a file hash. Multiple files can use the same Metadata.
+				}, opt_thumb_url, authors, publisher)
 			};
 
-			let source = self.prefix_text(book.get_unique_id()?);
-			let now = Utc::now();
+			meta.thumb_path = match opt_thumb_url {
+				Some(book_file_path) => {
+					let image = book_file_path?;
 
-			let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
-			let opt_thumb_url = book.find(BookSearch::CoverImage)
-				.map(|mut v| v.remove(0))
-				.map(|url| book.read_path_as_bytes(&url));
-
-			let publisher = book.find(BookSearch::Publisher).map(|mut v| v.remove(0));
-			let authors = book.find(BookSearch::Creator)
-				.map(|items| items.into_iter()
-					.map(|name| AuthorInfo {
-						source: source.clone(),
-						name,
-						other_names: None,
-						description: None,
-						cover_image_url: None,
-						birth_date: None,
-						death_date: None,
-					})
-					.collect::<Vec<_>>()
-				);
-
-			(MetadataItem {
-				id: 0,
-				source,
-				library_id: 0,
-				file_item_count: 1,
-				title: title.clone(),
-				original_title: title,
-				description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
-				rating: 0.0,
-				thumb_path: None,
-				cached: MetadataItemCached::default(),
-				refreshed_at: now,
-				created_at: now,
-				updated_at: now,
-				deleted_at: None,
-				available_at: None,
-				year: None,
-				hash: String::new() // TODO: Should not be a file hash. Multiple files can use the same Metadata.
-			}, opt_thumb_url, authors, publisher)
-		};
-
-		meta.thumb_path = match opt_thumb_url {
-			Some(book_file_path) => {
-				let image = book_file_path?;
-
-				match crate::store_image(ThumbnailType::Local, image).await {
-					Ok(path) => Some(ThumbnailType::Local.prefix_text(&path)),
-					Err(e) => {
-						eprintln!("store_image: {}", e);
-						None
+					match crate::store_image(ThumbnailType::Local, image).await {
+						Ok(path) => Some(ThumbnailType::Local.prefix_text(&path)),
+						Err(e) => {
+							eprintln!("store_image: {}", e);
+							None
+						}
 					}
 				}
-			}
 
-			None => None
-		};
+				None => None
+			};
 
-		Ok(Some(MetadataReturned {
-			authors,
-			publisher,
-			meta,
-		}))
+			return Ok(Some(MetadataReturned {
+				authors,
+				publisher,
+				meta,
+			}));
+		}
+
+		Ok(None)
 	}
 }

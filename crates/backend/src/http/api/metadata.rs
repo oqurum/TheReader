@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpResponse, post};
 
-use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Person};
+use books_common::{api, SearchType, SearchFor, SearchForBooksBy};
 
 use crate::{database::Database, task::{queue_task_priority, self}, ThumbnailLocation, queue_task, metadata};
 
@@ -34,11 +34,11 @@ pub async fn update_item_metadata(meta_id: web::Path<i64>, body: web::Json<api::
 
 	match body.into_inner() {
 		api::PostMetadataBody::AutoMatchByMetaId => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchMetaId(meta_id)));
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateById(meta_id)));
 		}
 
 		api::PostMetadataBody::UpdateMetaBySource(source) => {
-			queue_task_priority(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::SpecificMatchSingleMetaId { meta_id, source }));
+			queue_task_priority(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::UpdateMetadataWithSource { meta_id, source }));
 		}
 	}
 

@@ -44,8 +44,7 @@ pub trait Metadata {
 	fn get_prefix(&self) -> &'static str;
 
 	// Metadata
-
-	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>>;
+	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>>;
 
 	async fn get_metadata_by_source_id(&mut self, _value: &str) -> Result<Option<MetadataReturned>> {
 		Ok(None)
@@ -65,14 +64,15 @@ pub trait Metadata {
 	}
 }
 
-// TODO: Utilize current metadata in get_metadata_from_file.
+// TODO: Utilize current metadata in get_metadata_from_files.
 // TODO: Order which metadata should be tried.
-pub async fn get_metadata(file: &File, _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataReturned>> {
-	return_if_found!(OpenLibraryMetadata.get_metadata_from_file(file).await);
-	return_if_found!(GoogleBooksMetadata.get_metadata_from_file(file).await);
+/// Attempts to return the first valid Metadata from Files.
+pub async fn get_metadata_from_files(files: &[File], _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataReturned>> {
+	return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
+	return_if_found!(GoogleBooksMetadata.get_metadata_from_files(files).await);
 
 	// TODO: Don't re-scan file if we already have metadata from file.
-	LocalMetadata.get_metadata_from_file(file).await
+	LocalMetadata.get_metadata_from_files(files).await
 }
 
 pub async fn get_metadata_by_source(source: &str, value: &str) -> Result<Option<MetadataReturned>> {

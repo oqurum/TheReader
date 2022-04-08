@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bookie::Book;
 use books_common::{MetadataItemCached, SearchForBooksBy};
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
@@ -25,28 +26,28 @@ impl Metadata for OpenLibraryMetadata {
 	}
 
 
-	async fn get_metadata_from_file(&mut self, file: &File) -> Result<Option<MetadataReturned>> {
-		use bookie::Book;
+	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
+		for file in files {
+			// Wrapped b/c "future cannot be send between threads safely"
+			let found = {
+				let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+				book.find(bookie::BookSearch::Identifier)
+			};
 
-		// Wrapped b/c "future cannot be send between threads safely"
-		let found = {
-			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
-			book.find(bookie::BookSearch::Identifier)
-		};
-
-		println!("[OL]: get_metadata_from_file with ids: {:?}", found);
+			println!("[OL]: get_metadata_from_files with ids: {:?}", found);
 
 
-		if let Some(idents) = found {
-			for ident in idents {
-				let id = match BookId::make_assumptions(ident) {
-					Some(v) => v,
-					None => continue
-				};
+			if let Some(idents) = found {
+				for ident in idents {
+					let id = match BookId::make_assumptions(ident) {
+						Some(v) => v,
+						None => continue
+					};
 
-				match self.request(id).await {
-					Ok(Some(v)) => return Ok(Some(v)),
-					a => eprintln!("OpenLibraryMetadata::get_metadata_from_file {:?}", a)
+					match self.request(id).await {
+						Ok(Some(v)) => return Ok(Some(v)),
+						a => eprintln!("OpenLibraryMetadata::get_metadata_from_files {:?}", a)
+					}
 				}
 			}
 		}

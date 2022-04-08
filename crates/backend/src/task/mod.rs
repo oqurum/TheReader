@@ -7,7 +7,7 @@ use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::{Database, table}, ThumbnailLocation, metadata::{MetadataReturned, get_metadata, get_metadata_by_source, get_person_by_source}, ThumbnailType};
+use crate::{database::{Database, table}, ThumbnailLocation, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
 
 
 // TODO: A should stop boolean
@@ -88,8 +88,8 @@ impl Task for TaskLibraryScan {
 #[derive(Clone)]
 pub enum UpdatingMetadata {
 	AutoMatchInvalid,
-	AutoMatchMetaId(i64),
-	SpecificMatchSingleMetaId {
+	AutoUpdateById(i64),
+	UpdateMetadataWithSource {
 		meta_id: i64,
 		source: String,
 	}
@@ -115,7 +115,8 @@ impl Task for TaskUpdateInvalidMetadata {
 				for file in db.get_files_of_no_metadata()? {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
-						match get_metadata(&file, None, db).await {
+						let file_id = file.id;
+						match get_metadata_from_files(&[file], None, db).await {
 							Ok(meta) => {
 								if let Some(mut ret) = meta {
 									let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
@@ -126,7 +127,7 @@ impl Task for TaskUpdateInvalidMetadata {
 									meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
 									let meta = db.add_or_increment_metadata(&meta)?;
-									db.update_file_metadata_id(file.id, meta.id)?;
+									db.update_file_metadata_id(file_id, meta.id)?;
 
 									for person_id in author_ids {
 										db.add_meta_person(&table::MetadataPerson {
@@ -146,8 +147,10 @@ impl Task for TaskUpdateInvalidMetadata {
 			}
 
 			// TODO: Check how long it has been since we've refreshed metadata if auto-ran.
-			UpdatingMetadata::AutoMatchMetaId(meta_id) => {
+			UpdatingMetadata::AutoUpdateById(meta_id) => {
 				println!("Finding Metadata for current Metadata ID: {}", meta_id);
+
+				let meta = db.get_metadata_by_id(meta_id)?.unwrap();
 
 				// TODO: Remove file aspect of get_metadata or add Vec<File> to get_metadata
 
@@ -210,7 +213,7 @@ impl Task for TaskUpdateInvalidMetadata {
 				// }
 			}
 
-			UpdatingMetadata::SpecificMatchSingleMetaId { meta_id: old_meta_id, source } => {
+			UpdatingMetadata::UpdateMetadataWithSource { meta_id: old_meta_id, source } => {
 				println!("UpdatingMetadata::SpecificMatchSingleMetaId {{ meta_id: {:?}, source: {:?} }}", old_meta_id, source);
 
 				match db.get_metadata_by_source(&source)? {
