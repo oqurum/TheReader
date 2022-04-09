@@ -132,6 +132,7 @@ body {
 		flex-direction: column;
 		padding: 0.5em;
 		max-height: 100%;
+		min-width: 40%;
 		background-color: var(--surface2);
 		border-radius: var(--radius-2);
 	}
@@ -327,6 +328,15 @@ body {
 				display: none;
 			}
 
+			.bottom-left {
+				z-index: 99;
+				position: absolute;
+				bottom: 0px;
+				left: 3px;
+				display: none;
+			}
+
+			&:hover .bottom-left,
 			&:hover .bottom-right {
 				display: block;
 			}
@@ -425,6 +435,42 @@ body {
 					//
 				}
 			}
+		}
+	}
+}
+
+.popup-book-info {
+	//
+}
+
+.popup-book-edit {
+	.header {
+		//
+	}
+
+	.footer {
+		//
+	}
+
+	.content {
+		display: flex;
+		flex-direction: row;
+		flex-grow: 1;
+
+		.sidebar {
+			width: 10em;
+
+			.sidebar-item {
+				//
+			}
+		}
+
+		.tab-content {
+			display: flex;
+			flex-direction: column;
+			flex-grow: 1;
+
+			//
 		}
 	}
 }
@@ -647,6 +693,7 @@ body {
 	&:hover {
 		border-color: var(--brand);
 
+		> .photo > .bottom-left,
 		> .photo > .bottom-right {
 			display: block;
 		}
@@ -670,6 +717,14 @@ body {
 			position: absolute;
 			bottom: 0px;
 			right: 3px;
+			display: none;
+		}
+
+		.bottom-left {
+			z-index: 99;
+			position: absolute;
+			bottom: 0px;
+			left: 3px;
 			display: none;
 		}
 	}

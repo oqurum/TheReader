@@ -195,9 +195,41 @@ impl Component for LibraryPage {
 										}
 									}
 
-									&DisplayOverlay::SearchForBook { meta_id, ref input_value, ref response } => {
-										let input_id = "external-book-search-input";
+									DisplayOverlay::Edit(resp) => {
+										html! {
+											<Popup
+												type_of={ PopupType::FullOverlay }
+												on_close={ctx.link().callback(|_| Msg::ClosePopup)}
+												classes={ classes!("popup-book-edit") }
+											>
+												<div class="header">
+													<h1>{"Edit"}</h1>
+												</div>
 
+												<div class="content">
+													<div class="sidebar">
+														<div class="sidebar-item">{ "Testing" }</div>
+													</div>
+													<div class="tab-content">
+														<label for="input-title">{ "Title" }</label>
+														<input type="text" id="input-title" value={ resp.metadata.title.clone().unwrap_or_default() } />
+
+														<label for="input-orig-title">{ "Original Title" }</label>
+														<input type="text" id="input-orig-title" value={ resp.metadata.original_title.clone().unwrap_or_default() } />
+
+														<label for="input-descr">{ "Description" }</label>
+														<input type="text" id="input-descr" value={ resp.metadata.description.clone().unwrap_or_default() } />
+													</div>
+												</div>
+												<div class="footer">
+													<button class="button">{ "Cancel" }</button>
+													<button class="button">{ "Save" }</button>
+												</div>
+											</Popup>
+										}
+									}
+
+									&DisplayOverlay::SearchForBook { meta_id, ref input_value, ref response } => {
 										let input_value = if let Some(v) = input_value {
 											v.to_string()
 										} else {
@@ -209,85 +241,7 @@ impl Component for LibraryPage {
 
 										let input_value = input_value.trim().to_string();
 
-										html! {
-											<Popup
-												type_of={ PopupType::FullOverlay }
-												on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-												classes={ classes!("external-book-search-popup") }
-											>
-												<h1>{"Book Search"}</h1>
-
-												<form>
-													<input id={input_id} name="book_search" placeholder="Search For Title" value={ input_value } />
-													<button onclick={
-														ctx.link().callback_future(move |e: MouseEvent| async move {
-															e.prevent_default();
-
-															let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
-
-															Msg::BookSearchResults(input.value(), request::search_for(&input.value(), SearchType::Book).await)
-														})
-													}>{ "Search" }</button>
-												</form>
-
-												<div class="external-book-search-container">
-													{
-														if let Some(resp) = response {
-															html! {
-																{
-																	for resp.items.iter()
-																		.map(|(site, items)| {
-																			html! {
-																				<>
-																					<h2>{ site.clone() }</h2>
-																					<div class="book-search-items">
-																						{
-																							for items.iter()
-																								.map(|item| {
-																									let item = item.as_book();
-
-																									let source = item.source.clone();
-
-																									html! { // TODO: Place into own component.
-																										<div
-																											class="book-search-item"
-																											yew-close-popup=""
-																											onclick={
-																												ctx.link()
-																												.callback_future(move |_| {
-																													let source = source.clone();
-
-																													async move {
-																														request::update_metadata(meta_id, &api::PostMetadataBody::UpdateMetaBySource(source)).await;
-
-																														Msg::Ignore
-																													}
-																												})
-																											}
-																										>
-																											<img src={ item.thumbnail.to_string() } />
-																											<div class="book-info">
-																												<h4>{ item.name.clone() }</h4>
-																												<span>{ item.author.clone().unwrap_or_default() }</span>
-																												<p>{ item.description.clone().map(|mut v| { util::truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
-																											</div>
-																										</div>
-																									}
-																								})
-																						}
-																					</div>
-																				</>
-																			}
-																		})
-																}
-															}
-														} else {
-															html! {}
-														}
-													}
-												</div>
-											</Popup>
-										}
+										popup_book_search(meta_id, response, input_value, ctx)
 									}
 								}
 							} else {
@@ -357,6 +311,16 @@ impl LibraryPage {
 					<div class="bottom-right">
 						<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
 					</div>
+					<div class="bottom-left">
+						<span class="material-icons" onclick={scope.callback_future(move |e: MouseEvent| {
+							e.prevent_default();
+							e.stop_propagation();
+
+							async move {
+								Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Edit(request::get_media_view(meta_id as usize).await)))
+							}
+						})} title="More Options">{ "edit" }</span>
+					</div>
 					<img src={ if item.has_thumbnail { format!("/api/metadata/{}/thumbnail", item.id) } else { String::from("/images/missingthumbnail.jpg") } } />
 				</div>
 				<div class="info">
@@ -394,6 +358,103 @@ impl LibraryPage {
 	}
 }
 
+fn popup_book_search(
+	meta_id: i64,
+	response: &Option<api::MetadataSearchResponse>,
+	input_value: String,
+	ctx: &Context<LibraryPage>,
+) -> Html {
+	let input_id = "external-book-search-input";
+
+	html! {
+		<Popup
+			type_of={ PopupType::FullOverlay }
+			on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
+			classes={ classes!("external-book-search-popup") }
+		>
+			<h1>{"Book Search"}</h1>
+
+			<form>
+				<input id={input_id} name="book_search" placeholder="Search For Title" value={ input_value } />
+				<button onclick={
+					ctx.link().callback_future(move |e: MouseEvent| async move {
+						e.prevent_default();
+
+						let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
+
+						Msg::BookSearchResults(input.value(), request::search_for(&input.value(), SearchType::Book).await)
+					})
+				}>{ "Search" }</button>
+			</form>
+
+			<div class="external-book-search-container">
+				{
+					if let Some(resp) = response {
+						html! {
+							{
+								for resp.items.iter()
+									.map(|(site, items)| {
+										html! {
+											<>
+												<h2>{ site.clone() }</h2>
+												<div class="book-search-items">
+													{
+														for items.iter()
+															.map(|item| {
+																let item = item.as_book();
+
+																let source = item.source.clone();
+
+																html! { // TODO: Place into own component.
+																	<div
+																		class="book-search-item"
+																		yew-close-popup=""
+																		onclick={
+																			ctx.link()
+																			.callback_future(move |_| {
+																				let source = source.clone();
+
+																				async move {
+																					request::update_metadata(
+																						meta_id,
+																						&api::PostMetadataBody::UpdateMetaBySource(source)
+																					).await;
+
+																					Msg::Ignore
+																				}
+																			})
+																		}
+																	>
+																		<img src={ item.thumbnail.to_string() } />
+																		<div class="book-info">
+																			<h4>{ item.name.clone() }</h4>
+																			<span>{ item.author.clone().unwrap_or_default() }</span>
+																			<p>{ item.description.clone()
+																					.map(|mut v| { util::truncate_on_indices(&mut v, 300); v })
+																					.unwrap_or_default() }
+																			</p>
+																		</div>
+																	</div>
+																}
+															})
+													}
+												</div>
+											</>
+										}
+									})
+							}
+						}
+					} else {
+						html! {}
+					}
+				}
+			</div>
+		</Popup>
+	}
+}
+
+
+
 #[derive(Clone)]
 pub enum PosterItem {
 	// Poster Specific Buttons
@@ -408,6 +469,8 @@ pub enum DisplayOverlay {
 	Info {
 		meta_id: i64
 	},
+
+	Edit(api::MediaViewResponse),
 
 	More {
 		meta_id: i64,
