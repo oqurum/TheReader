@@ -899,7 +899,7 @@ impl Database {
 	// Cached Images
 
 	pub fn add_cached_image(&self, cache: &CachedImage) -> Result<()> {
-		self.lock()?.execute(r#"INSERT OR IGNORE INTO cached_images (item_id, type_of, path, created_at) VALUES (?1, ?2, ?3, ?4)"#,
+		self.lock()?.execute(r#"INSERT OR IGNORE INTO cached_images (item_id, type, path, created_at) VALUES (?1, ?2, ?3, ?4)"#,
 		params![
 			cache.item_id,
 			cache.type_of.into_num(),
@@ -912,7 +912,7 @@ impl Database {
 
 	pub fn remove_cached_image_by_id_and_type(&self, item_id: i64, type_of: u8) -> Result<usize> {
 		Ok(self.lock()?.execute(
-			r#"DELETE FROM cached_images WHERE item_id = ?1 AND type_of = ?2"#,
+			r#"DELETE FROM cached_images WHERE item_id = ?1 AND type = ?2"#,
 			params![
 				item_id,
 				type_of,

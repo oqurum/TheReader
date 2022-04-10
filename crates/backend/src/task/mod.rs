@@ -7,7 +7,7 @@ use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::{Database, table::{self, MetadataPerson}}, ThumbnailLocation, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
+use crate::{database::{Database, table::{self, MetadataPerson, CachedImage, CacheType}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
 
 
 // TODO: A should stop boolean
@@ -180,21 +180,18 @@ impl Task for TaskUpdateInvalidMetadata {
 							meta.title = fm_meta.title;
 						}
 
-						match (meta.thumb_path.is_some(), fm_meta.thumb_path.is_some()) {
-							// No new thumb, but we have an old one. Set old one as new one.
-							(false, true) => {
-								meta.thumb_path = fm_meta.thumb_path;
-							}
+						// No new thumb, but we have an old one. Set old one as new one.
+						if meta.thumb_path.is_none() && fm_meta.thumb_path.is_some() {
+							meta.thumb_path = fm_meta.thumb_path;
+						} else if meta.thumb_path.is_some() {
+							let v = db.add_cached_image(&CachedImage {
+								item_id: meta.id,
+								type_of: CacheType::BookPoster,
+								path: meta.thumb_path.clone(),
+								created_at: Utc::now(),
+							});
 
-							// Both have a poster and they're both different.
-							(true, true) if meta.thumb_path != fm_meta.thumb_path => {
-								// Remove old poster.
-								let loc = ThumbnailLocation::from(fm_meta.thumb_path);
-								let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
-								tokio::fs::remove_file(path).await?;
-							}
-
-							_ => ()
+							eprintln!("{:?}", v);
 						}
 
 						// TODO: Only if metadata exists and IS the same source.
@@ -266,21 +263,18 @@ impl Task for TaskUpdateInvalidMetadata {
 								meta.title = old_meta.title;
 							}
 
-							match (meta.thumb_path.is_some(), old_meta.thumb_path.is_some()) {
-								// No new thumb, but we have an old one. Set old one as new one.
-								(false, true) => {
-									meta.thumb_path = old_meta.thumb_path;
-								}
+							// No new thumb, but we have an old one. Set old one as new one.
+							if meta.thumb_path.is_none() && old_meta.thumb_path.is_some() {
+								meta.thumb_path = old_meta.thumb_path;
+							} else if meta.thumb_path.is_some() {
+								let v = db.add_cached_image(&CachedImage {
+									item_id: meta.id,
+									type_of: CacheType::BookPoster,
+									path: meta.thumb_path.clone(),
+									created_at: Utc::now(),
+								});
 
-								// Both have a poster and they're both different.
-								(true, true) if meta.thumb_path != old_meta.thumb_path => {
-									// Remove old poster.
-									let loc = ThumbnailLocation::from(old_meta.thumb_path);
-									let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
-									tokio::fs::remove_file(path).await?;
-								}
-
-								_ => ()
+								eprintln!("{:?}", v);
 							}
 
 							db.update_metadata(&meta)?;
