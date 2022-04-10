@@ -15,6 +15,8 @@ impl ThumbnailPath {
 	pub fn is_url(&self) -> bool {
 		self.0.as_ref().map(|v| v.contains('.')).unwrap_or_default()
 	}
+
+	// TODO: Deref, Ref error.
 }
 
 impl ToString for ThumbnailPath {

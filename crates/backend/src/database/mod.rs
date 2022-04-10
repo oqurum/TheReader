@@ -201,7 +201,21 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
-	//
+	// Images
+
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "cached_images" (
+			"item_id"		INTEGER NOT NULL,
+			"type"			INTEGER NOT NULL,
+
+			"path"			TEXT NOT NULL,
+
+			"created_at" 	DATETIME NOT NULL,
+
+			UNIQUE(item_id, type, path)
+		);"#,
+		[]
+	)?;
 
 	Ok(Database(Mutex::new(conn)))
 }
@@ -641,6 +655,7 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
+
 	// Metadata Person
 
 	pub fn add_meta_person(&self, person: &MetadataPerson) -> Result<()> {
@@ -878,5 +893,30 @@ impl Database {
 			from_id,
 			to_id
 		])?)
+	}
+
+
+	// Cached Images
+
+	pub fn add_cached_image(&self, cache: &CachedImage) -> Result<()> {
+		self.lock()?.execute(r#"INSERT OR IGNORE INTO cached_images (item_id, type_of, path, created_at) VALUES (?1, ?2, ?3, ?4)"#,
+		params![
+			cache.item_id,
+			cache.type_of.into_num(),
+			cache.path.as_deref().unwrap(),
+			cache.created_at.timestamp_millis(),
+		])?;
+
+		Ok(())
+	}
+
+	pub fn remove_cached_image_by_id_and_type(&self, item_id: i64, type_of: u8) -> Result<usize> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM cached_images WHERE item_id = ?1 AND type_of = ?2"#,
+			params![
+				item_id,
+				type_of,
+			]
+		)?)
 	}
 }
