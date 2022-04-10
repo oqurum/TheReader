@@ -146,13 +146,67 @@ impl Task for TaskUpdateInvalidMetadata {
 				}
 			}
 
-			// TODO: Check how long it has been since we've refreshed metadata if auto-ran.
+			// TODO: Check how long it has been since we've refreshed meta: metnew_metaa if auto-ran.
 			UpdatingMetadata::AutoUpdateById(meta_id) => {
-				println!("Finding Metadata for current Metadata ID: {}", meta_id);
+				println!("Auto Update Metadata by ID: {}", meta_id);
 
 				let mut fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
 
 				// TODO: Attempt to update source first.
+				if let Some((source, value)) = fm_meta.source.split_once(':') {
+					if let Some(mut new_meta) = get_metadata_by_source(source, value).await? {
+						println!("Updating by source");
+
+						let mut current_meta = fm_meta.clone();
+
+						let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
+
+						let MetadataReturned { meta: mut new_meta, publisher, .. } = new_meta;
+
+						// TODO: Utilize EditManager which is currently in frontend util.rs
+
+						// TODO: Store Publisher inside Database
+						new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
+
+						if current_meta.rating == 0.0 {
+							current_meta.rating = new_meta.rating;
+						}
+
+						// If we didn't update the original title
+						if current_meta.title == current_meta.original_title {
+							current_meta.title = new_meta.title;
+						}
+
+						current_meta.original_title = new_meta.original_title;
+						current_meta.refreshed_at = Utc::now();
+						current_meta.updated_at = Utc::now();
+
+						// No new thumb, but we have an old one. Set old one as new one.
+						if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
+							current_meta.thumb_path = new_meta.thumb_path;
+						} else if new_meta.thumb_path.is_some() {
+							db.add_cached_image(&CachedImage {
+								item_id: new_meta.id,
+								type_of: CacheType::BookPoster,
+								path: new_meta.thumb_path.clone(),
+								created_at: Utc::now(),
+							})?;
+						}
+
+						db.update_metadata(&current_meta)?;
+
+						for person_id in author_ids {
+							db.add_meta_person(&table::MetadataPerson {
+								metadata_id: new_meta.id,
+								person_id,
+							})?;
+						}
+
+						return Ok(());
+					}
+				}
+
+				println!("Updating by file check");
 
 				let files = db.get_files_by_metadata_id(meta_id)?;
 
@@ -171,6 +225,8 @@ impl Task for TaskUpdateInvalidMetadata {
 						meta.rating = fm_meta.rating;
 						meta.deleted_at = fm_meta.deleted_at;
 						meta.file_item_count = fm_meta.file_item_count;
+						meta.refreshed_at = Utc::now();
+						meta.updated_at = Utc::now();
 
 						// Overwrite prev with new and replace new with prev.
 						fm_meta.cached.overwrite_with(meta.cached);
@@ -184,14 +240,12 @@ impl Task for TaskUpdateInvalidMetadata {
 						if meta.thumb_path.is_none() && fm_meta.thumb_path.is_some() {
 							meta.thumb_path = fm_meta.thumb_path;
 						} else if meta.thumb_path.is_some() {
-							let v = db.add_cached_image(&CachedImage {
+							db.add_cached_image(&CachedImage {
 								item_id: meta.id,
 								type_of: CacheType::BookPoster,
 								path: meta.thumb_path.clone(),
 								created_at: Utc::now(),
-							});
-
-							eprintln!("{:?}", v);
+							})?;
 						}
 
 						// TODO: Only if metadata exists and IS the same source.
@@ -234,7 +288,59 @@ impl Task for TaskUpdateInvalidMetadata {
 							// Remove old Metadata
 							db.remove_metadata_by_id(old_meta_id)?;
 						} else {
-							println!("Current File Metadata is equal to New File Metadata");
+							// Update existing metadata.
+
+							println!("Updating File Metadata.");
+
+							let (source, value) = source.split_once(':').unwrap();
+
+							if let Some(mut new_meta) = get_metadata_by_source(source, value).await? {
+								let mut current_meta = db.get_metadata_by_id(old_meta_id)?.unwrap();
+
+								let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
+
+								let MetadataReturned { meta: mut new_meta, publisher, .. } = new_meta;
+
+								// TODO: Store Publisher inside Database
+								new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
+
+								if current_meta.rating == 0.0 {
+									current_meta.rating = new_meta.rating;
+								}
+
+								// If we didn't update the original title
+								if current_meta.title == current_meta.original_title {
+									current_meta.title = new_meta.title;
+								}
+
+								current_meta.original_title = new_meta.original_title;
+								current_meta.refreshed_at = Utc::now();
+								current_meta.updated_at = Utc::now();
+
+								// No new thumb, but we have an old one. Set old one as new one.
+								if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
+									current_meta.thumb_path = new_meta.thumb_path;
+								} else if new_meta.thumb_path.is_some() {
+									db.add_cached_image(&CachedImage {
+										item_id: new_meta.id,
+										type_of: CacheType::BookPoster,
+										path: new_meta.thumb_path.clone(),
+										created_at: Utc::now(),
+									})?;
+								}
+
+								db.update_metadata(&current_meta)?;
+
+								for person_id in author_ids {
+									db.add_meta_person(&table::MetadataPerson {
+										metadata_id: new_meta.id,
+										person_id,
+									})?;
+								}
+							} else {
+								println!("Unable to get metadata from source \"{}:{}\"", source, value);
+								// TODO: Error since this shouldn't have happened.
+							}
 						}
 					}
 
@@ -258,6 +364,8 @@ impl Task for TaskUpdateInvalidMetadata {
 							meta.library_id = old_meta.library_id;
 							meta.file_item_count = old_meta.file_item_count;
 							meta.rating = old_meta.rating;
+							meta.refreshed_at = Utc::now();
+							meta.updated_at = Utc::now();
 
 							if old_meta.title != old_meta.original_title {
 								meta.title = old_meta.title;
@@ -267,14 +375,12 @@ impl Task for TaskUpdateInvalidMetadata {
 							if meta.thumb_path.is_none() && old_meta.thumb_path.is_some() {
 								meta.thumb_path = old_meta.thumb_path;
 							} else if meta.thumb_path.is_some() {
-								let v = db.add_cached_image(&CachedImage {
+								db.add_cached_image(&CachedImage {
 									item_id: meta.id,
 									type_of: CacheType::BookPoster,
 									path: meta.thumb_path.clone(),
 									created_at: Utc::now(),
-								});
-
-								eprintln!("{:?}", v);
+								})?;
 							}
 
 							db.update_metadata(&meta)?;
@@ -303,6 +409,10 @@ impl Task for TaskUpdateInvalidMetadata {
 	fn name(&self) ->  &'static str {
 		"Updating Metadata"
 	}
+}
+
+impl TaskUpdateInvalidMetadata {
+
 }
 
 
