@@ -39,7 +39,7 @@ impl Metadata for LocalMetadata {
 				let authors = book.find(BookSearch::Creator)
 					.map(|items| items.into_iter()
 						.map(|name| AuthorInfo {
-							source: source.clone(),
+							source: source.as_str().try_into().unwrap(),
 							name,
 							other_names: None,
 							description: None,
@@ -52,7 +52,7 @@ impl Metadata for LocalMetadata {
 
 				(MetadataItem {
 					id: 0,
-					source,
+					source: source.try_into()?,
 					library_id: 0,
 					file_item_count: 1,
 					title: title.clone(),

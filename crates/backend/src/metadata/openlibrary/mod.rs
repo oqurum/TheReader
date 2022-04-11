@@ -76,7 +76,7 @@ impl Metadata for OpenLibraryMetadata {
 		match author::get_author_from_url(value).await? {
 			Some(author) => {
 				Ok(Some(AuthorInfo {
-					source: self.prefix_text(value),
+					source: self.prefix_text(value).try_into()?,
 					name: author.name.clone(),
 					other_names: author.alternate_names,
 					description: author.bio.map(|v| v.into_content()),
@@ -100,7 +100,7 @@ impl Metadata for OpenLibraryMetadata {
 
 					for item in found.items {
 						authors.push(SearchItem::Author(AuthorInfo {
-							source: self.prefix_text(item.key.as_deref().unwrap()),
+							source: self.prefix_text(item.key.as_deref().unwrap()).try_into()?,
 							cover_image_url: Some(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url()),
 							name: item.name.unwrap(),
 							other_names: item.alternate_names,
@@ -132,7 +132,7 @@ impl Metadata for OpenLibraryMetadata {
 							id: 0,
 							library_id: 0,
 							file_item_count: 1,
-							source: format!("{}:{}", self.get_prefix(), &item.key),
+							source: format!("{}:{}", self.get_prefix(), &item.key).try_into()?,
 							title: item.title.clone(),
 							original_title: item.title,
 							description: None,
@@ -200,7 +200,7 @@ impl OpenLibraryMetadata {
 			match author::get_author_from_url(&auth_id).await {
 				Ok(Some(author)) => {
 					authors.push(AuthorInfo {
-						source: self.prefix_text(auth_id),
+						source: self.prefix_text(auth_id).try_into()?,
 						name: author.name.clone(),
 						other_names: author.alternate_names,
 						description: author.bio.map(|v| v.into_content()),
@@ -249,7 +249,7 @@ impl OpenLibraryMetadata {
 				id: 0,
 				library_id: 0,
 				file_item_count: 1,
-				source: format!("{}:{}", self.get_prefix(), source_id),
+				source: format!("{}:{}", self.get_prefix(), source_id).try_into()?,
 				title: Some(book_info.title.clone()),
 				original_title: Some(book_info.title),
 				description: book_info.description.as_ref().map(|v| v.content().to_owned()),

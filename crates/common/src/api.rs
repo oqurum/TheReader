@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source};
 
 
 // Libraries
@@ -50,7 +50,7 @@ pub type GetPeopleResponse = QueryListResponse<Person>;
 pub enum PostPersonBody {
 	AutoMatchById,
 
-	UpdateBySource(String),
+	UpdateBySource(Source),
 
 	CombinePersonWith(i64),
 }
@@ -92,7 +92,7 @@ pub struct MediaViewResponse {
 pub enum PostMetadataBody {
 	AutoMatchByMetaId,
 
-	UpdateMetaBySource(String)
+	UpdateMetaBySource(Source)
 }
 
 
@@ -132,7 +132,7 @@ impl SearchItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetadataPersonSearchItem {
-	pub source: String,
+	pub source: Source,
 
 	pub cover_image: Option<String>,
 
@@ -146,7 +146,7 @@ pub struct MetadataPersonSearchItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetadataBookSearchItem {
-	pub source: String,
+	pub source: Source,
 	pub author: Option<String>,
 	pub thumbnail: ThumbnailPath,
 	pub description: Option<String>,

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use books_common::SearchFor;
+use books_common::{SearchFor, Source};
 use chrono::Utc;
 
 use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
@@ -75,10 +75,10 @@ pub async fn get_metadata_from_files(files: &[File], _meta: Option<&MetadataItem
 	LocalMetadata.get_metadata_from_files(files).await
 }
 
-pub async fn get_metadata_by_source(source: &str, value: &str) -> Result<Option<MetadataReturned>> {
-	match source {
-		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_metadata_by_source_id(value).await,
-		v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_metadata_by_source_id(value).await,
+pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataReturned>> {
+	match source.agent.as_str() {
+		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_metadata_by_source_id(&source.value).await,
+		v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_metadata_by_source_id(&source.value).await,
 
 		_ => Ok(None)
 	}
@@ -103,10 +103,10 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 }
 
 
-pub async fn get_person_by_source(source: &str, value: &str) -> Result<Option<AuthorInfo>> {
-	match source {
-		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_person_by_source_id(value).await,
-		v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_person_by_source_id(value).await,
+pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>> {
+	match source.agent.as_str() {
+		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_person_by_source_id(&source.value).await,
+		v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_person_by_source_id(&source.value).await,
 
 		_ => Ok(None)
 	}
@@ -125,7 +125,7 @@ pub enum SearchItem {
 
 #[derive(Debug)]
 pub struct AuthorInfo {
-	pub source: String,
+	pub source: Source,
 
 	pub cover_image_url: Option<String>,
 

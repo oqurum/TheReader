@@ -3,6 +3,7 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 use actix_web::web;
 use anyhow::Result;
 use async_trait::async_trait;
+use books_common::Source;
 use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
@@ -91,7 +92,7 @@ pub enum UpdatingMetadata {
 	AutoUpdateById(i64),
 	UpdateMetadataWithSource {
 		meta_id: i64,
-		source: String,
+		source: Source,
 	}
 }
 
@@ -153,57 +154,55 @@ impl Task for TaskUpdateInvalidMetadata {
 				let mut fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
 
 				// TODO: Attempt to update source first.
-				if let Some((source, value)) = fm_meta.source.split_once(':') {
-					if let Some(mut new_meta) = get_metadata_by_source(source, value).await? {
-						println!("Updating by source");
+				if let Some(mut new_meta) = get_metadata_by_source(&fm_meta.source).await? {
+					println!("Updating by source");
 
-						let mut current_meta = fm_meta.clone();
+					let mut current_meta = fm_meta.clone();
 
-						let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
+					let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
-						let MetadataReturned { meta: mut new_meta, publisher, .. } = new_meta;
+					let MetadataReturned { meta: mut new_meta, publisher, .. } = new_meta;
 
-						// TODO: Utilize EditManager which is currently in frontend util.rs
+					// TODO: Utilize EditManager which is currently in frontend util.rs
 
-						// TODO: Store Publisher inside Database
-						new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
+					// TODO: Store Publisher inside Database
+					new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
 
-						if current_meta.rating == 0.0 {
-							current_meta.rating = new_meta.rating;
-						}
-
-						// If we didn't update the original title
-						if current_meta.title == current_meta.original_title {
-							current_meta.title = new_meta.title;
-						}
-
-						current_meta.original_title = new_meta.original_title;
-						current_meta.refreshed_at = Utc::now();
-						current_meta.updated_at = Utc::now();
-
-						// No new thumb, but we have an old one. Set old one as new one.
-						if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
-							current_meta.thumb_path = new_meta.thumb_path;
-						} else if new_meta.thumb_path.is_some() {
-							db.add_cached_image(&CachedImage {
-								item_id: new_meta.id,
-								type_of: CacheType::BookPoster,
-								path: new_meta.thumb_path.clone(),
-								created_at: Utc::now(),
-							})?;
-						}
-
-						db.update_metadata(&current_meta)?;
-
-						for person_id in author_ids {
-							db.add_meta_person(&table::MetadataPerson {
-								metadata_id: new_meta.id,
-								person_id,
-							})?;
-						}
-
-						return Ok(());
+					if current_meta.rating == 0.0 {
+						current_meta.rating = new_meta.rating;
 					}
+
+					// If we didn't update the original title
+					if current_meta.title == current_meta.original_title {
+						current_meta.title = new_meta.title;
+					}
+
+					current_meta.original_title = new_meta.original_title;
+					current_meta.refreshed_at = Utc::now();
+					current_meta.updated_at = Utc::now();
+
+					// No new thumb, but we have an old one. Set old one as new one.
+					if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
+						current_meta.thumb_path = new_meta.thumb_path;
+					} else if new_meta.thumb_path.is_some() {
+						db.add_cached_image(&CachedImage {
+							item_id: current_meta.id,
+							type_of: CacheType::BookPoster,
+							path: current_meta.thumb_path.clone(),
+							created_at: Utc::now(),
+						})?;
+					}
+
+					db.update_metadata(&current_meta)?;
+
+					for person_id in author_ids {
+						db.add_meta_person(&table::MetadataPerson {
+							metadata_id: new_meta.id,
+							person_id,
+						})?;
+					}
+
+					return Ok(());
 				}
 
 				println!("Updating by file check");
@@ -292,9 +291,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 							println!("Updating File Metadata.");
 
-							let (source, value) = source.split_once(':').unwrap();
-
-							if let Some(mut new_meta) = get_metadata_by_source(source, value).await? {
+							if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
 								let mut current_meta = db.get_metadata_by_id(old_meta_id)?.unwrap();
 
 								let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
@@ -322,9 +319,9 @@ impl Task for TaskUpdateInvalidMetadata {
 									current_meta.thumb_path = new_meta.thumb_path;
 								} else if new_meta.thumb_path.is_some() {
 									db.add_cached_image(&CachedImage {
-										item_id: new_meta.id,
+										item_id: current_meta.id,
 										type_of: CacheType::BookPoster,
-										path: new_meta.thumb_path.clone(),
+										path: current_meta.thumb_path.clone(),
 										created_at: Utc::now(),
 									})?;
 								}
@@ -338,7 +335,7 @@ impl Task for TaskUpdateInvalidMetadata {
 									})?;
 								}
 							} else {
-								println!("Unable to get metadata from source \"{}:{}\"", source, value);
+								println!("Unable to get metadata from source {:?}", source);
 								// TODO: Error since this shouldn't have happened.
 							}
 						}
@@ -346,10 +343,8 @@ impl Task for TaskUpdateInvalidMetadata {
 
 					// No metadata source. Lets scrape it and update our current one with the new one.
 					None => {
-						let (source, value) = source.split_once(':').unwrap();
-
-						if let Some(mut new_meta) = get_metadata_by_source(source, value).await? {
-							println!("Grabbed New Metadata from Source \"{}:{}\", updating old Metadata ({}) with it.", source, value, old_meta_id);
+						if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
+							println!("Grabbed New Metadata from Source {:?}, updating old Metadata ({}) with it.", source, old_meta_id);
 
 							let old_meta = db.get_metadata_by_id(old_meta_id)?.unwrap();
 
@@ -395,7 +390,7 @@ impl Task for TaskUpdateInvalidMetadata {
 								})?;
 							}
 						} else {
-							println!("Unable to get metadata from source \"{}:{}\"", source, value);
+							println!("Unable to get metadata from source {:?}", source);
 							// TODO: Error since this shouldn't have happened.
 						}
 					}
@@ -424,7 +419,7 @@ pub enum UpdatingPeople {
 	AutoUpdateById(i64),
 	UpdatePersonWithSource {
 		person_id: i64,
-		source: String,
+		source: Source,
 	}
 }
 
@@ -450,13 +445,13 @@ impl Task for TaskUpdatePeople {
 				let old_person = db.get_person_by_id(person_id)?.unwrap();
 				let source = old_person.source.clone();
 
-				Self::overwrite_person_with_source(old_person, source, db).await
+				Self::overwrite_person_with_source(old_person, &source, db).await
 			}
 
 			UpdatingPeople::UpdatePersonWithSource { person_id, source } => {
 				let old_person = db.get_person_by_id(person_id)?.unwrap();
 
-				Self::overwrite_person_with_source(old_person, source, db).await
+				Self::overwrite_person_with_source(old_person, &source, db).await
 			}
 		}
 	}
@@ -467,10 +462,8 @@ impl Task for TaskUpdatePeople {
 }
 
 impl TaskUpdatePeople {
-	pub async fn overwrite_person_with_source(mut old_person: table::TagPerson, source: String, db: &Database) -> Result<()> {
-		let (source, value) = source.split_once(':').unwrap();
-
-		if let Some(new_person) = get_person_by_source(source, value).await? {
+	pub async fn overwrite_person_with_source(mut old_person: table::TagPerson, source: &Source, db: &Database) -> Result<()> {
+		if let Some(new_person) = get_person_by_source(source).await? {
 			// TODO: Need to make sure it doesn't conflict with alt names or normal names if different.
 			if old_person.name != new_person.name {
 				println!("TODO: Old Name {:?} != New Name {:?}", old_person.name, new_person.name);

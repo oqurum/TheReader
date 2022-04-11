@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 
 use anyhow::Result;
-use books_common::Progression;
+use books_common::{Progression, Source};
 use chrono::Utc;
 use rusqlite::{Connection, params, OptionalExtension};
 
@@ -525,7 +525,7 @@ impl Database {
 				)
 				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
 				params![
-					meta.library_id, &meta.source, &meta.file_item_count,
+					meta.library_id, meta.source.to_string(), &meta.file_item_count,
 					&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.as_ref(),
 					&meta.cached.as_string_optional(),
 					&meta.available_at, &meta.year,
@@ -544,7 +544,7 @@ impl Database {
 		} else {
 			self.lock()?
 			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
-				params![&meta.source]
+				params![meta.source.to_string()]
 			)?;
 		}
 
@@ -564,7 +564,7 @@ impl Database {
 			WHERE id = ?1"#,
 			params![
 				meta.id,
-				meta.library_id, &meta.source, &meta.file_item_count,
+				meta.library_id, meta.source.to_string(), &meta.file_item_count,
 				&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.as_ref(),
 				&meta.cached.as_string_optional(),
 				&meta.available_at, &meta.year,
@@ -622,10 +622,10 @@ impl Database {
 	}
 
 	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
-	pub fn get_metadata_by_source(&self, source: &str) -> Result<Option<MetadataItem>> {
+	pub fn get_metadata_by_source(&self, source: &Source) -> Result<Option<MetadataItem>> {
 		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM metadata_item WHERE source = ?1 LIMIT 1"#,
-			params![source],
+			params![source.to_string()],
 			|v| MetadataItem::try_from(v)
 		).optional()?)
 	}
@@ -725,7 +725,7 @@ impl Database {
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 		"#,
 		params![
-			&person.source, &person.name, &person.description, &person.birth_date, person.thumb_url.as_ref(),
+			person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.as_ref(),
 			person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 		])?;
 
@@ -835,7 +835,7 @@ impl Database {
 			WHERE id = ?1"#,
 			params![
 				person.id,
-				&person.source, &person.name, &person.description, &person.birth_date, person.thumb_url.as_ref(),
+				person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.as_ref(),
 				person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 			]
 		)?;

@@ -18,7 +18,7 @@ pub use specific::*;
 pub struct Person {
 	pub id: i64,
 
-	pub source: String,
+	pub source: Source,
 
 	pub name: String,
 	pub description: Option<String>,
@@ -75,7 +75,7 @@ pub struct DisplayMetaItem {
 
 	pub library_id: i64,
 
-	pub source: String,
+	pub source: Source,
 	pub file_item_count: i64,
 	pub title: Option<String>,
 	pub original_title: Option<String>,

@@ -1,4 +1,4 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, ThumbnailPath};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, ThumbnailPath, Source};
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
@@ -13,7 +13,7 @@ pub struct MetadataItem {
 
 	pub library_id: i64,
 
-	pub source: String,
+	pub source: Source,
 	pub file_item_count: i64,
 	pub title: Option<String>,
 	pub original_title: Option<String>,
@@ -70,7 +70,7 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 		Ok(Self {
 			id: value.get(0)?,
 			library_id: value.get(1)?,
-			source: value.get(2)?,
+			source: Source::try_from(value.get::<_, String>(2)?).unwrap(),
 			file_item_count: value.get(3)?,
 			title: value.get(4)?,
 			original_title: value.get(5)?,
@@ -448,7 +448,7 @@ impl From<File> for MediaItem {
 
 #[derive(Debug)]
 pub struct NewTagPerson {
-	pub source: String,
+	pub source: Source,
 
 	pub name: String,
 	pub description: Option<String>,
@@ -464,7 +464,7 @@ pub struct NewTagPerson {
 pub struct TagPerson {
 	pub id: i64,
 
-	pub source: String,
+	pub source: Source,
 
 	pub name: String,
 	pub description: Option<String>,
@@ -485,7 +485,7 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 		Ok(Self {
 			id: value.get(0)?,
 
-			source: value.get(1)?,
+			source: Source::try_from(value.get::<_, String>(1)?).unwrap(),
 
 			name: value.get(2)?,
 			description: value.get(3)?,
@@ -641,7 +641,7 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 				.map(|_: i64| std::result::Result::<_, Self::Error>::Ok(MetadataItem {
 					id: value.get(11)?,
 					library_id: value.get(12)?,
-					source: value.get(13)?,
+					source: Source::try_from(value.get::<_, String>(13)?).unwrap(),
 					file_item_count: value.get(14)?,
 					title: value.get(15)?,
 					original_title: value.get(16)?,
