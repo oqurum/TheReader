@@ -33,7 +33,7 @@ impl Metadata for LocalMetadata {
 				let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
 				let opt_thumb_url = book.find(BookSearch::CoverImage)
 					.map(|mut v| v.remove(0))
-					.map(|url| book.read_path_as_bytes(&url));
+					.map(|url| book.read_path_as_bytes(&url, None, None));
 
 				let publisher = book.find(BookSearch::Publisher).map(|mut v| v.remove(0));
 				let authors = book.find(BookSearch::Creator)

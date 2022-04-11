@@ -16,6 +16,12 @@ pub struct GetLibrariesResponse {
 
 // Book
 
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+pub struct LoadResourceQuery {
+	#[serde(default)]
+	pub configure_pages: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetBookIdResponse {
 	pub media: MediaItem,

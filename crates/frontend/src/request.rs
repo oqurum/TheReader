@@ -1,9 +1,11 @@
+use std::path::Path;
+
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse, PostPersonBody}, Progression, SearchType};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse, PostPersonBody, LoadResourceQuery}, Progression, SearchType};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
@@ -115,6 +117,19 @@ pub async fn get_book_info(id: usize) -> GetBookIdResponse {
 
 pub async fn get_book_pages(book_id: i64, start: usize, end: usize) -> GetChaptersResponse {
 	fetch("GET", &format!("/api/book/{}/pages/{}-{}", book_id, start, end), Option::<&()>::None).await.unwrap()
+}
+
+pub async fn get_book_resource(book_id: i64, location: &Path, query: LoadResourceQuery) -> GetChaptersResponse {
+	fetch("GET", &compile_book_resource_path(book_id, location, query), Option::<&()>::None).await.unwrap()
+}
+
+pub fn compile_book_resource_path(book_id: i64, location: &Path, query: LoadResourceQuery) -> String {
+	format!(
+		"/api/book/{}/res/{}?{}",
+		book_id,
+		location.to_str().unwrap(),
+		serde_urlencoded::to_string(&query).unwrap_or_default()
+	)
 }
 
 

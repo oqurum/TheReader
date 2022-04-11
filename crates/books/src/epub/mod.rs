@@ -201,8 +201,30 @@ impl Book for EpubBook {
 		}
 	}
 
-	fn read_path_as_bytes(&mut self, path: &str) -> Result<Vec<u8>> {
-		self.get_path_contents(path)
+	fn read_path_as_bytes(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
+		if prepend_to_urls.is_some() || add_css.is_some() {
+			let page_path = PathBuf::from(path);
+
+			update_attributes_with(
+				&self.get_path_contents(path)?,
+				|element_name, mut attr| {
+					attr.value = match (element_name.local_name.as_str(), attr.name.local_name.as_str()) {
+						("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+						("img", "src") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+						("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+						_ => return attr
+					};
+					attr
+				},
+				if let Some(v) = add_css {
+					v
+				} else {
+					&[]
+				}
+			)
+		} else {
+			self.get_path_contents(path)
+		}
 	}
 
 	fn read_page_as_bytes(&mut self, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {

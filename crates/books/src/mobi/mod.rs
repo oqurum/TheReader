@@ -69,7 +69,7 @@ impl Book for EpubBook {
 		todo!()
 	}
 
-	fn read_path_as_bytes(&mut self, path: &str) -> Result<Vec<u8>> {
+	fn read_path_as_bytes(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
 		todo!()
 	}
 

@@ -31,9 +31,9 @@ pub trait Book {
 		Ok(String::from_utf8(self.read_page_as_bytes(prepend_to_urls, add_css)?)?)
 	}
 
-	fn read_path_as_bytes(&mut self, path: &str) -> Result<Vec<u8>>;
-	fn read_path_as_string(&mut self, path: &str) -> Result<String> {
-		Ok(String::from_utf8(self.read_path_as_bytes(path)?)?)
+	fn read_path_as_bytes(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>>;
+	fn read_path_as_string(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<String> {
+		Ok(String::from_utf8(self.read_path_as_bytes(path, prepend_to_urls, add_css)?)?)
 	}
 
 	fn chapter_count(&self) -> usize;

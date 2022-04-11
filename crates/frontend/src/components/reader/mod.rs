@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, hash_map::Entry}, rc::Rc, sync::Mutex, path::PathBuf};
 
-use books_common::{MediaItem, Progression, Chapter};
+use books_common::{MediaItem, Progression, Chapter, api};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};
@@ -336,7 +336,12 @@ impl Component for Reader {
 			for chap in chaps.chapters.iter().rev() {
 				if let Entry::Vacant(v) = self.generated_chapters.entry(chap.value) {
 					log::info!("Generating Chapter {}", chap.value + 1);
-					v.insert(generate_pages(Some(props.dimensions), chap.clone(), ctx.link().clone()));
+					v.insert(generate_pages(
+						Some(props.dimensions),
+						props.book.id,
+						chap.clone(),
+						ctx.link().clone()
+					));
 				}
 			}
 		}
@@ -557,9 +562,17 @@ fn create_iframe() -> HtmlIFrameElement {
 		.unwrap()
 }
 
-fn generate_pages(book_dimensions: Option<(i32, i32)>, chapter: Chapter, scope: Scope<Reader>) -> ChapterContents {
+fn generate_pages(book_dimensions: Option<(i32, i32)>, book_id: i64, chapter: Chapter, scope: Scope<Reader>) -> ChapterContents {
 	let iframe = create_iframe();
-	iframe.set_attribute("srcdoc", chapter.html.as_str()).unwrap();
+
+	iframe.set_attribute(
+		"src",
+		&request::compile_book_resource_path(
+			book_id,
+			&chapter.file_path,
+			api::LoadResourceQuery { configure_pages: true }
+		)
+	).unwrap();
 
 	update_iframe_size(book_dimensions, &iframe);
 

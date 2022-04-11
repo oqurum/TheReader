@@ -188,7 +188,6 @@ pub enum Progression {
 pub struct Chapter {
 	pub file_path: PathBuf,
 	pub value: usize,
-	pub html: String
 }
 
 

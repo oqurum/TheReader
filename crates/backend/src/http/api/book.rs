@@ -9,36 +9,55 @@ use futures::TryStreamExt;
 use crate::database::Database;
 
 
+
 // Load Book Resources
 
 #[get("/api/book/{id}/res/{tail:.*}")]
-pub async fn load_resource(path: web::Path<(i64, String)>, db: web::Data<Database>) -> HttpResponse {
+pub async fn load_resource(
+	path: web::Path<(i64, String)>,
+	res: web::Query<api::LoadResourceQuery>,
+	db: web::Data<Database>
+) -> HttpResponse {
 	let (book_id, resource_path) = path.into_inner();
 
 	let file = db.find_file_by_id(book_id).unwrap().unwrap();
 
 	let mut book = bookie::load_from_path(&file.path).unwrap().unwrap();
 
-	let body = match book.read_path_as_bytes(&resource_path) {
-		Ok(v) => v,
+	// TODO: Check if we're loading a section
+	if res.configure_pages {
+		let body = match book.read_path_as_bytes(
+			&resource_path,
+			Some(&format!("/api/book/{}/res", book_id)),
+			Some(&[include_str!("../../../../../app/book_stylings.css")])
+		) {
+			Ok(v) => v,
+			Err(e) => {
+				eprintln!("{}", e);
+				Vec::new()
+			}
+		};
 
-		Err(e) => {
-			eprintln!("{}", e);
+		HttpResponse::Ok()
+			.insert_header(("Content-Type", "application/xhtml+xml"))
+			.body(body)
+	} else {
+		let body = match book.read_path_as_bytes(
+			&resource_path,
+			None,
+			None
+		) {
+			Ok(v) => v,
+			Err(e) => {
+				eprintln!("{}", e);
+				Vec::new()
+			}
+		};
 
-			Vec::new()
-		}
-	};
-
-	HttpResponse::Ok()
-		.body(body)
+		HttpResponse::Ok().body(body)
+	}
 }
 
-
-
-#[derive(serde::Serialize)]
-pub struct ChapterInfo {
-	chapters: Vec<Chapter>
-}
 
 #[get("/api/book/{id}/pages/{pages}")]
 pub async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> web::Json<api::GetChaptersResponse> {
@@ -62,8 +81,6 @@ pub async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>)
 			}
 		);
 
-	let path = format!("/api/book/{}/res", book_id);
-
 	let mut items = Vec::new();
 
 	for chap in start_chap..end_chap {
@@ -74,9 +91,6 @@ pub async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>)
 		items.push(Chapter {
 			file_path: book.get_page_path(),
 			value: chap,
-			html: book.read_page_as_string(Some(&path), Some(&[
-				include_str!("../../../../../app/book_stylings.css")
-			])).unwrap()
 		});
 	}
 
@@ -208,3 +222,9 @@ pub async fn load_book_list(db: web::Data<Database>, query: web::Query<api::Book
 	})
 }
 
+
+
+
+fn default_true() -> bool {
+	true
+}
