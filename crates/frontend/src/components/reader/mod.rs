@@ -172,7 +172,7 @@ impl Component for Reader {
 				// let mut path = chaps.chapters.iter().find(|v| v.value == chapter).unwrap().file_path.clone();
 				// path.pop();
 
-				if let Some(chap) = chaps.chapters.iter().find(|v| v.file_path == file_path) {
+				if let Some(chap) = chaps.chapters.iter().find(|v| v.file_path.ends_with(&file_path)) {
 					self.set_chapter(chap.value);
 					// TODO: Handle id_name
 				}
