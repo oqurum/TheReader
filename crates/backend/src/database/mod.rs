@@ -224,6 +224,7 @@ pub async fn init() -> Result<Database> {
 
 			"name"			TEXT NOT NULL COLLATE NOCASE,
 			"email"			TEXT COLLATE NOCASE,
+			"password"		TEXT,
 			"is_local"		INTEGER NOT NULL,
 			"config"		TEXT,
 
@@ -959,11 +960,11 @@ impl Database {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
-			INSERT INTO members (name, email, is_local, config, created_at, updated_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+			INSERT INTO members (name, email, password, is_local, config, created_at, updated_at)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 		"#,
 		params![
-			&member.name, &member.email, member.is_local, member.config.as_ref(),
+			&member.name, member.email.as_ref(), member.password.as_ref(), member.type_of, member.config.as_ref(),
 			member.created_at.timestamp_millis(), member.updated_at.timestamp_millis()
 		])?;
 

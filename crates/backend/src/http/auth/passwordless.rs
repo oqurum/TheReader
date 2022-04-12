@@ -24,26 +24,13 @@ pub static PASSWORDLESS_PATH: &str = "/auth/passwordless";
 pub static PASSWORDLESS_PATH_CB: &str = "/auth/passwordless/response";
 
 
-pub async fn get_passwordless_oauth(
-	req: actix_web::HttpRequest,
-	identity: Identity,
-) -> HttpResponse {
-	if identity.identity().is_some() {
-		return HttpResponse::Found()
-			.append_header((header::LOCATION, "/"))
-			.finish();
-	}
-
-	actix_files::NamedFile::open_async("../frontend/dist/index.html").await.unwrap().into_response(&req)
-}
-
 #[derive(Serialize, Deserialize)]
-pub struct TwitterPostCallback {
+pub struct PostPasswordlessCallback {
 	pub email: String,
 }
 
 pub async fn post_passwordless_oauth(
-	query: web::Query<TwitterPostCallback>,
+	query: web::Form<PostPasswordlessCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
 ) -> HttpResponse {
@@ -125,7 +112,8 @@ pub async fn get_passwordless_oauth_callback(
 				// TODO: Strip email
 				name: email.clone(),
 				email: Some(email),
-				is_local: false,
+				password: None,
+				type_of: 1,
 				config: None,
 				created_at: Utc::now(),
 				updated_at: Utc::now(),

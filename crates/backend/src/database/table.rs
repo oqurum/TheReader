@@ -593,12 +593,14 @@ impl From<u8> for CacheType {
 
 // User
 
+// TODO: type_of 0 = web page, 1 = local passwordless 2 = local password
+// TODO: Enum.
 pub struct NewMember {
 	pub name: String,
 	pub email: Option<String>,
+	pub password: Option<String>,
 
-	// TODO: is local
-	pub is_local: bool,
+	pub type_of: u8,
 
 	// TODO
 	pub config: Option<String>,
@@ -613,7 +615,8 @@ impl NewMember {
 			id,
 			name: self.name,
 			email: self.email,
-			is_local: self.is_local,
+			password: self.password,
+			type_of: self.type_of,
 			config: self.config,
 			created_at: self.created_at,
 			updated_at: self.updated_at,
@@ -627,9 +630,9 @@ pub struct Member {
 
 	pub name: String,
 	pub email: Option<String>,
+	pub password: Option<String>,
 
-	// TODO: Is local
-	pub is_local: bool,
+	pub type_of: u8,
 
 	// TODO
 	pub config: Option<String>,
@@ -649,10 +652,11 @@ impl<'a> TryFrom<&Row<'a>> for Member {
 			id: value.get(0)?,
 			name: value.get(1)?,
 			email: value.get(2)?,
-			is_local: value.get(3)?,
-			config: value.get(4)?,
-			created_at: Utc.timestamp_millis(value.get(5)?),
-			updated_at: Utc.timestamp_millis(value.get(6)?),
+			password: value.get(3)?,
+			type_of: value.get(4)?,
+			config: value.get(5)?,
+			created_at: Utc.timestamp_millis(value.get(6)?),
+			updated_at: Utc.timestamp_millis(value.get(7)?),
 		})
 	}
 }

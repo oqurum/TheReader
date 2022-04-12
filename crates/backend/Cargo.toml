@@ -31,6 +31,7 @@ lazy_static = "1.4"
 log = "0.4"
 regex = "1.5"
 sha2 = "0.10"
+bcrypt = "0.12"
 urlencoding = "2.1"
 rand = "0.8"
 

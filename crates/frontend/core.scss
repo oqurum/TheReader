@@ -113,6 +113,19 @@ body {
 	}
 }
 
+/* CENTER DIV */
+.center-normal {
+	display: flex;
+	justify-content: center;
+	align-content: center;
+	width: 100%;
+	height: 100%;
+
+	> .center-container {
+		margin: auto;
+	}
+}
+
 /* POPUP */
 .popup {
 	background-color: rgba(0, 0, 0, 0.3);
@@ -675,6 +688,13 @@ body {
 			}
 		}
 	}
+}
+
+
+/* LOGIN PAGE */
+
+.login-container {
+	flex-grow: 1;
 }
 
 

@@ -1,3 +1,6 @@
+mod auth;
+
+pub use auth::login::LoginPage;
 
 pub mod home;
 pub mod library;

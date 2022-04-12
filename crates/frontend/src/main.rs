@@ -62,6 +62,9 @@ impl Model {
 
 #[derive(Routable, PartialEq, Clone, Debug)]
 pub enum Route {
+	#[at("/login")]
+	Login,
+
 	#[at("/library/:library_id")]
 	ViewLibrary { library_id: i64 },
 
@@ -85,7 +88,12 @@ pub enum Route {
 
 fn switch(route: &Route, _link: Scope<Model>) -> Html {
 	log::info!("{:?}", route);
+
 	match route.clone() {
+		Route::Login => {
+			html! { <pages::LoginPage /> }
+		}
+
 		Route::ViewLibrary { library_id } => {
 			html! { <pages::LibraryPage library_id={library_id}  /> }
 		}

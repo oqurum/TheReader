@@ -23,6 +23,7 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 				CookieIdentityPolicy::new(&[0; 32])
 					.name("bookie-auth")
 					.secure(false)
+					.max_age_secs(60 * 60 * 24 * 365)
 					.same_site(SameSite::Strict)
 			))
 
@@ -60,11 +61,13 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 			// Task
 			.service(task::run_task)
 
-			// Passwordless
+			// Password
 			.route(
-				passwordless::PASSWORDLESS_PATH,
-				web::get().to(passwordless::get_passwordless_oauth),
+				password::PASSWORD_PATH,
+				web::post().to(password::post_password_oauth),
 			)
+
+			// Passwordless
 			.route(
 				passwordless::PASSWORDLESS_PATH,
 				web::post().to(passwordless::post_passwordless_oauth),
