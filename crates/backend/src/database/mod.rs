@@ -4,6 +4,7 @@ use anyhow::Result;
 use books_common::{Progression, Source};
 use chrono::Utc;
 use rusqlite::{Connection, params, OptionalExtension};
+// TODO: use tokio::task::spawn_blocking;
 
 pub mod table;
 use table::*;
@@ -202,7 +203,6 @@ pub async fn init() -> Result<Database> {
 	)?;
 
 	// Images
-
 	conn.execute(
 		r#"CREATE TABLE IF NOT EXISTS "cached_images" (
 			"item_id"		INTEGER NOT NULL,
@@ -213,6 +213,38 @@ pub async fn init() -> Result<Database> {
 			"created_at" 	DATETIME NOT NULL,
 
 			UNIQUE(item_id, type, path)
+		);"#,
+		[]
+	)?;
+
+	// Members
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "members" (
+			"id"			INTEGER NOT NULL,
+
+			"name"			TEXT NOT NULL COLLATE NOCASE,
+			"email"			TEXT COLLATE NOCASE,
+			"is_local"		INTEGER NOT NULL,
+			"config"		TEXT,
+
+			"created_at" 	DATETIME NOT NULL,
+			"updated_at" 	DATETIME NOT NULL,
+
+			UNIQUE(email),
+			PRIMARY KEY("id" AUTOINCREMENT)
+		);"#,
+		[]
+	)?;
+
+	// Auths
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "auths" (
+			"oauth_token"			TEXT NOT NULL,
+			"oauth_token_secret"	TEXT NOT NULL,
+
+			"created_at"			DATETIME NOT NULL,
+
+			UNIQUE(oauth_token)
 		);"#,
 		[]
 	)?;
@@ -918,5 +950,57 @@ impl Database {
 				type_of,
 			]
 		)?)
+	}
+
+
+	// Members
+
+	pub fn add_member(&self, member: &NewMember) -> Result<i64> {
+		let conn = self.lock()?;
+
+		conn.execute(r#"
+			INSERT INTO members (name, email, is_local, config, created_at, updated_at)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+		"#,
+		params![
+			&member.name, &member.email, member.is_local, member.config.as_ref(),
+			member.created_at.timestamp_millis(), member.updated_at.timestamp_millis()
+		])?;
+
+		Ok(conn.last_insert_rowid())
+	}
+
+	pub fn get_member_by_email(&self, value: &str) -> Result<Option<Member>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM members WHERE email = ?1 LIMIT 1"#,
+			params![value],
+			|v| Member::try_from(v)
+		).optional()?)
+	}
+
+
+	// Members
+
+	pub fn add_verify(&self, auth: &NewAuth) -> Result<i64> {
+		let conn = self.lock()?;
+
+		conn.execute(r#"
+			INSERT INTO auths (oauth_token, oauth_token_secret, created_at)
+			VALUES (?1, ?2, ?3)
+		"#,
+		params![
+			&auth.oauth_token,
+			&auth.oauth_token_secret,
+			auth.created_at.timestamp_millis()
+		])?;
+
+		Ok(conn.last_insert_rowid())
+	}
+
+	pub fn remove_verify_if_found_by_oauth_token(&self, value: &str) -> Result<bool> {
+		Ok(self.lock()?.execute(
+			r#"DELETE FROM auths WHERE oauth_token = ?1 LIMIT 1"#,
+			params![value],
+		)? != 0)
 	}
 }

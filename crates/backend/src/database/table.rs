@@ -184,6 +184,7 @@ impl<'a> TryFrom<&Row<'a>> for FileNote {
 	}
 }
 
+
 // File Progression
 
 #[derive(Debug, Serialize)]
@@ -589,6 +590,81 @@ impl From<u8> for CacheType {
     }
 }
 
+
+// User
+
+pub struct NewMember {
+	pub name: String,
+	pub email: Option<String>,
+
+	// TODO: is local
+	pub is_local: bool,
+
+	// TODO
+	pub config: Option<String>,
+
+	pub created_at: DateTime<Utc>,
+	pub updated_at: DateTime<Utc>,
+}
+
+impl NewMember {
+	pub fn into_member(self, id: i64) -> Member {
+		Member {
+			id,
+			name: self.name,
+			email: self.email,
+			is_local: self.is_local,
+			config: self.config,
+			created_at: self.created_at,
+			updated_at: self.updated_at,
+		}
+	}
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Member {
+	pub id: i64,
+
+	pub name: String,
+	pub email: Option<String>,
+
+	// TODO: Is local
+	pub is_local: bool,
+
+	// TODO
+	pub config: Option<String>,
+
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
+
+	#[serde(serialize_with = "serialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+}
+
+impl<'a> TryFrom<&Row<'a>> for Member {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			id: value.get(0)?,
+			name: value.get(1)?,
+			email: value.get(2)?,
+			is_local: value.get(3)?,
+			config: value.get(4)?,
+			created_at: Utc.timestamp_millis(value.get(5)?),
+			updated_at: Utc.timestamp_millis(value.get(6)?),
+		})
+	}
+}
+
+
+// Auth
+
+pub struct NewAuth {
+	pub oauth_token: String,
+	pub oauth_token_secret: String,
+	pub created_at: DateTime<Utc>,
+}
 
 
 // Utils
