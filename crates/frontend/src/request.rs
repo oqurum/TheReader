@@ -5,10 +5,17 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse, PostPersonBody, LoadResourceQuery}, Progression, SearchType};
+use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse, PostPersonBody, LoadResourceQuery, GetMemberSelfResponse}, Progression, SearchType};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
+
+
+// Member
+
+pub async fn get_member_self() -> GetMemberSelfResponse {
+	fetch("GET", "/api/member", Option::<&()>::None).await.unwrap()
+}
 
 
 // Libraries

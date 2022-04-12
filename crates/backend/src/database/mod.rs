@@ -979,6 +979,14 @@ impl Database {
 		).optional()?)
 	}
 
+	pub fn get_member_by_id(&self, value: i64) -> Result<Option<Member>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM members WHERE id = ?1 LIMIT 1"#,
+			params![value],
+			|v| Member::try_from(v)
+		).optional()?)
+	}
+
 
 	// Members
 

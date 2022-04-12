@@ -661,6 +661,19 @@ impl<'a> TryFrom<&Row<'a>> for Member {
 	}
 }
 
+impl From<Member> for books_common::Member {
+	fn from(value: Member) -> books_common::Member {
+		books_common::Member {
+			id: value.id,
+			name: value.name,
+			email: value.email,
+			type_of: value.type_of,
+			config: value.config,
+			created_at: value.created_at,
+			updated_at: value.updated_at,
+		}
+	}
+}
 
 // Auth
 

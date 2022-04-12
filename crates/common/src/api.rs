@@ -2,7 +2,15 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source, Member};
+
+
+// Members
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetMemberSelfResponse {
+	pub member: Option<Member>,
+}
 
 
 // Libraries

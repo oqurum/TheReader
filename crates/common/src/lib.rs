@@ -11,6 +11,27 @@ pub mod specific;
 
 pub use specific::*;
 
+// Member
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Member {
+	pub id: i64,
+
+	pub name: String,
+	pub email: Option<String>,
+
+	pub type_of: u8,
+
+	// TODO
+	pub config: Option<String>,
+
+	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+	pub created_at: DateTime<Utc>,
+	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+	pub updated_at: DateTime<Utc>,
+}
+
+
 
 // Used for People View
 

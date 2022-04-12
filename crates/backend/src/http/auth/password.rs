@@ -2,7 +2,7 @@
 
 
 use actix_identity::Identity;
-use actix_web::{http::header, HttpResponse};
+use actix_web::HttpResponse;
 use actix_web::web;
 
 use chrono::Utc;
