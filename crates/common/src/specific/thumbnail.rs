@@ -3,6 +3,8 @@ use std::ops::Deref;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 
+pub static MISSING_THUMB_PATH: &str = "/images/missingthumbnail.jpg";
+
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ThumbnailPath(pub Option<String>);
@@ -14,6 +16,16 @@ impl ThumbnailPath {
 
 	pub fn is_url(&self) -> bool {
 		self.0.as_ref().map(|v| v.contains('.')).unwrap_or_default()
+	}
+
+	pub fn into_url_thumb(self, meta_id: i64) -> String {
+		if self.is_url() {
+			self.0.unwrap()
+		} else if self.is_some() {
+			format!("/api/metadata/{meta_id}/thumbnail")
+		} else {
+			String::from(MISSING_THUMB_PATH)
+		}
 	}
 
 	// TODO: Deref, Ref error.

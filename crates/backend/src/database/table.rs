@@ -684,6 +684,46 @@ pub struct NewAuth {
 }
 
 
+// Poster
+
+#[derive(Serialize)]
+pub struct NewPoster {
+	pub link_id: i64,
+
+	pub path: ThumbnailPath,
+
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct Poster {
+	pub id: i64,
+
+	pub link_id: i64,
+
+	pub path: ThumbnailPath,
+
+	#[serde(serialize_with = "serialize_datetime")]
+	pub created_at: DateTime<Utc>,
+}
+
+impl<'a> TryFrom<&Row<'a>> for Poster {
+	type Error = rusqlite::Error;
+
+	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
+		Ok(Self {
+			id: value.get(0)?,
+			link_id: value.get(1)?,
+			path: ThumbnailPath(Some(value.get(2)?)),
+			created_at: Utc.timestamp_millis(value.get(3)?),
+		})
+	}
+}
+
+
+
 // Utils
 
 fn serialize_datetime<S>(value: &DateTime<Utc>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {

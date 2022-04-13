@@ -14,6 +14,7 @@ async fn load_metadata_thumbnail(path: web::Path<i64>, db: web::Data<Database>) 
 	let meta = db.get_metadata_by_id(book_id).unwrap();
 
 	if let Some(path) = meta.map(|v| v.thumb_path) {
+		// TODO: Replace with common one.
 		let loc = ThumbnailLocation::from(path);
 
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());

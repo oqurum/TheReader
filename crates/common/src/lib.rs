@@ -315,3 +315,17 @@ pub enum SearchForBooksBy {
 	AuthorName,
 	Contents,
 }
+
+
+
+// Image
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Poster {
+	pub id: Option<i64>,
+
+	pub path: String,
+
+	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+	pub created_at: DateTime<Utc>,
+}

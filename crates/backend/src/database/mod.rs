@@ -250,6 +250,25 @@ pub async fn init() -> Result<Database> {
 		[]
 	)?;
 
+
+	// TODO: type_of for Author, Book Meta, etc..
+	// Uploaded Images
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "uploaded_images" (
+			"id"			INTEGER NOT NULL,
+
+			"link_id"		INTEGER NOT NULL,
+
+			"path"			TEXT NOT NULL,
+
+			"created_at"	DATETIME NOT NULL,
+
+			UNIQUE(link_id, path),
+			PRIMARY KEY("id" AUTOINCREMENT)
+		);"#,
+		[]
+	)?;
+
 	Ok(Database(Mutex::new(conn)))
 }
 
@@ -988,7 +1007,7 @@ impl Database {
 	}
 
 
-	// Members
+	// Verify
 
 	pub fn add_verify(&self, auth: &NewAuth) -> Result<i64> {
 		let conn = self.lock()?;
@@ -1011,5 +1030,33 @@ impl Database {
 			r#"DELETE FROM auths WHERE oauth_token = ?1 LIMIT 1"#,
 			params![value],
 		)? != 0)
+	}
+
+
+	// Poster
+
+	pub fn add_poster(&self, poster: &NewPoster) -> Result<i64> {
+		let conn = self.lock()?;
+
+		conn.execute(r#"
+			INSERT INTO uploaded_images (path, created_at)
+			VALUES (?1, ?2)
+		"#,
+		params![
+			poster.path.to_string(),
+			poster.created_at.timestamp_millis()
+		])?;
+
+		Ok(conn.last_insert_rowid())
+	}
+
+	pub fn get_posters_by_linked_id(&self, id: i64) -> Result<Vec<Poster>> {
+		let this = self.lock()?;
+
+		let mut conn = this.prepare(r#"SELECT * FROM uploaded_images WHERE link_id = ?1"#)?;
+
+		let map = conn.query_map([id], |v| Poster::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 }

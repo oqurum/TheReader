@@ -2,7 +2,16 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source, Member};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source, Member, Poster};
+
+
+// Images
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetPostersResponse {
+	pub items: Vec<Poster>
+}
+
 
 
 // Members

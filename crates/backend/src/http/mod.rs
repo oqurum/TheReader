@@ -39,6 +39,9 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 			.service(book::notes_book_delete)
 			.service(book::load_book_list)
 
+			// Image
+			.service(image::get_poster_list)
+
 			// Member
 			.service(member::load_member_self)
 
