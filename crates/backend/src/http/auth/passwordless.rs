@@ -124,7 +124,7 @@ pub async fn get_passwordless_oauth_callback(
 			new_member.into_member(inserted_id)
 		};
 
-		identity.remember(member.id.to_string());
+		super::remember_member_auth(member.id, &identity);
 	}
 
 	HttpResponse::Found()

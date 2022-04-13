@@ -462,10 +462,10 @@ impl Database {
 
 	// Progression
 
-	pub fn add_or_update_progress(&self, user_id: i64, file_id: i64, progress: Progression) -> Result<()> {
-		let prog = FileProgression::new(progress, user_id, file_id);
+	pub fn add_or_update_progress(&self, member_id: i64, file_id: i64, progress: Progression) -> Result<()> {
+		let prog = FileProgression::new(progress, member_id, file_id);
 
-		if self.get_progress(user_id, file_id)?.is_some() {
+		if self.get_progress(member_id, file_id)?.is_some() {
 			self.lock()?.execute(
 				r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE file_id = ?6 AND user_id = ?7"#,
 				params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
@@ -480,18 +480,18 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn get_progress(&self, user_id: i64, file_id: i64) -> Result<Option<FileProgression>> {
+	pub fn get_progress(&self, member_id: i64, file_id: i64) -> Result<Option<FileProgression>> {
 		Ok(self.lock()?.query_row(
 			"SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
-			params![user_id, file_id],
+			params![member_id, file_id],
 			|v| FileProgression::try_from(v)
 		).optional()?)
 	}
 
-	pub fn delete_progress(&self, user_id: i64, file_id: i64) -> Result<()> {
+	pub fn delete_progress(&self, member_id: i64, file_id: i64) -> Result<()> {
 		self.lock()?.execute(
 			"DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
-			params![user_id, file_id]
+			params![member_id, file_id]
 		)?;
 
 		Ok(())
@@ -500,10 +500,10 @@ impl Database {
 
 	// Notes
 
-	pub fn add_or_update_notes(&self, user_id: i64, file_id: i64, data: String) -> Result<()> {
-		let prog = FileNote::new(file_id, user_id, data);
+	pub fn add_or_update_notes(&self, member_id: i64, file_id: i64, data: String) -> Result<()> {
+		let prog = FileNote::new(file_id, member_id, data);
 
-		if self.get_notes(user_id, file_id)?.is_some() {
+		if self.get_notes(member_id, file_id)?.is_some() {
 			self.lock()?.execute(
 				r#"UPDATE file_note SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
 				params![prog.data, prog.data_size, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
@@ -518,18 +518,18 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn get_notes(&self, user_id: i64, file_id: i64) -> Result<Option<FileNote>> {
+	pub fn get_notes(&self, member_id: i64, file_id: i64) -> Result<Option<FileNote>> {
 		Ok(self.lock()?.query_row(
 			"SELECT * FROM file_note WHERE user_id = ?1 AND file_id = ?2",
-			params![user_id, file_id],
+			params![member_id, file_id],
 			|v| FileNote::try_from(v)
 		).optional()?)
 	}
 
-	pub fn delete_notes(&self, user_id: i64, file_id: i64) -> Result<()> {
+	pub fn delete_notes(&self, member_id: i64, file_id: i64) -> Result<()> {
 		self.lock()?.execute(
 			"DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
-			params![user_id, file_id]
+			params![member_id, file_id]
 		)?;
 
 		Ok(())

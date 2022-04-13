@@ -1,5 +1,6 @@
 use std::io::Read;
 
+use actix_identity::Identity;
 use actix_web::{get, web, HttpResponse, post, delete};
 
 use books_common::{Chapter, api, Progression, DisplayItem};
@@ -7,6 +8,7 @@ use bookie::Book;
 use futures::TryStreamExt;
 
 use crate::database::Database;
+use crate::http::get_auth_value;
 
 
 
@@ -151,18 +153,35 @@ pub async fn load_book_debug(web_path: web::Path<(i64, String)>, db: web::Data<D
 // Progress
 
 #[post("/api/book/{id}/progress")]
-pub async fn progress_book_add(file_id: web::Path<i64>, body: web::Json<Progression>, db: web::Data<Database>) -> HttpResponse {
-	match db.add_or_update_progress(0, *file_id, body.into_inner()) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+pub async fn progress_book_add(
+	file_id: web::Path<i64>,
+	body: web::Json<Progression>,
+	db: web::Data<Database>,
+	identity: Identity,
+) -> HttpResponse {
+	if let Some(member_id) = get_auth_value(&identity) {
+		match db.add_or_update_progress(member_id, *file_id, body.into_inner()) {
+			Ok(_) => HttpResponse::Ok().finish(),
+			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+		}
+	} else {
+		HttpResponse::BadRequest().finish()
 	}
 }
 
 #[delete("/api/book/{id}/progress")]
-pub async fn progress_book_delete(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
-	match db.delete_progress(0, *file_id) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+pub async fn progress_book_delete(
+	file_id: web::Path<i64>,
+	db: web::Data<Database>,
+	identity: Identity,
+) -> HttpResponse {
+	if let Some(member_id) = get_auth_value(&identity) {
+		match db.delete_progress(member_id, *file_id) {
+			Ok(_) => HttpResponse::Ok().finish(),
+			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+		}
+	} else {
+		HttpResponse::BadRequest().finish()
 	}
 }
 
@@ -170,15 +189,28 @@ pub async fn progress_book_delete(file_id: web::Path<i64>, db: web::Data<Databas
 // Notes
 
 #[get("/api/book/{id}/notes")]
-pub async fn notes_book_get(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
-	match db.get_notes(0, *file_id) {
-		Ok(v) => HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+pub async fn notes_book_get(
+	file_id: web::Path<i64>,
+	db: web::Data<Database>,
+	identity: Identity,
+) -> HttpResponse {
+	if let Some(member_id) = get_auth_value(&identity) {
+		match db.get_notes(member_id, *file_id) {
+			Ok(v) => HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()),
+			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+		}
+	} else {
+		HttpResponse::BadRequest().finish()
 	}
 }
 
 #[post("/api/book/{id}/notes")]
-pub async fn notes_book_add(file_id: web::Path<i64>, mut payload: web::Payload, db: web::Data<Database>) -> actix_web::Result<HttpResponse> {
+pub async fn notes_book_add(
+	file_id: web::Path<i64>,
+	mut payload: web::Payload,
+	db: web::Data<Database>,
+	identity: Identity,
+) -> actix_web::Result<HttpResponse> {
 	let mut body = web::BytesMut::new();
 	while let Some(chunk) = payload.try_next().await? {
 		body.extend_from_slice(&chunk);
@@ -186,17 +218,29 @@ pub async fn notes_book_add(file_id: web::Path<i64>, mut payload: web::Payload, 
 
 	let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
 
-	Ok(match db.add_or_update_notes(0, *file_id, data) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-	})
+	if let Some(member_id) = get_auth_value(&identity) {
+		Ok(match db.add_or_update_notes(member_id, *file_id, data) {
+			Ok(_) => HttpResponse::Ok().finish(),
+			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+		})
+	} else {
+		Ok(HttpResponse::BadRequest().finish())
+	}
 }
 
 #[delete("/api/book/{id}/notes")]
-pub async fn notes_book_delete(file_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
-	match db.delete_notes(0, *file_id) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+pub async fn notes_book_delete(
+	file_id: web::Path<i64>,
+	db: web::Data<Database>,
+	identity: Identity,
+) -> HttpResponse {
+	if let Some(member_id) = get_auth_value(&identity) {
+		match db.delete_notes(member_id, *file_id) {
+			Ok(_) => HttpResponse::Ok().finish(),
+			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+		}
+	} else {
+		HttpResponse::BadRequest().finish()
 	}
 }
 
@@ -220,11 +264,4 @@ pub async fn load_book_list(db: web::Data<Database>, query: web::Query<api::Book
 			})
 			.collect()
 	})
-}
-
-
-
-
-fn default_true() -> bool {
-	true
 }
