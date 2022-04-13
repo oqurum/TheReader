@@ -6,6 +6,8 @@ use web_sys::{MouseEvent, Element};
 use yew::prelude::*;
 
 
+pub mod edit_metadata;
+
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PopupType {

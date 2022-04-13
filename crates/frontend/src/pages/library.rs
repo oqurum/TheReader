@@ -5,7 +5,7 @@ use web_sys::{HtmlInputElement, HtmlElement};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
-use crate::{Route, request, components::{Popup, PopupType}, util};
+use crate::{Route, request, components::{Popup, PopupEditMetadata, PopupType}, util};
 
 
 #[derive(Properties, PartialEq)]
@@ -197,35 +197,11 @@ impl Component for LibraryPage {
 
 									DisplayOverlay::Edit(resp) => {
 										html! {
-											<Popup
-												type_of={ PopupType::FullOverlay }
-												on_close={ctx.link().callback(|_| Msg::ClosePopup)}
+											<PopupEditMetadata
+												on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
 												classes={ classes!("popup-book-edit") }
-											>
-												<div class="header">
-													<h1>{"Edit"}</h1>
-												</div>
-
-												<div class="content">
-													<div class="sidebar">
-														<div class="sidebar-item">{ "Testing" }</div>
-													</div>
-													<div class="tab-content">
-														<label for="input-title">{ "Title" }</label>
-														<input type="text" id="input-title" value={ resp.metadata.title.clone().unwrap_or_default() } />
-
-														<label for="input-orig-title">{ "Original Title" }</label>
-														<input type="text" id="input-orig-title" value={ resp.metadata.original_title.clone().unwrap_or_default() } />
-
-														<label for="input-descr">{ "Description" }</label>
-														<input type="text" id="input-descr" value={ resp.metadata.description.clone().unwrap_or_default() } />
-													</div>
-												</div>
-												<div class="footer">
-													<button class="button">{ "Cancel" }</button>
-													<button class="button">{ "Save" }</button>
-												</div>
-											</Popup>
+												media_resp={ resp.clone() }
+											/>
 										}
 									}
 

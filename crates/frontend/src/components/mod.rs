@@ -5,5 +5,5 @@ pub mod reader;
 
 pub use navbar::NavbarModule;
 pub use notes::Notes;
-pub use popup::{Popup, PopupType};
+pub use popup::{Popup, PopupType, edit_metadata::PopupEditMetadata};
 pub use reader::Reader;

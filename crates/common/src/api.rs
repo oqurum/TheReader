@@ -93,7 +93,7 @@ pub struct ModifyOptionsBody {
 
 // Metadata
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct MediaViewResponse {
 	pub metadata: DisplayMetaItem,
 	pub media: Vec<MediaItem>,
