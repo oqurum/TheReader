@@ -324,6 +324,8 @@ pub enum SearchForBooksBy {
 pub struct Poster {
 	pub id: Option<i64>,
 
+	pub selected: bool,
+
 	pub path: String,
 
 	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]

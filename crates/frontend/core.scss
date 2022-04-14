@@ -457,6 +457,8 @@ body {
 }
 
 .popup-book-edit {
+	width: 58%;
+
 	.header {
 		//
 	}
@@ -482,17 +484,21 @@ body {
 		flex-direction: column;
 		flex-grow: 1;
 
-
 		&.edit-posters {
 			display: flex;
 			flex-direction: column;
 			overflow-y: auto;
 
 			.drop-container {
-				//
+				background-color: var(--surface1);
+				cursor: pointer;
+				padding: 2em;
 			}
 
 			.poster-list {
+				display: flex;
+				flex-wrap: wrap;
+
 				.poster {
 					position: relative;
 					overflow: hidden;
@@ -501,6 +507,13 @@ body {
 					border-radius: var(--radius-2);
 					border: var(--border-size-1) solid transparent;
 					transition: border 0.25s;
+
+					margin: 5px;
+					cursor: pointer;
+
+					&.selected {
+						border-color: var(--brand);
+					}
 
 					&:hover {
 						border-color: var(--brand);

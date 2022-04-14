@@ -22,6 +22,8 @@ async fn get_poster_list(
 		.map(|poster| Poster {
 			id: Some(poster.id),
 
+			selected: poster.path == meta.thumb_path,
+
 			path: poster.path.into_url_thumb(poster.link_id),
 
 			created_at: poster.created_at,
@@ -43,6 +45,7 @@ async fn get_poster_list(
 				items.push(Poster {
 					id: None,
 
+					selected: false,
 					path,
 
 					created_at: item.created_at,

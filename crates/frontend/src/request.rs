@@ -5,10 +5,21 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::{GetBookIdResponse, GetBookListResponse, GetOptionsResponse, ModifyOptionsBody, GetLibrariesResponse, PostMetadataBody, GetChaptersResponse, MetadataSearchResponse, MediaViewResponse, GetPeopleResponse, PostPersonBody, LoadResourceQuery, GetMemberSelfResponse}, Progression, SearchType};
+use books_common::{api::*, Progression, SearchType};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
+
+
+// Image
+
+pub async fn get_posters_for_meta(metadata_id: i64) -> GetPostersResponse {
+	fetch(
+		"GET",
+		&format!("/api/posters/{}", metadata_id),
+		Option::<&()>::None
+	).await.unwrap()
+}
 
 
 // Member
@@ -19,6 +30,7 @@ pub async fn get_member_self() -> GetMemberSelfResponse {
 
 
 // Libraries
+
 pub async fn get_libraries() -> GetLibrariesResponse {
 	fetch("GET", "/api/libraries", Option::<&()>::None).await.unwrap()
 }

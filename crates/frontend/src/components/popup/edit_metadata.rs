@@ -1,5 +1,7 @@
-use books_common::api::MediaViewResponse;
+use books_common::api::{MediaViewResponse, GetPostersResponse};
 use yew::prelude::*;
+
+use crate::request;
 
 use super::{Popup, PopupType};
 
@@ -24,7 +26,7 @@ pub struct Property {
 
 
 pub enum Msg {
-	// RetrievePostersResponse()
+	RetrievePostersResponse(GetPostersResponse),
 
 	// Events
 	SwitchTab(TabDisplay),
@@ -34,7 +36,7 @@ pub enum Msg {
 pub struct PopupEditMetadata {
 	tab_display: TabDisplay,
 
-	// cached_posters: Option<>,
+	cached_posters: Option<GetPostersResponse>,
 }
 
 impl Component for PopupEditMetadata {
@@ -44,13 +46,20 @@ impl Component for PopupEditMetadata {
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
 			tab_display: TabDisplay::General,
-			// cached_posters: None,
+			cached_posters: None,
 		}
 	}
 
 	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
-			Msg::SwitchTab(value) => self.tab_display = value,
+			Msg::SwitchTab(value) => {
+				self.tab_display = value;
+				self.cached_posters = None;
+			}
+
+			Msg::RetrievePostersResponse(resp) => {
+				self.cached_posters = Some(resp);
+			}
 		}
 
 		true
@@ -64,7 +73,7 @@ impl Component for PopupEditMetadata {
 				classes={ classes!("popup-book-edit") }
 			>
 				<div class="header">
-					<h1>{"Edit"}</h1>
+					<h2>{"Edit"}</h2>
 				</div>
 
 				<div class="tab-bar">
@@ -73,9 +82,8 @@ impl Component for PopupEditMetadata {
 					<div class="tab-bar-item" onclick={ctx.link().callback(|_| Msg::SwitchTab(TabDisplay::Info))}>{ "Info" }</div>
 				</div>
 
-				<div class="content">
-					{ self.render_tab_contents(ctx.props()) }
-				</div>
+				{ self.render_tab_contents(ctx) }
+
 				<div class="footer">
 					<button class="button">{ "Cancel" }</button>
 					<button class="button">{ "Save" }</button>
@@ -86,11 +94,22 @@ impl Component for PopupEditMetadata {
 }
 
 impl PopupEditMetadata {
-	fn render_tab_contents(&self, props: &<Self as Component>::Properties) -> Html {
+	fn render_tab_contents(&self, ctx: &Context<Self>) -> Html {
 		match self.tab_display {
-			TabDisplay::General => self.render_tab_general(props),
-			TabDisplay::Poster => self.render_tab_poster(props),
-			TabDisplay::Info => self.render_tab_info(props),
+			TabDisplay::General => self.render_tab_general(ctx.props()),
+			TabDisplay::Poster => {
+				if self.cached_posters.is_none() {
+					let metadata_id = ctx.props().media_resp.metadata.id;
+
+					ctx.link()
+					.send_future(async move {
+						Msg::RetrievePostersResponse(request::get_posters_for_meta(metadata_id).await)
+					});
+				}
+
+				self.render_tab_poster(ctx.props())
+			},
+			TabDisplay::Info => self.render_tab_info(ctx.props()),
 		}
 	}
 
@@ -113,15 +132,31 @@ impl PopupEditMetadata {
 	}
 
 	fn render_tab_poster(&self, _props: &<Self as Component>::Properties) -> Html {
-		html! {
-			<div class="content edit-posters">
-				<div class="drop-container">
-					<h4>{ "Drop File To Upload" }</h4>
+		if let Some(resp) = self.cached_posters.as_ref() {
+			html! {
+				<div class="content edit-posters">
+					<div class="drop-container">
+						<h4>{ "Drop File To Upload" }</h4>
+					</div>
+					<div class="poster-list">
+						{
+							for resp.items.iter().map(|poster| {
+								html_nested! {
+									<div class={ classes!("poster", { if poster.selected { "selected" } else { "" } }) }>
+										<img src={poster.path.clone()} />
+									</div>
+								}
+							})
+						}
+					</div>
 				</div>
-				<div class="poster-list">
-					//
+			}
+		} else {
+			html! {
+				<div class="content edit-posters">
+					<h3>{ "Loading Posters..." }</h3>
 				</div>
-			</div>
+			}
 		}
 	}
 
