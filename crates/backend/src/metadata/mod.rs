@@ -89,15 +89,23 @@ pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataRe
 pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<HashMap<&'static str, Vec<SearchItem>>> {
 	let mut map = HashMap::new();
 
-	map.insert(
-		OpenLibraryMetadata.get_prefix(),
-		OpenLibraryMetadata.search(search, search_for).await?,
-	);
+	let prefixes = [OpenLibraryMetadata.get_prefix(), GoogleBooksMetadata.get_prefix()];
+	let asdf = futures::future::join_all(
+		[OpenLibraryMetadata.search(search, search_for), GoogleBooksMetadata.search(search, search_for)]
+	).await;
 
-	map.insert(
-		GoogleBooksMetadata.get_prefix(),
-		GoogleBooksMetadata.search(search, search_for).await?,
-	);
+	for (val, prefix) in asdf.into_iter().zip(prefixes) {
+		match val {
+			Ok(val) => {
+				map.insert(
+					prefix,
+					val,
+				);
+			}
+
+			Err(e) => eprintln!("{:?}", e),
+		}
+	}
 
 	Ok(map)
 }
