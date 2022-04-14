@@ -6,6 +6,9 @@ use serde::{Serialize, Deserialize};
 use super::{KeyItem, TypeValueItem, RecordDescription};
 
 
+// TODO: We can retrive all Editions from the Work (original) book by using RFD instead of JSON.
+
+
 pub async fn get_book_by_id(id: &BookId) -> Result<Option<BookInfo>> {
 	let resp = reqwest::get(id.get_json_url()).await?;
 

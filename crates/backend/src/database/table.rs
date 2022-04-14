@@ -19,7 +19,9 @@ pub struct MetadataItem {
 	pub original_title: Option<String>,
 	pub description: Option<String>,
 	pub rating: f64,
+
 	pub thumb_path: ThumbnailPath,
+	pub all_thumb_urls: Vec<String>,
 
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
 	pub cached: MetadataItemCached,
@@ -51,6 +53,7 @@ impl Default for MetadataItem {
 			description: Default::default(),
 			rating: Default::default(),
 			thumb_path: Default::default(),
+			all_thumb_urls: Default::default(),
 			cached: Default::default(),
 			refreshed_at: Utc::now(),
 			created_at: Utc::now(),
@@ -77,6 +80,7 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			description: value.get(6)?,
 			rating: value.get(7)?,
 			thumb_path: ThumbnailPath(value.get(8)?),
+			all_thumb_urls: Vec::new(),
 			cached: value.get::<_, Option<String>>(9)?
 				.map(|v| MetadataItemCached::from_string(&v))
 				.unwrap_or_default(),
@@ -781,6 +785,7 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 					description: value.get(17)?,
 					rating: value.get(18)?,
 					thumb_path: ThumbnailPath(value.get(19)?),
+					all_thumb_urls: Vec::new(),
 					cached: value.get::<_, Option<String>>(20)?
 						.map(|v| MetadataItemCached::from_string(&v))
 						.unwrap_or_default(),

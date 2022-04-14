@@ -85,6 +85,8 @@ impl Metadata for GoogleBooksMetadata {
 					let mut books = Vec::new();
 
 					for item in books_cont.items {
+						let thumb_dl_url = format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", item.id);
+
 						books.push(SearchItem::Book(MetadataItem {
 							id: 0,
 							library_id: 0,
@@ -94,7 +96,8 @@ impl Metadata for GoogleBooksMetadata {
 							original_title: Some(item.volume_info.title),
 							description: item.volume_info.description,
 							rating: item.volume_info.average_rating.unwrap_or_default(),
-							thumb_path: format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", item.id).into(),
+							thumb_path: thumb_dl_url.clone().into(),
+							all_thumb_urls: vec![thumb_dl_url],
 							cached: MetadataItemCached::default(),
 							refreshed_at: Utc::now(),
 							created_at: Utc::now(),
@@ -146,10 +149,12 @@ impl GoogleBooksMetadata {
 
 
 	async fn compile_book_volume_item(&self, value: BookVolumeItem) -> Result<Option<MetadataReturned>> {
+		let thumb_dl_url = format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", value.id);
+
 		let mut thumb_url = None;
 
 		// Download thumb url and store it.
-		let resp = reqwest::get(format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", value.id)).await?;
+		let resp = reqwest::get(&thumb_dl_url).await?;
 
 		if resp.status().is_success() {
 			let bytes = resp.bytes().await?;
@@ -177,6 +182,7 @@ impl GoogleBooksMetadata {
 				description: value.volume_info.description,
 				rating: value.volume_info.average_rating.unwrap_or_default(),
 				thumb_path: thumb_url.into(),
+				all_thumb_urls: vec![thumb_dl_url],
 				cached: MetadataItemCached::default()
 					.publisher_optional(value.volume_info.publisher)
 					.author_optional(value.volume_info.authors.and_then(|v| v.first().cloned())),
