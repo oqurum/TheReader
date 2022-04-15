@@ -200,7 +200,7 @@ impl Component for LibraryPage {
 											<PopupEditMetadata
 												on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
 												classes={ classes!("popup-book-edit") }
-												media_resp={ resp.clone() }
+												media_resp={ (&**resp).clone() }
 											/>
 										}
 									}
@@ -293,7 +293,7 @@ impl LibraryPage {
 							e.stop_propagation();
 
 							async move {
-								Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Edit(request::get_media_view(meta_id as usize).await)))
+								Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(meta_id as usize).await))))
 							}
 						})} title="More Options">{ "edit" }</span>
 					</div>
@@ -446,7 +446,7 @@ pub enum DisplayOverlay {
 		meta_id: usize
 	},
 
-	Edit(api::MediaViewResponse),
+	Edit(Box<api::MediaViewResponse>),
 
 	More {
 		meta_id: usize,
