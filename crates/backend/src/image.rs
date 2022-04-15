@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use books_common::ThumbnailPath;
 use sha2::{Sha256, Digest};
+use tokio::fs;
 
 // TODO: Consolidate into common/specific/thumbnail.
 
@@ -120,11 +121,13 @@ pub async fn store_image(type_of: ThumbnailType, image: Vec<u8>) -> Result<Thumb
 	path.push(type_of.path_name());
 	path.push(get_directories(&hash));
 
-	tokio::fs::DirBuilder::new().recursive(true).create(&path).await?;
+	fs::DirBuilder::new().recursive(true).create(&path).await?;
 
 	path.push(format!("{}.jpg", &hash));
 
-	tokio::fs::write(&path, image).await?;
+	if fs::metadata(&path).await.is_err() {
+		fs::write(&path, image).await?;
+	}
 
 	Ok(ThumbnailLocation::from_type(type_of, hash))
 }
