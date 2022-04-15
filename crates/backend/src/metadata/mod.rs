@@ -158,7 +158,7 @@ pub struct MetadataReturned {
 
 impl MetadataReturned {
 	/// Returns (Main Author, Person IDs)
-	pub async fn add_or_ignore_authors_into_database(&mut self, db: &Database) -> Result<(Option<String>, Vec<i64>)> {
+	pub async fn add_or_ignore_authors_into_database(&mut self, db: &Database) -> Result<(Option<String>, Vec<usize>)> {
 		let mut main_author = None;
 		let mut person_ids = Vec::new();
 

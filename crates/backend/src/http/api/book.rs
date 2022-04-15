@@ -16,7 +16,7 @@ use crate::http::get_auth_value;
 
 #[get("/api/book/{id}/res/{tail:.*}")]
 pub async fn load_resource(
-	path: web::Path<(i64, String)>,
+	path: web::Path<(usize, String)>,
 	res: web::Query<api::LoadResourceQuery>,
 	db: web::Data<Database>
 ) -> HttpResponse {
@@ -62,7 +62,7 @@ pub async fn load_resource(
 
 
 #[get("/api/book/{id}/pages/{pages}")]
-pub async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>) -> web::Json<api::GetChaptersResponse> {
+pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database>) -> web::Json<api::GetChaptersResponse> {
 	let (book_id, chapters) = path.into_inner();
 
 	let file = db.find_file_by_id(book_id).unwrap().unwrap();
@@ -107,7 +107,7 @@ pub async fn load_pages(path: web::Path<(i64, String)>, db: web::Data<Database>)
 
 // TODO: Add body requests for specifics
 #[get("/api/book/{id}")]
-pub async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
+pub async fn load_book(file_id: web::Path<usize>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
 	web::Json(if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
 		Some(api::GetBookIdResponse {
 			progress: db.get_progress(0, *file_id).unwrap().map(|v| v.into()),
@@ -121,7 +121,7 @@ pub async fn load_book(file_id: web::Path<i64>, db: web::Data<Database>) -> web:
 
 
 #[get("/api/book/{id}/debug/{tail:.*}")]
-pub async fn load_book_debug(web_path: web::Path<(i64, String)>, db: web::Data<Database>) -> HttpResponse {
+pub async fn load_book_debug(web_path: web::Path<(usize, String)>, db: web::Data<Database>) -> HttpResponse {
 	if let Some(file) = db.find_file_by_id(web_path.0).unwrap() {
 		if web_path.1.is_empty() {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
@@ -154,7 +154,7 @@ pub async fn load_book_debug(web_path: web::Path<(i64, String)>, db: web::Data<D
 
 #[post("/api/book/{id}/progress")]
 pub async fn progress_book_add(
-	file_id: web::Path<i64>,
+	file_id: web::Path<usize>,
 	body: web::Json<Progression>,
 	db: web::Data<Database>,
 	identity: Identity,
@@ -171,7 +171,7 @@ pub async fn progress_book_add(
 
 #[delete("/api/book/{id}/progress")]
 pub async fn progress_book_delete(
-	file_id: web::Path<i64>,
+	file_id: web::Path<usize>,
 	db: web::Data<Database>,
 	identity: Identity,
 ) -> HttpResponse {
@@ -190,7 +190,7 @@ pub async fn progress_book_delete(
 
 #[get("/api/book/{id}/notes")]
 pub async fn notes_book_get(
-	file_id: web::Path<i64>,
+	file_id: web::Path<usize>,
 	db: web::Data<Database>,
 	identity: Identity,
 ) -> HttpResponse {
@@ -206,7 +206,7 @@ pub async fn notes_book_get(
 
 #[post("/api/book/{id}/notes")]
 pub async fn notes_book_add(
-	file_id: web::Path<i64>,
+	file_id: web::Path<usize>,
 	mut payload: web::Payload,
 	db: web::Data<Database>,
 	identity: Identity,
@@ -230,7 +230,7 @@ pub async fn notes_book_add(
 
 #[delete("/api/book/{id}/notes")]
 pub async fn notes_book_delete(
-	file_id: web::Path<i64>,
+	file_id: web::Path<usize>,
 	db: web::Data<Database>,
 	identity: Identity,
 ) -> HttpResponse {

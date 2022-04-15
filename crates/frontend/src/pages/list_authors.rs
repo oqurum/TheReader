@@ -475,29 +475,29 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay),
 
 	// Popup Events
-	UpdatePerson(i64),
+	UpdatePerson(usize),
 }
 
 
 #[derive(Clone)]
 pub enum DisplayOverlay {
 	Info {
-		person_id: i64
+		person_id: usize
 	},
 
 	More {
-		person_id: i64,
+		person_id: usize,
 		mouse_pos: (i32, i32)
 	},
 
 	SearchForPerson {
-		person_id: i64,
+		person_id: usize,
 		input_value: Option<String>,
 		response: Option<api::MetadataSearchResponse>
 	},
 
 	CombinePersonWith {
-		person_id: i64,
+		person_id: usize,
 		input_value: Option<String>,
 		response: Option<Vec<Person>>
 	},

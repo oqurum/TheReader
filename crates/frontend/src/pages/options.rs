@@ -10,7 +10,7 @@ pub enum Msg {
 	OptionsResults(api::GetOptionsResponse),
 
 	// Events
-	DisplayPopup(usize, i64),
+	DisplayPopup(usize, usize),
 	ClosePopup,
 
 	RequestUpdateOptions(bool),
@@ -21,7 +21,7 @@ pub enum Msg {
 
 pub struct OptionsPage {
 	resp: Option<api::GetOptionsResponse>,
-	visible_popup: Option<(usize, i64)>,
+	visible_popup: Option<(usize, usize)>,
 	update_popup: Option<api::ModifyOptionsBody>
 }
 

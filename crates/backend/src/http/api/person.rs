@@ -50,7 +50,7 @@ pub async fn load_author_list(
 
 // Person Thumbnail
 #[get("/api/person/{id}/thumbnail")]
-async fn load_person_thumbnail(person_id: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Database>) -> HttpResponse {
 	let meta = db.get_person_by_id(*person_id).unwrap();
 
 	if let Some(path) = meta.map(|v| v.thumb_url) {
@@ -67,7 +67,7 @@ async fn load_person_thumbnail(person_id: web::Path<i64>, db: web::Data<Database
 
 // Person Tasks - Update Person, Overwrite Person with another source.
 #[post("/api/person/{id}")]
-pub async fn update_person_data(meta_id: web::Path<i64>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> HttpResponse {
+pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> HttpResponse {
 	let person_id = *meta_id;
 
 	match body.into_inner() {

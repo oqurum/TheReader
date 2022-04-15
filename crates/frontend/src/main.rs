@@ -72,7 +72,7 @@ pub enum Route {
 	Login,
 
 	#[at("/library/:library_id")]
-	ViewLibrary { library_id: i64 },
+	ViewLibrary { library_id: usize },
 
 	#[at("/view/:meta_id")]
 	ViewMeta { meta_id: usize },

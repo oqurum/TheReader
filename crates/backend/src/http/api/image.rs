@@ -22,7 +22,7 @@ async fn get_local_image(path: web::Path<(String, String)>) -> impl Responder {
 
 #[get("/api/posters/{meta_id}")]
 async fn get_poster_list(
-	path: web::Path<i64>,
+	path: web::Path<usize>,
 	db: web::Data<Database>
 ) -> web::Json<api::GetPostersResponse> {
 	let meta = db.get_metadata_by_id(*path).unwrap().unwrap();
@@ -80,7 +80,7 @@ async fn get_poster_list(
 
 #[post("/api/posters/{meta_id}")]
 async fn post_change_poster(
-	metadata_id: web::Path<i64>,
+	metadata_id: web::Path<usize>,
 	body: web::Json<api::ChangePosterBody>,
 	db: web::Data<Database>
 ) -> HttpResponse {
@@ -126,7 +126,7 @@ async fn post_change_poster(
 
 #[put("/api/posters/{meta_id}")]
 async fn put_upload_poster(
-	path: web::Path<i64>,
+	path: web::Path<usize>,
 	// body: web::Payload,
 	db: web::Data<Database>
 ) -> HttpResponse {

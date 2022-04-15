@@ -10,7 +10,7 @@ use crate::{Route, request, components::{Popup, PopupEditMetadata, PopupType}, u
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
-	pub library_id: i64,
+	pub library_id: usize,
 }
 
 #[derive(Clone)]
@@ -36,7 +36,7 @@ pub struct LibraryPage {
 	on_scroll_fn: Option<Closure<dyn FnMut()>>,
 
 	media_items: Option<Vec<DisplayItem>>,
-	total_media_count: i64,
+	total_media_count: usize,
 
 	is_fetching_media_items: bool,
 
@@ -335,7 +335,7 @@ impl LibraryPage {
 }
 
 fn popup_book_search(
-	meta_id: i64,
+	meta_id: usize,
 	response: &Option<api::MetadataSearchResponse>,
 	input_value: String,
 	ctx: &Context<LibraryPage>,
@@ -437,24 +437,24 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay),
 
 	// Popup Events
-	UpdateMeta(i64),
+	UpdateMeta(usize),
 }
 
 #[derive(Clone)]
 pub enum DisplayOverlay {
 	Info {
-		meta_id: i64
+		meta_id: usize
 	},
 
 	Edit(api::MediaViewResponse),
 
 	More {
-		meta_id: i64,
+		meta_id: usize,
 		mouse_pos: (i32, i32)
 	},
 
 	SearchForBook {
-		meta_id: i64,
+		meta_id: usize,
 		input_value: Option<String>,
 		response: Option<api::MetadataSearchResponse>
 	},

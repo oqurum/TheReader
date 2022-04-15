@@ -9,9 +9,9 @@ use serde::{Serialize, Serializer};
 // TODO: Place into common
 #[derive(Debug, Clone, Serialize)]
 pub struct MetadataItem {
-	pub id: i64,
+	pub id: usize,
 
-	pub library_id: i64,
+	pub library_id: usize,
 
 	pub source: Source,
 	pub file_item_count: i64,
@@ -124,8 +124,8 @@ impl From<MetadataItem> for DisplayMetaItem {
 
 #[derive(Debug, Serialize)]
 pub struct MetadataPerson {
-	pub metadata_id: i64,
-	pub person_id: i64,
+	pub metadata_id: usize,
+	pub person_id: usize,
 }
 
 impl<'a> TryFrom<&Row<'a>> for MetadataPerson {
@@ -144,8 +144,8 @@ impl<'a> TryFrom<&Row<'a>> for MetadataPerson {
 
 #[derive(Debug, Serialize)]
 pub struct FileNote {
-	pub file_id: i64,
-	pub user_id: i64,
+	pub file_id: usize,
+	pub user_id: usize,
 
 	pub data: String,
 	pub data_size: i64,
@@ -157,7 +157,7 @@ pub struct FileNote {
 }
 
 impl FileNote {
-	pub fn new(file_id: i64, user_id: i64, data: String) -> Self {
+	pub fn new(file_id: usize, user_id: usize, data: String) -> Self {
 		Self {
 			file_id,
 			user_id,
@@ -193,8 +193,8 @@ impl<'a> TryFrom<&Row<'a>> for FileNote {
 
 #[derive(Debug, Serialize)]
 pub struct FileProgression {
-	pub file_id: i64,
-	pub user_id: i64,
+	pub file_id: usize,
+	pub user_id: usize,
 
 	pub type_of: u8,
 
@@ -215,7 +215,7 @@ pub struct FileProgression {
 }
 
 impl FileProgression {
-	pub fn new(progress: Progression, user_id: i64, file_id: i64) -> Self {
+	pub fn new(progress: Progression, user_id: usize, file_id: usize) -> Self {
 		match progress {
 			Progression::Complete => Self {
 				file_id,
@@ -314,7 +314,7 @@ pub struct NewLibrary {
 
 #[derive(Debug, Serialize)]
 pub struct Library {
-	pub id: i64,
+	pub id: usize,
 
 	pub name: String,
 	pub type_of: String,
@@ -346,7 +346,7 @@ impl<'a> TryFrom<&Row<'a>> for Library {
 // Directory
 
 pub struct Directory {
-	pub library_id: i64,
+	pub library_id: usize,
 	pub path: String,
 }
 
@@ -371,7 +371,7 @@ pub struct NewFile {
 	pub file_type: String,
 	pub file_size: i64,
 
-	pub library_id: i64,
+	pub library_id: usize,
 	pub metadata_id: Option<i64>,
 	pub chapter_count: i64,
 
@@ -382,7 +382,7 @@ pub struct NewFile {
 
 #[derive(Debug, Serialize)]
 pub struct File {
-	pub id: i64,
+	pub id: usize,
 
 	pub path: String,
 
@@ -390,8 +390,8 @@ pub struct File {
 	pub file_type: String,
 	pub file_size: i64,
 
-	pub library_id: i64,
-	pub metadata_id: Option<i64>,
+	pub library_id: usize,
+	pub metadata_id: Option<usize>,
 	pub chapter_count: i64,
 
 	#[serde(serialize_with = "serialize_datetime")]
@@ -467,7 +467,7 @@ pub struct NewTagPerson {
 
 #[derive(Debug, Serialize)]
 pub struct TagPerson {
-	pub id: i64,
+	pub id: usize,
 
 	pub source: Source,
 
@@ -524,7 +524,7 @@ impl From<TagPerson> for Person {
 
 #[derive(Debug, Serialize)]
 pub struct TagPersonAlt {
-	pub person_id: i64,
+	pub person_id: usize,
 	pub name: String,
 }
 
@@ -544,7 +544,7 @@ impl<'a> TryFrom<&Row<'a>> for TagPersonAlt {
 
 #[derive(Debug, Serialize)]
 pub struct CachedImage {
-	pub item_id: i64,
+	pub item_id: usize,
 
 	pub type_of: CacheType, // TODO: Enum
 
@@ -614,7 +614,7 @@ pub struct NewMember {
 }
 
 impl NewMember {
-	pub fn into_member(self, id: i64) -> Member {
+	pub fn into_member(self, id: usize) -> Member {
 		Member {
 			id,
 			name: self.name,
@@ -630,7 +630,7 @@ impl NewMember {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Member {
-	pub id: i64,
+	pub id: usize,
 
 	pub name: String,
 	pub email: Option<String>,
@@ -692,7 +692,7 @@ pub struct NewAuth {
 
 #[derive(Serialize)]
 pub struct NewPoster {
-	pub link_id: i64,
+	pub link_id: usize,
 
 	pub path: ThumbnailPath,
 
@@ -703,9 +703,9 @@ pub struct NewPoster {
 
 #[derive(Debug, Serialize)]
 pub struct Poster {
-	pub id: i64,
+	pub id: usize,
 
-	pub link_id: i64,
+	pub link_id: usize,
 
 	pub path: ThumbnailPath,
 

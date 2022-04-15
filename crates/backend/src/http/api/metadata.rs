@@ -8,7 +8,7 @@ use crate::{database::Database, task::{queue_task_priority, self}, ThumbnailLoca
 
 
 #[get("/api/metadata/{id}/thumbnail")]
-async fn load_metadata_thumbnail(path: web::Path<i64>, db: web::Data<Database>) -> HttpResponse {
+async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>) -> HttpResponse {
 	let book_id = path.into_inner();
 
 	let meta = db.get_metadata_by_id(book_id).unwrap();
@@ -30,7 +30,7 @@ async fn load_metadata_thumbnail(path: web::Path<i64>, db: web::Data<Database>) 
 
 // TODO: Use for frontend updating instead of attempting to auto-match. Will retreive metadata source name.
 #[post("/api/metadata/{id}")]
-pub async fn update_item_metadata(meta_id: web::Path<i64>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
+pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	let meta_id = *meta_id;
 
 	match body.into_inner() {
@@ -47,7 +47,7 @@ pub async fn update_item_metadata(meta_id: web::Path<i64>, body: web::Json<api::
 }
 
 #[get("/api/metadata/{id}")]
-pub async fn get_all_metadata_comp(meta_id: web::Path<i64>, db: web::Data<Database>) -> web::Json<api::MediaViewResponse> {
+pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> web::Json<api::MediaViewResponse> {
 	let meta = db.get_metadata_by_id(*meta_id).unwrap().unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());

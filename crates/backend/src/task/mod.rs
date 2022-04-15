@@ -89,9 +89,9 @@ impl Task for TaskLibraryScan {
 #[derive(Clone)]
 pub enum UpdatingMetadata {
 	AutoMatchInvalid,
-	AutoUpdateById(i64),
+	AutoUpdateById(usize),
 	UpdateMetadataWithSource {
-		meta_id: i64,
+		meta_id: usize,
 		source: Source,
 	}
 }
@@ -416,9 +416,9 @@ impl TaskUpdateInvalidMetadata {
 
 #[derive(Clone)]
 pub enum UpdatingPeople {
-	AutoUpdateById(i64),
+	AutoUpdateById(usize),
 	UpdatePersonWithSource {
-		person_id: i64,
+		person_id: usize,
 		source: Source,
 	}
 }

@@ -13,7 +13,7 @@ pub async fn load_member_self(
 	identity: Identity,
 ) -> web::Json<api::GetMemberSelfResponse> {
 	if let Some(ident) = identity.identity() {
-		let member_id: i64 = serde_json::from_str(&ident).unwrap();
+		let member_id: usize = serde_json::from_str(&ident).unwrap();
 
 		if let Some(member) = db.get_member_by_id(member_id).unwrap() {
 			return web::Json(api::GetMemberSelfResponse {

@@ -15,7 +15,7 @@ pub use specific::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Member {
-	pub id: i64,
+	pub id: usize,
 
 	pub name: String,
 	pub email: Option<String>,
@@ -37,7 +37,7 @@ pub struct Member {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Person {
-	pub id: i64,
+	pub id: usize,
 
 	pub source: Source,
 
@@ -74,7 +74,7 @@ impl PartialEq for Person {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DisplayItem {
-	pub id: i64,
+	pub id: usize,
 
 	pub title: String,
 	pub cached: MetadataItemCached,
@@ -92,9 +92,9 @@ impl PartialEq for DisplayItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct DisplayMetaItem {
-	pub id: i64,
+	pub id: usize,
 
-	pub library_id: i64,
+	pub library_id: usize,
 
 	pub source: Source,
 	pub file_item_count: i64,
@@ -165,7 +165,7 @@ impl Default for DisplayMetaItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MediaItem {
-	pub id: i64,
+	pub id: usize,
 
 	pub path: String,
 
@@ -173,8 +173,8 @@ pub struct MediaItem {
 	pub file_type: String,
 	pub file_size: i64,
 
-	pub library_id: i64,
-	pub metadata_id: Option<i64>,
+	pub library_id: usize,
+	pub metadata_id: Option<usize>,
 	pub chapter_count: usize,
 
 	pub modified_at: i64,
@@ -214,7 +214,7 @@ pub struct Chapter {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LibraryColl {
-	pub id: i64,
+	pub id: usize,
 	pub name: String,
 
 	pub scanned_at: i64,
@@ -227,13 +227,13 @@ pub struct LibraryColl {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicLibrary {
-	pub id: Option<i64>,
+	pub id: Option<usize>,
 	pub name: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicDirectory {
-	pub library_id: i64,
+	pub library_id: usize,
 	pub path: String
 }
 
@@ -322,7 +322,7 @@ pub enum SearchForBooksBy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Poster {
-	pub id: Option<i64>,
+	pub id: Option<usize>,
 
 	pub selected: bool,
 

@@ -14,7 +14,7 @@ pub struct GetPostersResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChangePosterBody {
-	pub url_or_id: Either<String, i64>,
+	pub url_or_id: Either<String, usize>,
 }
 
 
@@ -52,7 +52,7 @@ pub struct GetBookIdResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetBookListResponse {
-	pub count: i64,
+	pub count: usize,
 	pub items: Vec<DisplayItem>
 }
 
@@ -80,7 +80,7 @@ pub enum PostPersonBody {
 
 	UpdateBySource(Source),
 
-	CombinePersonWith(i64),
+	CombinePersonWith(usize),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

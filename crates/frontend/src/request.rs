@@ -13,7 +13,7 @@ use books_common::{api::*, Progression, SearchType, Either};
 
 // Image
 
-pub async fn get_posters_for_meta(metadata_id: i64) -> GetPostersResponse {
+pub async fn get_posters_for_meta(metadata_id: usize) -> GetPostersResponse {
 	fetch(
 		"GET",
 		&format!("/api/posters/{}", metadata_id),
@@ -21,7 +21,7 @@ pub async fn get_posters_for_meta(metadata_id: i64) -> GetPostersResponse {
 	).await.unwrap()
 }
 
-pub async fn change_poster_for_meta(metadata_id: i64, url_or_id: Either<String, i64>) {
+pub async fn change_poster_for_meta(metadata_id: usize, url_or_id: Either<String, usize>) {
 	let _: Option<String> = fetch(
 		"POST",
 		&format!("/api/posters/{}", metadata_id),
@@ -48,7 +48,7 @@ pub async fn get_libraries() -> GetLibrariesResponse {
 
 // Metadata
 
-pub async fn update_metadata(id: i64, value: &PostMetadataBody) {
+pub async fn update_metadata(id: usize, value: &PostMetadataBody) {
 	let _: Option<String> = fetch(
 		"POST",
 		&format!("/api/metadata/{}", id),
@@ -81,7 +81,7 @@ pub async fn search_for(search: &str, search_for: SearchType) -> MetadataSearchR
 // People
 
 
-pub async fn update_person(id: i64, value: &PostPersonBody) {
+pub async fn update_person(id: usize, value: &PostPersonBody) {
 	let _: Option<String> = fetch(
 		"POST",
 		&format!("/api/person/{}", id),
@@ -119,7 +119,7 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
 
 // Books
 
-pub async fn get_books(library: i64, offset: Option<usize>, limit: Option<usize>) -> GetBookListResponse {
+pub async fn get_books(library: usize, offset: Option<usize>, limit: Option<usize>) -> GetBookListResponse {
 	let mut url = String::from("/api/books?");
 
 	url += "library=";
@@ -144,15 +144,15 @@ pub async fn get_book_info(id: usize) -> GetBookIdResponse {
 	fetch("GET", &format!("/api/book/{}", id), Option::<&()>::None).await.unwrap()
 }
 
-pub async fn get_book_pages(book_id: i64, start: usize, end: usize) -> GetChaptersResponse {
+pub async fn get_book_pages(book_id: usize, start: usize, end: usize) -> GetChaptersResponse {
 	fetch("GET", &format!("/api/book/{}/pages/{}-{}", book_id, start, end), Option::<&()>::None).await.unwrap()
 }
 
-pub async fn get_book_resource(book_id: i64, location: &Path, query: LoadResourceQuery) -> GetChaptersResponse {
+pub async fn get_book_resource(book_id: usize, location: &Path, query: LoadResourceQuery) -> GetChaptersResponse {
 	fetch("GET", &compile_book_resource_path(book_id, location, query), Option::<&()>::None).await.unwrap()
 }
 
-pub fn compile_book_resource_path(book_id: i64, location: &Path, query: LoadResourceQuery) -> String {
+pub fn compile_book_resource_path(book_id: usize, location: &Path, query: LoadResourceQuery) -> String {
 	format!(
 		"/api/book/{}/res/{}?{}",
 		book_id,
@@ -164,7 +164,7 @@ pub fn compile_book_resource_path(book_id: i64, location: &Path, query: LoadReso
 
 // Progress
 
-pub async fn update_book_progress(book_id: i64, progression: &Progression) {
+pub async fn update_book_progress(book_id: usize, progression: &Progression) {
 	let _: Option<String> = fetch(
 		"POST",
 		&format!("/api/book/{}/progress", book_id),
@@ -172,7 +172,7 @@ pub async fn update_book_progress(book_id: i64, progression: &Progression) {
 	).await.ok();
 }
 
-pub async fn remove_book_progress(book_id: i64) {
+pub async fn remove_book_progress(book_id: usize) {
 	let _: Option<String> = fetch(
 		"DELETE",
 		&format!("/api/book/{}/progress", book_id),
@@ -183,11 +183,11 @@ pub async fn remove_book_progress(book_id: i64) {
 
 // Notes
 
-pub async fn get_book_notes(book_id: i64) -> Option<String> {
+pub async fn get_book_notes(book_id: usize) -> Option<String> {
 	fetch("GET", &format!("/api/book/{}/notes", book_id), Option::<&()>::None).await.ok()
 }
 
-pub async fn update_book_notes(book_id: i64, data: String) {
+pub async fn update_book_notes(book_id: usize, data: String) {
 	let _: Option<String> = fetch(
 		"POST",
 		&format!("/api/book/{}/notes", book_id),
@@ -195,7 +195,7 @@ pub async fn update_book_notes(book_id: i64, data: String) {
 	).await.ok();
 }
 
-pub async fn remove_book_notes(book_id: i64) {
+pub async fn remove_book_notes(book_id: usize) {
 	let _: Option<String> = fetch(
 		"DELETE",
 		&format!("/api/book/{}/notes", book_id),
