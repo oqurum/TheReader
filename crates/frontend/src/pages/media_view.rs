@@ -46,7 +46,7 @@ impl Component for MediaView {
 			html! {
 				<div class="media-view-container">
 					<div class="info-container">
-						<div class="thumbnail">
+						<div class="poster large">
 							<img src={ metadata.get_thumb_url() } />
 						</div>
 						<div class="metadata">

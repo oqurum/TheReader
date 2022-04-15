@@ -105,6 +105,57 @@ body {
 }
 
 
+.poster {
+	position: relative;
+	overflow: hidden;
+	width: 165px;
+	height: 247px;
+	border-radius: var(--radius-2);
+	border: var(--border-size-1) solid transparent;
+	transition: border 0.25s;
+
+	&.large {
+		width: 248px;
+		height: 372px;
+	}
+
+	&:hover {
+		border-color: var(--brand);
+	}
+
+	&.selected {
+		border-color: var(--brand);
+	}
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.bottom-right {
+		z-index: 99;
+		position: absolute;
+		bottom: 0px;
+		right: 3px;
+		display: none;
+	}
+
+	.bottom-left {
+		z-index: 99;
+		position: absolute;
+		bottom: 0px;
+		left: 3px;
+		display: none;
+	}
+
+	&:hover .bottom-left,
+	&:hover .bottom-right {
+		display: block;
+	}
+}
+
+
 
 /* NAVBAR */
 .navbar-module {
@@ -322,47 +373,6 @@ body {
 			}
 		}
 
-		.poster {
-			position: relative;
-			overflow: hidden;
-			width: 165px;
-			height: 247px;
-			border-radius: var(--radius-2);
-			border: var(--border-size-1) solid transparent;
-			transition: border 0.25s;
-
-			&:hover {
-				border-color: var(--brand);
-			}
-
-			img {
-				width: 100%;
-				height: 100%;
-				object-fit: cover;
-			}
-
-			.bottom-right {
-				z-index: 99;
-				position: absolute;
-				bottom: 0px;
-				right: 3px;
-				display: none;
-			}
-
-			.bottom-left {
-				z-index: 99;
-				position: absolute;
-				bottom: 0px;
-				left: 3px;
-				display: none;
-			}
-
-			&:hover .bottom-left,
-			&:hover .bottom-right {
-				display: block;
-			}
-		}
-
 		.info {
 			margin-top: 10px;
 			display: flex;
@@ -508,30 +518,8 @@ body {
 				flex-wrap: wrap;
 
 				.poster {
-					position: relative;
-					overflow: hidden;
-					width: 165px;
-					height: 247px;
-					border-radius: var(--radius-2);
-					border: var(--border-size-1) solid transparent;
-					transition: border 0.25s;
-
 					margin: 5px;
 					cursor: pointer;
-
-					&.selected {
-						border-color: var(--brand);
-					}
-
-					&:hover {
-						border-color: var(--brand);
-					}
-
-					img {
-						width: 100%;
-						height: 100%;
-						object-fit: cover;
-					}
 				}
 			}
 		}
@@ -578,33 +566,12 @@ body {
 .media-view-container {
 	display: flex;
 	flex-direction: column;
-	padding-left: 1em;
-	padding-bottom: 1em;
+	padding: 1em;
 
 	// Info
 	> .info-container {
 		display: flex;
 		flex-direction: row;
-
-		> .thumbnail {
-			position: relative;
-			overflow: hidden;
-			width: 248px;
-			height: 372px;
-			border-radius: var(--radius-2);
-			border: var(--border-size-1) solid transparent;
-			transition: border 0.25s;
-
-			&:hover {
-				border-color: var(--brand);
-			}
-
-			img {
-				width: 100%;
-				height: 100%;
-				object-fit: cover;
-			}
-		}
 
 		> .metadata {
 			flex-grow: 1;
