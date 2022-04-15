@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source, Member, Poster};
+use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source, Member, Poster};
 
 
 // Images
@@ -14,7 +14,7 @@ pub struct GetPostersResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChangePosterBody {
-	pub url: String,
+	pub url_or_id: Either<String, i64>,
 }
 
 

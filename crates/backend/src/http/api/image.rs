@@ -1,6 +1,6 @@
 use actix_files::NamedFile;
 use actix_web::{get, web, HttpResponse, post, put, Responder};
-use books_common::{api, Poster};
+use books_common::{api, Poster, Either};
 use chrono::Utc;
 
 use crate::{database::{Database, table::NewPoster}, store_image, ThumbnailType};
@@ -86,22 +86,37 @@ async fn post_change_poster(
 ) -> HttpResponse {
 	let mut meta = db.get_metadata_by_id(*metadata_id).unwrap().unwrap();
 
-	let resp = reqwest::get(&body.url)
-		.await
-		.unwrap()
-		.bytes()
-		.await
-		.unwrap();
+	match body.into_inner().url_or_id {
+		Either::Left(url) => {
+			let resp = reqwest::get(url)
+				.await
+				.unwrap()
+				.bytes()
+				.await
+				.unwrap();
 
-	let hash = store_image(ThumbnailType::Metadata, resp.to_vec()).await.unwrap();
+			let hash = store_image(ThumbnailType::Metadata, resp.to_vec()).await.unwrap();
 
-	meta.thumb_path = hash.into();
 
-	db.add_poster(&NewPoster {
-		link_id: meta.id,
-		path: meta.thumb_path.clone(),
-		created_at: Utc::now(),
-	}).unwrap();
+			meta.thumb_path = hash.into();
+
+			db.add_poster(&NewPoster {
+				link_id: meta.id,
+				path: meta.thumb_path.clone(),
+				created_at: Utc::now(),
+			}).unwrap();
+		}
+
+		Either::Right(id) => {
+			let poster = db.get_poster_by_id(id).unwrap().unwrap();
+
+			if meta.thumb_path == poster.path {
+				return HttpResponse::Ok().finish();
+			}
+
+			meta.thumb_path = poster.path;
+		}
+	}
 
 	db.update_metadata(&meta).unwrap();
 

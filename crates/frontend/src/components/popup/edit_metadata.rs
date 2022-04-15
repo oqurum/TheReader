@@ -1,4 +1,4 @@
-use books_common::api::{MediaViewResponse, GetPostersResponse};
+use books_common::{api::{MediaViewResponse, GetPostersResponse}, Either};
 use yew::prelude::*;
 
 use crate::request;
@@ -32,6 +32,8 @@ pub enum Msg {
 	SwitchTab(TabDisplay),
 
 	UpdatedPoster,
+
+	Ignore,
 }
 
 
@@ -54,6 +56,10 @@ impl Component for PopupEditMetadata {
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			Msg::Ignore => {
+				return false;
+			}
+
 			Msg::SwitchTab(value) => {
 				self.tab_display = value;
 				self.cached_posters = None;
@@ -155,18 +161,23 @@ impl PopupEditMetadata {
 						{
 							for resp.items.iter().map(|poster| {
 								let meta_id = ctx.props().media_resp.metadata.id;
-								let url = poster.path.clone();
+								let url_or_id = poster.id.map(Either::Right).unwrap_or_else(|| Either::Left(poster.path.clone()));
+								let is_selected = poster.selected;
 
 								html_nested! {
 									<div
-										class={ classes!("poster", { if poster.selected { "selected" } else { "" } }) }
+										class={ classes!("poster", { if is_selected { "selected" } else { "" } }) }
 										onclick={ctx.link().callback_future(move |_| {
-											let url = url.clone();
+											let url_or_id = url_or_id.clone();
 
 											async move {
-												request::chnage_poster_for_meta(meta_id, url).await;
+												if is_selected {
+													Msg::Ignore
+												} else {
+													request::change_poster_for_meta(meta_id, url_or_id).await;
 
-												Msg::UpdatedPoster
+													Msg::UpdatedPoster
+												}
 											}
 										})}
 									>

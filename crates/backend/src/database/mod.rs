@@ -1060,4 +1060,12 @@ impl Database {
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
+
+	pub fn get_poster_by_id(&self, id: i64) -> Result<Option<Poster>> {
+		Ok(self.lock()?.query_row(
+			r#"SELECT * FROM uploaded_images WHERE id = ?1 LIMIT 1"#,
+			params![id],
+			|v| Poster::try_from(v)
+		).optional()?)
+	}
 }

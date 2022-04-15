@@ -5,7 +5,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::*, Progression, SearchType};
+use books_common::{api::*, Progression, SearchType, Either};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
@@ -21,12 +21,12 @@ pub async fn get_posters_for_meta(metadata_id: i64) -> GetPostersResponse {
 	).await.unwrap()
 }
 
-pub async fn chnage_poster_for_meta(metadata_id: i64, url: String) {
+pub async fn change_poster_for_meta(metadata_id: i64, url_or_id: Either<String, i64>) {
 	let _: Option<String> = fetch(
 		"POST",
 		&format!("/api/posters/{}", metadata_id),
 		Some(&ChangePosterBody {
-			url
+			url_or_id
 		})
 	).await.ok();
 }
