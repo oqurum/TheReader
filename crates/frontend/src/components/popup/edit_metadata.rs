@@ -30,6 +30,8 @@ pub enum Msg {
 
 	// Events
 	SwitchTab(TabDisplay),
+
+	UpdatedPoster,
 }
 
 
@@ -50,7 +52,7 @@ impl Component for PopupEditMetadata {
 		}
 	}
 
-	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
 			Msg::SwitchTab(value) => {
 				self.tab_display = value;
@@ -59,6 +61,17 @@ impl Component for PopupEditMetadata {
 
 			Msg::RetrievePostersResponse(resp) => {
 				self.cached_posters = Some(resp);
+			}
+
+			Msg::UpdatedPoster => {
+				let meta_id = ctx.props().media_resp.metadata.id;
+
+				ctx.link()
+				.send_future(async move {
+					Msg::RetrievePostersResponse(request::get_posters_for_meta(meta_id).await)
+				});
+
+				return false;
 			}
 		}
 
@@ -107,7 +120,7 @@ impl PopupEditMetadata {
 					});
 				}
 
-				self.render_tab_poster(ctx.props())
+				self.render_tab_poster(ctx)
 			},
 			TabDisplay::Info => self.render_tab_info(ctx.props()),
 		}
@@ -131,7 +144,7 @@ impl PopupEditMetadata {
 		}
 	}
 
-	fn render_tab_poster(&self, _props: &<Self as Component>::Properties) -> Html {
+	fn render_tab_poster(&self, ctx: &Context<Self>) -> Html {
 		if let Some(resp) = self.cached_posters.as_ref() {
 			html! {
 				<div class="content edit-posters">
@@ -141,8 +154,22 @@ impl PopupEditMetadata {
 					<div class="poster-list">
 						{
 							for resp.items.iter().map(|poster| {
+								let meta_id = ctx.props().media_resp.metadata.id;
+								let url = poster.path.clone();
+
 								html_nested! {
-									<div class={ classes!("poster", { if poster.selected { "selected" } else { "" } }) }>
+									<div
+										class={ classes!("poster", { if poster.selected { "selected" } else { "" } }) }
+										onclick={ctx.link().callback_future(move |_| {
+											let url = url.clone();
+
+											async move {
+												request::chnage_poster_for_meta(meta_id, url).await;
+
+												Msg::UpdatedPoster
+											}
+										})}
+									>
 										<img src={poster.path.clone()} />
 									</div>
 								}

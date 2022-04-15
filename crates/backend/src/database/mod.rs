@@ -1039,10 +1039,11 @@ impl Database {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
-			INSERT INTO uploaded_images (path, created_at)
-			VALUES (?1, ?2)
+			INSERT INTO uploaded_images (link_id, path, created_at)
+			VALUES (?1, ?2, ?3)
 		"#,
 		params![
+			poster.link_id,
 			poster.path.to_string(),
 			poster.created_at.timestamp_millis()
 		])?;

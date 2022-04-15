@@ -4,6 +4,7 @@ use anyhow::Result;
 use books_common::ThumbnailPath;
 use sha2::{Sha256, Digest};
 
+// TODO: Consolidate into common/specific/thumbnail.
 
 #[derive(Debug, Clone, Copy)]
 pub enum ThumbnailType {
@@ -69,6 +70,14 @@ impl ThumbnailLocation {
 			Self::Metadata(v) => v,
 		}
 	}
+
+	pub fn from_type(type_of: ThumbnailType, value: String) -> Self {
+		match type_of {
+			ThumbnailType::Local => Self::Local(value),
+			ThumbnailType::Uploaded => Self::Uploaded(value),
+			ThumbnailType::Metadata => Self::Metadata(value),
+		}
+	}
 }
 
 impl From<ThumbnailPath> for ThumbnailLocation {
@@ -83,8 +92,15 @@ impl From<ThumbnailPath> for ThumbnailLocation {
 	}
 }
 
+impl From<ThumbnailLocation> for ThumbnailPath {
+	fn from(val: ThumbnailLocation) -> Self {
+		let type_of = val.as_type();
+		type_of.prefix_text(val.as_value()).into()
+	}
+}
 
-pub async fn store_image(type_of: ThumbnailType, image: Vec<u8>) -> Result<String> {
+
+pub async fn store_image(type_of: ThumbnailType, image: Vec<u8>) -> Result<ThumbnailLocation> {
 	// TODO: Resize? Function is currently only used for thumbnails.
 	let image = image::load_from_memory(&image)?;
 
@@ -99,6 +115,7 @@ pub async fn store_image(type_of: ThumbnailType, image: Vec<u8>) -> Result<Strin
 		.collect();
 
 	let mut path = PathBuf::new();
+
 	path.push("../../app/thumbnails");
 	path.push(type_of.path_name());
 	path.push(get_directories(&hash));
@@ -109,7 +126,7 @@ pub async fn store_image(type_of: ThumbnailType, image: Vec<u8>) -> Result<Strin
 
 	tokio::fs::write(&path, image).await?;
 
-	Ok(hash)
+	Ok(ThumbnailLocation::from_type(type_of, hash))
 }
 
 pub fn prefixhash_to_path(type_of: ThumbnailType, hash: &str) -> String {

@@ -3,7 +3,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
-use books_common::{MetadataItemCached, SearchForBooksBy};
+use books_common::{MetadataItemCached, SearchForBooksBy, ThumbnailPath};
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
@@ -224,7 +224,7 @@ impl OpenLibraryMetadata {
 			None => return Ok(None)
 		};
 
-		let mut thumb_url = None;
+		let mut thumb_path = ThumbnailPath::default();
 
 		// Download thumb url and store it.
 		if let Some(thumb_id) = book_info.covers.as_ref().and_then(|v| v.iter().find(|v| **v != -1)).copied() {
@@ -234,7 +234,7 @@ impl OpenLibraryMetadata {
 				let bytes = resp.bytes().await?;
 
 				match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-					Ok(path) => thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
+					Ok(path) => thumb_path = path.into(),
 					Err(e) => {
 						eprintln!("store_image: {}", e);
 					}
@@ -255,7 +255,7 @@ impl OpenLibraryMetadata {
 				original_title: Some(book_info.title),
 				description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 				rating: 0.0,
-				thumb_path: thumb_url.into(),
+				thumb_path,
 				all_thumb_urls: book_info.covers.into_iter().flatten().filter(|v| *v != -1).map(|id| CoverId::Id(id.to_string()).get_book_cover_url()).collect(),
 				cached: MetadataItemCached::default(),
 				refreshed_at: Utc::now(),

@@ -1,8 +1,23 @@
-use actix_web::{get, web};
+use actix_files::NamedFile;
+use actix_web::{get, web, HttpResponse, post, put, Responder};
 use books_common::{api, Poster};
+use chrono::Utc;
 
-use crate::database::Database;
+use crate::{database::{Database, table::NewPoster}, store_image, ThumbnailType};
 
+
+
+#[get("/api/image/{type}/{id}")]
+async fn get_local_image(path: web::Path<(String, String)>) -> impl Responder {
+	let (type_of, id) = path.into_inner();
+
+	let path = crate::image::prefixhash_to_path(
+		ThumbnailType::from(type_of.as_str()),
+		&id
+	);
+
+	NamedFile::open_async(path).await
+}
 
 
 #[get("/api/posters/{meta_id}")]
@@ -24,7 +39,10 @@ async fn get_poster_list(
 
 			selected: poster.path == meta.thumb_path,
 
-			path: poster.path.into_url_thumb(poster.link_id),
+			path: {
+				let (prefix, suffix) = poster.path.get_prefix_suffix().unwrap();
+				format!("/api/image/{prefix}/{suffix}")
+			},
 
 			created_at: poster.created_at,
 		})
@@ -59,3 +77,45 @@ async fn get_poster_list(
 	})
 }
 
+
+#[post("/api/posters/{meta_id}")]
+async fn post_change_poster(
+	metadata_id: web::Path<i64>,
+	body: web::Json<api::ChangePosterBody>,
+	db: web::Data<Database>
+) -> HttpResponse {
+	let mut meta = db.get_metadata_by_id(*metadata_id).unwrap().unwrap();
+
+	let resp = reqwest::get(&body.url)
+		.await
+		.unwrap()
+		.bytes()
+		.await
+		.unwrap();
+
+	let hash = store_image(ThumbnailType::Metadata, resp.to_vec()).await.unwrap();
+
+	meta.thumb_path = hash.into();
+
+	db.add_poster(&NewPoster {
+		link_id: meta.id,
+		path: meta.thumb_path.clone(),
+		created_at: Utc::now(),
+	}).unwrap();
+
+	db.update_metadata(&meta).unwrap();
+
+	HttpResponse::Ok().finish()
+}
+
+
+#[put("/api/posters/{meta_id}")]
+async fn put_upload_poster(
+	path: web::Path<i64>,
+	// body: web::Payload,
+	db: web::Data<Database>
+) -> HttpResponse {
+	//
+
+	HttpResponse::Ok().finish()
+}

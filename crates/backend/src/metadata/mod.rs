@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use books_common::{SearchFor, Source};
+use books_common::{SearchFor, Source, ThumbnailPath};
 use chrono::Utc;
 
 use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
@@ -175,7 +175,7 @@ impl MetadataReturned {
 					continue;
 				}
 
-				let mut thumb_url = None;
+				let mut thumb_url = ThumbnailPath::default();
 
 				// Download thumb url and store it.
 				if let Some(url) = author_info.cover_image_url {
@@ -185,7 +185,7 @@ impl MetadataReturned {
 						let bytes = resp.bytes().await?;
 
 						match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-							Ok(path) => thumb_url = Some(ThumbnailType::Metadata.prefix_text(&path)),
+							Ok(path) => thumb_url = path.into(),
 							Err(e) => {
 								eprintln!("add_or_ignore_authors_into_database Error: {}", e);
 							}
@@ -201,7 +201,7 @@ impl MetadataReturned {
 					name: author_info.name,
 					description: author_info.description,
 					birth_date: author_info.birth_date,
-					thumb_url: thumb_url.into(),
+					thumb_url,
 					// TODO: death_date: author_info.death_date,
 					updated_at: Utc::now(),
 					created_at: Utc::now(),

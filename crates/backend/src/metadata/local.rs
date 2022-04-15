@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::BookSearch;
-use books_common::MetadataItemCached;
+use books_common::{MetadataItemCached, ThumbnailPath};
 use chrono::Utc;
 
 use crate::{database::table::{File, MetadataItem}, ThumbnailType};
@@ -77,16 +77,16 @@ impl Metadata for LocalMetadata {
 					let image = book_file_path?;
 
 					match crate::store_image(ThumbnailType::Local, image).await {
-						Ok(path) => Some(ThumbnailType::Local.prefix_text(&path)),
+						Ok(path) => path.into(),
 						Err(e) => {
 							eprintln!("store_image: {}", e);
-							None
+							ThumbnailPath::default()
 						}
 					}
 				}
 
-				None => None
-			}.into();
+				None => ThumbnailPath::default(),
+			};
 
 			return Ok(Some(MetadataReturned {
 				authors,

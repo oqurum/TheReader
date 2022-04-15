@@ -21,6 +21,16 @@ pub async fn get_posters_for_meta(metadata_id: i64) -> GetPostersResponse {
 	).await.unwrap()
 }
 
+pub async fn chnage_poster_for_meta(metadata_id: i64, url: String) {
+	let _: Option<String> = fetch(
+		"POST",
+		&format!("/api/posters/{}", metadata_id),
+		Some(&ChangePosterBody {
+			url
+		})
+	).await.ok();
+}
+
 
 // Member
 

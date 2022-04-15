@@ -12,6 +12,11 @@ pub struct GetPostersResponse {
 	pub items: Vec<Poster>
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChangePosterBody {
+	pub url: String,
+}
+
 
 
 // Members

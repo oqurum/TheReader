@@ -481,7 +481,7 @@ impl TaskUpdatePeople {
 						println!("Cover URL: {}", url);
 
 						match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-							Ok(path) => old_person.thumb_url = ThumbnailType::Metadata.prefix_text(&path).into(),
+							Ok(path) => old_person.thumb_url = path.into(),
 							Err(e) => {
 								eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
 							}
