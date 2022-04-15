@@ -28,7 +28,6 @@ async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>
 
 // Metadata
 
-// TODO: Use for frontend updating instead of attempting to auto-match. Will retreive metadata source name.
 #[post("/api/metadata/{id}")]
 pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	let meta_id = *meta_id;

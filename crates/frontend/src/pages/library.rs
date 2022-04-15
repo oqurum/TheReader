@@ -1,11 +1,10 @@
-use books_common::{api, DisplayItem, SearchType};
-use gloo_utils::document;
+use books_common::{api, DisplayItem};
 use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::{HtmlInputElement, HtmlElement};
+use web_sys::HtmlElement;
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
-use crate::{Route, request, components::{Popup, PopupEditMetadata, PopupType}, util};
+use crate::{Route, request, components::{Popup, PopupSearchBook, PopupEditMetadata, PopupType}};
 
 
 #[derive(Properties, PartialEq)]
@@ -20,7 +19,6 @@ pub enum Msg {
 
 	// Results
 	MediaListResults(api::GetBookListResponse),
-	BookSearchResults(String, api::MetadataSearchResponse),
 
 	// Events
 	OnScroll(i32),
@@ -109,13 +107,6 @@ impl Component for LibraryPage {
 				}
 			}
 
-			Msg::BookSearchResults(search_value, resp) => {
-				if let Some(DisplayOverlay::SearchForBook { response, input_value, .. }) = self.media_popup.as_mut() {
-					*response = Some(resp);
-					*input_value = Some(search_value);
-				}
-			}
-
 			Msg::OnScroll(scroll_y) => {
 				let scroll_height = self.library_list_ref.cast::<HtmlElement>().unwrap().scroll_height();
 
@@ -184,7 +175,7 @@ impl Component for LibraryPage {
 														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))
 													}>{ "Refresh Metadata" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None, response: None })))
+														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None })))
 													}>{ "Search For Book" }</div>
 													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
@@ -205,7 +196,7 @@ impl Component for LibraryPage {
 										}
 									}
 
-									&DisplayOverlay::SearchForBook { meta_id, ref input_value, ref response } => {
+									&DisplayOverlay::SearchForBook { meta_id, ref input_value } => {
 										let input_value = if let Some(v) = input_value {
 											v.to_string()
 										} else {
@@ -217,7 +208,9 @@ impl Component for LibraryPage {
 
 										let input_value = input_value.trim().to_string();
 
-										popup_book_search(meta_id, response, input_value, ctx)
+										html! {
+											<PopupSearchBook {meta_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
+										}
 									}
 								}
 							} else {
@@ -334,101 +327,6 @@ impl LibraryPage {
 	}
 }
 
-fn popup_book_search(
-	meta_id: usize,
-	response: &Option<api::MetadataSearchResponse>,
-	input_value: String,
-	ctx: &Context<LibraryPage>,
-) -> Html {
-	let input_id = "external-book-search-input";
-
-	html! {
-		<Popup
-			type_of={ PopupType::FullOverlay }
-			on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-			classes={ classes!("external-book-search-popup") }
-		>
-			<h1>{"Book Search"}</h1>
-
-			<form>
-				<input id={input_id} name="book_search" placeholder="Search For Title" value={ input_value } />
-				<button onclick={
-					ctx.link().callback_future(move |e: MouseEvent| async move {
-						e.prevent_default();
-
-						let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
-
-						Msg::BookSearchResults(input.value(), request::search_for(&input.value(), SearchType::Book).await)
-					})
-				}>{ "Search" }</button>
-			</form>
-
-			<div class="external-book-search-container">
-				{
-					if let Some(resp) = response {
-						html! {
-							{
-								for resp.items.iter()
-									.map(|(site, items)| {
-										html! {
-											<>
-												<h2>{ site.clone() }</h2>
-												<div class="book-search-items">
-													{
-														for items.iter()
-															.map(|item| {
-																let item = item.as_book();
-
-																let source = item.source.clone();
-
-																html! { // TODO: Place into own component.
-																	<div
-																		class="book-search-item"
-																		yew-close-popup=""
-																		onclick={
-																			ctx.link()
-																			.callback_future(move |_| {
-																				let source = source.clone();
-
-																				async move {
-																					request::update_metadata(
-																						meta_id,
-																						&api::PostMetadataBody::UpdateMetaBySource(source)
-																					).await;
-
-																					Msg::Ignore
-																				}
-																			})
-																		}
-																	>
-																		<img src={ item.thumbnail.to_string() } />
-																		<div class="book-info">
-																			<h4>{ item.name.clone() }</h4>
-																			<span>{ item.author.clone().unwrap_or_default() }</span>
-																			<p>{ item.description.clone()
-																					.map(|mut v| { util::truncate_on_indices(&mut v, 300); v })
-																					.unwrap_or_default() }
-																			</p>
-																		</div>
-																	</div>
-																}
-															})
-													}
-												</div>
-											</>
-										}
-									})
-							}
-						}
-					} else {
-						html! {}
-					}
-				}
-			</div>
-		</Popup>
-	}
-}
-
 
 
 #[derive(Clone)]
@@ -456,7 +354,6 @@ pub enum DisplayOverlay {
 	SearchForBook {
 		meta_id: usize,
 		input_value: Option<String>,
-		response: Option<api::MetadataSearchResponse>
 	},
 }
 

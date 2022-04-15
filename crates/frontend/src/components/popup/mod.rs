@@ -7,7 +7,7 @@ use yew::prelude::*;
 
 
 pub mod edit_metadata;
-
+pub mod search_book;
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum PopupType {
