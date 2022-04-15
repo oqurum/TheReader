@@ -92,8 +92,8 @@ impl Metadata for GoogleBooksMetadata {
 							library_id: 0,
 							file_item_count: 1,
 							source: self.prefix_text(&item.id).try_into()?,
-							title: Some(item.volume_info.title.clone()),
-							original_title: Some(item.volume_info.title),
+							title: item.volume_info.title.clone(),
+							original_title: item.volume_info.title,
 							description: item.volume_info.description,
 							rating: item.volume_info.average_rating.unwrap_or_default(),
 							thumb_path: thumb_dl_url.clone().into(),
@@ -177,8 +177,8 @@ impl GoogleBooksMetadata {
 				library_id: 0,
 				file_item_count: 1,
 				source: self.prefix_text(value.id).try_into()?,
-				title: Some(value.volume_info.title.clone()),
-				original_title: Some(value.volume_info.title),
+				title: value.volume_info.title.clone(),
+				original_title: value.volume_info.title,
 				description: value.volume_info.description,
 				rating: value.volume_info.average_rating.unwrap_or_default(),
 				thumb_path,
@@ -262,7 +262,7 @@ pub struct BookVolumeItem {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct BookVolumeVolumeInfo {
-	pub title: String,
+	pub title: Option<String>,
 	pub subtitle: Option<String>,
 	pub authors: Option<Vec<String>>,
 	pub average_rating: Option<f64>,
