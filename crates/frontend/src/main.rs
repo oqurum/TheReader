@@ -1,4 +1,8 @@
-use yew::{prelude::*, html::Scope};
+use std::sync::{Arc, Mutex};
+
+use books_common::{api, Member};
+use lazy_static::lazy_static;
+use yew::prelude::*;
 use yew_router::prelude::*;
 
 use components::NavbarModule;
@@ -8,57 +12,59 @@ mod pages;
 mod request;
 mod components;
 
-enum Msg {
-	Load
+
+lazy_static! {
+	pub static ref MEMBER_SELF: Arc<Mutex<Option<Member>>> = Arc::new(Mutex::new(None));
 }
 
-struct Model {
-	has_initial_loaded: bool,
+pub fn get_member_self() -> Option<Member> {
+	MEMBER_SELF.lock().unwrap().clone()
 }
+
+pub fn is_signed_in() -> bool {
+	get_member_self().is_some()
+}
+
+
+enum Msg {
+	LoadMemberSelf(api::GetMemberSelfResponse)
+}
+
+struct Model {}
 
 impl Component for Model {
 	type Message = Msg;
 	type Properties = ();
 
 	fn create(ctx: &Context<Self>) -> Self {
-		ctx.link().send_message(Msg::Load);
+		ctx.link()
+		.send_future(async {
+			Msg::LoadMemberSelf(request::get_member_self().await)
+		});
 
-		Self {
-			has_initial_loaded: false,
-		}
+		Self {}
 	}
 
 	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
-			Msg::Load => {
-				self.has_initial_loaded = true;
+			Msg::LoadMemberSelf(member) => {
+				*MEMBER_SELF.lock().unwrap() = member.member;
 			}
 		}
 
 		true
 	}
 
-	fn view(&self, ctx: &Context<Self>) -> Html {
-		if self.has_initial_loaded {
-			let link = ctx.link().clone();
-
-			html! {
-				<BrowserRouter>
-					<NavbarModule />
-					<Switch<Route> render={Switch::render(move |r| switch(r, link.clone()))} />
-				</BrowserRouter>
-			}
-		} else {
-			html! {
-				<h1>{ "Initiating..." }</h1>
-			}
+	fn view(&self, _ctx: &Context<Self>) -> Html {
+		html! {
+			<BrowserRouter>
+				<NavbarModule />
+				<Switch<Route> render={Switch::render(switch)} />
+			</BrowserRouter>
 		}
 	}
 }
 
-impl Model {
-	//
-}
 
 #[derive(Routable, PartialEq, Clone, Debug)]
 pub enum Route {
@@ -86,7 +92,7 @@ pub enum Route {
 }
 
 
-fn switch(route: &Route, _link: Scope<Model>) -> Html {
+fn switch(route: &Route) -> Html {
 	log::info!("{:?}", route);
 
 	match route.clone() {

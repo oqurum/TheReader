@@ -25,6 +25,8 @@
 
 
 :root {
+	--ratio-portrait: 3/4;
+
 	--brand: var(--orange-3);
 	--text1: var(--gray-1);
 	--text2: var(--gray-3);
@@ -69,7 +71,13 @@ body {
 :where(input[type="file"])::-webkit-file-upload-button {
 	color: var(--text1);
 	background: var(--surface1);
+	outline-offset: 5px;
 }
+
+:where(:not(:active)):focus-visible {
+	outline-offset: 0px;
+}
+
 
 .button {
 	display: inline-flex;
