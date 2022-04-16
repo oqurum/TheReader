@@ -1,4 +1,4 @@
-use books_common::{api::{MetadataSearchResponse, PostMetadataBody}, SearchType};
+use books_common::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -44,7 +44,7 @@ impl Component for PopupSearchBook {
 		}
 	}
 
-	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
 			Msg::Ignore => {
 				return false;
@@ -53,6 +53,8 @@ impl Component for PopupSearchBook {
 			Msg::BookSearchResponse(search, resp) => {
 				self.cached_posters = Some(resp);
 				self.input_value = search;
+
+				let test = self.cached_posters.as_ref().unwrap();
 			}
 		}
 
@@ -61,8 +63,6 @@ impl Component for PopupSearchBook {
 
 	fn view(&self, ctx: &Context<Self>) -> Html {
 		let input_id = "external-book-search-input";
-
-		let meta_id = ctx.props().meta_id;
 
 		html! {
 			<Popup
@@ -89,58 +89,16 @@ impl Component for PopupSearchBook {
 					{
 						if let Some(resp) = self.cached_posters.as_ref() {
 							html! {
-								{
-									for resp.items.iter()
-										.map(|(site, items)| {
-											html! {
-												<>
-													<h2>{ site.clone() }</h2>
-													<div class="book-search-items">
-														{
-															for items.iter()
-																.map(|item| {
-																	let item = item.as_book();
-
-																	let source = item.source.clone();
-
-																	html! { // TODO: Place into own component.
-																		<div
-																			class="book-search-item"
-																			yew-close-popup=""
-																			onclick={
-																				ctx.link()
-																				.callback_future(move |_| {
-																					let source = source.clone();
-
-																					async move {
-																						request::update_metadata(
-																							meta_id,
-																							&PostMetadataBody::UpdateMetaBySource(source)
-																						).await;
-
-																						Msg::Ignore
-																					}
-																				})
-																			}
-																		>
-																			<img src={ item.thumbnail.to_string() } />
-																			<div class="book-info">
-																				<h4>{ item.name.clone() }</h4>
-																				<span>{ item.author.clone().unwrap_or_default() }</span>
-																				<p>{ item.description.clone()
-																						.map(|mut v| { util::truncate_on_indices(&mut v, 300); v })
-																						.unwrap_or_default() }
-																				</p>
-																			</div>
-																		</div>
-																	}
-																})
-														}
-													</div>
-												</>
-											}
-										})
-								}
+								<>
+									<h2>{ "Results" }</h2>
+									<div class="book-search-items">
+									{
+										for resp.items.iter()
+											.flat_map(|(name, values)| values.iter().map(|v| (name.clone(), v)))
+											.map(|(site, item)| Self::render_poster_container(site, item, ctx))
+									}
+									</div>
+								</>
 							}
 						} else {
 							html! {}
@@ -148,6 +106,49 @@ impl Component for PopupSearchBook {
 					}
 				</div>
 			</Popup>
+		}
+	}
+}
+
+impl PopupSearchBook {
+	fn render_poster_container(site: String, item: &SearchItem, ctx: &Context<Self>) -> Html {
+		let meta_id = ctx.props().meta_id;
+
+		let item = item.as_book();
+
+		let source = item.source.clone();
+
+		html! {
+			<div
+				class="book-search-item"
+				yew-close-popup=""
+				onclick={
+					ctx.link()
+					.callback_future(move |_| {
+						let source = source.clone();
+
+						async move {
+							request::update_metadata(
+								meta_id,
+								&PostMetadataBody::UpdateMetaBySource(source)
+							).await;
+
+							Msg::Ignore
+						}
+					})
+				}
+			>
+				<img src={ item.thumbnail.to_string() } />
+				<div class="book-info">
+					<h4 class="book-name">{ item.name.clone() }</h4>
+					<h5>{ site }</h5>
+					<span class="book-author">{ item.author.clone().unwrap_or_default() }</span>
+					<p class="book-author">{ item.description.clone()
+							.map(|mut v| { util::truncate_on_indices(&mut v, 300); v })
+							.unwrap_or_default() }
+					</p>
+				</div>
+			</div>
 		}
 	}
 }
