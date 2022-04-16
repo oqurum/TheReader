@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, ThumbnailPath, Source, Member, Poster};
+use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Source, Member, Poster};
 
 
 // Images
@@ -176,7 +176,7 @@ pub struct MetadataPersonSearchItem {
 pub struct MetadataBookSearchItem {
 	pub source: Source,
 	pub author: Option<String>,
-	pub thumbnail: ThumbnailPath,
+	pub thumbnail_url: String,
 	pub description: Option<String>,
 	pub name: String,
 }

@@ -45,7 +45,7 @@ pub struct Person {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
-	pub thumb_url: ThumbnailPath,
+	pub thumb_url: ThumbnailStore,
 
 	#[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
 	pub updated_at: DateTime<Utc>,
@@ -55,7 +55,7 @@ pub struct Person {
 
 impl Person {
 	pub fn get_thumb_url(&self) -> String {
-		if self.thumb_url.is_some() {
+		if self.thumb_url != ThumbnailStore::None {
 			format!("/api/person/{}/thumbnail", self.id)
 		} else {
 			String::from("/images/missingperson.jpg")
@@ -102,7 +102,7 @@ pub struct DisplayMetaItem {
 	pub original_title: Option<String>,
 	pub description: Option<String>,
 	pub rating: f64,
-	pub thumb_path: ThumbnailPath,
+	pub thumb_path: ThumbnailStore,
 
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
 	pub cached: MetadataItemCached,
@@ -124,7 +124,7 @@ pub struct DisplayMetaItem {
 
 impl DisplayMetaItem {
 	pub fn get_thumb_url(&self) -> String {
-		if self.thumb_path.is_some() {
+		if self.thumb_path != ThumbnailStore::None {
 			format!("/api/metadata/{}/thumbnail", self.id)
 		} else {
 			String::from("/images/missingthumbnail.jpg")
@@ -147,7 +147,7 @@ impl Default for DisplayMetaItem {
 			original_title: Default::default(),
 			description: Default::default(),
 			rating: Default::default(),
-			thumb_path: Default::default(),
+			thumb_path: ThumbnailStore::None,
 			cached: Default::default(),
 			refreshed_at: Utc::now(),
 			created_at: Utc::now(),

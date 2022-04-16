@@ -138,7 +138,7 @@ impl PopupSearchBook {
 					})
 				}
 			>
-				<img src={ item.thumbnail.to_string() } />
+				<img src={ item.thumbnail_url.to_string() } />
 				<div class="book-info">
 					<h4 class="book-name">{ item.name.clone() }</h4>
 					<h5>{ site }</h5>

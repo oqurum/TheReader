@@ -563,7 +563,7 @@ impl Database {
 				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
 				params![
 					meta.library_id, meta.source.to_string(), &meta.file_item_count,
-					&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.as_ref(),
+					&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.to_string(),
 					&meta.cached.as_string_optional(),
 					&meta.available_at, &meta.year,
 					&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
@@ -602,7 +602,7 @@ impl Database {
 			params![
 				meta.id,
 				meta.library_id, meta.source.to_string(), &meta.file_item_count,
-				&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.as_ref(),
+				&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.to_string(),
 				&meta.cached.as_string_optional(),
 				&meta.available_at, &meta.year,
 				&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
@@ -762,7 +762,7 @@ impl Database {
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 		"#,
 		params![
-			person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.as_ref(),
+			person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.to_string(),
 			person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 		])?;
 
@@ -872,7 +872,7 @@ impl Database {
 			WHERE id = ?1"#,
 			params![
 				person.id,
-				person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.as_ref(),
+				person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.to_string(),
 				person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 			]
 		)?;

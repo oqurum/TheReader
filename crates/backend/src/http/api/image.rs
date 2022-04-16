@@ -1,9 +1,9 @@
 use actix_files::NamedFile;
 use actix_web::{get, web, HttpResponse, post, put, Responder};
-use books_common::{api, Poster, Either};
+use books_common::{api, Poster, Either, ThumbnailStoreType};
 use chrono::Utc;
 
-use crate::{database::{Database, table::NewPoster}, store_image, ThumbnailType};
+use crate::{database::{Database, table::NewPoster}, store_image};
 
 
 
@@ -12,7 +12,7 @@ async fn get_local_image(path: web::Path<(String, String)>) -> impl Responder {
 	let (type_of, id) = path.into_inner();
 
 	let path = crate::image::prefixhash_to_path(
-		ThumbnailType::from(type_of.as_str()),
+		ThumbnailStoreType::from(type_of.as_str()),
 		&id
 	);
 
@@ -39,10 +39,7 @@ async fn get_poster_list(
 
 			selected: poster.path == meta.thumb_path,
 
-			path: {
-				let (prefix, suffix) = poster.path.get_prefix_suffix().unwrap();
-				format!("/api/image/{prefix}/{suffix}")
-			},
+			path: poster.path.as_url(),
 
 			created_at: poster.created_at,
 		})
@@ -95,10 +92,10 @@ async fn post_change_poster(
 				.await
 				.unwrap();
 
-			let hash = store_image(ThumbnailType::Metadata, resp.to_vec()).await.unwrap();
+			let hash = store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await.unwrap();
 
 
-			meta.thumb_path = hash.into();
+			meta.thumb_path = hash;
 
 			db.add_poster(&NewPoster {
 				link_id: meta.id,

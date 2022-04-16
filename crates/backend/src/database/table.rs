@@ -1,4 +1,4 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, ThumbnailPath, Source};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, Source, ThumbnailStore};
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
@@ -20,7 +20,7 @@ pub struct MetadataItem {
 	pub description: Option<String>,
 	pub rating: f64,
 
-	pub thumb_path: ThumbnailPath,
+	pub thumb_path: ThumbnailStore,
 	pub all_thumb_urls: Vec<String>,
 
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
@@ -41,30 +41,30 @@ pub struct MetadataItem {
 	pub hash: String
 }
 
-impl Default for MetadataItem {
-	fn default() -> Self {
-		Self {
-			id: Default::default(),
-			library_id: Default::default(),
-			source: Default::default(),
-			file_item_count: Default::default(),
-			title: Default::default(),
-			original_title: Default::default(),
-			description: Default::default(),
-			rating: Default::default(),
-			thumb_path: Default::default(),
-			all_thumb_urls: Default::default(),
-			cached: Default::default(),
-			refreshed_at: Utc::now(),
-			created_at: Utc::now(),
-			updated_at: Utc::now(),
-			deleted_at: Default::default(),
-			available_at: Default::default(),
-			year: Default::default(),
-			hash: Default::default()
-		}
-	}
-}
+// impl Default for MetadataItem {
+// 	fn default() -> Self {
+// 		Self {
+// 			id: Default::default(),
+// 			library_id: Default::default(),
+// 			source: Default::default(),
+// 			file_item_count: Default::default(),
+// 			title: Default::default(),
+// 			original_title: Default::default(),
+// 			description: Default::default(),
+// 			rating: Default::default(),
+// 			thumb_path: Default::default(),
+// 			all_thumb_urls: Default::default(),
+// 			cached: Default::default(),
+// 			refreshed_at: Utc::now(),
+// 			created_at: Utc::now(),
+// 			updated_at: Utc::now(),
+// 			deleted_at: Default::default(),
+// 			available_at: Default::default(),
+// 			year: Default::default(),
+// 			hash: Default::default()
+// 		}
+// 	}
+// }
 
 impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 	type Error = rusqlite::Error;
@@ -79,7 +79,7 @@ impl<'a> TryFrom<&Row<'a>> for MetadataItem {
 			original_title: value.get(5)?,
 			description: value.get(6)?,
 			rating: value.get(7)?,
-			thumb_path: ThumbnailPath(value.get(8)?),
+			thumb_path: ThumbnailStore::from(value.get::<_, Option<String>>(8)?),
 			all_thumb_urls: Vec::new(),
 			cached: value.get::<_, Option<String>>(9)?
 				.map(|v| MetadataItemCached::from_string(&v))
@@ -459,7 +459,7 @@ pub struct NewTagPerson {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
-	pub thumb_url: ThumbnailPath,
+	pub thumb_url: ThumbnailStore,
 
 	pub updated_at: DateTime<Utc>,
 	pub created_at: DateTime<Utc>,
@@ -475,7 +475,7 @@ pub struct TagPerson {
 	pub description: Option<String>,
 	pub birth_date: Option<String>,
 
-	pub thumb_url: ThumbnailPath,
+	pub thumb_url: ThumbnailStore,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub updated_at: DateTime<Utc>,
@@ -496,7 +496,7 @@ impl<'a> TryFrom<&Row<'a>> for TagPerson {
 			description: value.get(3)?,
 			birth_date: value.get(4)?,
 
-			thumb_url: ThumbnailPath(value.get(5)?),
+			thumb_url: ThumbnailStore::from(value.get::<_, Option<String>>(5)?),
 
 			created_at: Utc.timestamp_millis(value.get(6)?),
 			updated_at: Utc.timestamp_millis(value.get(7)?),
@@ -548,7 +548,7 @@ pub struct CachedImage {
 
 	pub type_of: CacheType, // TODO: Enum
 
-	pub path: ThumbnailPath,
+	pub path: ThumbnailStore,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub created_at: DateTime<Utc>,
@@ -561,7 +561,7 @@ impl<'a> TryFrom<&Row<'a>> for CachedImage {
 		Ok(Self {
 			item_id: value.get(0)?,
 			type_of: CacheType::from(value.get::<_, u8>(1)?),
-			path: ThumbnailPath(Some(value.get(2)?)),
+			path: ThumbnailStore::from(value.get::<_, String>(2)?),
 			created_at: Utc.timestamp_millis(value.get(3)?),
 		})
 	}
@@ -694,7 +694,7 @@ pub struct NewAuth {
 pub struct NewPoster {
 	pub link_id: usize,
 
-	pub path: ThumbnailPath,
+	pub path: ThumbnailStore,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub created_at: DateTime<Utc>,
@@ -707,7 +707,7 @@ pub struct Poster {
 
 	pub link_id: usize,
 
-	pub path: ThumbnailPath,
+	pub path: ThumbnailStore,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub created_at: DateTime<Utc>,
@@ -720,7 +720,7 @@ impl<'a> TryFrom<&Row<'a>> for Poster {
 		Ok(Self {
 			id: value.get(0)?,
 			link_id: value.get(1)?,
-			path: ThumbnailPath(Some(value.get(2)?)),
+			path: ThumbnailStore::from(value.get::<_, String>(2)?),
 			created_at: Utc.timestamp_millis(value.get(3)?),
 		})
 	}
@@ -784,7 +784,7 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 					original_title: value.get(16)?,
 					description: value.get(17)?,
 					rating: value.get(18)?,
-					thumb_path: ThumbnailPath(value.get(19)?),
+					thumb_path: ThumbnailStore::from(value.get::<_, Option<String>>(19)?),
 					all_thumb_urls: Vec::new(),
 					cached: value.get::<_, Option<String>>(20)?
 						.map(|v| MetadataItemCached::from_string(&v))

@@ -3,12 +3,12 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 use actix_web::web;
 use anyhow::Result;
 use async_trait::async_trait;
-use books_common::Source;
+use books_common::{Source, ThumbnailStoreType};
 use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::{Database, table::{self, MetadataPerson, MetadataItem}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
+use crate::{database::{Database, table::{self, MetadataPerson, MetadataItem}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}};
 
 
 // TODO: A should stop boolean
@@ -507,8 +507,8 @@ impl TaskUpdatePeople {
 					if bytes.len() > 1000 {
 						println!("Cover URL: {}", url);
 
-						match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-							Ok(path) => old_person.thumb_url = path.into(),
+						match crate::store_image(ThumbnailStoreType::Metadata, bytes.to_vec()).await {
+							Ok(path) => old_person.thumb_url = path,
 							Err(e) => {
 								eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
 							}

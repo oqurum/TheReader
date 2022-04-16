@@ -15,7 +15,7 @@ pub mod scanner;
 pub mod task;
 
 pub use task::{queue_task, Task};
-pub use self::image::{ThumbnailLocation, ThumbnailType, store_image};
+pub use self::image::store_image;
 
 
 #[actix_web::main]

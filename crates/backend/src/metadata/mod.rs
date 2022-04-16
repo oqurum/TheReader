@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use books_common::{SearchFor, Source, ThumbnailPath, MetadataItemCached};
+use books_common::{SearchFor, Source, MetadataItemCached, ThumbnailStore, ThumbnailStoreType};
 use chrono::Utc;
 
-use crate::{database::{table::{File, self, MetadataItem}, Database}, ThumbnailType, ThumbnailLocation};
+use crate::database::{table::{File, self, MetadataItem}, Database};
 
 use self::{
 	google_books::GoogleBooksMetadata,
@@ -193,7 +193,7 @@ impl MetadataReturned {
 					continue;
 				}
 
-				let mut thumb_url = ThumbnailPath::default();
+				let mut thumb_url = ThumbnailStore::None;
 
 				// Download thumb url and store it.
 				if let Some(url) = author_info.cover_image_url {
@@ -202,8 +202,8 @@ impl MetadataReturned {
 					if resp.status().is_success() {
 						let bytes = resp.bytes().await?;
 
-						match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-							Ok(path) => thumb_url = path.into(),
+						match crate::store_image(ThumbnailStoreType::Metadata, bytes.to_vec()).await {
+							Ok(path) => thumb_url = path,
 							Err(e) => {
 								eprintln!("add_or_ignore_authors_into_database Error: {}", e);
 							}
@@ -279,7 +279,9 @@ impl From<FoundItem> for MetadataItem {
 			original_title: val.title,
 			description: val.description,
 			rating: val.rating,
-			thumb_path: val.thumb_locations.iter().find_map(|v| v.as_local_value().map(|v| v.clone().into())).unwrap_or_default(),
+			thumb_path: val.thumb_locations.iter()
+				.find_map(|v| v.as_local_value().cloned())
+				.unwrap_or(ThumbnailStore::None),
 			all_thumb_urls: val.thumb_locations.into_iter().filter_map(|v| v.into_url_value()).collect(),
 			cached: val.cached,
 			refreshed_at: Utc::now(),
@@ -298,7 +300,7 @@ impl From<FoundItem> for MetadataItem {
 pub enum FoundImageLocation {
 	Url(String),
 	FileData(Vec<u8>),
-	Local(ThumbnailLocation),
+	Local(ThumbnailStore),
 }
 
 impl FoundImageLocation {
@@ -316,7 +318,7 @@ impl FoundImageLocation {
 		}
 	}
 
-	pub fn as_local_value(&self) -> Option<&ThumbnailLocation> {
+	pub fn as_local_value(&self) -> Option<&ThumbnailStore> {
 		match self {
 			Self::Local(v) => Some(v),
 			_ => None
@@ -341,13 +343,13 @@ impl FoundImageLocation {
 					.await
 					.unwrap();
 
-				let path = crate::store_image(ThumbnailType::Metadata, resp.to_vec()).await?;
+				let path = crate::store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await?;
 
 				*self = Self::Local(path);
 			}
 
 			FoundImageLocation::FileData(image) => {
-				if let Ok(path) = crate::store_image(ThumbnailType::Local, image.clone()).await {
+				if let Ok(path) = crate::store_image(ThumbnailStoreType::Local, image.clone()).await {
 					*self = Self::Local(path)
 				}
 			}

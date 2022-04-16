@@ -2,7 +2,7 @@ use actix_web::{get, web, HttpResponse, post};
 
 use books_common::{api, SearchType, SearchFor, SearchForBooksBy};
 
-use crate::{database::Database, task::{queue_task_priority, self}, ThumbnailLocation, queue_task, metadata};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata};
 
 
 
@@ -13,10 +13,7 @@ async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>
 
 	let meta = db.get_metadata_by_id(book_id).unwrap();
 
-	if let Some(path) = meta.map(|v| v.thumb_path) {
-		// TODO: Replace with common one.
-		let loc = ThumbnailLocation::from(path);
-
+	if let Some(loc) = meta.map(|v| v.thumb_path) {
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
 
 		HttpResponse::Ok().body(std::fs::read(path).unwrap())
@@ -93,8 +90,9 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> we
 								author: book.cached.author,
 								description: book.description,
 								name: book.title.unwrap_or_else(|| String::from("Unknown title")),
-								thumbnail: book.thumb_locations.first()
-									.map(|v| v.as_url_value().into())
+								thumbnail_url: book.thumb_locations.first()
+									.and_then(|v| v.as_url_value())
+									.map(|v| v.to_string())
 									.unwrap_or_default(),
 							})
 						}

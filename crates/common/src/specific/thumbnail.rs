@@ -1,100 +1,160 @@
-use std::ops::Deref;
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 
 pub static MISSING_THUMB_PATH: &str = "/images/missingthumbnail.jpg";
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ThumbnailStoreType {
+	Local,
+	Uploaded,
+	Metadata,
+}
 
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct ThumbnailPath(pub Option<String>);
-
-impl ThumbnailPath {
-	pub fn get_prefix_suffix(&self) -> Option<(&str, &str)> {
-		self.0.as_ref().and_then(|v| v.split_once(':'))
-	}
-
-	pub fn is_url(&self) -> bool {
-		self.0.as_ref().map(|v| v.contains('.')).unwrap_or_default()
-	}
-
-	pub fn into_url_thumb(self, meta_id: i64) -> String {
-		if self.is_url() {
-			self.0.unwrap()
-		} else if self.is_some() {
-			format!("/api/metadata/{meta_id}/thumbnail")
-		} else {
-			String::from(MISSING_THUMB_PATH)
+impl ThumbnailStoreType {
+	pub fn path_name(self) -> &'static str {
+		match self {
+			Self::Local => "local",
+			Self::Uploaded => "upload",
+			Self::Metadata => "meta",
 		}
 	}
 
-	// TODO: Deref, Ref error.
+	pub fn prefix_text(&self, value: &str) -> String {
+		format!("{}:{}", self.path_name(), value)
+	}
+
+	pub fn into_thumb_location(self, value: String) -> ThumbnailStore {
+		match self {
+			ThumbnailStoreType::Local => ThumbnailStore::Local(value),
+			ThumbnailStoreType::Uploaded => ThumbnailStore::Uploaded(value),
+			ThumbnailStoreType::Metadata => ThumbnailStore::Metadata(value),
+		}
+	}
 }
 
-impl ToString for ThumbnailPath {
-    fn to_string(&self) -> String {
-        self.0.clone().unwrap_or_default()
-    }
-}
-
-impl From<&str> for ThumbnailPath {
+impl From<&str> for ThumbnailStoreType {
 	fn from(value: &str) -> Self {
-		Self(Some(value.to_owned()))
+		match value {
+			"local" => Self::Local,
+			"upload" => Self::Uploaded,
+			"meta" => Self::Metadata,
+			_ => unreachable!("ThumbnailType::from({:?})", value),
+		}
 	}
 }
 
-impl From<String> for ThumbnailPath {
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ThumbnailStore {
+	Local(String),
+	Uploaded(String),
+	Metadata(String),
+	None
+}
+
+impl ThumbnailStore {
+	pub fn is_none(&self) -> bool {
+		matches!(self, Self::None)
+	}
+
+	pub fn is_some(&self) -> bool {
+		!self.is_none()
+	}
+
+	pub fn as_url(&self) -> String {
+		match self {
+			Self::None => String::from(MISSING_THUMB_PATH),
+			_ => format!("/api/image/{}/{}", self.as_type().path_name(), self.as_value()),
+		}
+	}
+
+	pub fn as_type(&self) -> ThumbnailStoreType {
+		match self {
+			Self::Local(_) => ThumbnailStoreType::Local,
+			Self::Uploaded(_) => ThumbnailStoreType::Uploaded,
+			Self::Metadata(_) => ThumbnailStoreType::Metadata,
+			_ => unreachable!("Self::as_type()"),
+		}
+	}
+
+	pub fn as_value(&self) -> &str {
+		match self {
+			Self::Local(v) |
+			Self::Uploaded(v) |
+			Self::Metadata(v) => v.as_str(),
+			_ => unreachable!("Self::as_value()"),
+		}
+	}
+
+	pub fn into_value(self) -> String {
+		match self {
+			Self::Local(v) |
+			Self::Uploaded(v) |
+			Self::Metadata(v) => v,
+			_ => unreachable!("Self::into_value()"),
+		}
+	}
+
+	pub fn from_type(type_of: ThumbnailStoreType, value: String) -> Self {
+		match type_of {
+			ThumbnailStoreType::Local => Self::Local(value),
+			ThumbnailStoreType::Uploaded => Self::Uploaded(value),
+			ThumbnailStoreType::Metadata => Self::Metadata(value),
+		}
+	}
+}
+
+
+impl ToString for ThumbnailStore {
+	fn to_string(&self) -> String {
+		self.as_type().prefix_text(self.as_value())
+	}
+}
+
+impl From<&str> for ThumbnailStore {
+	fn from(value: &str) -> Self {
+		let (prefix, suffix) = value.split_once(':').unwrap();
+		ThumbnailStoreType::from(prefix).into_thumb_location(suffix.to_string())
+	}
+}
+
+impl From<String> for ThumbnailStore {
 	fn from(value: String) -> Self {
-		Self(Some(value))
+		let (prefix, suffix) = value.split_once(':').unwrap();
+		ThumbnailStoreType::from(prefix).into_thumb_location(suffix.to_string())
 	}
 }
 
 
-impl From<Option<String>> for ThumbnailPath {
+impl From<Option<String>> for ThumbnailStore {
 	fn from(value: Option<String>) -> Self {
-		Self(value)
+		value.map(|v| v.into()).unwrap_or(Self::None)
 	}
 }
 
-impl From<Option<&str>> for ThumbnailPath {
+impl From<Option<&str>> for ThumbnailStore {
 	fn from(value: Option<&str>) -> Self {
-		Self(value.map(|v| v.to_owned()))
-	}
-}
-
-impl AsRef<Option<String>> for ThumbnailPath {
-	fn as_ref(&self) -> &Option<String> {
-		&self.0
-	}
-}
-
-impl Deref for ThumbnailPath {
-	type Target = Option<String>;
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
+		value.map(|v| v.into()).unwrap_or(Self::None)
 	}
 }
 
 
-impl<'de> Deserialize<'de> for ThumbnailPath {
+impl<'de> Deserialize<'de> for ThumbnailStore {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: Deserializer<'de> {
-		Ok(Self(Option::<String>::deserialize(deserializer)?))
+		Ok(Option::<String>::deserialize(deserializer)?.into())
 	}
 }
 
-impl Serialize for ThumbnailPath {
+impl Serialize for ThumbnailStore {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
 		S: Serializer {
-		if let Some(v) = self.0.as_deref() {
-			serializer.serialize_str(v)
+		if self.is_some() {
+			serializer.serialize_str(&self.to_string())
 		} else {
 			serializer.serialize_none()
 		}
 	}
 }
-
-

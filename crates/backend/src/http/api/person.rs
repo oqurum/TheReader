@@ -2,7 +2,7 @@ use actix_web::{web, get, post, HttpResponse};
 use books_common::api;
 use chrono::Utc;
 
-use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{self, queue_task_priority}, queue_task, ThumbnailLocation};
+use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{self, queue_task_priority}, queue_task};
 
 
 // Get List Of People and Search For People
@@ -53,9 +53,7 @@ pub async fn load_author_list(
 async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Database>) -> HttpResponse {
 	let meta = db.get_person_by_id(*person_id).unwrap();
 
-	if let Some(path) = meta.map(|v| v.thumb_url) {
-		let loc = ThumbnailLocation::from(path);
-
+	if let Some(loc) = meta.map(|v| v.thumb_url) {
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
 
 		HttpResponse::Ok().body(std::fs::read(path).unwrap())
