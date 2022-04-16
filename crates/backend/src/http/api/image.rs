@@ -59,14 +59,14 @@ async fn get_poster_list(
 
 	for item in search.into_values().flatten() {
 		if let crate::metadata::SearchItem::Book(item) = item {
-			for path in item.all_thumb_urls {
+			for path in item.all_thumbnail_urls {
 				items.push(Poster {
 					id: None,
 
 					selected: false,
 					path,
 
-					created_at: item.created_at,
+					created_at: Utc::now(),
 				});
 			}
 		}

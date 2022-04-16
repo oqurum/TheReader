@@ -3,14 +3,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
-use books_common::{MetadataItemCached, SearchForBooksBy, ThumbnailPath};
-use chrono::Utc;
+use books_common::{MetadataItemCached, SearchForBooksBy};
 use serde::{Serialize, Deserialize};
 
-use crate::database::table::{MetadataItem, File};
+use crate::database::table::File;
 use self::book::BookSearchType;
 
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo, FoundItem};
 
 pub mod book;
 pub mod author;
@@ -128,25 +127,15 @@ impl Metadata for OpenLibraryMetadata {
 					let mut books = Vec::new();
 
 					for item in found.items {
-						books.push(SearchItem::Book(MetadataItem {
-							id: 0,
-							library_id: 0,
-							file_item_count: 1,
+						books.push(SearchItem::Book(FoundItem {
 							source: format!("{}:{}", self.get_prefix(), &item.key).try_into()?,
 							title: item.title.clone(),
-							original_title: item.title,
 							description: None,
 							rating: 0.0,
-							thumb_path: item.cover_edition_key.clone().map(|v| CoverId::Olid(v).get_book_cover_url()).into(),
-							all_thumb_urls: item.cover_edition_key.map(|v| CoverId::Olid(v).get_book_cover_url()).map(|v| vec![v]).unwrap_or_default(),
+							all_thumbnail_urls: item.cover_edition_key.map(|v| CoverId::Olid(v).get_book_cover_url()).map(|v| vec![v]).unwrap_or_default(),
 							cached: MetadataItemCached::default(),
-							refreshed_at: Utc::now(),
-							created_at: Utc::now(),
-							updated_at: Utc::now(),
-							deleted_at: None,
 							available_at: None,
 							year: item.first_publish_year,
-							hash: String::new(),
 						}));
 					}
 
@@ -224,36 +213,19 @@ impl OpenLibraryMetadata {
 			None => return Ok(None)
 		};
 
-		let mut thumb_path = ThumbnailPath::default();
-
-		// Download thumb url and store it.
-		if let Some(thumb_id) = book_info.covers.as_ref().and_then(|v| v.iter().find(|v| **v != -1)).copied() {
-			thumb_path = CoverId::Id(thumb_id.to_string()).get_book_cover_url().into();
-		}
-
 		Ok(Some(MetadataReturned {
 			authors: Some(authors).filter(|v| !v.is_empty()),
 			publisher: book_info.publishers.first().cloned(),
 
-			meta: MetadataItem {
-				id: 0,
-				library_id: 0,
-				file_item_count: 1,
+			meta: FoundItem {
 				source: format!("{}:{}", self.get_prefix(), source_id).try_into()?,
 				title: Some(book_info.title.clone()),
-				original_title: Some(book_info.title),
 				description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 				rating: 0.0,
-				thumb_path,
-				all_thumb_urls: book_info.covers.into_iter().flatten().filter(|v| *v != -1).map(|id| CoverId::Id(id.to_string()).get_book_cover_url()).collect(),
+				all_thumbnail_urls: book_info.covers.into_iter().flatten().filter(|v| *v != -1).map(|id| CoverId::Id(id.to_string()).get_book_cover_url()).collect(),
 				cached: MetadataItemCached::default(),
-				refreshed_at: Utc::now(),
-				created_at: Utc::now(),
-				updated_at: Utc::now(),
-				deleted_at: None,
 				available_at: None,
 				year: None,
-				hash: String::new(),
 			}
 		}))
 	}

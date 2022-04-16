@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use books_common::{SearchFor, Source, ThumbnailPath};
+use books_common::{SearchFor, Source, ThumbnailPath, MetadataItemCached};
 use chrono::Utc;
 
-use crate::{database::{table::{MetadataItem, File, self}, Database}, ThumbnailType};
+use crate::{database::{table::{File, self, MetadataItem}, Database}, ThumbnailType};
 
 use self::{
 	google_books::GoogleBooksMetadata,
@@ -67,7 +67,7 @@ pub trait Metadata {
 // TODO: Utilize current metadata in get_metadata_from_files.
 // TODO: Order which metadata should be tried.
 /// Attempts to return the first valid Metadata from Files.
-pub async fn get_metadata_from_files(files: &[File], _meta: Option<&MetadataItem>, db: &Database) -> Result<Option<MetadataReturned>> {
+pub async fn get_metadata_from_files(files: &[File], db: &Database) -> Result<Option<MetadataReturned>> {
 	return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
 	return_if_found!(GoogleBooksMetadata.get_metadata_from_files(files).await);
 
@@ -140,7 +140,7 @@ pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>>
 #[derive(Debug)]
 pub enum SearchItem {
 	Author(AuthorInfo),
-	Book(MetadataItem)
+	Book(FoundItem)
 }
 
 
@@ -167,7 +167,7 @@ pub struct MetadataReturned {
 	pub publisher: Option<String>,
 	// TODO: Add More.
 
-	pub meta: MetadataItem
+	pub meta: FoundItem
 }
 
 impl MetadataReturned {
@@ -245,4 +245,47 @@ impl MetadataReturned {
 
 		Ok((main_author, person_ids))
 	}
+}
+
+
+#[derive(Debug)]
+pub struct FoundItem {
+	pub source: Source,
+	pub title: Option<String>,
+	pub description: Option<String>,
+	pub rating: f64,
+
+	// pub thumb_path: ThumbnailPath,
+	pub all_thumbnail_urls: Vec<String>,
+
+	// TODO: Make table for all tags. Include publisher in it. Remove country.
+	pub cached: MetadataItemCached,
+
+	pub available_at: Option<i64>,
+	pub year: Option<i64>
+}
+
+impl From<FoundItem> for MetadataItem {
+    fn from(val: FoundItem) -> Self {
+        MetadataItem {
+            id: 0,
+            library_id: 0,
+            source: val.source,
+            file_item_count: 1,
+            title: val.title.clone(),
+            original_title: val.title,
+            description: val.description,
+            rating: val.rating,
+            thumb_path: val.all_thumbnail_urls.first().map(|v| v.as_str().into()).unwrap_or_default(),
+            all_thumb_urls: val.all_thumbnail_urls,
+            cached: val.cached,
+            refreshed_at: Utc::now(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            deleted_at: None,
+            available_at: val.available_at,
+            year: val.year,
+            hash: String::new(),
+        }
+    }
 }

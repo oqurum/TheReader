@@ -11,7 +11,7 @@ use books_common::{MetadataItemCached, SearchForBooksBy};
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::database::table::{MetadataItem, File};
+use crate::{database::table::File, metadata::FoundItem};
 use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
 
 pub struct GoogleBooksMetadata;
@@ -87,25 +87,15 @@ impl Metadata for GoogleBooksMetadata {
 					for item in books_cont.items {
 						let thumb_dl_url = format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", item.id);
 
-						books.push(SearchItem::Book(MetadataItem {
-							id: 0,
-							library_id: 0,
-							file_item_count: 1,
+						books.push(SearchItem::Book(FoundItem {
 							source: self.prefix_text(&item.id).try_into()?,
 							title: item.volume_info.title.clone(),
-							original_title: item.volume_info.title,
 							description: item.volume_info.description,
 							rating: item.volume_info.average_rating.unwrap_or_default(),
-							thumb_path: thumb_dl_url.clone().into(),
-							all_thumb_urls: vec![thumb_dl_url],
+							all_thumbnail_urls: vec![thumb_dl_url],
 							cached: MetadataItemCached::default(),
-							refreshed_at: Utc::now(),
-							created_at: Utc::now(),
-							updated_at: Utc::now(),
-							deleted_at: None,
 							available_at: None,
 							year: None,
-							hash: String::new(),
 						}));
 					}
 
@@ -156,27 +146,17 @@ impl GoogleBooksMetadata {
 		Ok(Some(MetadataReturned {
 			authors: None,
 			publisher: None,
-			meta: MetadataItem {
-				id: 0,
-				library_id: 0,
-				file_item_count: 1,
+			meta: FoundItem {
 				source: self.prefix_text(value.id).try_into()?,
 				title: value.volume_info.title.clone(),
-				original_title: value.volume_info.title,
 				description: value.volume_info.description,
 				rating: value.volume_info.average_rating.unwrap_or_default(),
-				thumb_path: thumb_dl_url.clone().into(),
-				all_thumb_urls: vec![thumb_dl_url],
+				all_thumbnail_urls: vec![thumb_dl_url],
 				cached: MetadataItemCached::default()
 					.publisher_optional(value.volume_info.publisher)
 					.author_optional(value.volume_info.authors.and_then(|v| v.first().cloned())),
-				refreshed_at: now,
-				created_at: now,
-				updated_at: now,
-				deleted_at: None,
 				available_at: None,
 				year: None,
-				hash: String::new(),
 			}
 		}))
 	}

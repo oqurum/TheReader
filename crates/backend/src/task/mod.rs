@@ -8,7 +8,7 @@ use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::{Database, table::{self, MetadataPerson, CachedImage, CacheType}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
+use crate::{database::{Database, table::{self, MetadataPerson, CachedImage, CacheType, MetadataItem}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
 
 
 // TODO: A should stop boolean
@@ -117,12 +117,14 @@ impl Task for TaskUpdateInvalidMetadata {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
 						let file_id = file.id;
-						match get_metadata_from_files(&[file], None, db).await {
+						match get_metadata_from_files(&[file], db).await {
 							Ok(meta) => {
 								if let Some(mut ret) = meta {
 									let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
-									let MetadataReturned { mut meta, publisher, .. } = ret;
+									let MetadataReturned { meta, publisher, .. } = ret;
+
+									let mut meta: MetadataItem = meta.into();
 
 									// TODO: Store Publisher inside Database
 									meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
@@ -161,7 +163,9 @@ impl Task for TaskUpdateInvalidMetadata {
 
 					let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
-					let MetadataReturned { meta: mut new_meta, publisher, .. } = new_meta;
+					let MetadataReturned { meta, publisher, .. } = new_meta;
+
+					let mut new_meta: MetadataItem = meta.into();
 
 					// TODO: Utilize EditManager which is currently in frontend util.rs
 
@@ -215,11 +219,13 @@ impl Task for TaskUpdateInvalidMetadata {
 
 				let files = db.get_files_by_metadata_id(meta_id)?;
 
-				match get_metadata_from_files(&files, Some(&fm_meta), db).await? {
+				match get_metadata_from_files(&files, db).await? {
 					Some(mut ret) => {
 						let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
-						let MetadataReturned { mut meta, publisher, .. } = ret;
+						let MetadataReturned { meta, publisher, .. } = ret;
+
+						let mut meta: MetadataItem = meta.into();
 
 						// TODO: Store Publisher inside Database
 						meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
@@ -230,8 +236,6 @@ impl Task for TaskUpdateInvalidMetadata {
 						meta.rating = fm_meta.rating;
 						meta.deleted_at = fm_meta.deleted_at;
 						meta.file_item_count = fm_meta.file_item_count;
-						meta.refreshed_at = Utc::now();
-						meta.updated_at = Utc::now();
 
 						// Overwrite prev with new and replace new with prev.
 						fm_meta.cached.overwrite_with(meta.cached);
@@ -308,7 +312,9 @@ impl Task for TaskUpdateInvalidMetadata {
 
 								let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
-								let MetadataReturned { meta: mut new_meta, publisher, .. } = new_meta;
+								let MetadataReturned { meta, publisher, .. } = new_meta;
+
+								let mut new_meta: MetadataItem = meta.into();
 
 								// TODO: Store Publisher inside Database
 								new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
@@ -368,7 +374,9 @@ impl Task for TaskUpdateInvalidMetadata {
 
 							let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
-							let MetadataReturned { mut meta, publisher, .. } = new_meta;
+							let MetadataReturned { meta, publisher, .. } = new_meta;
+
+							let mut meta: MetadataItem = meta.into();
 
 							// TODO: Store Publisher inside Database
 							meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
@@ -377,8 +385,6 @@ impl Task for TaskUpdateInvalidMetadata {
 							meta.library_id = old_meta.library_id;
 							meta.file_item_count = old_meta.file_item_count;
 							meta.rating = old_meta.rating;
-							meta.refreshed_at = Utc::now();
-							meta.updated_at = Utc::now();
 
 							if old_meta.title != old_meta.original_title {
 								meta.title = old_meta.title;
