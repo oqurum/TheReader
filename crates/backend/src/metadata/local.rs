@@ -53,7 +53,7 @@ impl Metadata for LocalMetadata {
 					title,
 					description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
 					rating: 0.0,
-					all_thumbnail_urls: Vec::new(),
+					thumb_locations: Vec::new(),
 					cached: MetadataItemCached::default(),
 					available_at: None,
 					year: None,

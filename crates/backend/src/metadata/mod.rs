@@ -255,8 +255,7 @@ pub struct FoundItem {
 	pub description: Option<String>,
 	pub rating: f64,
 
-	// pub thumb_path: ThumbnailPath,
-	pub all_thumbnail_urls: Vec<String>,
+	pub thumb_locations: Vec<FoundImageLocation>,
 
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
 	pub cached: MetadataItemCached,
@@ -276,8 +275,8 @@ impl From<FoundItem> for MetadataItem {
             original_title: val.title,
             description: val.description,
             rating: val.rating,
-            thumb_path: val.all_thumbnail_urls.first().map(|v| v.as_str().into()).unwrap_or_default(),
-            all_thumb_urls: val.all_thumbnail_urls,
+            thumb_path: val.thumb_locations.first().map(|v| v.as_value().into()).unwrap_or_default(),
+            all_thumb_urls: val.thumb_locations.into_iter().map(|v| v.into_value()).collect(),
             cached: val.cached,
             refreshed_at: Utc::now(),
             created_at: Utc::now(),
@@ -288,4 +287,27 @@ impl From<FoundItem> for MetadataItem {
             hash: String::new(),
         }
     }
+}
+
+
+#[derive(Debug)]
+pub enum FoundImageLocation {
+	Web(String),
+	FileSystem(String),
+}
+
+impl FoundImageLocation {
+	pub fn into_value(self) -> String {
+		match self {
+			Self::Web(v) |
+			Self::FileSystem(v) => v
+		}
+	}
+
+	pub fn as_value(&self) -> &str {
+		match self {
+			Self::Web(v) |
+			Self::FileSystem(v) => v.as_str()
+		}
+	}
 }

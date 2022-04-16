@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 use crate::database::table::File;
 use self::book::BookSearchType;
 
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo, FoundItem};
+use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo, FoundItem, FoundImageLocation};
 
 pub mod book;
 pub mod author;
@@ -132,7 +132,9 @@ impl Metadata for OpenLibraryMetadata {
 							title: item.title.clone(),
 							description: None,
 							rating: 0.0,
-							all_thumbnail_urls: item.cover_edition_key.map(|v| CoverId::Olid(v).get_book_cover_url()).map(|v| vec![v]).unwrap_or_default(),
+							thumb_locations: item.cover_edition_key.map(|v|
+								vec![FoundImageLocation::Web(CoverId::Olid(v).get_book_cover_url())]
+							).unwrap_or_default(),
 							cached: MetadataItemCached::default(),
 							available_at: None,
 							year: item.first_publish_year,
@@ -222,7 +224,11 @@ impl OpenLibraryMetadata {
 				title: Some(book_info.title.clone()),
 				description: book_info.description.as_ref().map(|v| v.content().to_owned()),
 				rating: 0.0,
-				all_thumbnail_urls: book_info.covers.into_iter().flatten().filter(|v| *v != -1).map(|id| CoverId::Id(id.to_string()).get_book_cover_url()).collect(),
+				thumb_locations: book_info.covers.into_iter()
+					.flatten()
+					.filter(|v| *v != -1)
+					.map(|id| FoundImageLocation::Web(CoverId::Id(id.to_string()).get_book_cover_url()))
+					.collect(),
 				cached: MetadataItemCached::default(),
 				available_at: None,
 				year: None,

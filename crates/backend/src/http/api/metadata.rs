@@ -93,7 +93,9 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> we
 								author: book.cached.author,
 								description: book.description,
 								name: book.title.unwrap_or_else(|| String::from("Unknown title")),
-								thumbnail: book.all_thumbnail_urls.first().map(|v| v.as_str().into()).unwrap_or_default(),
+								thumbnail: book.thumb_locations.first()
+									.map(|v| v.as_value().into())
+									.unwrap_or_default(),
 							})
 						}
 
