@@ -327,6 +327,9 @@ impl FoundImageLocation {
 		matches!(self, Self::FileData(_))
 	}
 
+	pub fn is_url(&self) -> bool {
+		matches!(self, Self::Url(_))
+	}
 
 	pub async fn download(&mut self) -> Result<()> {
 		match self {

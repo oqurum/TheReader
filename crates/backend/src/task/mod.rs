@@ -315,7 +315,11 @@ impl Task for TaskUpdateInvalidMetadata {
 
 								let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
-								let MetadataReturned { meta, publisher, .. } = new_meta;
+								let MetadataReturned { mut meta, publisher, .. } = new_meta;
+
+								if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_url()) {
+									item.download().await?;
+								}
 
 								let mut new_meta: MetadataItem = meta.into();
 
@@ -335,8 +339,8 @@ impl Task for TaskUpdateInvalidMetadata {
 								current_meta.refreshed_at = Utc::now();
 								current_meta.updated_at = Utc::now();
 
-								// No new thumb, but we have an old one. Set old one as new one.
-								if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
+								// No old thumb, but we have an new one. Set new one as old one.
+								if current_meta.thumb_path.is_none() && new_meta.thumb_path.is_some() {
 									current_meta.thumb_path = new_meta.thumb_path;
 								}
 
@@ -350,7 +354,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 								for person_id in author_ids {
 									db.add_meta_person(&table::MetadataPerson {
-										metadata_id: new_meta.id,
+										metadata_id: current_meta.id,
 										person_id,
 									})?;
 								}
@@ -370,7 +374,11 @@ impl Task for TaskUpdateInvalidMetadata {
 
 							let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
-							let MetadataReturned { meta, publisher, .. } = new_meta;
+							let MetadataReturned { mut meta, publisher, .. } = new_meta;
+
+							if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_url()) {
+								item.download().await?;
+							}
 
 							let mut meta: MetadataItem = meta.into();
 

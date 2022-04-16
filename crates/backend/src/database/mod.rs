@@ -996,6 +996,10 @@ impl Database {
 	// Poster
 
 	pub fn add_poster(&self, poster: &NewPoster) -> Result<usize> {
+		if poster.path.is_none() {
+			return Ok(0);
+		}
+
 		let conn = self.lock()?;
 
 		conn.execute(r#"
