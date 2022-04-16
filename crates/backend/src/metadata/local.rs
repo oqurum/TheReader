@@ -5,7 +5,7 @@ use books_common::MetadataItemCached;
 
 use crate::database::table::File;
 
-use super::{Metadata, MetadataReturned, AuthorInfo, FoundItem};
+use super::{Metadata, MetadataReturned, AuthorInfo, FoundItem, FoundImageLocation};
 
 
 
@@ -20,7 +20,7 @@ impl Metadata for LocalMetadata {
 	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
 		for file in files {
 			// Wrapped to prevent "future cannot be sent between threads safely"
-			let (meta, opt_thumb_url, authors, publisher) = {
+			let (meta, authors, publisher) = {
 				let mut book = match bookie::load_from_path(&file.path)? {
 					Some(v) => v,
 					None => continue,
@@ -29,9 +29,10 @@ impl Metadata for LocalMetadata {
 				let source = self.prefix_text(book.get_unique_id()?);
 
 				let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
-				let opt_thumb_url = book.find(BookSearch::CoverImage)
+				let thumb_file_data = book.find(BookSearch::CoverImage)
 					.map(|mut v| v.remove(0))
-					.map(|url| book.read_path_as_bytes(&url, None, None));
+					.map::<Result<_>, _>(|url| Ok(vec![FoundImageLocation::FileData(book.read_path_as_bytes(&url, None, None)?)]))
+					.transpose()?;
 
 				let publisher = book.find(BookSearch::Publisher).map(|mut v| v.remove(0));
 				let authors = book.find(BookSearch::Creator)
@@ -53,11 +54,11 @@ impl Metadata for LocalMetadata {
 					title,
 					description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
 					rating: 0.0,
-					thumb_locations: Vec::new(),
+					thumb_locations: thumb_file_data.unwrap_or_default(),
 					cached: MetadataItemCached::default(),
 					available_at: None,
 					year: None,
-				}, opt_thumb_url, authors, publisher)
+				}, authors, publisher)
 			};
 
 			// TODO:

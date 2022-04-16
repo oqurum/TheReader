@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use books_common::{SearchFor, Source, ThumbnailPath, MetadataItemCached};
 use chrono::Utc;
 
-use crate::{database::{table::{File, self, MetadataItem}, Database}, ThumbnailType};
+use crate::{database::{table::{File, self, MetadataItem}, Database}, ThumbnailType, ThumbnailLocation};
 
 use self::{
 	google_books::GoogleBooksMetadata,
@@ -67,7 +67,9 @@ pub trait Metadata {
 // TODO: Utilize current metadata in get_metadata_from_files.
 // TODO: Order which metadata should be tried.
 /// Attempts to return the first valid Metadata from Files.
-pub async fn get_metadata_from_files(files: &[File], db: &Database) -> Result<Option<MetadataReturned>> {
+///
+/// Also checks local agent.
+pub async fn get_metadata_from_files(files: &[File]) -> Result<Option<MetadataReturned>> {
 	return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
 	return_if_found!(GoogleBooksMetadata.get_metadata_from_files(files).await);
 
@@ -75,6 +77,7 @@ pub async fn get_metadata_from_files(files: &[File], db: &Database) -> Result<Op
 	LocalMetadata.get_metadata_from_files(files).await
 }
 
+/// Doesn't check local
 pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataReturned>> {
 	match source.agent.as_str() {
 		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_metadata_by_source_id(&source.value).await,
@@ -86,6 +89,7 @@ pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataRe
 
 
 
+/// Searches all agents except for local.
 pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<HashMap<String, Vec<SearchItem>>> {
 	let mut map = HashMap::new();
 
@@ -124,7 +128,7 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 	Ok(map)
 }
 
-
+/// Searches all agents except for local.
 pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>> {
 	match source.agent.as_str() {
 		v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_person_by_source_id(&source.value).await,
@@ -265,49 +269,89 @@ pub struct FoundItem {
 }
 
 impl From<FoundItem> for MetadataItem {
-    fn from(val: FoundItem) -> Self {
-        MetadataItem {
-            id: 0,
-            library_id: 0,
-            source: val.source,
-            file_item_count: 1,
-            title: val.title.clone(),
-            original_title: val.title,
-            description: val.description,
-            rating: val.rating,
-            thumb_path: val.thumb_locations.first().map(|v| v.as_value().into()).unwrap_or_default(),
-            all_thumb_urls: val.thumb_locations.into_iter().map(|v| v.into_value()).collect(),
-            cached: val.cached,
-            refreshed_at: Utc::now(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            deleted_at: None,
-            available_at: val.available_at,
-            year: val.year,
-            hash: String::new(),
-        }
-    }
+	fn from(val: FoundItem) -> Self {
+		MetadataItem {
+			id: 0,
+			library_id: 0,
+			source: val.source,
+			file_item_count: 1,
+			title: val.title.clone(),
+			original_title: val.title,
+			description: val.description,
+			rating: val.rating,
+			thumb_path: val.thumb_locations.iter().find_map(|v| v.as_local_value().map(|v| v.clone().into())).unwrap_or_default(),
+			all_thumb_urls: val.thumb_locations.into_iter().filter_map(|v| v.into_url_value()).collect(),
+			cached: val.cached,
+			refreshed_at: Utc::now(),
+			created_at: Utc::now(),
+			updated_at: Utc::now(),
+			deleted_at: None,
+			available_at: val.available_at,
+			year: val.year,
+			hash: String::new(),
+		}
+	}
 }
 
 
 #[derive(Debug)]
 pub enum FoundImageLocation {
-	Web(String),
-	FileSystem(String),
+	Url(String),
+	FileData(Vec<u8>),
+	Local(ThumbnailLocation),
 }
 
 impl FoundImageLocation {
-	pub fn into_value(self) -> String {
+	pub fn into_url_value(self) -> Option<String> {
 		match self {
-			Self::Web(v) |
-			Self::FileSystem(v) => v
+			Self::Url(v) => Some(v),
+			_ => None
 		}
 	}
 
-	pub fn as_value(&self) -> &str {
+	pub fn as_url_value(&self) -> Option<&str> {
 		match self {
-			Self::Web(v) |
-			Self::FileSystem(v) => v.as_str()
+			Self::Url(v) => Some(v.as_str()),
+			_ => None
 		}
+	}
+
+	pub fn as_local_value(&self) -> Option<&ThumbnailLocation> {
+		match self {
+			Self::Local(v) => Some(v),
+			_ => None
+		}
+	}
+
+	pub fn is_file_data(&self) -> bool {
+		matches!(self, Self::FileData(_))
+	}
+
+
+	pub async fn download(&mut self) -> Result<()> {
+		match self {
+			FoundImageLocation::Url(ref url) => {
+				let resp = reqwest::get(url)
+					.await
+					.unwrap()
+					.bytes()
+					.await
+					.unwrap();
+
+				let path = crate::store_image(ThumbnailType::Metadata, resp.to_vec()).await?;
+
+				*self = Self::Local(path);
+			}
+
+			FoundImageLocation::FileData(image) => {
+				if let Ok(path) = crate::store_image(ThumbnailType::Local, image.clone()).await {
+					*self = Self::Local(path)
+				}
+			}
+
+			_ => (),
+		}
+
+		Ok(())
 	}
 }

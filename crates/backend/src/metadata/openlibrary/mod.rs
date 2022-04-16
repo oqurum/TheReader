@@ -133,7 +133,7 @@ impl Metadata for OpenLibraryMetadata {
 							description: None,
 							rating: 0.0,
 							thumb_locations: item.cover_edition_key.map(|v|
-								vec![FoundImageLocation::Web(CoverId::Olid(v).get_book_cover_url())]
+								vec![FoundImageLocation::Url(CoverId::Olid(v).get_book_cover_url())]
 							).unwrap_or_default(),
 							cached: MetadataItemCached::default(),
 							available_at: None,
@@ -227,7 +227,7 @@ impl OpenLibraryMetadata {
 				thumb_locations: book_info.covers.into_iter()
 					.flatten()
 					.filter(|v| *v != -1)
-					.map(|id| FoundImageLocation::Web(CoverId::Id(id.to_string()).get_book_cover_url()))
+					.map(|id| FoundImageLocation::Url(CoverId::Id(id.to_string()).get_book_cover_url()))
 					.collect(),
 				cached: MetadataItemCached::default(),
 				available_at: None,

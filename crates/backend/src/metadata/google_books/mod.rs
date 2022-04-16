@@ -8,7 +8,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
 use books_common::{MetadataItemCached, SearchForBooksBy};
-use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::table::File, metadata::{FoundItem, FoundImageLocation}};
@@ -85,7 +84,7 @@ impl Metadata for GoogleBooksMetadata {
 					let mut books = Vec::new();
 
 					for item in books_cont.items {
-						let thumb_dl_url = FoundImageLocation::Web(format!(
+						let thumb_dl_url = FoundImageLocation::Url(format!(
 							"https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600",
 							item.id
 						));
@@ -142,12 +141,10 @@ impl GoogleBooksMetadata {
 
 
 	async fn compile_book_volume_item(&self, value: BookVolumeItem) -> Result<Option<MetadataReturned>> {
-		let thumb_dl_url = FoundImageLocation::Web(format!(
+		let thumb_dl_url = FoundImageLocation::Url(format!(
 			"https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600",
 			value.id
 		));
-
-		let now = Utc::now();
 
 		Ok(Some(MetadataReturned {
 			authors: None,

@@ -8,7 +8,7 @@ use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::{Database, table::{self, MetadataPerson, CachedImage, CacheType, MetadataItem}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
+use crate::{database::{Database, table::{self, MetadataPerson, MetadataItem}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}, ThumbnailType};
 
 
 // TODO: A should stop boolean
@@ -117,12 +117,18 @@ impl Task for TaskUpdateInvalidMetadata {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
 						let file_id = file.id;
-						match get_metadata_from_files(&[file], db).await {
+
+						match get_metadata_from_files(&[file]).await {
 							Ok(meta) => {
 								if let Some(mut ret) = meta {
 									let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
-									let MetadataReturned { meta, publisher, .. } = ret;
+									let MetadataReturned { mut meta, publisher, .. } = ret;
+
+									// TODO: This is For Local File Data. Need specify.
+									if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
+										item.download().await?;
+									}
 
 									let mut meta: MetadataItem = meta.into();
 
@@ -131,6 +137,12 @@ impl Task for TaskUpdateInvalidMetadata {
 
 									let meta = db.add_or_increment_metadata(&meta)?;
 									db.update_file_metadata_id(file_id, meta.id)?;
+
+									db.add_poster(&table::NewPoster {
+										link_id: meta.id,
+										path: meta.thumb_path.clone(),
+										created_at: Utc::now(),
+									})?;
 
 									for person_id in author_ids {
 										db.add_meta_person(&table::MetadataPerson {
@@ -188,13 +200,6 @@ impl Task for TaskUpdateInvalidMetadata {
 					// No new thumb, but we have an old one. Set old one as new one.
 					if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
 						current_meta.thumb_path = new_meta.thumb_path;
-					} else if new_meta.thumb_path.is_some() {
-						db.add_cached_image(&CachedImage {
-							item_id: current_meta.id,
-							type_of: CacheType::BookPoster,
-							path: current_meta.thumb_path.clone(),
-							created_at: Utc::now(),
-						})?;
 					}
 
 					db.add_poster(&table::NewPoster {
@@ -219,11 +224,16 @@ impl Task for TaskUpdateInvalidMetadata {
 
 				let files = db.get_files_by_metadata_id(meta_id)?;
 
-				match get_metadata_from_files(&files, db).await? {
+				match get_metadata_from_files(&files).await? {
 					Some(mut ret) => {
 						let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
-						let MetadataReturned { meta, publisher, .. } = ret;
+						let MetadataReturned { mut meta, publisher, .. } = ret;
+
+						// TODO: This is For Local File Data. Need specify.
+						if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
+							item.download().await?;
+						}
 
 						let mut meta: MetadataItem = meta.into();
 
@@ -248,13 +258,6 @@ impl Task for TaskUpdateInvalidMetadata {
 						// No new thumb, but we have an old one. Set old one as new one.
 						if meta.thumb_path.is_none() && fm_meta.thumb_path.is_some() {
 							meta.thumb_path = fm_meta.thumb_path;
-						} else if meta.thumb_path.is_some() {
-							db.add_cached_image(&CachedImage {
-								item_id: meta.id,
-								type_of: CacheType::BookPoster,
-								path: meta.thumb_path.clone(),
-								created_at: Utc::now(),
-							})?;
 						}
 
 						// TODO: Only if metadata exists and IS the same source.
@@ -335,13 +338,6 @@ impl Task for TaskUpdateInvalidMetadata {
 								// No new thumb, but we have an old one. Set old one as new one.
 								if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
 									current_meta.thumb_path = new_meta.thumb_path;
-								} else if new_meta.thumb_path.is_some() {
-									db.add_cached_image(&CachedImage {
-										item_id: current_meta.id,
-										type_of: CacheType::BookPoster,
-										path: current_meta.thumb_path.clone(),
-										created_at: Utc::now(),
-									})?;
 								}
 
 								db.add_poster(&table::NewPoster {
@@ -393,13 +389,6 @@ impl Task for TaskUpdateInvalidMetadata {
 							// No new thumb, but we have an old one. Set old one as new one.
 							if meta.thumb_path.is_none() && old_meta.thumb_path.is_some() {
 								meta.thumb_path = old_meta.thumb_path;
-							} else if meta.thumb_path.is_some() {
-								db.add_cached_image(&CachedImage {
-									item_id: meta.id,
-									type_of: CacheType::BookPoster,
-									path: meta.thumb_path.clone(),
-									created_at: Utc::now(),
-								})?;
 							}
 
 							db.add_poster(&table::NewPoster {
