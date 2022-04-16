@@ -84,7 +84,7 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> we
 	web::Json(api::MetadataSearchResponse {
 		items: search.into_iter()
 			.map(|(a, b)| (
-				a.to_owned(),
+				a,
 				b.into_iter().map(|v| {
 					match v {
 						metadata::SearchItem::Book(book) => {

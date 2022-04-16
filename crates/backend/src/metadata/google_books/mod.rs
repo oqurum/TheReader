@@ -7,11 +7,11 @@ use std::collections::HashMap;
 use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
-use books_common::{MetadataItemCached, SearchForBooksBy, ThumbnailPath};
+use books_common::{MetadataItemCached, SearchForBooksBy};
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::table::{MetadataItem, File}, ThumbnailType};
+use crate::database::table::{MetadataItem, File};
 use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
 
 pub struct GoogleBooksMetadata;
@@ -151,22 +151,6 @@ impl GoogleBooksMetadata {
 	async fn compile_book_volume_item(&self, value: BookVolumeItem) -> Result<Option<MetadataReturned>> {
 		let thumb_dl_url = format!("https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600", value.id);
 
-		let mut thumb_path = ThumbnailPath::default();
-
-		// Download thumb url and store it.
-		let resp = reqwest::get(&thumb_dl_url).await?;
-
-		if resp.status().is_success() {
-			let bytes = resp.bytes().await?;
-
-			match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-				Ok(path) => thumb_path = path.into(),
-				Err(e) => {
-					eprintln!("[METADATA][GB] store_image: {}", e);
-				}
-			}
-		}
-
 		let now = Utc::now();
 
 		Ok(Some(MetadataReturned {
@@ -181,7 +165,7 @@ impl GoogleBooksMetadata {
 				original_title: value.volume_info.title,
 				description: value.volume_info.description,
 				rating: value.volume_info.average_rating.unwrap_or_default(),
-				thumb_path,
+				thumb_path: thumb_dl_url.clone().into(),
 				all_thumb_urls: vec![thumb_dl_url],
 				cached: MetadataItemCached::default()
 					.publisher_optional(value.volume_info.publisher)

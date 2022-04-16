@@ -7,7 +7,7 @@ use books_common::{MetadataItemCached, SearchForBooksBy, ThumbnailPath};
 use chrono::Utc;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::table::{MetadataItem, File}, ThumbnailType};
+use crate::database::table::{MetadataItem, File};
 use self::book::BookSearchType;
 
 use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo};
@@ -228,18 +228,7 @@ impl OpenLibraryMetadata {
 
 		// Download thumb url and store it.
 		if let Some(thumb_id) = book_info.covers.as_ref().and_then(|v| v.iter().find(|v| **v != -1)).copied() {
-			let resp = reqwest::get(CoverId::Id(thumb_id.to_string()).get_book_cover_url()).await?;
-
-			if resp.status().is_success() {
-				let bytes = resp.bytes().await?;
-
-				match crate::store_image(ThumbnailType::Metadata, bytes.to_vec()).await {
-					Ok(path) => thumb_path = path.into(),
-					Err(e) => {
-						eprintln!("store_image: {}", e);
-					}
-				}
-			}
+			thumb_path = CoverId::Id(thumb_id.to_string()).get_book_cover_url().into();
 		}
 
 		Ok(Some(MetadataReturned {

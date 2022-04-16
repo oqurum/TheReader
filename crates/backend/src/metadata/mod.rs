@@ -86,9 +86,23 @@ pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataRe
 
 
 
-pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<HashMap<&'static str, Vec<SearchItem>>> {
+pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<HashMap<String, Vec<SearchItem>>> {
 	let mut map = HashMap::new();
 
+	// Checks to see if we can use get_metadata_by_source (source:id)
+	if let Ok(source) = Source::try_from(search) {
+		// Check if it's a Metadata Source.
+		if let Some(val) = get_metadata_by_source(&source).await? {
+			map.insert(
+				source.agent,
+				vec![SearchItem::Book(val.meta)],
+			);
+
+			return Ok(map);
+		}
+	}
+
+	// Search all sources
 	let prefixes = [OpenLibraryMetadata.get_prefix(), GoogleBooksMetadata.get_prefix()];
 	let asdf = futures::future::join_all(
 		[OpenLibraryMetadata.search(search, search_for), GoogleBooksMetadata.search(search, search_for)]
@@ -98,7 +112,7 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 		match val {
 			Ok(val) => {
 				map.insert(
-					prefix,
+					prefix.to_string(),
 					val,
 				);
 			}

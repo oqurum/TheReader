@@ -193,6 +193,12 @@ impl Task for TaskUpdateInvalidMetadata {
 						})?;
 					}
 
+					db.add_poster(&table::NewPoster {
+						link_id: current_meta.id,
+						path: current_meta.thumb_path.clone(),
+						created_at: Utc::now(),
+					})?;
+
 					db.update_metadata(&current_meta)?;
 
 					for person_id in author_ids {
@@ -249,6 +255,12 @@ impl Task for TaskUpdateInvalidMetadata {
 
 						// TODO: Only if metadata exists and IS the same source.
 						meta.created_at = fm_meta.created_at;
+
+						db.add_poster(&table::NewPoster {
+							link_id: meta.id,
+							path: meta.thumb_path.clone(),
+							created_at: Utc::now(),
+						})?;
 
 						db.update_metadata(&meta)?;
 
@@ -326,6 +338,12 @@ impl Task for TaskUpdateInvalidMetadata {
 									})?;
 								}
 
+								db.add_poster(&table::NewPoster {
+									link_id: current_meta.id,
+									path: current_meta.thumb_path.clone(),
+									created_at: Utc::now(),
+								})?;
+
 								db.update_metadata(&current_meta)?;
 
 								for person_id in author_ids {
@@ -377,6 +395,12 @@ impl Task for TaskUpdateInvalidMetadata {
 									created_at: Utc::now(),
 								})?;
 							}
+
+							db.add_poster(&table::NewPoster {
+								link_id: meta.id,
+								path: meta.thumb_path.clone(),
+								created_at: Utc::now(),
+							})?;
 
 							db.update_metadata(&meta)?;
 
