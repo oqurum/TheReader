@@ -261,6 +261,7 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 	].forEach(tags => {
 		for (const element of tags) {
 			element.style.maxHeight = document.body.clientHeight + 'px';
+			element.style.width = 'auto';
 		}
 	});
 }
