@@ -229,7 +229,13 @@ body {
 		align-items: center;
 		height: 100%;
 
-		&.overlay-tools > .reader {
+		> .tools {
+			> .tool-item {
+				cursor: pointer;
+			}
+		}
+
+		&.overlay-y > .reader {
 			> .navbar {
 				position: absolute;
 				width: 100%;

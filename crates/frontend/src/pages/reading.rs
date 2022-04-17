@@ -1,10 +1,12 @@
 // TODO: Handle resizing.
 // TODO: Allow custom sizes.
 
-use std::{rc::Rc, sync::Mutex};
+use std::{rc::Rc, sync::{Mutex, Arc}};
 
 use books_common::{MediaItem, api::{GetBookIdResponse, GetChaptersResponse}, Progression};
-use wasm_bindgen::JsCast;
+use gloo_utils::window;
+use js_sys::Array;
+use wasm_bindgen::{JsCast, prelude::Closure};
 use web_sys::{HtmlInputElement, Element};
 use yew::prelude::*;
 
@@ -21,9 +23,12 @@ pub enum SidebarType {
 
 pub enum Msg {
 	// Event
+	Update,
+
 	ToggleSidebar(SidebarType),
 	OnChangeSelection(ChapterDisplay),
 	UpdateDimensions,
+	ChangeReaderSize(bool),
 
 	// Send
 	SendGetChapters(usize, usize),
@@ -47,6 +52,8 @@ pub struct ReadingBook {
 	// TODO: Cache pages
 
 	book_dimensions: (Option<i32>, Option<i32>),
+	is_fullscreen: bool,
+	auto_resize_cb: Option<Closure<dyn FnMut()>>,
 
 	sidebar_visible: Option<SidebarType>,
 
@@ -69,6 +76,8 @@ impl Component for ReadingBook {
 			book: None,
 
 			book_dimensions: (Some(1040), Some(548)),
+			is_fullscreen: false,
+			auto_resize_cb: None,
 
 			sidebar_visible: None,
 
@@ -80,9 +89,61 @@ impl Component for ReadingBook {
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			Msg::Update => (),
+
+			Msg::ChangeReaderSize(value) => {
+				self.is_fullscreen = value;
+
+				if value {
+					self.book_dimensions = (None, None);
+
+					let link = ctx.link().clone();
+					let timeout: Arc<Mutex<(Option<_>, i32)>> = Arc::new(Mutex::new((None, 0)));
+
+					let handle_resize = Closure::wrap(Box::new(move || {
+						let link = link.clone();
+						let timeoout = timeout.clone();
+
+						let clear = {
+							let mut lock = timeoout.lock().unwrap();
+							lock.0.take().map(|v| (v, lock.1))
+						};
+
+						if let Some((_, v)) = clear {
+							window().clear_timeout_with_handle(v);
+						}
+
+						let handle_timeout = Closure::wrap(Box::new(move || {
+							link.send_message(Msg::Update);
+						}) as Box<dyn FnMut()>);
+
+						let to = window().set_timeout_with_callback_and_timeout_and_arguments(
+							handle_timeout.as_ref().unchecked_ref(),
+							250,
+							&Array::default()
+						).unwrap();
+
+						*timeoout.lock().unwrap() = (Some(handle_timeout), to);
+					}) as Box<dyn FnMut()>);
+
+					window().add_event_listener_with_callback(
+						"resize",
+						handle_resize.as_ref().unchecked_ref()
+					).unwrap();
+
+					self.auto_resize_cb = Some(handle_resize);
+				} else {
+					self.book_dimensions = (
+						Some(self.book_dimensions.0.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)) / 2),
+						Some(self.book_dimensions.1.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)) / 2),
+					);
+				}
+			}
+
 			Msg::UpdateDimensions => {
 				let width = self.ref_width_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
 				let height = self.ref_height_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
+
 				self.book_dimensions = (Some(width).filter(|v| *v > 0), Some(height).filter(|v| *v > 0));
 			}
 
@@ -139,7 +200,15 @@ impl Component for ReadingBook {
 
 	fn view(&self, ctx: &Context<Self>) -> Html {
 		if let Some(book) = self.book.as_ref() {
-			let is_y_full_screen = self.book_dimensions.1.is_none();
+			let mut book_class = String::from("book");
+
+			if self.book_dimensions.0.is_none() {
+				book_class += " overlay-x";
+			}
+
+			if self.book_dimensions.1.is_none() {
+				book_class += " overlay-y";
+			}
 
 			let (width, height) = (
 				self.book_dimensions.0.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)),
@@ -148,11 +217,7 @@ impl Component for ReadingBook {
 
 			// TODO: Loading screen until all chapters have done initial generation.
 
-			let book_class = if is_y_full_screen {
-				"book overlay-tools"
-			}  else {
-				"book"
-			};
+			let is_fullscreen = self.is_fullscreen;
 
 			html! {
 				<div class="reading-container">
@@ -163,12 +228,27 @@ impl Component for ReadingBook {
 									SidebarType::Notes => html! { <Notes book={Rc::clone(book)} /> },
 									SidebarType::Settings => html! {
 										<div class="settings">
-											<div>
-												<input value={width.to_string()} ref={self.ref_width_input.clone()} type="number" />
-												<span>{ "x" }</span>
-												<input value={height.to_string()} ref={self.ref_height_input.clone()} type="number" />
-											</div>
-											<button onclick={ctx.link().callback(|_| Msg::UpdateDimensions)}>{"Update Dimensions"}</button>
+											<select>
+												<option selected={!is_fullscreen} onclick={ctx.link().callback(|_| Msg::ChangeReaderSize(false))}>{ "Specified" }</option>
+												<option selected={is_fullscreen} onclick={ctx.link().callback(|_| Msg::ChangeReaderSize(true))}>{ "Fullscreen" }</option>
+											</select>
+											{
+												if is_fullscreen {
+													html! {
+														<>
+														</>
+													}
+												} else {
+													html! {
+														<div>
+															<input style="width: 100px;" value={width.to_string()} ref={self.ref_width_input.clone()} type="number" />
+															<span>{ "x" }</span>
+															<input style="width: 100px;" value={height.to_string()} ref={self.ref_height_input.clone()} type="number" />
+															<button onclick={ctx.link().callback(|_| Msg::UpdateDimensions)}>{"Update Dimensions"}</button>
+														</div>
+													}
+												}
+											}
 											<div>
 												// TODO: Specify based on book type. Epub/Mobi (Single, Double) - PDF (Scroll)
 												<select onchange={
