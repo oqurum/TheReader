@@ -17,7 +17,11 @@ pub fn update_attributes_with<F>(
 	func: F,
 	add_css: &[&str],
 ) -> Result<Vec<u8>> where F: Fn(&OwnedName, OwnedAttribute) -> OwnedAttribute {
-	let reader = xml::EventReader::new(input);
+	let reader = xml::ParserConfig::new()
+		.add_entity("nbsp", " ")
+		.add_entity("copy", "©")
+		.add_entity("reg", "®")
+		.create_reader(input);
 
 	let mut output = Vec::new();
 	let mut writer = EmitterConfig::default()
@@ -96,7 +100,7 @@ pub fn update_value_with_relative_internal_path(mut file_path: PathBuf, value: &
 	}
 
 	let path = if cfg!(windows) {
-		file_path.display().to_string().replace("\\", "/")
+		file_path.display().to_string().replace('\\', "/")
 	} else {
 		file_path.display().to_string()
 	};
