@@ -198,7 +198,7 @@ impl Task for TaskUpdateInvalidMetadata {
 					current_meta.updated_at = Utc::now();
 
 					// No new thumb, but we have an old one. Set old one as new one.
-					if new_meta.thumb_path.is_none() && current_meta.thumb_path.is_some() {
+					if current_meta.thumb_path.is_none() && new_meta.thumb_path.is_some() {
 						current_meta.thumb_path = new_meta.thumb_path;
 					}
 
