@@ -1003,7 +1003,7 @@ impl Database {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
-			INSERT INTO uploaded_images (link_id, path, created_at)
+			INSERT OR IGNORE INTO uploaded_images (link_id, path, created_at)
 			VALUES (?1, ?2, ?3)
 		"#,
 		params![
