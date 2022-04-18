@@ -202,6 +202,10 @@ impl Task for TaskUpdateInvalidMetadata {
 						current_meta.thumb_path = new_meta.thumb_path;
 					}
 
+					if new_meta.description.is_some() {
+						current_meta.description = new_meta.description;
+					}
+
 					db.add_poster(&table::NewPoster {
 						link_id: current_meta.id,
 						path: current_meta.thumb_path.clone(),
@@ -258,6 +262,10 @@ impl Task for TaskUpdateInvalidMetadata {
 						// No new thumb, but we have an old one. Set old one as new one.
 						if meta.thumb_path.is_none() && fm_meta.thumb_path.is_some() {
 							meta.thumb_path = fm_meta.thumb_path;
+						}
+
+						if fm_meta.description.is_some() {
+							meta.description = fm_meta.description;
 						}
 
 						// TODO: Only if metadata exists and IS the same source.
@@ -335,6 +343,10 @@ impl Task for TaskUpdateInvalidMetadata {
 									current_meta.title = new_meta.title;
 								}
 
+								if new_meta.description.is_some() {
+									current_meta.description = new_meta.description;
+								}
+
 								current_meta.original_title = new_meta.original_title;
 								current_meta.refreshed_at = Utc::now();
 								current_meta.updated_at = Utc::now();
@@ -397,6 +409,10 @@ impl Task for TaskUpdateInvalidMetadata {
 							// No new thumb, but we have an old one. Set old one as new one.
 							if meta.thumb_path.is_none() && old_meta.thumb_path.is_some() {
 								meta.thumb_path = old_meta.thumb_path;
+							}
+
+							if meta.description.is_none() {
+								meta.description = old_meta.description;
 							}
 
 							db.add_poster(&table::NewPoster {
