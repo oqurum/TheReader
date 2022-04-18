@@ -8,10 +8,16 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bookie::Book;
 use books_common::{MetadataItemCached, SearchForBooksBy};
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Serialize, Deserialize};
 
 use crate::{database::table::File, metadata::{FoundItem, FoundImageLocation}};
 use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
+
+lazy_static! {
+	pub static ref REMOVE_HTML_TAGS: Regex = Regex::new("<(.|\n)*?>").unwrap();
+}
 
 pub struct GoogleBooksMetadata;
 
@@ -92,7 +98,7 @@ impl Metadata for GoogleBooksMetadata {
 						books.push(SearchItem::Book(FoundItem {
 							source: self.prefix_text(&item.id).try_into()?,
 							title: item.volume_info.title.clone(),
-							description: item.volume_info.description,
+							description: item.volume_info.description.as_deref().map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
 							rating: item.volume_info.average_rating.unwrap_or_default(),
 							thumb_locations: vec![thumb_dl_url],
 							cached: MetadataItemCached::default(),
@@ -152,7 +158,7 @@ impl GoogleBooksMetadata {
 			meta: FoundItem {
 				source: self.prefix_text(value.id).try_into()?,
 				title: value.volume_info.title.clone(),
-				description: value.volume_info.description,
+				description: value.volume_info.description.as_deref().map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
 				rating: value.volume_info.average_rating.unwrap_or_default(),
 				thumb_locations: vec![thumb_dl_url],
 				cached: MetadataItemCached::default()
