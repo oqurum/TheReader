@@ -102,6 +102,14 @@ impl ThumbnailStore {
 			ThumbnailStoreType::Metadata => Self::Metadata(value),
 		}
 	}
+
+	pub fn to_optional_string(&self) -> Option<String> {
+		if self.is_some() {
+			Some(self.to_string())
+		} else {
+			None
+		}
+	}
 }
 
 
