@@ -70,8 +70,8 @@ pub trait Metadata {
 ///
 /// Also checks local agent.
 pub async fn get_metadata_from_files(files: &[File]) -> Result<Option<MetadataReturned>> {
-	return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
 	return_if_found!(GoogleBooksMetadata.get_metadata_from_files(files).await);
+	return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
 
 	// TODO: Don't re-scan file if we already have metadata from file.
 	LocalMetadata.get_metadata_from_files(files).await
