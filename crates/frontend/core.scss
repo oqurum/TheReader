@@ -139,6 +139,7 @@ body {
 		bottom: 0px;
 		right: 3px;
 		display: none;
+		cursor: pointer;
 	}
 
 	.bottom-left {
@@ -147,6 +148,7 @@ body {
 		bottom: 0px;
 		left: 3px;
 		display: none;
+		cursor: pointer;
 	}
 
 	&:hover .bottom-left,
