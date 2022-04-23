@@ -5,10 +5,11 @@ use serde::{Serialize, Deserialize};
 
 use util::*;
 
-pub mod api;
+mod http;
 pub mod util;
 pub mod specific;
 
+pub use http::*;
 pub use specific::*;
 
 // Member

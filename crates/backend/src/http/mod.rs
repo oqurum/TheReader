@@ -5,6 +5,7 @@ use crate::database::Database;
 
 mod api;
 mod auth;
+mod ws;
 pub use self::api::*;
 pub use self::auth::*;
 
@@ -69,6 +70,9 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 
 			// Task
 			.service(task::run_task)
+
+			// WS
+			.service(ws::ws_index)
 
 			// Password
 			.route(
