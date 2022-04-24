@@ -1,4 +1,4 @@
-// Websocket used for notificatiosn
+// Websocket used for notifications
 
 use std::{sync::Mutex, time::{Instant, Duration}};
 
