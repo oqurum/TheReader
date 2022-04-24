@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use crate::Result;
 use books_common::{ThumbnailStoreType, ThumbnailStore};
 use sha2::{Sha256, Digest};
 use tokio::fs;

@@ -1,18 +1,15 @@
-pub mod password;
-pub mod passwordless;
-
-
-// TODO: Slim User for Identity
-
 use std::pin::Pin;
 
 use actix_identity::Identity;
 use actix_web::{FromRequest, HttpRequest, dev::Payload, error::ErrorUnauthorized, web};
-use anyhow::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use crate::database::{table, Database};
+use crate::{Result, database::{table, Database}};
+
+pub mod password;
+pub mod passwordless;
+
 
 #[derive(Serialize, Deserialize)]
 pub struct CookieAuth {

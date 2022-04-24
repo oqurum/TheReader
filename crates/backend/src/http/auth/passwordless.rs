@@ -7,7 +7,7 @@ use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::web;
 
-use anyhow::Result;
+use crate::Result;
 use chrono::Utc;
 use lettre::message::header::ContentType;
 use lettre::message::{MultiPart, SinglePart};

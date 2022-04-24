@@ -1,6 +1,6 @@
 use std::sync::{Mutex, MutexGuard};
 
-use anyhow::Result;
+use crate::Result;
 use books_common::{Progression, Source};
 use chrono::Utc;
 use rusqlite::{Connection, params, OptionalExtension};
@@ -263,7 +263,7 @@ pub struct Database(Mutex<Connection>);
 
 impl Database {
 	fn lock(&self) -> Result<MutexGuard<Connection>> {
-		self.0.lock().map_err(|_| anyhow::anyhow!("Database Poisoned"))
+		Ok(self.0.lock()?)
 	}
 
 

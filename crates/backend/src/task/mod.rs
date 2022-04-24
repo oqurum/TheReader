@@ -1,7 +1,7 @@
 use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque};
 
 use actix_web::web;
-use anyhow::Result;
+use crate::Result;
 use async_trait::async_trait;
 use books_common::{Source, ThumbnailStoreType};
 use chrono::Utc;

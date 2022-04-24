@@ -1,6 +1,6 @@
 // https://www.w3.org/RDF/
 
-use anyhow::Result;
+use crate::Result;
 
 use super::book::BookId;
 

@@ -493,6 +493,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "sha2",
+ "thiserror",
  "tokio",
  "urlencoding",
 ]
@@ -501,10 +502,10 @@ dependencies = [
 name = "books-common"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "chrono",
  "serde",
  "serde_urlencoded",
+ "thiserror",
 ]
 
 [[package]]

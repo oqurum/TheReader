@@ -1,5 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::Error;
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Source {
 	pub agent: String,
@@ -13,11 +15,11 @@ impl ToString for Source {
 }
 
 impl TryFrom<&str> for Source {
-	type Error = anyhow::Error;
+	type Error = Error;
 
 	fn try_from(value: &str) -> Result<Self, Self::Error> {
 		let (source, value) = value.split_once(':')
-			.ok_or_else(|| anyhow::anyhow!("Missing ':' from Source"))?;
+			.ok_or(Error::SourceSplit)?;
 
 		Ok(Self {
 			agent: source.to_owned(),
@@ -27,11 +29,11 @@ impl TryFrom<&str> for Source {
 }
 
 impl TryFrom<String> for Source {
-	type Error = anyhow::Error;
+	type Error = Error;
 
 	fn try_from(value: String) -> Result<Self, Self::Error> {
 		let (source, value) = value.split_once(':')
-			.ok_or_else(|| anyhow::anyhow!("Missing ':' from Source"))?;
+			.ok_or(Error::SourceSplit)?;
 
 		Ok(Self {
 			agent: source.to_owned(),

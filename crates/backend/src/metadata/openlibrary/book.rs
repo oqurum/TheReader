@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::Result;
+use crate::Result;
 use serde::{Serialize, Deserialize};
 
 use super::{KeyItem, TypeValueItem, RecordDescription};
