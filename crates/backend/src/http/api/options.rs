@@ -1,15 +1,15 @@
 use actix_web::{get, web, HttpResponse, post};
 use books_common::{api, LibraryColl};
 
-use crate::database::Database;
+use crate::{database::Database, WebResult};
 
 
 #[get("/options")]
-async fn load_options(db: web::Data<Database>) -> web::Json<api::GetOptionsResponse> {
-	let libraries = db.list_all_libraries().unwrap();
-	let mut directories = db.get_all_directories().unwrap();
+async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::GetOptionsResponse>> {
+	let libraries = db.list_all_libraries()?;
+	let mut directories = db.get_all_directories()?;
 
-	web::Json(api::GetOptionsResponse {
+	Ok(web::Json(api::GetOptionsResponse {
 		libraries: libraries.into_iter()
 			.map(|lib| {
 				LibraryColl {
@@ -25,7 +25,7 @@ async fn load_options(db: web::Data<Database>) -> web::Json<api::GetOptionsRespo
 				}
 			})
 			.collect()
-	})
+	}))
 }
 
 // TODO: Move to utils file.
@@ -44,38 +44,38 @@ fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) ->
 }
 
 #[post("/options/add")]
-async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse {
+async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let api::ModifyOptionsBody {
 		library,
 		directory
 	} = modify.into_inner();
 
 	if let Some(library) = library {
-		db.add_library(library.name.unwrap()).unwrap();
+		db.add_library(library.name.unwrap())?;
 	}
 
 	if let Some(directory) = directory {
 		// TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
-		db.add_directory(directory.library_id, directory.path).unwrap();
+		db.add_directory(directory.library_id, directory.path)?;
 	}
 
-	HttpResponse::Ok().finish()
+	Ok(HttpResponse::Ok().finish())
 }
 
 #[post("/options/remove")]
-async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse {
+async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let api::ModifyOptionsBody {
 		library,
 		directory
 	} = modify.into_inner();
 
 	if let Some(library) = library {
-		db.remove_library(library.id.unwrap()).unwrap();
+		db.remove_library(library.id.unwrap())?;
 	}
 
 	if let Some(directory) = directory {
-		db.remove_directory(&directory.path).unwrap();
+		db.remove_directory(&directory.path)?;
 	}
 
-	HttpResponse::Ok().finish()
+	Ok(HttpResponse::Ok().finish())
 }

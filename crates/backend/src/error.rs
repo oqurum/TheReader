@@ -18,6 +18,7 @@ use bookie::Error as BookieError;
 
 use actix_multipart::MultipartError;
 use actix_web::Error as ActixError;
+use actix_web::error::PayloadError;
 use actix_web::ResponseError;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -31,6 +32,8 @@ pub enum WebError {
 	Actix(#[from] ActixError),
 	#[error("Multipart Error: {0}")]
 	Multipart(#[from] MultipartError),
+	#[error("Payload Error: {0}")]
+	Payload(#[from] PayloadError),
 
 	#[error(transparent)]
 	All(#[from] Error),

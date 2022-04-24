@@ -2,23 +2,23 @@ use actix_web::{get, web, HttpResponse, post};
 
 use books_common::{api, SearchType, SearchFor, SearchForBooksBy};
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error};
 
 
 
 
 #[get("/metadata/{id}/thumbnail")]
-async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>) -> HttpResponse {
+async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let book_id = path.into_inner();
 
-	let meta = db.get_metadata_by_id(book_id).unwrap();
+	let meta = db.get_metadata_by_id(book_id)?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_path) {
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
 
-		HttpResponse::Ok().body(std::fs::read(path).unwrap())
+		Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
 	} else {
-		HttpResponse::NotFound().finish()
+		Ok(HttpResponse::NotFound().finish())
 	}
 }
 
@@ -43,32 +43,32 @@ pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api
 }
 
 #[get("/metadata/{id}")]
-pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> web::Json<api::MediaViewResponse> {
-	let meta = db.get_metadata_by_id(*meta_id).unwrap().unwrap();
+pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<web::Json<api::MediaViewResponse>> {
+	let meta = db.get_metadata_by_id(*meta_id)?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
 
-	for file in db.get_files_by_metadata_id(meta.id).unwrap() {
-		let prog = db.get_progress(0, file.id).unwrap();
+	for file in db.get_files_by_metadata_id(meta.id)? {
+		let prog = db.get_progress(0, file.id)?;
 
 		media.push(file.into());
 		progress.push(prog.map(|v| v.into()));
 	}
 
-	let people = db.get_person_list_by_meta_id(meta.id).unwrap();
+	let people = db.get_person_list_by_meta_id(meta.id)?;
 
-	web::Json(api::MediaViewResponse {
+	Ok(web::Json(api::MediaViewResponse {
 		metadata: meta.into(),
 		media,
 		progress,
 		people: people.into_iter()
 			.map(|p| p.into())
 			.collect(),
-	})
+	}))
 }
 
 #[get("/metadata/search")]
-pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> web::Json<api::MetadataSearchResponse> {
+pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<web::Json<api::MetadataSearchResponse>> {
 	let search = metadata::search_all_agents(
 		&body.query,
 		match body.search_type {
@@ -76,9 +76,9 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> we
 			SearchType::Book => SearchFor::Book(SearchForBooksBy::Query),
 			SearchType::Person => SearchFor::Person
 		}
-	).await.unwrap();
+	).await?;
 
-	web::Json(api::MetadataSearchResponse {
+	Ok(web::Json(api::MetadataSearchResponse {
 		items: search.into_iter()
 			.map(|(a, b)| (
 				a,
@@ -115,6 +115,6 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> we
 				}).collect()
 			))
 			.collect()
-	})
+	}))
 }
 

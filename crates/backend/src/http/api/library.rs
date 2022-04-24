@@ -1,15 +1,14 @@
 use actix_web::{get, web};
 use books_common::{api, LibraryColl};
 
-use crate::database::Database;
+use crate::{database::Database, WebResult};
 
 
 
 #[get("/libraries")]
-async fn load_library_list(db: web::Data<Database>) -> web::Json<api::GetLibrariesResponse> {
-	web::Json(api::GetLibrariesResponse {
-		items: db.list_all_libraries()
-			.unwrap()
+async fn load_library_list(db: web::Data<Database>) -> WebResult<web::Json<api::GetLibrariesResponse>> {
+	Ok(web::Json(api::GetLibrariesResponse {
+		items: db.list_all_libraries()?
 			.into_iter()
 			.map(|file| {
 				LibraryColl {
@@ -25,6 +24,6 @@ async fn load_library_list(db: web::Data<Database>) -> web::Json<api::GetLibrari
 				}
 			})
 			.collect()
-	})
+	}))
 }
 

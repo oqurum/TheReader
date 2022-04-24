@@ -3,7 +3,7 @@ use actix_web::{get, web, HttpResponse, post, put, Responder};
 use books_common::{api, Poster, Either, ThumbnailStoreType};
 use chrono::Utc;
 
-use crate::{database::{Database, table::NewPoster}, store_image};
+use crate::{database::{Database, table::NewPoster}, store_image, WebResult, Error};
 
 
 
@@ -24,15 +24,14 @@ async fn get_local_image(path: web::Path<(String, String)>) -> impl Responder {
 async fn get_poster_list(
 	path: web::Path<usize>,
 	db: web::Data<Database>
-) -> web::Json<api::GetPostersResponse> {
+) -> WebResult<web::Json<api::GetPostersResponse>> {
 	let meta = db.get_metadata_by_id(*path).unwrap().unwrap();
 
 	// TODO: For Open Library we need to go from an Edition to Work.
 	// Work is the main book. Usually consisting of more posters.
 	// We can do they by works[0].key = "/works/OLXXXXXXW"
 
-	let mut items: Vec<Poster> = db.get_posters_by_linked_id(*path)
-		.unwrap()
+	let mut items: Vec<Poster> = db.get_posters_by_linked_id(*path)?
 		.into_iter()
 		.map(|poster| Poster {
 			id: Some(poster.id),
@@ -52,7 +51,7 @@ async fn get_poster_list(
 			meta.cached.author.as_deref().unwrap_or_default(),
 		),
 		books_common::SearchFor::Book(books_common::SearchForBooksBy::Query)
-	).await.unwrap();
+	).await?;
 
 	for item in search.into_values().flatten() {
 		if let crate::metadata::SearchItem::Book(item) = item {
@@ -69,9 +68,9 @@ async fn get_poster_list(
 		}
 	}
 
-	web::Json(api::GetPostersResponse {
+	Ok(web::Json(api::GetPostersResponse {
 		items
-	})
+	}))
 }
 
 
@@ -80,19 +79,17 @@ async fn post_change_poster(
 	metadata_id: web::Path<usize>,
 	body: web::Json<api::ChangePosterBody>,
 	db: web::Data<Database>
-) -> HttpResponse {
-	let mut meta = db.get_metadata_by_id(*metadata_id).unwrap().unwrap();
+) -> WebResult<HttpResponse> {
+	let mut meta = db.get_metadata_by_id(*metadata_id)?.unwrap();
 
 	match body.into_inner().url_or_id {
 		Either::Left(url) => {
 			let resp = reqwest::get(url)
-				.await
-				.unwrap()
+				.await.map_err(Error::from)?
 				.bytes()
-				.await
-				.unwrap();
+				.await.map_err(Error::from)?;
 
-			let hash = store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await.unwrap();
+			let hash = store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await?;
 
 
 			meta.thumb_path = hash;
@@ -101,23 +98,23 @@ async fn post_change_poster(
 				link_id: meta.id,
 				path: meta.thumb_path.clone(),
 				created_at: Utc::now(),
-			}).unwrap();
+			})?;
 		}
 
 		Either::Right(id) => {
-			let poster = db.get_poster_by_id(id).unwrap().unwrap();
+			let poster = db.get_poster_by_id(id)?.unwrap();
 
 			if meta.thumb_path == poster.path {
-				return HttpResponse::Ok().finish();
+				return Ok(HttpResponse::Ok().finish());
 			}
 
 			meta.thumb_path = poster.path;
 		}
 	}
 
-	db.update_metadata(&meta).unwrap();
+	db.update_metadata(&meta)?;
 
-	HttpResponse::Ok().finish()
+	Ok(HttpResponse::Ok().finish())
 }
 
 

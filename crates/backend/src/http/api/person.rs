@@ -2,7 +2,7 @@ use actix_web::{web, get, post, HttpResponse};
 use books_common::api;
 use chrono::Utc;
 
-use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{self, queue_task_priority}, queue_task};
+use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{self, queue_task_priority}, queue_task, WebResult, Error};
 
 
 // Get List Of People and Search For People
@@ -10,62 +10,60 @@ use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{
 pub async fn load_author_list(
 	db: web::Data<Database>,
 	query: web::Query<api::SimpleListQuery>,
-) -> web::Json<api::GetPeopleResponse> {
+) -> WebResult<web::Json<api::GetPeopleResponse>> {
 	let offset = query.offset.unwrap_or(0);
 	let limit = query.offset.unwrap_or(50);
 
 	// Return Searched People
 	if let Some(query) = query.query.as_deref() {
-		let items = db.search_person_list(query, offset, limit)
-			.unwrap()
+		let items = db.search_person_list(query, offset, limit)?
 			.into_iter()
 			.map(|v| v.into())
 			.collect();
 
-		web::Json(api::GetPeopleResponse {
+		Ok(web::Json(api::GetPeopleResponse {
 			offset,
 			limit,
 			total: 0, // TODO
 			items
-		})
+		}))
 	}
 
 	// Return All People
 	else {
-		let items = db.get_person_list(offset, limit)
-			.unwrap()
+		let items = db.get_person_list(offset, limit)?
 			.into_iter()
 			.map(|v| v.into())
 			.collect();
 
-		web::Json(api::GetPeopleResponse {
+		Ok(web::Json(api::GetPeopleResponse {
 			offset,
 			limit,
-			total: db.get_person_count().unwrap(),
+			total: db.get_person_count()?,
 			items
-		})
+		}))
 	}
 }
 
 
 // Person Thumbnail
 #[get("/person/{id}/thumbnail")]
-async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Database>) -> HttpResponse {
-	let meta = db.get_person_by_id(*person_id).unwrap();
+async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+	let meta = db.get_person_by_id(*person_id)?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_url) {
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
 
-		HttpResponse::Ok().body(std::fs::read(path).unwrap())
+		Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
 	} else {
-		HttpResponse::NotFound().finish()
+		Ok(HttpResponse::NotFound().finish())
 	}
 }
 
 
 // Person Tasks - Update Person, Overwrite Person with another source.
 #[post("/person/{id}")]
-pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> HttpResponse {
+pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let person_id = *meta_id;
 
 	match body.into_inner() {
@@ -80,14 +78,14 @@ pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::
 		api::PostPersonBody::CombinePersonWith(into_person_id) => {
 			// TODO: Tests for this to ensure it's correct.
 
-			let old_person = db.get_person_by_id(person_id).unwrap().unwrap();
-			let mut into_person = db.get_person_by_id(into_person_id).unwrap().unwrap();
+			let old_person = db.get_person_by_id(person_id)?.unwrap();
+			let mut into_person = db.get_person_by_id(into_person_id)?.unwrap();
 
 			// Transfer Alt Names to Other Person
-			db.transfer_person_alt(old_person.id, into_person.id).unwrap();
+			db.transfer_person_alt(old_person.id, into_person.id)?;
 
 			// Delete remaining Alt Names
-			db.remove_person_alt_by_person_id(old_person.id).unwrap();
+			db.remove_person_alt_by_person_id(old_person.id)?;
 
 			// Make Old Person Name an Alt Name
 			let _ = db.add_person_alt(&TagPersonAlt {
@@ -96,14 +94,14 @@ pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::
 			});
 
 			// Transfer Old Person Metadata to New Person
-			for met_per in db.get_meta_person_list(old_person.id).unwrap() {
+			for met_per in db.get_meta_person_list(old_person.id)? {
 				let _ = db.add_meta_person(&MetadataPerson {
 					metadata_id: met_per.metadata_id,
 					person_id: into_person.id,
 				});
 			}
 
-			db.remove_meta_person_by_person_id(old_person.id).unwrap();
+			db.remove_meta_person_by_person_id(old_person.id)?;
 
 			if into_person.birth_date.is_none() {
 				into_person.birth_date = old_person.birth_date;
@@ -120,14 +118,14 @@ pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::
 			into_person.updated_at = Utc::now();
 
 			// Update New Person
-			db.update_person(&into_person).unwrap();
+			db.update_person(&into_person)?;
 
 			// Delete Old Person
-			db.remove_person_by_id(old_person.id).unwrap();
+			db.remove_person_by_id(old_person.id)?;
 
 			// TODO: Update Metadata cache
 		}
 	}
 
-	HttpResponse::Ok().finish()
+	Ok(HttpResponse::Ok().finish())
 }

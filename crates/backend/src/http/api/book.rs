@@ -6,6 +6,7 @@ use books_common::{Chapter, api, Progression, DisplayItem};
 use bookie::Book;
 use futures::TryStreamExt;
 
+use crate::{WebResult, Error};
 use crate::database::Database;
 use crate::http::MemberCookie;
 
@@ -18,12 +19,12 @@ pub async fn load_resource(
 	path: web::Path<(usize, String)>,
 	res: web::Query<api::LoadResourceQuery>,
 	db: web::Data<Database>
-) -> HttpResponse {
+) -> WebResult<HttpResponse> {
 	let (book_id, resource_path) = path.into_inner();
 
-	let file = db.find_file_by_id(book_id).unwrap().unwrap();
+	let file = db.find_file_by_id(book_id)?.unwrap();
 
-	let mut book = bookie::load_from_path(&file.path).unwrap().unwrap();
+	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
 	// TODO: Check if we're loading a section
 	if res.configure_pages {
@@ -39,9 +40,7 @@ pub async fn load_resource(
 			}
 		};
 
-		HttpResponse::Ok()
-			.insert_header(("Content-Type", "application/xhtml+xml"))
-			.body(body)
+		Ok(HttpResponse::Ok().insert_header(("Content-Type","application/xhtml+xml")).body(body))
 	} else {
 		let body = match book.read_path_as_bytes(
 			&resource_path,
@@ -55,18 +54,18 @@ pub async fn load_resource(
 			}
 		};
 
-		HttpResponse::Ok().body(body)
+		Ok(HttpResponse::Ok().body(body))
 	}
 }
 
 
 #[get("/book/{id}/pages/{pages}")]
-pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database>) -> web::Json<api::GetChaptersResponse> {
+pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::GetChaptersResponse>> {
 	let (book_id, chapters) = path.into_inner();
 
-	let file = db.find_file_by_id(book_id).unwrap().unwrap();
+	let file = db.find_file_by_id(book_id)?.unwrap();
 
-	let mut book = bookie::load_from_path(&file.path).unwrap().unwrap();
+	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
 	let (start_chap, end_chap) = chapters
 		.split_once('-')
@@ -95,56 +94,56 @@ pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database
 		});
 	}
 
-	web::Json(api::GetChaptersResponse {
+	Ok(web::Json(api::GetChaptersResponse {
 		offset: start_chap,
 		limit: end_chap - start_chap,
 		total: book.chapter_count(),
 		items
-	})
+	}))
 }
 
 
 // TODO: Add body requests for specifics
 #[get("/book/{id}")]
-pub async fn load_book(file_id: web::Path<usize>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
-	web::Json(if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
+pub async fn load_book(file_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
+	Ok(web::Json(if let Some(file) = db.find_file_by_id(*file_id)? {
 		Some(api::GetBookIdResponse {
-			progress: db.get_progress(0, *file_id).unwrap().map(|v| v.into()),
+			progress: db.get_progress(0, *file_id)?.map(|v| v.into()),
 
 			media: file.into()
 		})
 	} else {
 		None
-	})
+	}))
 }
 
 
 #[get("/book/{id}/debug/{tail:.*}")]
-pub async fn load_book_debug(web_path: web::Path<(usize, String)>, db: web::Data<Database>) -> HttpResponse {
-	if let Some(file) = db.find_file_by_id(web_path.0).unwrap() {
+pub async fn load_book_debug(web_path: web::Path<(usize, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+	if let Some(file) = db.find_file_by_id(web_path.0)? {
 		if web_path.1.is_empty() {
-			let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+			let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
 
-			HttpResponse::Ok().body(
+			Ok(HttpResponse::Ok().body(
 				book.container.file_names_in_archive()
 				.map(|v| format!("<a href=\"{}\">{}</a>", v, v))
 				.collect::<Vec<_>>()
 				.join("<br/>")
-			)
+			))
 		} else {
-			// TODO: Make bookie::load_from_path(&file.path).unwrap().unwrap();
-			let mut book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+			// TODO: Make bookie::load_from_path(&file.path).unwrap();
+			let mut book = bookie::epub::EpubBook::load_from_path(&file.path)?;
 
 			// Init Package Document
 			let mut file = book.container.archive.by_name(&web_path.1).unwrap();
 
 			let mut data = Vec::new();
-			file.read_to_end(&mut data).unwrap();
+			file.read_to_end(&mut data).map_err(Error::from)?;
 
-			HttpResponse::Ok().body(data)
+			Ok(HttpResponse::Ok().body(data))
 		}
 	} else {
-		HttpResponse::Ok().body("Unable to find file from ID")
+		Ok(HttpResponse::Ok().body("Unable to find file from ID"))
 	}
 }
 
@@ -157,11 +156,9 @@ pub async fn progress_book_add(
 	body: web::Json<Progression>,
 	db: web::Data<Database>,
 	member: MemberCookie,
-) -> HttpResponse {
-	match db.add_or_update_progress(member.member_id(), *file_id, body.into_inner()) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-	}
+) -> WebResult<HttpResponse> {
+	db.add_or_update_progress(member.member_id(), *file_id, body.into_inner())?;
+	Ok(HttpResponse::Ok().finish())
 }
 
 #[delete("/book/{id}/progress")]
@@ -169,11 +166,9 @@ pub async fn progress_book_delete(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
 	member: MemberCookie,
-) -> HttpResponse {
-	match db.delete_progress(member.member_id(), *file_id) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-	}
+) -> WebResult<HttpResponse> {
+	db.delete_progress(member.member_id(), *file_id)?;
+	Ok(HttpResponse::Ok().finish())
 }
 
 
@@ -184,11 +179,9 @@ pub async fn notes_book_get(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
 	member: MemberCookie,
-) -> HttpResponse {
-	match db.get_notes(member.member_id(), *file_id) {
-		Ok(v) => HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-	}
+) -> WebResult<HttpResponse> {
+	let v = db.get_notes(member.member_id(), *file_id)?;
+	Ok(HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()))
 }
 
 #[post("/book/{id}/notes")]
@@ -197,7 +190,7 @@ pub async fn notes_book_add(
 	mut payload: web::Payload,
 	db: web::Data<Database>,
 	member: MemberCookie,
-) -> actix_web::Result<HttpResponse> {
+) -> WebResult<HttpResponse> {
 	let mut body = web::BytesMut::new();
 	while let Some(chunk) = payload.try_next().await? {
 		body.extend_from_slice(&chunk);
@@ -205,10 +198,9 @@ pub async fn notes_book_add(
 
 	let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
 
-	Ok(match db.add_or_update_notes(member.member_id(), *file_id, data) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-	})
+	db.add_or_update_notes(member.member_id(), *file_id, data)?;
+
+	Ok(HttpResponse::Ok().finish())
 }
 
 #[delete("/book/{id}/notes")]
@@ -216,21 +208,19 @@ pub async fn notes_book_delete(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
 	member: MemberCookie,
-) -> HttpResponse {
-	match db.delete_notes(member.member_id(), *file_id) {
-		Ok(_) => HttpResponse::Ok().finish(),
-		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-	}
+) -> WebResult<HttpResponse> {
+	db.delete_notes(member.member_id(), *file_id)?;
+
+	Ok(HttpResponse::Ok().finish())
 }
 
 
 // TODO: Add body requests for specific books
 #[get("/books")]
-pub async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> web::Json<api::GetBookListResponse> {
-	web::Json(api::GetBookListResponse {
-		count: db.get_file_count().unwrap(),
-		items: db.get_metadata_by(query.library, query.offset.unwrap_or(0), query.limit.unwrap_or(50))
-			.unwrap()
+pub async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> WebResult<web::Json<api::GetBookListResponse>> {
+	Ok(web::Json(api::GetBookListResponse {
+		count: db.get_file_count()?,
+		items: db.get_metadata_by(query.library, query.offset.unwrap_or(0), query.limit.unwrap_or(50))?
 			.into_iter()
 			.map(|meta| {
 				DisplayItem {
@@ -242,5 +232,5 @@ pub async fn load_book_list(db: web::Data<Database>, query: web::Query<api::Book
 				}
 			})
 			.collect()
-	})
+	}))
 }
