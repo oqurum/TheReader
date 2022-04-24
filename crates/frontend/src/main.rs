@@ -95,6 +95,10 @@ pub enum Route {
 fn switch(route: &Route) -> Html {
 	log::info!("{:?}", route);
 
+	if !is_signed_in() {
+		return html! { <pages::LoginPage /> };
+	}
+
 	match route.clone() {
 		Route::Login => {
 			html! { <pages::LoginPage /> }
