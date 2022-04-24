@@ -1,6 +1,5 @@
 use std::io::Read;
 
-use actix_identity::Identity;
 use actix_web::{get, web, HttpResponse, post, delete};
 
 use books_common::{Chapter, api, Progression, DisplayItem};
@@ -8,7 +7,7 @@ use bookie::Book;
 use futures::TryStreamExt;
 
 use crate::database::Database;
-use crate::http::get_auth_value;
+use crate::http::MemberCookie;
 
 
 
@@ -157,15 +156,11 @@ pub async fn progress_book_add(
 	file_id: web::Path<usize>,
 	body: web::Json<Progression>,
 	db: web::Data<Database>,
-	identity: Identity,
+	member: MemberCookie,
 ) -> HttpResponse {
-	if let Some(member_id) = get_auth_value(&identity) {
-		match db.add_or_update_progress(member_id, *file_id, body.into_inner()) {
-			Ok(_) => HttpResponse::Ok().finish(),
-			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-		}
-	} else {
-		HttpResponse::BadRequest().finish()
+	match db.add_or_update_progress(member.member_id(), *file_id, body.into_inner()) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
 	}
 }
 
@@ -173,15 +168,11 @@ pub async fn progress_book_add(
 pub async fn progress_book_delete(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
-	identity: Identity,
+	member: MemberCookie,
 ) -> HttpResponse {
-	if let Some(member_id) = get_auth_value(&identity) {
-		match db.delete_progress(member_id, *file_id) {
-			Ok(_) => HttpResponse::Ok().finish(),
-			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-		}
-	} else {
-		HttpResponse::BadRequest().finish()
+	match db.delete_progress(member.member_id(), *file_id) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
 	}
 }
 
@@ -192,15 +183,11 @@ pub async fn progress_book_delete(
 pub async fn notes_book_get(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
-	identity: Identity,
+	member: MemberCookie,
 ) -> HttpResponse {
-	if let Some(member_id) = get_auth_value(&identity) {
-		match db.get_notes(member_id, *file_id) {
-			Ok(v) => HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()),
-			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-		}
-	} else {
-		HttpResponse::BadRequest().finish()
+	match db.get_notes(member.member_id(), *file_id) {
+		Ok(v) => HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
 	}
 }
 
@@ -209,7 +196,7 @@ pub async fn notes_book_add(
 	file_id: web::Path<usize>,
 	mut payload: web::Payload,
 	db: web::Data<Database>,
-	identity: Identity,
+	member: MemberCookie,
 ) -> actix_web::Result<HttpResponse> {
 	let mut body = web::BytesMut::new();
 	while let Some(chunk) = payload.try_next().await? {
@@ -218,29 +205,21 @@ pub async fn notes_book_add(
 
 	let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
 
-	if let Some(member_id) = get_auth_value(&identity) {
-		Ok(match db.add_or_update_notes(member_id, *file_id, data) {
-			Ok(_) => HttpResponse::Ok().finish(),
-			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-		})
-	} else {
-		Ok(HttpResponse::BadRequest().finish())
-	}
+	Ok(match db.add_or_update_notes(member.member_id(), *file_id, data) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
+	})
 }
 
 #[delete("/book/{id}/notes")]
 pub async fn notes_book_delete(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
-	identity: Identity,
+	member: MemberCookie,
 ) -> HttpResponse {
-	if let Some(member_id) = get_auth_value(&identity) {
-		match db.delete_notes(member_id, *file_id) {
-			Ok(_) => HttpResponse::Ok().finish(),
-			Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
-		}
-	} else {
-		HttpResponse::BadRequest().finish()
+	match db.delete_notes(member.member_id(), *file_id) {
+		Ok(_) => HttpResponse::Ok().finish(),
+		Err(e) => HttpResponse::BadRequest().body(format!("{}", e))
 	}
 }
 

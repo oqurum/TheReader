@@ -65,7 +65,7 @@ pub async fn post_password_oauth(
 		new_member.into_member(inserted_id)
 	};
 
-	super::remember_member_auth(member.id, &identity);
+	super::remember_member_auth(member.id, &identity).unwrap();
 
 	HttpResponse::Ok().finish()
 }
