@@ -5,7 +5,7 @@ use crate::{queue_task, task};
 
 
 // TODO: Actually optimize.
-#[post("/api/task")]
+#[post("/task")]
 pub async fn run_task(modify: web::Json<api::RunTaskBody>) -> HttpResponse {
 	let modify = modify.into_inner();
 

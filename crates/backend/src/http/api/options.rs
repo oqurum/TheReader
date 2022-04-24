@@ -4,7 +4,7 @@ use books_common::{api, LibraryColl};
 use crate::database::Database;
 
 
-#[get("/api/options")]
+#[get("/options")]
 async fn load_options(db: web::Data<Database>) -> web::Json<api::GetOptionsResponse> {
 	let libraries = db.list_all_libraries().unwrap();
 	let mut directories = db.get_all_directories().unwrap();
@@ -43,7 +43,7 @@ fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) ->
 	ret
 }
 
-#[post("/api/options/add")]
+#[post("/options/add")]
 async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse {
 	let api::ModifyOptionsBody {
 		library,
@@ -62,7 +62,7 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 	HttpResponse::Ok().finish()
 }
 
-#[post("/api/options/remove")]
+#[post("/options/remove")]
 async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> HttpResponse {
 	let api::ModifyOptionsBody {
 		library,

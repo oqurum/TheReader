@@ -7,7 +7,7 @@ use crate::database::Database;
 
 
 // TODO: Add body requests for specifics
-#[get("/api/member")]
+#[get("/member")]
 pub async fn load_member_self(
 	db: web::Data<Database>,
 	identity: Identity,

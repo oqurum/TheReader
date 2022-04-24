@@ -6,7 +6,7 @@ use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{
 
 
 // Get List Of People and Search For People
-#[get("/api/people")]
+#[get("/people")]
 pub async fn load_author_list(
 	db: web::Data<Database>,
 	query: web::Query<api::SimpleListQuery>,
@@ -49,7 +49,7 @@ pub async fn load_author_list(
 
 
 // Person Thumbnail
-#[get("/api/person/{id}/thumbnail")]
+#[get("/person/{id}/thumbnail")]
 async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Database>) -> HttpResponse {
 	let meta = db.get_person_by_id(*person_id).unwrap();
 
@@ -64,7 +64,7 @@ async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Databa
 
 
 // Person Tasks - Update Person, Overwrite Person with another source.
-#[post("/api/person/{id}")]
+#[post("/person/{id}")]
 pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> HttpResponse {
 	let person_id = *meta_id;
 

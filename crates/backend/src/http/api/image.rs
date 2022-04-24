@@ -7,7 +7,7 @@ use crate::{database::{Database, table::NewPoster}, store_image};
 
 
 
-#[get("/api/image/{type}/{id}")]
+#[get("/image/{type}/{id}")]
 async fn get_local_image(path: web::Path<(String, String)>) -> impl Responder {
 	let (type_of, id) = path.into_inner();
 
@@ -20,7 +20,7 @@ async fn get_local_image(path: web::Path<(String, String)>) -> impl Responder {
 }
 
 
-#[get("/api/posters/{meta_id}")]
+#[get("/posters/{meta_id}")]
 async fn get_poster_list(
 	path: web::Path<usize>,
 	db: web::Data<Database>
@@ -75,7 +75,7 @@ async fn get_poster_list(
 }
 
 
-#[post("/api/posters/{meta_id}")]
+#[post("/posters/{meta_id}")]
 async fn post_change_poster(
 	metadata_id: web::Path<usize>,
 	body: web::Json<api::ChangePosterBody>,
@@ -121,7 +121,7 @@ async fn post_change_poster(
 }
 
 
-#[put("/api/posters/{meta_id}")]
+#[put("/posters/{meta_id}")]
 async fn put_upload_poster(
 	path: web::Path<usize>,
 	// body: web::Payload,

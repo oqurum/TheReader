@@ -7,7 +7,7 @@ use crate::{database::Database, task::{queue_task_priority, self}, queue_task, m
 
 
 
-#[get("/api/metadata/{id}/thumbnail")]
+#[get("/metadata/{id}/thumbnail")]
 async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>) -> HttpResponse {
 	let book_id = path.into_inner();
 
@@ -25,7 +25,7 @@ async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>
 
 // Metadata
 
-#[post("/api/metadata/{id}")]
+#[post("/metadata/{id}")]
 pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	let meta_id = *meta_id;
 
@@ -42,7 +42,7 @@ pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api
 	HttpResponse::Ok().finish()
 }
 
-#[get("/api/metadata/{id}")]
+#[get("/metadata/{id}")]
 pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> web::Json<api::MediaViewResponse> {
 	let meta = db.get_metadata_by_id(*meta_id).unwrap().unwrap();
 
@@ -67,7 +67,7 @@ pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Data
 	})
 }
 
-#[get("/api/metadata/search")]
+#[get("/metadata/search")]
 pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> web::Json<api::MetadataSearchResponse> {
 	let search = metadata::search_all_agents(
 		&body.query,

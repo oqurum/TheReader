@@ -14,7 +14,7 @@ use crate::http::get_auth_value;
 
 // Load Book Resources
 
-#[get("/api/book/{id}/res/{tail:.*}")]
+#[get("/book/{id}/res/{tail:.*}")]
 pub async fn load_resource(
 	path: web::Path<(usize, String)>,
 	res: web::Query<api::LoadResourceQuery>,
@@ -30,7 +30,7 @@ pub async fn load_resource(
 	if res.configure_pages {
 		let body = match book.read_path_as_bytes(
 			&resource_path,
-			Some(&format!("/api/book/{}/res", book_id)),
+			Some(&format!("/book/{}/res", book_id)),
 			Some(&[include_str!("../../../../../app/book_stylings.css")])
 		) {
 			Ok(v) => v,
@@ -61,7 +61,7 @@ pub async fn load_resource(
 }
 
 
-#[get("/api/book/{id}/pages/{pages}")]
+#[get("/book/{id}/pages/{pages}")]
 pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database>) -> web::Json<api::GetChaptersResponse> {
 	let (book_id, chapters) = path.into_inner();
 
@@ -106,7 +106,7 @@ pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database
 
 
 // TODO: Add body requests for specifics
-#[get("/api/book/{id}")]
+#[get("/book/{id}")]
 pub async fn load_book(file_id: web::Path<usize>, db: web::Data<Database>) -> web::Json<Option<api::GetBookIdResponse>> {
 	web::Json(if let Some(file) = db.find_file_by_id(*file_id).unwrap() {
 		Some(api::GetBookIdResponse {
@@ -120,7 +120,7 @@ pub async fn load_book(file_id: web::Path<usize>, db: web::Data<Database>) -> we
 }
 
 
-#[get("/api/book/{id}/debug/{tail:.*}")]
+#[get("/book/{id}/debug/{tail:.*}")]
 pub async fn load_book_debug(web_path: web::Path<(usize, String)>, db: web::Data<Database>) -> HttpResponse {
 	if let Some(file) = db.find_file_by_id(web_path.0).unwrap() {
 		if web_path.1.is_empty() {
@@ -152,7 +152,7 @@ pub async fn load_book_debug(web_path: web::Path<(usize, String)>, db: web::Data
 
 // Progress
 
-#[post("/api/book/{id}/progress")]
+#[post("/book/{id}/progress")]
 pub async fn progress_book_add(
 	file_id: web::Path<usize>,
 	body: web::Json<Progression>,
@@ -169,7 +169,7 @@ pub async fn progress_book_add(
 	}
 }
 
-#[delete("/api/book/{id}/progress")]
+#[delete("/book/{id}/progress")]
 pub async fn progress_book_delete(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
@@ -188,7 +188,7 @@ pub async fn progress_book_delete(
 
 // Notes
 
-#[get("/api/book/{id}/notes")]
+#[get("/book/{id}/notes")]
 pub async fn notes_book_get(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
@@ -204,7 +204,7 @@ pub async fn notes_book_get(
 	}
 }
 
-#[post("/api/book/{id}/notes")]
+#[post("/book/{id}/notes")]
 pub async fn notes_book_add(
 	file_id: web::Path<usize>,
 	mut payload: web::Payload,
@@ -228,7 +228,7 @@ pub async fn notes_book_add(
 	}
 }
 
-#[delete("/api/book/{id}/notes")]
+#[delete("/book/{id}/notes")]
 pub async fn notes_book_delete(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
@@ -246,7 +246,7 @@ pub async fn notes_book_delete(
 
 
 // TODO: Add body requests for specific books
-#[get("/api/books")]
+#[get("/books")]
 pub async fn load_book_list(db: web::Data<Database>, query: web::Query<api::BookListQuery>) -> web::Json<api::GetBookListResponse> {
 	web::Json(api::GetBookListResponse {
 		count: db.get_file_count().unwrap(),

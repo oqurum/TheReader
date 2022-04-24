@@ -5,7 +5,7 @@ use crate::database::Database;
 
 
 
-#[get("/api/libraries")]
+#[get("/libraries")]
 async fn load_library_list(db: web::Data<Database>) -> web::Json<api::GetLibrariesResponse> {
 	web::Json(api::GetLibrariesResponse {
 		items: db.list_all_libraries()
