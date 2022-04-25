@@ -337,11 +337,9 @@ impl FoundImageLocation {
 		match self {
 			FoundImageLocation::Url(ref url) => {
 				let resp = reqwest::get(url)
-					.await
-					.unwrap()
+					.await?
 					.bytes()
-					.await
-					.unwrap();
+					.await?;
 
 				let path = crate::store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await?;
 

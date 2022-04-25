@@ -7,7 +7,7 @@ use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::web;
 
-use crate::Result;
+use crate::{Result, WebResult, Error};
 use chrono::Utc;
 use lettre::message::header::ContentType;
 use lettre::message::{MultiPart, SinglePart};
@@ -33,9 +33,9 @@ pub async fn post_passwordless_oauth(
 	query: web::Form<PostPasswordlessCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
-) -> HttpResponse {
+) -> WebResult<HttpResponse> {
 	if identity.identity().is_some() {
-		return HttpResponse::MethodNotAllowed().finish(); // TODO: What's the proper status?
+		return Ok(HttpResponse::MethodNotAllowed().finish()); // TODO: What's the proper status?
 	}
 
 	let email_config = ConfigEmail {
@@ -59,7 +59,7 @@ pub async fn post_passwordless_oauth(
 		serde_urlencoded::to_string(QueryCallback {
 			oauth_token: oauth_token.clone(),
 			email: query.email.clone()
-		}).unwrap()
+		}).map_err(Error::from)?
 	);
 
 	let main_html = render_email(
@@ -74,11 +74,11 @@ pub async fn post_passwordless_oauth(
 		// TODO:
 		oauth_token_secret: String::new(),
 		created_at: Utc::now(),
-	}).unwrap();
+	})?;
 
-	send_auth_email(query.0.email, auth_url, main_html, &email_config).unwrap();
+	send_auth_email(query.0.email, auth_url, main_html, &email_config)?;
 
-	HttpResponse::Ok().finish()
+	Ok(HttpResponse::Ok().finish())
 }
 
 #[derive(Serialize, Deserialize)]
@@ -91,11 +91,11 @@ pub async fn get_passwordless_oauth_callback(
 	query: web::Query<QueryCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
-) -> HttpResponse {
+) -> WebResult<HttpResponse> {
 	if identity.identity().is_some() {
-		return HttpResponse::Found()
+		return Ok(HttpResponse::Found()
 			.append_header((header::LOCATION, "/"))
-			.finish();
+			.finish());
 	}
 
 	let QueryCallback {
@@ -103,9 +103,9 @@ pub async fn get_passwordless_oauth_callback(
 		email,
 	} = query.into_inner();
 
-	if db.remove_verify_if_found_by_oauth_token(&oauth_token).unwrap() {
+	if db.remove_verify_if_found_by_oauth_token(&oauth_token)? {
 		// Create or Update User.
-		let member = if let Some(value) = db.get_member_by_email(&email).unwrap() {
+		let member = if let Some(value) = db.get_member_by_email(&email)? {
 			value
 		} else {
 			let new_member = table::NewMember {
@@ -119,26 +119,26 @@ pub async fn get_passwordless_oauth_callback(
 				updated_at: Utc::now(),
 			};
 
-			let inserted_id = db.add_member(&new_member).unwrap();
+			let inserted_id = db.add_member(&new_member)?;
 
 			new_member.into_member(inserted_id)
 		};
 
-		super::remember_member_auth(member.id, &identity).unwrap();
+		super::remember_member_auth(member.id, &identity)?;
 	}
 
-	HttpResponse::Found()
+	Ok(HttpResponse::Found()
 		.append_header((header::LOCATION, "/"))
-		.finish()
+		.finish())
 }
 
 
 
 pub fn send_auth_email(sending_to_email: String, alt_text: String, main_html: String, email_config: &ConfigEmail) -> Result<()> {
 	let email = Message::builder()
-		.from(format!("{} <{}>", email_config.display_name, email_config.sending_email).parse().unwrap())
-		.reply_to(email_config.sending_email.parse().unwrap())
-		.to(sending_to_email.parse().unwrap())
+		.from(format!("{} <{}>", email_config.display_name, email_config.sending_email).parse()?)
+		.reply_to(email_config.sending_email.parse()?)
+		.to(sending_to_email.parse()?)
 		.subject(&email_config.subject_line)
 		.multipart(
 			MultiPart::alternative() // This is composed of two parts.

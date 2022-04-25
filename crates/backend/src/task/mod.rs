@@ -553,7 +553,7 @@ impl TaskUpdatePeople {
 			old_person.source = new_person.source;
 			old_person.updated_at = Utc::now();
 
-			db.update_person(&old_person).unwrap();
+			db.update_person(&old_person)?;
 
 			// TODO: Update Metadata cache
 		} else {

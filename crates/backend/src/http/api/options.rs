@@ -50,8 +50,8 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 		directory
 	} = modify.into_inner();
 
-	if let Some(library) = library {
-		db.add_library(library.name.unwrap())?;
+	if let Some(name) = library.and_then(|v| v.name) {
+		db.add_library(name)?;
 	}
 
 	if let Some(directory) = directory {
@@ -69,8 +69,8 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 		directory
 	} = modify.into_inner();
 
-	if let Some(library) = library {
-		db.remove_library(library.id.unwrap())?;
+	if let Some(id) = library.and_then(|v| v.id) {
+		db.remove_library(id)?;
 	}
 
 	if let Some(directory) = directory {

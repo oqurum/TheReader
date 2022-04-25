@@ -29,7 +29,7 @@ impl Metadata for OpenLibraryMetadata {
 		for file in files {
 			// Wrapped b/c "future cannot be send between threads safely"
 			let found = {
-				let book = bookie::epub::EpubBook::load_from_path(&file.path).unwrap();
+				let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
 				book.find(bookie::BookSearch::Identifier)
 			};
 

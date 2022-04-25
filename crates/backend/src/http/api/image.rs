@@ -25,7 +25,7 @@ async fn get_poster_list(
 	path: web::Path<usize>,
 	db: web::Data<Database>
 ) -> WebResult<web::Json<api::GetPostersResponse>> {
-	let meta = db.get_metadata_by_id(*path).unwrap().unwrap();
+	let meta = db.get_metadata_by_id(*path)?.unwrap();
 
 	// TODO: For Open Library we need to go from an Edition to Work.
 	// Work is the main book. Usually consisting of more posters.

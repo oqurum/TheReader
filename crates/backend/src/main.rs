@@ -1,3 +1,8 @@
+#![warn(
+	clippy::expect_used,
+	// clippy::unwrap_used,
+)]
+
 #![allow(clippy::manual_map)]
 
 // TODO: Ping/Pong if currently viewing book. View time. How long been on page. Etc.
@@ -20,8 +25,8 @@ pub use error::{Result, WebResult, WebError, Error, InternalError};
 
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
-	let db = database::init().await.unwrap();
+async fn main() -> Result<()> {
+	let db = database::init().await?;
 
 	let db_data = web::Data::new(db);
 
@@ -29,5 +34,7 @@ async fn main() -> std::io::Result<()> {
 
 	println!("Starting HTTP Server on port 8084");
 
-	http::register_http_service(db_data).await
+	http::register_http_service(db_data).await?;
+
+	Ok(())
 }

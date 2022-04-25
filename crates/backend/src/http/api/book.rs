@@ -6,7 +6,7 @@ use books_common::{Chapter, api, Progression, DisplayItem};
 use bookie::Book;
 use futures::TryStreamExt;
 
-use crate::{WebResult, Error};
+use crate::{WebResult, Error, Result};
 use crate::database::Database;
 use crate::http::MemberCookie;
 
@@ -71,15 +71,15 @@ pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database
 		.split_once('-')
 		.map_or_else(
 			|| {
-				let chap = chapters.parse::<usize>().unwrap();
-				(chap, chap)
+				let chap = chapters.parse::<usize>()?;
+				Result::Ok((chap, chap))
 			},
 			|(a, b)| {
-				let start_chap = a.parse::<usize>().unwrap();
+				let start_chap = a.parse::<usize>()?;
 				let chap_count = book.chapter_count();
-				(start_chap, if b.trim().is_empty() { chap_count } else { chap_count.min(b.parse().unwrap()) })
+				Result::Ok((start_chap, if b.trim().is_empty() { chap_count } else { chap_count.min(b.parse()?) }))
 			}
-		);
+		)?;
 
 	let mut items = Vec::new();
 

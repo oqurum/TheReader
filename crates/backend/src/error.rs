@@ -4,12 +4,14 @@ use std::time::SystemTimeError;
 
 use thiserror::Error as ThisError;
 
+use bcrypt::BcryptError;
 use rusqlite::Error as RusqliteError;
 use lettre::error::Error as LettreError;
 use lettre::address::AddressError;
 use lettre::transport::smtp::Error as SmtpError;
 use image::ImageError;
 use reqwest::Error as HttpError;
+use serde_urlencoded::ser::Error as UrlEncodedSerError;
 use serde_json::Error as JsonError;
 use serde_xml_rs::Error as XmlError;
 use serde::de::value::Error as SerdeValueError;
@@ -62,6 +64,8 @@ pub enum Error {
 	Xml(#[from] XmlError),
 	#[error("Serde Value Error: {0}")]
 	SerdeValue(#[from] SerdeValueError),
+	#[error("Url Encoded Ser Error: {0}")]
+	UrlEncodedSer(#[from] UrlEncodedSerError),
 
 	#[error("IO Error: {0}")]
 	Io(#[from] IoError),
@@ -82,6 +86,8 @@ pub enum Error {
 	Address(#[from] AddressError),
 	#[error("Rusqlite Error: {0}")]
 	Rusqlite(#[from] RusqliteError),
+	#[error("Bcrypt Error: {0}")]
+	Bcrypt(#[from] BcryptError),
 
 	#[error(transparent)]
 	Common(#[from] CommonError),
