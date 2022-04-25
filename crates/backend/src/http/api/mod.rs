@@ -1,4 +1,6 @@
-use actix_web::{web, Scope};
+use actix_web::{web, Scope, dev::{ServiceFactory, ServiceRequest, ServiceResponse}};
+
+use super::LoginRequired;
 
 pub mod book;
 pub mod image;
@@ -10,8 +12,17 @@ pub mod person;
 pub mod task;
 
 
-pub fn api_route() -> Scope {
+pub fn api_route() -> Scope<
+	impl ServiceFactory<
+		ServiceRequest,
+		Config = (),
+		Response = ServiceResponse<actix_web::body::BoxBody>,
+		Error = actix_web::Error,
+		InitError = (),
+	>
+> {
 	web::scope("/api")
+		.wrap(LoginRequired)
 		// Book
 		.service(book::load_book_debug)
 		.service(book::load_book)
