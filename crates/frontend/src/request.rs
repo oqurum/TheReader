@@ -119,23 +119,16 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
 
 // Books
 
-pub async fn get_books(library: usize, offset: Option<usize>, limit: Option<usize>) -> GetBookListResponse {
-	let mut url = String::from("/api/books?");
-
-	url += "library=";
-	url += &library.to_string();
-	url += "&";
-
-	if let Some(value) = offset {
-		url += "offset=";
-		url += &value.to_string();
-		url += "&";
-	}
-
-	if let Some(value) = limit {
-		url += "limit=";
-		url += &value.to_string();
-	}
+pub async fn get_books(
+	library: usize,
+	offset: Option<usize>,
+	limit: Option<usize>,
+	search: Option<SearchQuery>,
+) -> GetBookListResponse {
+	let url = format!(
+		"/api/books?{}",
+		serde_urlencoded::to_string(BookListQuery::new(library, offset, limit, search).unwrap()).unwrap()
+	);
 
 	fetch("GET", &url, Option::<&()>::None).await.unwrap()
 }
@@ -146,10 +139,6 @@ pub async fn get_book_info(id: usize) -> GetBookIdResponse {
 
 pub async fn get_book_pages(book_id: usize, start: usize, end: usize) -> GetChaptersResponse {
 	fetch("GET", &format!("/api/book/{}/pages/{}-{}", book_id, start, end), Option::<&()>::None).await.unwrap()
-}
-
-pub async fn get_book_resource(book_id: usize, location: &Path, query: LoadResourceQuery) -> GetChaptersResponse {
-	fetch("GET", &compile_book_resource_path(book_id, location, query), Option::<&()>::None).await.unwrap()
 }
 
 pub fn compile_book_resource_path(book_id: usize, location: &Path, query: LoadResourceQuery) -> String {

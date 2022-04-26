@@ -1,6 +1,6 @@
 use books_common::{api, DisplayItem};
 use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::HtmlElement;
+use web_sys::{HtmlElement, UrlSearchParams};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
@@ -92,7 +92,12 @@ impl Component for LibraryPage {
 
 				ctx.link()
 				.send_future(async move {
-					Msg::MediaListResults(request::get_books(library, offset, None).await)
+					Msg::MediaListResults(request::get_books(
+						library,
+						offset,
+						None,
+						get_search_query()
+					).await)
 				});
 			}
 
@@ -369,5 +374,23 @@ impl PartialEq for DisplayOverlay {
 
 			_ => false
 		}
+	}
+}
+
+fn get_search_query() -> Option<api::SearchQuery> {
+	let search_params = UrlSearchParams::new_with_str(
+		&gloo_utils::window().location().search().ok()?
+	).ok()?;
+
+	let query = search_params.get("query");
+	let source = search_params.get("source");
+
+	if query.is_none() && source.is_none() {
+		None
+	} else {
+		Some(api::SearchQuery {
+			query,
+			source,
+		})
 	}
 }
