@@ -25,7 +25,7 @@
 
 
 :root {
-	--ratio-portrait: 3/4;
+	--ratio-portrait: 0.668;
 
 	--brand: var(--orange-3);
 	--text1: var(--gray-1);
@@ -74,6 +74,12 @@ body {
 	outline-offset: 5px;
 }
 
+:where(input, button, textarea, select) {
+	&.alternate {
+		background: var(--surface2) !important;
+	}
+}
+
 :where(:not(:active)):focus-visible {
 	outline-offset: 0px;
 }
@@ -117,6 +123,12 @@ body {
 	&.large {
 		width: 248px;
 		height: 372px;
+	}
+
+	&.max-vertical {
+		width: auto;
+		height: 100%;
+		aspect-ratio: var(--ratio-portrait);
 	}
 
 	&:hover {
@@ -165,32 +177,72 @@ body {
 	justify-content: space-between;
 	align-items: center;
 	background: var(--surface1);
-	padding: 5px 10px 0px 10px;
+	padding: 0px 10px;
 	height: 3em;
 	min-height: 3em;
 
-	&.left-content {
+	> .left-content {
 		display: flex;
 		flex-direction: row;
 	}
 
-	&.center-content {
-		display: flex;
-		flex-direction: row;
+	> .center-content {
+		position: relative;
+		min-width: 40%;
 
 		> .search-bar {
-			//
+			display: flex;
+
+			input {
+				flex-grow: 1;
+			}
+		}
+
+		// Dropdown
+
+		> .search-dropdown {
+			position: absolute;
+			background-color: var(--surface3);
+			width: 100%;
+			padding: 6px;
+			z-index: 100;
+			overflow-y: auto;
+			max-height: 28em; // TODO: Auto height.
+			margin-top: 8px;
+
+			.search-item {
+				display: flex;
+				flex-direction: row;
+				height: 7em;
+				margin: 2px 0;
+
+				&:hover {
+					background-color: var(--surface2);
+				}
+
+				.info {
+					flex-grow: 1;
+					overflow: hidden;
+					padding-left: 10px;
+
+					.book-name {
+						overflow: hidden;
+						white-space: nowrap;
+						text-overflow: ellipsis;
+					}
+				}
+			}
 		}
 	}
 
 
-	&.right-content {
+	> .right-content {
 		display: flex;
 		flex-direction: row;
 		justify-content: flex-end;
 	}
 
-	a {
+	> * > a {
 		padding: 10px 20px;
 		text-decoration: none;
 		color: var(--text1);

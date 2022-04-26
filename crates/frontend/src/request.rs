@@ -120,7 +120,7 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
 // Books
 
 pub async fn get_books(
-	library: usize,
+	library: Option<usize>,
 	offset: Option<usize>,
 	limit: Option<usize>,
 	search: Option<SearchQuery>,

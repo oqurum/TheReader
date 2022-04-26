@@ -1,5 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
+use web_sys::Element;
+
 
 
 /// Truncate string based off of char indices instead of bytes.
@@ -50,5 +52,17 @@ impl<T: Clone + PartialEq> Deref for EditManager<T> {
 impl<T: Clone + PartialEq> DerefMut for EditManager<T> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.changed
+	}
+}
+
+
+
+pub fn does_parent_contain_class(element: &Element, value: &str) -> bool {
+	if element.class_list().contains(value) {
+		true
+	} else if let Some(element) = element.parent_element() {
+		does_parent_contain_class(&element, value)
+	} else {
+		false
 	}
 }

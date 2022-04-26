@@ -84,6 +84,16 @@ pub struct DisplayItem {
 	pub has_thumbnail: bool,
 }
 
+impl DisplayItem {
+	pub fn get_thumb_url(&self) -> String {
+		if self.has_thumbnail {
+			format!("/api/metadata/{}/thumbnail", self.id)
+		} else {
+			String::from("/images/missingthumbnail.jpg")
+		}
+	}
+}
+
 impl PartialEq for DisplayItem {
 	fn eq(&self, other: &Self) -> bool {
 		self.id == other.id

@@ -682,26 +682,41 @@ impl Database {
 		)?)
 	}
 
-	pub fn get_metadata_by(&self, library: usize, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
+	pub fn get_metadata_by(&self, library: Option<usize>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
 		let this = self.lock()?;
 
-		let mut conn = this.prepare(r#"SELECT * FROM metadata_item WHERE library_id = ?1 LIMIT ?2 OFFSET ?3"#)?;
+		let lib = if let Some(lib) = library {
+			format!("library_id = {}", lib)
+		} else {
+			String::new()
+		};
 
-		let map = conn.query_map([library, limit, offset], |v| MetadataItem::try_from(v))?;
+		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item WHERE {} LIMIT ?2 OFFSET ?3"#, lib))?;
+
+		let map = conn.query_map([limit, offset], |v| MetadataItem::try_from(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
 	// Search
-	fn gen_search_query(search: &api::SearchQuery, library: usize) -> Option<String> {
-		let mut sql = format!("SELECT * FROM metadata_item WHERE library_id={} ", library);
+	fn gen_search_query(search: &api::SearchQuery, library: Option<usize>) -> Option<String> {
+		let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
 		let orig_len = sql.len();
 
-		if search.query.is_some() || search.source.is_some() {
-			sql += "AND ";
+		// Library ID
+
+		if let Some(library) = library {
+			sql += &format!("library_id={} ", library);
 		}
 
+
+		// Query
+
 		if let Some(query) = search.query.as_deref() {
+			if library.is_some() {
+				sql += "AND ";
+			}
+
 			let mut escape_char = '\\';
 			// Change our escape character if it's in the query.
 			if query.contains(escape_char) {
@@ -721,11 +736,14 @@ impl Database {
 			);
 		}
 
-		if search.query.is_some() {
-			sql += "AND ";
-		}
+
+		// Source
 
 		if let Some(source) = search.source.as_deref() {
+			if search.query.is_some() || library.is_some() {
+				sql += "AND ";
+			}
+
 			sql += &format!("source LIKE '{}%' ", source);
 		}
 
@@ -737,7 +755,7 @@ impl Database {
 		}
 	}
 
-	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: usize, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
+	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: Option<usize>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
 		let mut sql = match Self::gen_search_query(search, library) {
 			Some(v) => v,
 			None => return Ok(Vec::new())
@@ -754,7 +772,7 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn count_search_metadata(&self, search: &api::SearchQuery, library: usize) -> Result<usize> {
+	pub fn count_search_metadata(&self, search: &api::SearchQuery, library: Option<usize>) -> Result<usize> {
 		let sql = match Self::gen_search_query(search, library) {
 			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
 			None => return Ok(0)

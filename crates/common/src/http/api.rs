@@ -58,7 +58,7 @@ pub struct GetBookListResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct BookListQuery {
-	pub library: usize,
+	pub library: Option<usize>,
 	pub offset: Option<usize>,
 	pub limit: Option<usize>,
 	/// `SearchQuery`
@@ -66,7 +66,7 @@ pub struct BookListQuery {
 }
 
 impl BookListQuery {
-	pub fn new(library: usize, offset: Option<usize>, limit: Option<usize>, search: Option<SearchQuery>) -> Result<Self> {
+	pub fn new(library: Option<usize>, offset: Option<usize>, limit: Option<usize>, search: Option<SearchQuery>) -> Result<Self> {
 		let search = search.map(serde_urlencoded::to_string)
 			.transpose()?;
 

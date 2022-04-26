@@ -93,7 +93,7 @@ impl Component for LibraryPage {
 				ctx.link()
 				.send_future(async move {
 					Msg::MediaListResults(request::get_books(
-						library,
+						Some(library),
 						offset,
 						None,
 						get_search_query()
@@ -295,7 +295,7 @@ impl LibraryPage {
 							}
 						})} title="More Options">{ "edit" }</span>
 					</div>
-					<img src={ if item.has_thumbnail { format!("/api/metadata/{}/thumbnail", item.id) } else { String::from("/images/missingthumbnail.jpg") } } />
+					<img src={ item.get_thumb_url() } />
 				</div>
 				<div class="info">
 					<div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>
