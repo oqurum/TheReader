@@ -51,11 +51,6 @@ impl Component for NavbarModule {
 			Msg::SearchFor(value) => {
 				self.search_results = None;
 
-				// TODO: Auto Close. Temp
-				if value.is_empty() {
-					return true;
-				}
-
 				ctx.link().send_future(async move {
 					Msg::SearchResults(request::get_books(
 						None,
@@ -86,9 +81,9 @@ impl Component for NavbarModule {
 				}
 				</div>
 				<div class="center-content">
-					<div class="search-bar">
+					<form class="search-bar">
 						<input id={input_id} placeholder="Search" class="alternate" />
-						<button class="alternate" onclick={
+						<button for={input_id} class="alternate" onclick={
 							ctx.link().callback(move |e: MouseEvent| {
 								e.prevent_default();
 
@@ -97,7 +92,7 @@ impl Component for NavbarModule {
 								Msg::SearchFor(input.value())
 							})
 						}>{ "Search" }</button>
-					</div>
+					</form>
 
 					{ self.render_dropdown_results() }
 				</div>
@@ -165,7 +160,7 @@ impl NavbarModule {
 										<img src={ item.get_thumb_url() } />
 									</div>
 									<div class="info">
-										<h5 class="book-name">{ item.title.clone() }</h5>
+										<h5 class="book-name" title={ item.title.clone() }>{ item.title.clone() }</h5>
 									</div>
 								</Link<Route>>
 							}
