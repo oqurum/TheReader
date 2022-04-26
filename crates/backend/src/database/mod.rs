@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::Result;
-use books_common::{Progression, Source};
+use books_common::{Progression, Source, api};
 use chrono::Utc;
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
@@ -692,6 +692,76 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
+	// Search
+	fn gen_search_query(search: &api::SearchQuery, library: usize) -> Option<String> {
+		let mut sql = format!("SELECT * FROM metadata_item WHERE library_id={} ", library);
+		let orig_len = sql.len();
+
+		if search.query.is_some() || search.source.is_some() {
+			sql += "AND ";
+		}
+
+		if let Some(query) = search.query.as_deref() {
+			let mut escape_char = '\\';
+			// Change our escape character if it's in the query.
+			if query.contains(escape_char) {
+				for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
+					if !query.contains(car) {
+						escape_char = car;
+						break;
+					}
+				}
+			}
+
+			// TODO: Utilize title > original_title > description, and sort
+			sql += &format!(
+				"title LIKE '%{}%' ESCAPE '{}' ",
+				query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
+				escape_char
+			);
+		}
+
+		if search.query.is_some() {
+			sql += "AND ";
+		}
+
+		if let Some(source) = search.source.as_deref() {
+			sql += &format!("source LIKE '{}%' ", source);
+		}
+
+		if sql.len() == orig_len {
+			// If sql is still unmodified
+			None
+		} else {
+			Some(sql)
+		}
+	}
+
+	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: usize, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
+		let mut sql = match Self::gen_search_query(search, library) {
+			Some(v) => v,
+			None => return Ok(Vec::new())
+		};
+
+		sql += "LIMIT ?1 OFFSET ?2";
+
+		let this = self.lock()?;
+
+		let mut conn = this.prepare(&sql)?;
+
+		let map = conn.query_map(params![limit, offset], |v| MetadataItem::try_from(v))?;
+
+		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+	}
+
+	pub fn count_search_metadata(&self, search: &api::SearchQuery, library: usize) -> Result<usize> {
+		let sql = match Self::gen_search_query(search, library) {
+			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
+			None => return Ok(0)
+		};
+
+		Ok(self.lock()?.query_row(&sql, [], |v| v.get(0))?)
+	}
 
 	// Metadata Person
 

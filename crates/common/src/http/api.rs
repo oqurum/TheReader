@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 
-use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Source, Member, Poster};
+use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Source, Member, Poster, Result};
 
 
 // Images
@@ -56,11 +56,38 @@ pub struct GetBookListResponse {
 	pub items: Vec<DisplayItem>
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct BookListQuery {
 	pub library: usize,
 	pub offset: Option<usize>,
 	pub limit: Option<usize>,
+	/// `SearchQuery`
+	pub search: Option<String>,
+}
+
+impl BookListQuery {
+	pub fn new(library: usize, offset: Option<usize>, limit: Option<usize>, search: Option<SearchQuery>) -> Result<Self> {
+		let search = search.map(serde_urlencoded::to_string)
+			.transpose()?;
+
+		Ok(Self {
+			library,
+			offset,
+			limit,
+			search,
+		})
+	}
+
+	pub fn search_query(&self) -> Option<Result<SearchQuery>> {
+		self.search.as_deref().map(|v| Ok(serde_urlencoded::from_str(v)?))
+	}
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SearchQuery {
+	pub query: Option<String>,
+	pub source: Option<String>,
 }
 
 

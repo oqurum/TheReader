@@ -2,6 +2,7 @@ use std::{num::ParseIntError, sync::PoisonError};
 
 use thiserror::Error as ThisError;
 
+use serde_urlencoded::ser::Error as SerdeUrlEncodedError;
 use serde::de::value::Error as SerdeValueError;
 use std::io::Error as IoError;
 use std::time::SystemTimeError;
@@ -16,6 +17,9 @@ pub enum Error {
 
 	#[error("Serde Value Error: {0}")]
 	SerdeValue(#[from] SerdeValueError),
+
+	#[error("Serde UrlEncoded Error: {0}")]
+	SerdeUrlEncoded(#[from] SerdeUrlEncodedError),
 
 	#[error("IO Error: {0}")]
 	Io(#[from] IoError),

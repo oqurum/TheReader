@@ -23,6 +23,7 @@ pub fn api_route() -> Scope<
 > {
 	web::scope("/api")
 		.wrap(LoginRequired)
+
 		// Book
 		.service(book::load_book_debug)
 		.service(book::load_book)
