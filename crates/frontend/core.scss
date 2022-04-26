@@ -162,10 +162,35 @@ body {
 /* NAVBAR */
 .navbar-module {
 	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	background: var(--surface1);
-	padding: 0px 10px;
+	padding: 5px 10px 0px 10px;
+	height: 3em;
+	min-height: 3em;
 
-	> a {
+	&.left-content {
+		display: flex;
+		flex-direction: row;
+	}
+
+	&.center-content {
+		display: flex;
+		flex-direction: row;
+
+		> .search-bar {
+			//
+		}
+	}
+
+
+	&.right-content {
+		display: flex;
+		flex-direction: row;
+		justify-content: flex-end;
+	}
+
+	a {
 		padding: 10px 20px;
 		text-decoration: none;
 		color: var(--text1);
