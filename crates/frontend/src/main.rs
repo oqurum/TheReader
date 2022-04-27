@@ -30,7 +30,9 @@ enum Msg {
 	LoadMemberSelf(api::GetMemberSelfResponse)
 }
 
-struct Model {}
+struct Model {
+	has_loaded_member: bool
+}
 
 impl Component for Model {
 	type Message = Msg;
@@ -42,13 +44,16 @@ impl Component for Model {
 			Msg::LoadMemberSelf(request::get_member_self().await)
 		});
 
-		Self {}
+		Self {
+			has_loaded_member: false,
+		}
 	}
 
 	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
 			Msg::LoadMemberSelf(member) => {
 				*MEMBER_SELF.lock().unwrap() = member.member;
+				self.has_loaded_member = true;
 			}
 		}
 
@@ -59,7 +64,19 @@ impl Component for Model {
 		html! {
 			<BrowserRouter>
 				<NavbarModule />
-				<Switch<Route> render={Switch::render(switch)} />
+				{
+					if self.has_loaded_member {
+						html! {
+							<Switch<Route> render={Switch::render(switch)} />
+						}
+					} else {
+						html! {
+							<div>
+								<h1>{ "Loading..." }</h1>
+							</div>
+						}
+					}
+				}
 			</BrowserRouter>
 		}
 	}
