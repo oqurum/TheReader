@@ -88,6 +88,7 @@ body {
 .button {
 	display: inline-flex;
 	white-space: nowrap;
+	cursor: pointer;
 
 	font-size: var(--font-size-fluid-0);
 
@@ -186,6 +187,7 @@ body {
 		flex-direction: row;
 	}
 
+
 	> .center-content {
 		position: relative;
 		min-width: 40%;
@@ -250,6 +252,48 @@ body {
 		user-select: none;
 	}
 }
+
+/* MASS SELECT BAR */
+
+.mass-select-bar {
+	position: absolute;
+	left: 0;
+	bottom: 10px;
+	width: 100%;
+	height: 3em;
+	padding: 0 1em;
+	user-select: none;
+
+	> .bar-container {
+		display: flex;
+		height: 100%;
+		padding: 0 10px;
+		justify-content: space-between;
+		align-items: center;
+		background-color: var(--surface1);
+		border-radius: var(--radius-2);
+		border: 1px solid var(--brand);
+
+		> .left-content {
+			display: flex;
+			flex-direction: row;
+		}
+
+
+		> .center-content {
+			position: relative;
+		}
+
+
+		> .right-content {
+			display: flex;
+			flex-direction: row;
+			justify-content: flex-end;
+		}
+	}
+}
+
+
 
 /* CENTER DIV */
 .center-normal {
