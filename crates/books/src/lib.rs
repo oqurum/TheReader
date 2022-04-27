@@ -183,7 +183,8 @@ pub fn parse_isbn_10(value: &str) -> Option<String> {
 
 	let mut compiled = String::new();
 
-	if let Some(v) = parse.next() {
+	// Ensure first is a number.
+	if let Some(v) = parse.next().filter(|v| v.parse::<usize>().is_ok()) {
 		compiled.push_str(v);
 	}
 
@@ -199,7 +200,7 @@ pub fn parse_isbn_10(value: &str) -> Option<String> {
 		s += t;
 	}
 
-	Some(compiled).filter(|v| v.len() == 10 && (s % 11) == 0)
+	Some(compiled).filter(|v| s != 0 && v.len() == 10 && (s % 11) == 0)
 }
 
 // TODO: Tests
@@ -220,5 +221,5 @@ pub fn parse_isbn_13(value: &str) -> Option<String> {
 		s += dig * weight;
 	}
 
-	Some(compiled).filter(|v| v.len() == 13 && (s % 10) == 0)
+	Some(compiled).filter(|v| s != 0 && v.len() == 13 && (s % 10) == 0)
 }
