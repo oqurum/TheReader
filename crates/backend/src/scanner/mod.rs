@@ -33,7 +33,7 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 				};
 
 				if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) {
-					let file_size = fs::read(&path).await?.len(); // TODO: Remove fs::read
+					let file_size = fs::metadata(&path).await?.len(); // TODO: Remove fs::read
 
 					let (chapter_count, identifier) = match bookie::load_from_path(&path.to_string_lossy().to_string()) {
 						Ok(book) => {
