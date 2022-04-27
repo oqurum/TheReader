@@ -375,6 +375,8 @@ pub struct NewFile {
 	pub metadata_id: Option<i64>,
 	pub chapter_count: i64,
 
+	pub identifier: Option<String>,
+
 	pub modified_at: DateTime<Utc>,
 	pub accessed_at: DateTime<Utc>,
 	pub created_at: DateTime<Utc>,
@@ -393,6 +395,8 @@ pub struct File {
 	pub library_id: usize,
 	pub metadata_id: Option<usize>,
 	pub chapter_count: i64,
+
+	pub identifier: Option<String>,
 
 	#[serde(serialize_with = "serialize_datetime")]
 	pub modified_at: DateTime<Utc>,
@@ -419,9 +423,11 @@ impl<'a> TryFrom<&Row<'a>> for File {
 			metadata_id: value.get(6)?,
 			chapter_count: value.get(7)?,
 
-			modified_at: Utc.timestamp_millis(value.get(8)?),
-			accessed_at: Utc.timestamp_millis(value.get(9)?),
-			created_at: Utc.timestamp_millis(value.get(10)?),
+			identifier: value.get(8)?,
+
+			modified_at: Utc.timestamp_millis(value.get(9)?),
+			accessed_at: Utc.timestamp_millis(value.get(10)?),
+			created_at: Utc.timestamp_millis(value.get(11)?),
 		})
 	}
 }
@@ -440,6 +446,8 @@ impl From<File> for MediaItem {
 			library_id: file.library_id,
 			metadata_id: file.metadata_id,
 			chapter_count: file.chapter_count as usize,
+
+			identifier: file.identifier,
 
             modified_at: file.modified_at.timestamp_millis(),
             accessed_at: file.accessed_at.timestamp_millis(),
@@ -768,9 +776,11 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 				metadata_id: value.get(6)?,
 				chapter_count: value.get(7)?,
 
-				modified_at: Utc.timestamp_millis(value.get(8)?),
-				accessed_at: Utc.timestamp_millis(value.get(9)?),
-				created_at: Utc.timestamp_millis(value.get(10)?),
+				identifier: value.get(8)?,
+
+				modified_at: Utc.timestamp_millis(value.get(9)?),
+				accessed_at: Utc.timestamp_millis(value.get(10)?),
+				created_at: Utc.timestamp_millis(value.get(11)?),
 			},
 
 			meta: value.get(11)

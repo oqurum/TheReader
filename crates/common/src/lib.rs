@@ -190,6 +190,8 @@ pub struct MediaItem {
 	pub metadata_id: Option<usize>,
 	pub chapter_count: usize,
 
+	pub identifier: Option<String>,
+
 	pub modified_at: i64,
 	pub accessed_at: i64,
 	pub created_at: i64,

@@ -1,6 +1,7 @@
 use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
 use crate::Result;
+use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use tokio::fs;
 
@@ -34,12 +35,24 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 				if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) {
 					let file_size = fs::read(&path).await?.len(); // TODO: Remove fs::read
 
-					let chapter_count = match bookie::load_from_path(&path.to_string_lossy().to_string()) {
+					let (chapter_count, identifier) = match bookie::load_from_path(&path.to_string_lossy().to_string()) {
 						Ok(book) => {
 							if let Some(book) = book {
-								book.chapter_count() as i64
+								let identifier = if let Some(found) = book.find(BookSearch::Identifier) {
+									let parsed = found.into_iter()
+										.map(|v| bookie::parse_book_id(&v))
+										.collect::<Vec<_>>();
+
+									parsed.iter()
+										.find_map(|v| v.as_isbn_13())
+										.or_else(|| parsed.iter().find_map(|v| v.as_isbn_10()))
+								} else {
+									None
+								};
+
+								(book.chapter_count() as i64, identifier)
 							} else {
-								0
+								(0, None)
 							}
 						},
 
@@ -50,7 +63,7 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 					};
 
 					let file = NewFile {
-						path: path.to_str().unwrap().replace("\\", "/"),
+						path: path.to_str().unwrap().replace('\\', "/"),
 
 						file_name,
 						file_type,
@@ -59,6 +72,8 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 						library_id: library.id,
 						metadata_id: None,
 						chapter_count,
+
+						identifier,
 
 						modified_at: Utc.timestamp_millis(meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
 						accessed_at: Utc.timestamp_millis(meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),

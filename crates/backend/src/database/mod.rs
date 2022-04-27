@@ -55,6 +55,8 @@ pub async fn init() -> Result<Database> {
 			"metadata_id" 		INTEGER,
 			"chapter_count" 	INTEGER,
 
+			"identifier" 		TEXT,
+
 			"modified_at" 		DATETIME NOT NULL,
 			"accessed_at" 		DATETIME NOT NULL,
 			"created_at" 		DATETIME NOT NULL,
@@ -365,12 +367,13 @@ impl Database {
 
 	pub fn add_file(&self, file: &NewFile) -> Result<()> {
 		self.lock()?.execute(r#"
-			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, library_id, metadata_id, chapter_count)
+			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, library_id, metadata_id, chapter_count)
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 		"#,
 		params![
 			&file.path, &file.file_type, &file.file_name, file.file_size,
 			file.modified_at.timestamp_millis(), file.accessed_at.timestamp_millis(), file.created_at.timestamp_millis(),
+			file.identifier.as_deref(),
 			file.library_id, file.metadata_id, file.chapter_count
 		])?;
 

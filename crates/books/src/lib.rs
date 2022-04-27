@@ -132,7 +132,7 @@ impl IdType {
 	pub fn into_possible_isbn_value(self) -> Option<String> {
 		match self {
 			Self::UnknownValue(v) if v.chars().all(|v| ('0'..='9').contains(&v)) => Some(v),
-			Self::Isbn(v) => Some(v),
+			Self::Isbn(v) => parse_isbn_13(&v).or_else(|| parse_isbn_10(&v)).or(Some(v)),
 
 			_ => None,
 		}
@@ -146,4 +146,79 @@ impl IdType {
 			Self::UnknownValue(v) => Some(v),
 		}
 	}
+
+
+	/// Attempts to return an ISBN type of 13 or 12 in that order.
+	pub fn as_isbn_13_or_10(&self) -> Option<String> {
+		self.as_isbn_13().or_else(|| self.as_isbn_10())
+	}
+
+	pub fn as_isbn_13(&self) -> Option<String> {
+		match self {
+			Self::UnknownValue(v) => parse_isbn_13(v.as_str()),
+			Self::Isbn(v) => parse_isbn_13(v.as_str()),
+
+			_ => None,
+		}
+	}
+
+	pub fn as_isbn_10(&self) -> Option<String> {
+		match self {
+			Self::UnknownValue(v) => parse_isbn_10(v.as_str()),
+			Self::Isbn(v) => parse_isbn_10(v.as_str()),
+
+			_ => None,
+		}
+	}
+}
+
+// TODO: Convert all ISBN-10's to ISBN-13
+
+// TODO: Tests
+pub fn parse_isbn_10(value: &str) -> Option<String> {
+	let mut s = 0;
+	let mut t = 0;
+
+	let mut parse = value.split("").filter(|v| *v != "-" && !v.is_empty());
+
+	let mut compiled = String::new();
+
+	if let Some(v) = parse.next() {
+		compiled.push_str(v);
+	}
+
+	for dig_str in parse.take(9) {
+		let dig = match dig_str.parse::<usize>() {
+			Ok(v) => v,
+			Err(_) => return None
+		};
+
+		compiled.push_str(dig_str);
+
+		t += dig;
+		s += t;
+	}
+
+	Some(compiled).filter(|v| v.len() == 10 && (s % 11) == 0)
+}
+
+// TODO: Tests
+pub fn parse_isbn_13(value: &str) -> Option<String> {
+	let mut s = 0;
+
+	let mut compiled = String::new();
+
+	for (i, dig_str) in value.split("").filter(|v| *v != "-" && !v.is_empty()).take(13).enumerate() {
+		let dig = match dig_str.parse::<usize>() {
+			Ok(v) => v,
+			Err(_) => return None
+		};
+
+		compiled.push_str(dig_str);
+
+		let weight = if i % 2 == 0 { 1 } else { 3 };
+		s += dig * weight;
+	}
+
+	Some(compiled).filter(|v| v.len() == 13 && (s % 10) == 0)
 }
