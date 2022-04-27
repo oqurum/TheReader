@@ -850,7 +850,7 @@ impl Database {
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 		"#,
 		params![
-			person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.to_string(),
+			person.source.to_string(), &person.name, &person.description, &person.birth_date, person.thumb_url.to_optional_string(),
 			person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 		])?;
 
