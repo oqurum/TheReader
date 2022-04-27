@@ -30,8 +30,12 @@ pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api
 	let meta_id = *meta_id;
 
 	match body.into_inner() {
-		api::PostMetadataBody::AutoMatchByMetaId => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateById(meta_id)));
+		api::PostMetadataBody::AutoMatchMetaIdByFiles => {
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdByFiles(meta_id)));
+		}
+
+		api::PostMetadataBody::AutoMatchMetaIdBySource => {
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdBySource(meta_id)));
 		}
 
 		api::PostMetadataBody::UpdateMetaBySource(source) => {

@@ -133,10 +133,19 @@ impl Component for LibraryPage {
 					}
 				}
 
-				PosterItem::UpdateMeta(meta_id) => {
+				PosterItem::UpdateMetaBySource(meta_id) => {
 					ctx.link()
 					.send_future(async move {
-						request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchByMetaId).await;
+						request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchMetaIdBySource).await;
+
+						Msg::Ignore
+					});
+				}
+
+				PosterItem::UpdateMetaByFiles(meta_id) => {
+					ctx.link()
+					.send_future(async move {
+						request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchMetaIdByFiles).await;
 
 						Msg::Ignore
 					});
@@ -177,11 +186,14 @@ impl Component for LibraryPage {
 												<div class="menu-list">
 													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMeta(meta_id)))
+														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaBySource(meta_id)))
 													}>{ "Refresh Metadata" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
 														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None })))
 													}>{ "Search For Book" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaByFiles(meta_id)))
+													}>{ "Quick Search By Files" }</div>
 													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
 														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))
@@ -250,6 +262,8 @@ impl Component for LibraryPage {
 
 impl LibraryPage {
 	/// A Callback which calls "prevent_default" and "stop_propagation"
+	///
+	/// Also will prevent any more same events downstream from activating
 	fn on_click_prevdef_stopprop(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
 		scope.callback(move |e: MouseEvent| {
 			e.prevent_default();
@@ -340,7 +354,10 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay),
 
 	// Popup Events
-	UpdateMeta(usize),
+	UpdateMetaBySource(usize),
+
+	// Popup Events
+	UpdateMetaByFiles(usize),
 }
 
 #[derive(Clone)]

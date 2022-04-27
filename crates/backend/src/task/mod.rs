@@ -89,7 +89,8 @@ impl Task for TaskLibraryScan {
 #[derive(Clone)]
 pub enum UpdatingMetadata {
 	AutoMatchInvalid,
-	AutoUpdateById(usize),
+	AutoUpdateMetaIdBySource(usize),
+	AutoUpdateMetaIdByFiles(usize),
 	UpdateMetadataWithSource {
 		meta_id: usize,
 		source: Source,
@@ -161,11 +162,19 @@ impl Task for TaskUpdateInvalidMetadata {
 				}
 			}
 
-			// TODO: Check how long it has been since we've refreshed meta: metnew_metaa if auto-ran.
-			UpdatingMetadata::AutoUpdateById(meta_id) => {
-				println!("Auto Update Metadata by ID: {}", meta_id);
+			UpdatingMetadata::AutoUpdateMetaIdByFiles(meta_id) => {
+				println!("Auto Update Metadata ID by Files: {}", meta_id);
 
-				let mut fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
+				let fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
+
+				Self::search_meta_by_files(meta_id, fm_meta, db).await?;
+			}
+
+			// TODO: Check how long it has been since we've refreshed meta: metnew_metaa if auto-ran.
+			UpdatingMetadata::AutoUpdateMetaIdBySource(meta_id) => {
+				println!("Auto Update Metadata ID by Source: {}", meta_id);
+
+				let fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
 
 				// TODO: Attempt to update source first.
 				if let Some(mut new_meta) = get_metadata_by_source(&fm_meta.source).await? {
@@ -226,69 +235,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 				println!("Updating by file check");
 
-				let files = db.get_files_by_metadata_id(meta_id)?;
-
-				match get_metadata_from_files(&files).await? {
-					Some(mut ret) => {
-						let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
-
-						let MetadataReturned { mut meta, publisher, .. } = ret;
-
-						// TODO: This is For Local File Data. Need specify.
-						if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
-							item.download().await?;
-						}
-
-						let mut meta: MetadataItem = meta.into();
-
-						// TODO: Store Publisher inside Database
-						meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
-
-						// Update New Metadata with old one
-						meta.id = fm_meta.id;
-						meta.library_id = fm_meta.library_id;
-						meta.rating = fm_meta.rating;
-						meta.deleted_at = fm_meta.deleted_at;
-						meta.file_item_count = fm_meta.file_item_count;
-
-						// Overwrite prev with new and replace new with prev.
-						fm_meta.cached.overwrite_with(meta.cached);
-						meta.cached = fm_meta.cached;
-
-						if fm_meta.title != fm_meta.original_title {
-							meta.title = fm_meta.title;
-						}
-
-						// No new thumb, but we have an old one. Set old one as new one.
-						if meta.thumb_path.is_none() && fm_meta.thumb_path.is_some() {
-							meta.thumb_path = fm_meta.thumb_path;
-						}
-
-						if fm_meta.description.is_some() {
-							meta.description = fm_meta.description;
-						}
-
-						// TODO: Only if metadata exists and IS the same source.
-						meta.created_at = fm_meta.created_at;
-
-						db.add_poster(&table::NewPoster {
-							link_id: meta.id,
-							path: meta.thumb_path.clone(),
-							created_at: Utc::now(),
-						})?;
-
-						db.update_metadata(&meta)?;
-
-						for person_id in author_ids {
-							db.add_meta_person(&MetadataPerson {
-								metadata_id: meta.id,
-								person_id,
-							})?;
-						}
-					}
-
-					None => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
-				}
+				Self::search_meta_by_files(meta_id, fm_meta, db).await?;
 			}
 
 			UpdatingMetadata::UpdateMetadataWithSource { meta_id: old_meta_id, source } => {
@@ -450,7 +397,73 @@ impl Task for TaskUpdateInvalidMetadata {
 }
 
 impl TaskUpdateInvalidMetadata {
+	async fn search_meta_by_files(meta_id: usize, mut fm_meta: MetadataItem, db: &Database) -> Result<()> {
+		let files = db.get_files_by_metadata_id(meta_id)?;
 
+		match get_metadata_from_files(&files).await? {
+			Some(mut ret) => {
+				let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
+
+				let MetadataReturned { mut meta, publisher, .. } = ret;
+
+				// TODO: This is For Local File Data. Need specify.
+				if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
+					item.download().await?;
+				}
+
+				let mut meta: MetadataItem = meta.into();
+
+				// TODO: Store Publisher inside Database
+				meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+
+				// Update New Metadata with old one
+				meta.id = fm_meta.id;
+				meta.library_id = fm_meta.library_id;
+				meta.rating = fm_meta.rating;
+				meta.deleted_at = fm_meta.deleted_at;
+				meta.file_item_count = fm_meta.file_item_count;
+
+				// Overwrite prev with new and replace new with prev.
+				fm_meta.cached.overwrite_with(meta.cached);
+				meta.cached = fm_meta.cached;
+
+				if fm_meta.title != fm_meta.original_title {
+					meta.title = fm_meta.title;
+				}
+
+				// No new thumb, but we have an old one. Set old one as new one.
+				if meta.thumb_path.is_none() && fm_meta.thumb_path.is_some() {
+					meta.thumb_path = fm_meta.thumb_path;
+				}
+
+				if fm_meta.description.is_some() {
+					meta.description = fm_meta.description;
+				}
+
+				// TODO: Only if metadata exists and IS the same source.
+				meta.created_at = fm_meta.created_at;
+
+				db.add_poster(&table::NewPoster {
+					link_id: meta.id,
+					path: meta.thumb_path.clone(),
+					created_at: Utc::now(),
+				})?;
+
+				db.update_metadata(&meta)?;
+
+				for person_id in author_ids {
+					db.add_meta_person(&MetadataPerson {
+						metadata_id: meta.id,
+						person_id,
+					})?;
+				}
+			}
+
+			None => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
+		}
+
+		Ok(())
+	}
 }
 
 

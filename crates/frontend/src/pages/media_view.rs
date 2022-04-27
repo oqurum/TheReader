@@ -68,7 +68,7 @@ impl Component for MediaView {
 			Msg::UpdateMeta(meta_id) => {
 				ctx.link()
 				.send_future(async move {
-					request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchByMetaId).await;
+					request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchMetaIdBySource).await;
 
 					Msg::Ignore
 				});
