@@ -13,9 +13,5 @@ pub async fn run_task(modify: web::Json<api::RunTaskBody>) -> HttpResponse {
 		queue_task(task::TaskLibraryScan);
 	}
 
-	if modify.run_metadata {
-		queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoMatchInvalid));
-	}
-
 	HttpResponse::Ok().finish()
 }
