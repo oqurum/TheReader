@@ -197,7 +197,8 @@ impl OpenLibraryMetadata {
 
 		// TODO: Parse record.publish_date | Millions of different variations. No specifics' were followed.
 
-		let source_id = match book_info.isbn_13.first().or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first())) {
+		let source_id = match book_info.isbn_13.as_ref()
+			.and_then(|v| v.first().or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first()))) {
 			Some(v) => v,
 			None => return Ok(None)
 		};
