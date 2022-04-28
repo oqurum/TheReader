@@ -690,13 +690,9 @@ impl Database {
 	pub fn get_metadata_by(&self, library: Option<usize>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
 		let this = self.lock()?;
 
-		let lib = if let Some(lib) = library {
-			format!("library_id = {}", lib)
-		} else {
-			String::new()
-		};
+		let lib_where = library.map(|v| format!("WHERE library_id={v}")).unwrap_or_default();
 
-		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item WHERE {} LIMIT ?2 OFFSET ?3"#, lib))?;
+		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {} LIMIT ?1 OFFSET ?2"#, lib_where))?;
 
 		let map = conn.query_map([limit, offset], |v| MetadataItem::try_from(v))?;
 
