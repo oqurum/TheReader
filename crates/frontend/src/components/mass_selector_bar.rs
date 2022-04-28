@@ -57,6 +57,8 @@ impl Component for MassSelectBar {
 			}
 
 			Msg::UpdateMetaByFiles => {
+				self.popup_open = false;
+
 				let meta_ids = {
 					let items = ctx.props().editing_items.lock().unwrap();
 					items.clone()
