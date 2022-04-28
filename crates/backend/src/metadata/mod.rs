@@ -325,6 +325,10 @@ impl FoundImageLocation {
 		}
 	}
 
+	pub fn is_local(&self) -> bool {
+		matches!(self, Self::Local(_))
+	}
+
 	pub fn is_file_data(&self) -> bool {
 		matches!(self, Self::FileData(_))
 	}

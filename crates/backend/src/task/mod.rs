@@ -406,9 +406,11 @@ impl TaskUpdateInvalidMetadata {
 
 				let MetadataReturned { mut meta, publisher, .. } = ret;
 
-				// TODO: This is For Local File Data. Need specify.
-				if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
-					item.download().await?;
+				// If we have no local files we'll download the first one.
+				if !meta.thumb_locations.iter().any(|v| v.is_local()) {
+					if let Some(item) = meta.thumb_locations.first_mut() {
+						item.download().await?;
+					}
 				}
 
 				let mut meta: MetadataItem = meta.into();
