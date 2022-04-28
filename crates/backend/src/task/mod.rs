@@ -1,9 +1,9 @@
 use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque};
 
 use actix_web::web;
-use crate::Result;
+use crate::{Result, metadata::{search_all_agents, SearchItem}};
 use async_trait::async_trait;
-use books_common::{Source, ThumbnailStoreType};
+use books_common::{Source, ThumbnailStoreType, SearchFor, SearchForBooksBy};
 use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
@@ -398,9 +398,48 @@ impl Task for TaskUpdateInvalidMetadata {
 
 impl TaskUpdateInvalidMetadata {
 	async fn search_meta_by_files(meta_id: usize, mut fm_meta: MetadataItem, db: &Database) -> Result<()> {
+		// Check Files first.
 		let files = db.get_files_by_metadata_id(meta_id)?;
 
-		match get_metadata_from_files(&files).await? {
+		let found_meta = match get_metadata_from_files(&files).await? {
+			None => if let Some(title) = fm_meta.title.as_deref() { // TODO: Place into own function
+				// Check by "title - author" secondly.
+				let search = format!(
+					"{} {}",
+					title,
+					fm_meta.cached.author.as_deref().unwrap_or_default()
+				);
+
+				// Search for query.
+				let results = search_all_agents(search.as_str(), SearchFor::Book(SearchForBooksBy::Query)).await?;
+
+				// Find the SearchedItem by similarity.
+				let found_item = results.sort_items_by_similarity(title)
+					.into_iter()
+					.find(|&(score, ref item)| match item {
+						SearchItem::Book(book) => {
+							println!("Score: {score} | {:?} | {}", book.title, book.source);
+							score > 0.75 && !book.thumb_locations.is_empty()
+						}
+						_ => false
+					})
+					.map(|(_, item)| item);
+
+				// Now we need to do a search for found item and return it.
+				if let Some(item) = found_item.and_then(|v| v.into_book()) {
+					get_metadata_by_source(&item.source).await?
+				} else {
+					None
+				}
+			} else {
+				None
+			}
+
+			v => v
+		};
+
+
+		match found_meta {
 			Some(mut ret) => {
 				let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 

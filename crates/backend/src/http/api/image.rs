@@ -53,7 +53,7 @@ async fn get_poster_list(
 		books_common::SearchFor::Book(books_common::SearchForBooksBy::Query)
 	).await?;
 
-	for item in search.into_values().flatten() {
+	for item in search.0.into_values().flatten() {
 		if let crate::metadata::SearchItem::Book(item) = item {
 			for path in item.thumb_locations.into_iter().filter_map(|v| v.into_url_value()) {
 				items.push(Poster {

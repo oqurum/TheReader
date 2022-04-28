@@ -90,7 +90,7 @@ pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataRe
 
 
 /// Searches all agents except for local.
-pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<HashMap<String, Vec<SearchItem>>> {
+pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<SearchResults> {
 	let mut map = HashMap::new();
 
 	// Checks to see if we can use get_metadata_by_source (source:id)
@@ -102,7 +102,7 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 				vec![SearchItem::Book(val.meta)],
 			);
 
-			return Ok(map);
+			return Ok(SearchResults(map));
 		}
 	}
 
@@ -125,7 +125,7 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Ha
 		}
 	}
 
-	Ok(map)
+	Ok(SearchResults(map))
 }
 
 /// Searches all agents except for local.
@@ -140,6 +140,42 @@ pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>>
 
 
 
+pub struct SearchResults(pub HashMap<String, Vec<SearchItem>>);
+
+impl SearchResults {
+	pub fn sort_items_by_similarity(self, match_with: &str) -> Vec<(f64, SearchItem)> {
+		let mut items = Vec::new();
+
+		for item in self.0.into_values().flatten() {
+			let score = match &item {
+				SearchItem::Book(v) => v.title.as_deref().map(|v| strsim::jaro_winkler(match_with, v)).unwrap_or_default(),
+				SearchItem::Author(v) => strsim::jaro_winkler(match_with, &v.name),
+			};
+
+			items.push((score, item));
+		}
+
+		items.sort_unstable_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
+
+		items
+	}
+}
+
+impl Deref for SearchResults {
+	type Target = HashMap<String, Vec<SearchItem>>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl DerefMut for SearchResults {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
+}
+
+
 
 #[derive(Debug)]
 pub enum SearchItem {
@@ -147,6 +183,21 @@ pub enum SearchItem {
 	Book(FoundItem)
 }
 
+impl SearchItem {
+	pub fn into_author(self) -> Option<AuthorInfo> {
+		match self {
+			SearchItem::Author(v) => Some(v),
+			_ => None,
+		}
+	}
+
+	pub fn into_book(self) -> Option<FoundItem> {
+		match self {
+			SearchItem::Book(v) => Some(v),
+			_ => None,
+		}
+	}
+}
 
 
 #[derive(Debug)]

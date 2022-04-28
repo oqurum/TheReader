@@ -493,6 +493,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "sha2",
+ "strsim",
  "thiserror",
  "tokio",
  "urlencoding",
@@ -2384,6 +2385,12 @@ checksum = "511254be0c5bcf062b019a6c89c01a664aa359ded62f78aa72c6fc137c0590e5"
 dependencies = [
  "lock_api",
 ]
+
+[[package]]
+name = "strsim"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "subtle"

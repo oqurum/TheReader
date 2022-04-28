@@ -83,7 +83,7 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> We
 	).await?;
 
 	Ok(web::Json(api::MetadataSearchResponse {
-		items: search.into_iter()
+		items: search.0.into_iter()
 			.map(|(a, b)| (
 				a,
 				b.into_iter().map(|v| {
