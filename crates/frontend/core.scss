@@ -276,6 +276,14 @@ body {
 	}
 }
 
+
+/* BUTTON POPUP */
+
+.button-popup-group {
+	position: relative;
+}
+
+
 /* MASS SELECT BAR */
 
 .mass-select-bar {
@@ -305,9 +313,7 @@ body {
 
 
 		> .center-content {
-			position: relative;
-
-			> .menu-list {
+			.button-popup-group .menu-list {
 				display: block;
 				position: absolute;
 				bottom: 2.5em;
@@ -367,6 +373,11 @@ body {
 /* POPUP AT SPECIFIC POINT */
 .popup-at-point {
 	position: absolute;
+	z-index: 50;
+}
+
+
+.popup-display {
 	z-index: 50;
 }
 

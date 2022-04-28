@@ -5,6 +5,7 @@ use web_sys::HtmlElement;
 use yew::{prelude::*, html::Scope};
 
 use crate::request;
+use crate::components::ButtonPopup;
 
 
 static EDITING_CONTAINER_CLASS: &str = "editing-items-inside";
@@ -93,27 +94,13 @@ impl Component for MassSelectBar {
 							<span>{ items.len() } { " items selected" }</span>
 						</div>
 						<div class="center-content">
-							<span
-								class="button material-icons"
-								title="More Options"
-								onclick={ctx.link().callback(|_| Msg::TogglePopup)}
-							>{ "more_horiz" }</span>
-
-							{
-								if self.popup_open {
-									html! {
-										<div class="menu-list">
-											<div class="menu-item" yew-close-popup="">{ "Refresh Metadata" }</div>
-											<div class="menu-item" yew-close-popup="" onclick={
-												Self::on_click_prevdef(ctx.link(), Msg::UpdateMetaByFiles)
-											}>{ "Quick Search By Files" }</div>
-											<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-										</div>
-									}
-								} else {
-									html! {}
-								}
-							}
+							<ButtonPopup class="menu-list">
+								<div class="menu-item" yew-close-popup="">{ "Refresh Metadata" }</div>
+								<div class="menu-item" yew-close-popup="" onclick={
+									Self::on_click_prevdef(ctx.link(), Msg::UpdateMetaByFiles)
+								}>{ "Quick Search By Files" }</div>
+								<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
+							</ButtonPopup>
 						</div>
 						<div class="right-content">
 							<button onclick={ctx.props().on_deselect_all.clone()}>{ "Deselect All" }</button>

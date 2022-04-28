@@ -6,6 +6,7 @@ use web_sys::{MouseEvent, Element};
 use yew::prelude::*;
 
 
+pub mod button;
 pub mod edit_metadata;
 pub mod search_book;
 
@@ -14,7 +15,9 @@ pub enum PopupType {
 	/// Full foreground overlay
 	FullOverlay,
 	/// Places the popover at the specified point and attempts to keep it there while staying readable.
-	AtPoint(i32, i32)
+	AtPoint(i32, i32),
+	/// Displays the popup
+	Display,
 }
 
 impl PopupType {
@@ -87,7 +90,15 @@ impl Component for Popup {
 						{ for ctx.props().children.iter() }
 					</div>
 				}
-			}
+			},
+
+			PopupType::Display => {
+				html! {
+					<div ref={self.node_ref.clone()} class={classes!("popup-display", ctx.props().classes.clone())}>
+						{ for ctx.props().children.iter() }
+					</div>
+				}
+			},
 		}
 	}
 
