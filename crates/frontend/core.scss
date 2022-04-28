@@ -146,6 +146,15 @@ body {
 		object-fit: cover;
 	}
 
+	.top-left {
+		z-index: 99;
+		position: absolute;
+		top: 0px;
+		left: 4px;
+		display: none;
+		cursor: pointer;
+	}
+
 	.bottom-right {
 		z-index: 99;
 		position: absolute;
@@ -165,7 +174,8 @@ body {
 	}
 
 	&:hover .bottom-left,
-	&:hover .bottom-right {
+	&:hover .bottom-right,
+	&:hover .top-left {
 		display: block;
 	}
 }
@@ -253,6 +263,19 @@ body {
 	}
 }
 
+
+/* EDITING ITEMS CONTAINER */
+
+.editing-items-inside {
+	.library-item {
+		.poster {
+			.top-left {
+				display: block;
+			}
+		}
+	}
+}
+
 /* MASS SELECT BAR */
 
 .mass-select-bar {
@@ -263,6 +286,7 @@ body {
 	height: 3em;
 	padding: 0 1em;
 	user-select: none;
+	z-index: 99;
 
 	> .bar-container {
 		display: flex;
@@ -282,6 +306,13 @@ body {
 
 		> .center-content {
 			position: relative;
+
+			> .menu-list {
+				display: block;
+				position: absolute;
+				bottom: 2.5em;
+				width: 13em;
+			}
 		}
 
 

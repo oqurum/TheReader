@@ -1,10 +1,12 @@
+use std::{rc::Rc, sync::Mutex};
+
 use books_common::{api, DisplayItem};
 use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::{HtmlElement, UrlSearchParams};
+use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
-use crate::{Route, request, components::{Popup, PopupSearchBook, PopupEditMetadata, PopupType}};
+use crate::{Route, request, components::{Popup, PopupSearchBook, PopupEditMetadata, PopupType, MassSelectBar}};
 
 
 #[derive(Properties, PartialEq)]
@@ -27,6 +29,9 @@ pub enum Msg {
 
 	InitEventListenerAfterMediaItems,
 
+	AddOrRemoveItemFromEditing(usize, bool),
+	DeselectAllEditing,
+
 	Ignore
 }
 
@@ -41,6 +46,9 @@ pub struct LibraryPage {
 	media_popup: Option<DisplayOverlay>,
 
 	library_list_ref: NodeRef,
+
+	// TODO: Make More Advanced
+	editing_items: Rc<Mutex<Vec<usize>>>,
 }
 
 impl Component for LibraryPage {
@@ -50,11 +58,17 @@ impl Component for LibraryPage {
 	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
 			on_scroll_fn: None,
+
 			media_items: None,
 			total_media_count: 0,
+
 			is_fetching_media_items: false,
+
 			media_popup: None,
-			library_list_ref: NodeRef::default()
+
+			library_list_ref: NodeRef::default(),
+
+			editing_items: Rc::new(Mutex::new(Vec::new())),
 		}
 	}
 
@@ -62,6 +76,22 @@ impl Component for LibraryPage {
 		match msg {
 			Msg::ClosePopup => {
 				self.media_popup = None;
+			}
+
+			Msg::DeselectAllEditing => {
+				self.editing_items.lock().unwrap().clear();
+			}
+
+			Msg::AddOrRemoveItemFromEditing(id, value) => {
+				let mut items = self.editing_items.lock().unwrap();
+
+				if value {
+					if !items.iter().any(|v| *v == id) {
+						items.push(id);
+					}
+				} else if let Some(index) = items.iter().position(|v| *v == id) {
+					items.swap_remove(index);
+				}
 			}
 
 			Msg::InitEventListenerAfterMediaItems => {
@@ -235,6 +265,12 @@ impl Component for LibraryPage {
 							}
 						}
 					</div>
+
+					<MassSelectBar
+						on_deselect_all={ctx.link().callback(|_| Msg::DeselectAllEditing)}
+						editing_container={self.library_list_ref.clone()}
+						editing_items={self.editing_items.clone()}
+					/>
 				</div>
 			}
 		} else {
@@ -293,9 +329,32 @@ impl LibraryPage {
 			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { meta_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
 		});
 
+		let is_editing = self.editing_items.lock().unwrap().contains(&item.id);
+
 		html! {
 			<Link<Route> to={Route::ViewMeta { meta_id: item.id as usize }} classes={ classes!("library-item") }>
 				<div class="poster">
+					<div class="top-left">
+						<input
+							checked={is_editing}
+							type="checkbox"
+							onclick={scope.callback(move |e: MouseEvent| {
+								e.prevent_default();
+								e.stop_propagation();
+
+								Msg::Ignore
+							})}
+							onmouseup={scope.callback(move |e: MouseEvent| {
+								let input = e.target_unchecked_into::<HtmlInputElement>();
+
+								let value = !input.checked();
+
+								input.set_checked(value);
+
+								Msg::AddOrRemoveItemFromEditing(meta_id, value)
+							})}
+						/>
+					</div>
 					<div class="bottom-right">
 						<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
 					</div>
