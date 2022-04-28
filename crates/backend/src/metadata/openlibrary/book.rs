@@ -226,7 +226,7 @@ pub struct BookSearchItem {
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookInfo {
-	pub publishers: Vec<String>,
+	pub publishers: Option<Vec<String>>,
 	pub number_of_pages: Option<usize>,
 	pub series: Option<Vec<String>>,
 	pub genres: Option<Vec<String>>,
@@ -241,13 +241,14 @@ pub struct BookInfo {
 	pub ia_loaded_id: Option<Vec<String>>,
 	pub publish_country: Option<String>,
 	pub translation_of: Option<String>,
+	pub subject_places: Option<Vec<String>>,
 	pub translated_from: Option<Vec<KeyItem>>,
 	pub other_titles: Option<Vec<String>>,
 	pub dewey_decimal_class: Option<Vec<String>>,
 	pub local_id: Option<Vec<String>>,
 	pub physical_format: Option<String>,
 	pub key: String,
-	pub authors: Option<Vec<KeyItem>>,
+	pub authors: Option<Vec<Author>>,
 	pub publish_places: Option<Vec<String>>,
 	pub contributions: Option<Vec<String>>,
 	pub subjects: Option<Vec<String>>,
@@ -296,4 +297,28 @@ pub struct TableOfContent {
 
 	#[serde(rename = "type")]
 	type_of: Option<KeyItem>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Author {
+	Key(KeyItem),
+	KeyType(AuthorType),
+}
+
+impl Author {
+	pub fn author_key(&self) -> &str {
+		match self {
+			Self::Key(v) => &v.key,
+			Self::KeyType(v) => &v.author.key,
+		}
+	}
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthorType {
+	pub author: KeyItem,
+	#[serde(rename = "type")]
+	pub type_of: KeyItem,
 }

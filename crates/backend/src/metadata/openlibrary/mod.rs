@@ -114,8 +114,8 @@ impl Metadata for OpenLibraryMetadata {
 					let mut books = Vec::new();
 
 					for item in found.items {
-						books.push(SearchItem::Book(FoundItem {
-							source: format!("{}:{}", self.get_prefix(), &item.key).try_into()?,
+						books.push(SearchItem::Book(FoundItem { // TODO: Move .replace
+							source: format!("{}:{}", self.get_prefix(), &item.key.replace("/works/", "").replace("/books/", "")).try_into()?,
 							title: item.title.clone(),
 							description: None,
 							rating: 0.0,
@@ -152,7 +152,7 @@ impl OpenLibraryMetadata {
 		// Now authors are just Vec< OL00000A >
 		let authors_found = if let Some(authors) = book_info.authors.take() {
 			let mut author_paths: Vec<String> = authors.into_iter()
-				.map(|v| strip_url_or_path(v.key))
+				.map(|v| strip_url_or_path(v.author_key()))
 				.collect();
 
 			for auth in authors_rfd {
@@ -204,7 +204,7 @@ impl OpenLibraryMetadata {
 
 		Ok(Some(MetadataReturned {
 			authors: Some(authors).filter(|v| !v.is_empty()),
-			publisher: book_info.publishers.first().cloned(),
+			publisher: book_info.publishers.and_then(|v| v.first().cloned()),
 
 			meta: FoundItem {
 				source: format!("{}:{}", self.get_prefix(), source_id).try_into()?,
