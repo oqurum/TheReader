@@ -113,6 +113,7 @@ impl TaskUpdateInvalidMetadata {
 impl Task for TaskUpdateInvalidMetadata {
 	async fn run(&mut self, db: &Database) -> Result<()> {
 		match self.state.clone() {
+			// TODO: Remove at some point. Currently inside of scanner.
 			UpdatingMetadata::AutoMatchInvalid => {
 				for file in db.get_files_of_no_metadata()? {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.

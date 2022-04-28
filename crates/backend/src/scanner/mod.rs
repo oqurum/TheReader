@@ -1,6 +1,6 @@
 use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
-use crate::Result;
+use crate::{Result, database::table::{File, MetadataItem, self}, metadata::{get_metadata_from_files, MetadataReturned}};
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use tokio::fs;
@@ -81,7 +81,13 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 					};
 
 					if !db.file_exist(&file)? {
-						db.add_file(&file)?;
+						let file_id = db.add_file(&file)?;
+						let file = file.into_file(file_id);
+
+						// TODO: Run Concurrently.
+						if let Err(e) = file_match_or_create_metadata(file, db).await {
+							eprintln!("File #{file_id} file_match_or_create_metadata Error: {e}");
+						}
 					}
 				} else {
 					log::info!("Skipping File {:?}. Not a whitelisted file type.", path);
@@ -91,6 +97,49 @@ pub async fn library_scan(library: &Library, directories: Vec<Directory>, db: &D
 	}
 
 	println!("Found {} Files", db.get_file_count()?);
+
+	Ok(())
+}
+
+
+async fn file_match_or_create_metadata(file: File, db: &Database) -> Result<()> {
+	if file.metadata_id.is_none() {
+		let file_id = file.id;
+
+		let meta = get_metadata_from_files(&[file]).await?;
+
+		if let Some(mut ret) = meta {
+			let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
+
+			let MetadataReturned { mut meta, publisher, .. } = ret;
+
+			// TODO: This is For Local File Data. Need specify.
+			if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
+				item.download().await?;
+			}
+
+			let mut meta: MetadataItem = meta.into();
+
+			// TODO: Store Publisher inside Database
+			meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+
+			let meta = db.add_or_increment_metadata(&meta)?;
+			db.update_file_metadata_id(file_id, meta.id)?;
+
+			db.add_poster(&table::NewPoster {
+				link_id: meta.id,
+				path: meta.thumb_path.clone(),
+				created_at: Utc::now(),
+			})?;
+
+			for person_id in author_ids {
+				db.add_meta_person(&table::MetadataPerson {
+					metadata_id: meta.id,
+					person_id,
+				})?;
+			}
+		}
+	}
 
 	Ok(())
 }

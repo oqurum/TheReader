@@ -365,8 +365,10 @@ impl Database {
 
 	// Files
 
-	pub fn add_file(&self, file: &NewFile) -> Result<()> {
-		self.lock()?.execute(r#"
+	pub fn add_file(&self, file: &NewFile) -> Result<usize> {
+		let conn = self.lock()?;
+
+		conn.execute(r#"
 			INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, library_id, metadata_id, chapter_count)
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 		"#,
@@ -377,7 +379,7 @@ impl Database {
 			file.library_id, file.metadata_id, file.chapter_count
 		])?;
 
-		Ok(())
+		Ok(conn.last_insert_rowid() as usize)
 	}
 
 	pub fn file_exist(&self, file: &NewFile) -> Result<bool> {

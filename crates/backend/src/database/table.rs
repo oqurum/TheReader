@@ -372,7 +372,7 @@ pub struct NewFile {
 	pub file_size: i64,
 
 	pub library_id: usize,
-	pub metadata_id: Option<i64>,
+	pub metadata_id: Option<usize>,
 	pub chapter_count: i64,
 
 	pub identifier: Option<String>,
@@ -381,6 +381,26 @@ pub struct NewFile {
 	pub accessed_at: DateTime<Utc>,
 	pub created_at: DateTime<Utc>,
 }
+
+impl NewFile {
+	pub fn into_file(self, id: usize) -> File {
+		File {
+			id,
+			path: self.path,
+			file_name: self.file_name,
+			file_type: self.file_type,
+			file_size: self.file_size,
+			library_id: self.library_id,
+			metadata_id: self.metadata_id,
+			chapter_count: self.chapter_count,
+			identifier: self.identifier,
+			modified_at: self.modified_at,
+			accessed_at: self.accessed_at,
+			created_at: self.created_at,
+		}
+	}
+}
+
 
 #[derive(Debug, Serialize)]
 pub struct File {
