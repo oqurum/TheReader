@@ -6,7 +6,6 @@ use std::collections::HashMap;
 
 use crate::Result;
 use async_trait::async_trait;
-use bookie::Book;
 use books_common::{MetadataItemCached, SearchForBooksBy};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -23,32 +22,16 @@ pub struct GoogleBooksMetadata;
 
 #[async_trait]
 impl Metadata for GoogleBooksMetadata {
-	fn get_prefix(&self) ->  & 'static str {
+	fn get_prefix(&self) -> &'static str {
 		"googlebooks"
 	}
 
 	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
 		for file in files {
-			// Wrapped b/c "future cannot be send between threads safely"
-			let found = {
-				let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
-				book.find(bookie::BookSearch::Identifier)
-			};
-
-			println!("[METADATA][GB]: get_metadata_from_files with ids: {:?}", found);
-
-
-			if let Some(idents) = found {
-				for ident in idents {
-					let id = match bookie::parse_book_id(&ident).into_possible_isbn_value() {
-						Some(v) => v,
-						None => continue
-					};
-
-					match self.request_query(id).await {
-						Ok(Some(v)) => return Ok(Some(v)),
-						a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a)
-					}
+			if let Some(isbn) = file.identifier.clone() {
+				match self.request_query(isbn).await {
+					Ok(Some(v)) => return Ok(Some(v)),
+					a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a)
 				}
 			}
 		}

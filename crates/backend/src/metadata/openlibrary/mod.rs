@@ -2,7 +2,6 @@
 
 use crate::Result;
 use async_trait::async_trait;
-use bookie::Book;
 use books_common::{MetadataItemCached, SearchForBooksBy};
 use serde::{Serialize, Deserialize};
 
@@ -20,33 +19,21 @@ pub struct OpenLibraryMetadata;
 
 #[async_trait]
 impl Metadata for OpenLibraryMetadata {
-	fn get_prefix(&self) ->  & 'static str {
+	fn get_prefix(&self) -> &'static str {
 		"openlibrary"
 	}
 
-
 	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
 		for file in files {
-			// Wrapped b/c "future cannot be send between threads safely"
-			let found = {
-				let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
-				book.find(bookie::BookSearch::Identifier)
-			};
+			if let Some(isbn) = file.identifier.clone() {
+				let id = match BookId::make_assumptions(isbn) {
+					Some(v) => v,
+					None => continue
+				};
 
-			println!("[OL]: get_metadata_from_files with ids: {:?}", found);
-
-
-			if let Some(idents) = found {
-				for ident in idents {
-					let id = match BookId::make_assumptions(ident) {
-						Some(v) => v,
-						None => continue
-					};
-
-					match self.request(id).await {
-						Ok(Some(v)) => return Ok(Some(v)),
-						a => eprintln!("OpenLibraryMetadata::get_metadata_from_files {:?}", a)
-					}
+				match self.request(id).await {
+					Ok(Some(v)) => return Ok(Some(v)),
+					a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a)
 				}
 			}
 		}
