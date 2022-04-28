@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::Error;
@@ -8,10 +10,10 @@ pub struct Source {
 	pub value: String,
 }
 
-impl ToString for Source {
-    fn to_string(&self) -> String {
-        format!("{}:{}", self.agent, self.value)
-    }
+impl fmt::Display for Source {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{}:{}", self.agent, self.value)
+	}
 }
 
 impl TryFrom<&str> for Source {
