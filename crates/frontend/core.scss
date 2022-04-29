@@ -111,6 +111,25 @@ body {
 	}
 }
 
+// Using --gradient-2
+@keyframes rotate {
+	// Generates Underscores:  _% { ...: ...(___deg, ...) 1; }
+	@for $i from 0 through 100 {
+		#{$i}#{"%"} {
+			border-image: linear-gradient(#{360*$i/100}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
+		}
+	}
+}
+
+@-moz-keyframes rotate {
+	// Generates Underscores:  _% { ...: ...(___deg, ...) 1; }
+	@for $i from 0 through 100 {
+		#{$i}#{"%"} {
+			border-image: linear-gradient(#{360*$i/100}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
+		}
+	}
+}
+
 
 .poster {
 	position: relative;
@@ -138,6 +157,29 @@ body {
 
 	&.selected {
 		border-color: var(--brand);
+	}
+
+
+	> .changing {
+		--angle: 0grad;
+
+		position: absolute;
+		background-color: rgba(0, 0, 0, 0.5);
+		width: 100%;
+		height: 100%;
+		top: 0;
+		left: 0;
+		border: 2px solid;
+
+		animation-name: rotate;
+		animation-duration: 2s;
+		animation-iteration-count: infinite;
+		animation-timing-function: linear;
+
+		-moz-animation-name: rotate;
+		-moz-animation-duration: 2s;
+		-moz-animation-iteration-count: infinite;
+		-moz-animation-timing-function: linear;
 	}
 
 	img {
