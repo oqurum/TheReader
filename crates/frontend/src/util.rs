@@ -1,7 +1,34 @@
 use std::ops::{Deref, DerefMut};
 
+use gloo_utils::window;
 use web_sys::Element;
 
+
+// TODO: Better names
+
+pub fn as_local_path_with_http(value: &str) -> String {
+	format!(
+		"{}/{}",
+		window().location().origin().unwrap(),
+		if let Some(v) = value.strip_prefix('/') {
+			v
+		} else {
+			value
+		}
+	)
+}
+
+pub fn as_local_path_without_http(value: &str) -> String {
+	format!(
+		"{}/{}",
+		window().location().hostname().unwrap(),
+		if let Some(v) = value.strip_prefix('/') {
+			v
+		} else {
+			value
+		}
+	)
+}
 
 
 /// Truncate string based off of char indices instead of bytes.

@@ -1,12 +1,13 @@
 use std::{rc::Rc, sync::Mutex};
 
-use books_common::{api, DisplayItem};
+use books_common::{api, DisplayItem, ws::WebsocketNotification};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
+use yew_agent::{Bridge, Bridged};
 use yew_router::prelude::Link;
 
-use crate::{Route, request, components::{Popup, PopupSearchBook, PopupEditMetadata, PopupType, MassSelectBar}};
+use crate::{Route, request, components::{Popup, PopupSearchBook, PopupEditMetadata, PopupType, MassSelectBar}, services::WsEventBus};
 
 
 #[derive(Properties, PartialEq)]
@@ -16,6 +17,8 @@ pub struct Property {
 
 #[derive(Clone)]
 pub enum Msg {
+	HandleWebsocket(WebsocketNotification),
+
 	// Requests
 	RequestMediaItems,
 
@@ -49,13 +52,15 @@ pub struct LibraryPage {
 
 	// TODO: Make More Advanced
 	editing_items: Rc<Mutex<Vec<usize>>>,
+
+	_producer: Box<dyn Bridge<WsEventBus>>,
 }
 
 impl Component for LibraryPage {
 	type Message = Msg;
 	type Properties = Property;
 
-	fn create(_ctx: &Context<Self>) -> Self {
+	fn create(ctx: &Context<Self>) -> Self {
 		Self {
 			on_scroll_fn: None,
 
@@ -69,11 +74,17 @@ impl Component for LibraryPage {
 			library_list_ref: NodeRef::default(),
 
 			editing_items: Rc::new(Mutex::new(Vec::new())),
+
+			_producer: WsEventBus::bridge(ctx.link().callback(Msg::HandleWebsocket)),
 		}
 	}
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
+			Msg::HandleWebsocket(value) => {
+				log::info!("-- {:?}", value);
+			}
+
 			Msg::ClosePopup => {
 				self.media_popup = None;
 			}

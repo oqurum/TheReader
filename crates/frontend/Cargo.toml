@@ -25,11 +25,14 @@ js-sys = "0.3"
 base64 = "0.13"
 lazy_static = "1.4"
 urlencoding = "2.1"
+futures = "0.3"
+reqwasm = "0.5"
 
 anyhow = "1.0"
 log = "0.4"
 
 yew = "0.19"
+yew-agent = "0.1"
 yew-router = "0.16"
 
 wasm-logger = "0.2"
