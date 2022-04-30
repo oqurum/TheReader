@@ -100,6 +100,17 @@ impl PartialEq for DisplayItem {
 	}
 }
 
+impl From<DisplayMetaItem> for DisplayItem {
+	fn from(val: DisplayMetaItem) -> Self {
+		DisplayItem {
+			id: val.id,
+			title: val.title.or(val.original_title).unwrap_or_default(),
+			cached: val.cached,
+			has_thumbnail: val.thumb_path.is_some()
+		}
+	}
+}
+
 
 // Used for Media View
 

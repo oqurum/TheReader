@@ -8,6 +8,7 @@ mod auth;
 mod ws;
 pub use self::api::api_route;
 pub use self::auth::*;
+pub use ws::send_message_to_clients;
 
 
 // TODO: Convert to async closure (https://github.com/rust-lang/rust/issues/62290)

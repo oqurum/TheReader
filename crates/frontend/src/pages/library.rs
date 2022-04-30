@@ -1,6 +1,6 @@
-use std::{rc::Rc, sync::Mutex};
+use std::{rc::Rc, sync::Mutex, collections::HashMap};
 
-use books_common::{api, DisplayItem, ws::WebsocketNotification};
+use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
@@ -24,6 +24,7 @@ pub enum Msg {
 
 	// Results
 	MediaListResults(api::GetBookListResponse),
+	BookItemResults(UniqueId, DisplayItem),
 
 	// Events
 	OnScroll(i32),
@@ -54,6 +55,9 @@ pub struct LibraryPage {
 	editing_items: Rc<Mutex<Vec<usize>>>,
 
 	_producer: Box<dyn Bridge<WsEventBus>>,
+
+	// TODO: I should just have a global one
+	task_items: HashMap<UniqueId, usize>,
 }
 
 impl Component for LibraryPage {
@@ -76,13 +80,40 @@ impl Component for LibraryPage {
 			editing_items: Rc::new(Mutex::new(Vec::new())),
 
 			_producer: WsEventBus::bridge(ctx.link().callback(Msg::HandleWebsocket)),
+
+			task_items: HashMap::new(),
 		}
 	}
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
 			Msg::HandleWebsocket(value) => {
-				log::info!("-- {:?}", value);
+				match value {
+					WebsocketNotification::TaskStart { id, type_of } => {
+						if let TaskType::UpdatingMetadata(meta_id) = type_of {
+							self.task_items.insert(id, meta_id);
+						}
+					}
+
+					WebsocketNotification::TaskEnd(id) => {
+						if let Some(metadata_id) = self.task_items.get(&id).copied() {
+							ctx.link()
+							.send_future(async move {
+								Msg::BookItemResults(id, request::get_media_view(metadata_id).await.metadata.into())
+							});
+						}
+					}
+				}
+			}
+
+			Msg::BookItemResults(unique_id, meta) => {
+				self.task_items.remove(&unique_id);
+
+				if let Some(items) = self.media_items.as_mut() {
+					if let Some(current_item) = items.iter_mut().find(|v| v.id == meta.id) {
+						*current_item = meta;
+					}
+				}
 			}
 
 			Msg::ClosePopup => {
@@ -380,6 +411,15 @@ impl LibraryPage {
 						})} title="More Options">{ "edit" }</span>
 					</div>
 					<img src={ item.get_thumb_url() } />
+					{
+						if self.task_items.values().any(|&v| item.id == v) {
+							html! {
+								<div class="changing"></div>
+							}
+						} else {
+							html! {}
+						}
+					}
 				</div>
 				<div class="info">
 					<div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>

@@ -1,14 +1,17 @@
 use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque};
 
 use actix_web::web;
-use crate::{Result, metadata::{search_all_agents, SearchItem}};
 use async_trait::async_trait;
-use books_common::{Source, ThumbnailStoreType, SearchFor, SearchForBooksBy};
+use books_common::{Source, ThumbnailStoreType, SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}};
 use chrono::Utc;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
-use crate::{database::{Database, table::{self, MetadataPerson, MetadataItem}}, metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source}};
+use crate::{
+	Result,
+	database::{Database, table::{self, MetadataPerson, MetadataItem}},
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients
+};
 
 
 // TODO: A should stop boolean
@@ -21,7 +24,7 @@ lazy_static! {
 
 #[async_trait]
 pub trait Task: Send {
-	async fn run(&mut self, db: &Database) -> Result<()>;
+	async fn run(&mut self, task_id: UniqueId, db: &Database) -> Result<()>;
 
 	fn name(&self) -> &'static str;
 }
@@ -49,10 +52,14 @@ pub fn start_task_manager(db: web::Data<Database>) {
 				if let Some(mut task) = TASKS_QUEUED.lock().unwrap().pop_front() {
 					let start_time = Instant::now();
 
-					match task.run(&db).await {
+					let task_id = UniqueId::default();
+
+					match task.run(task_id, &db).await {
 						Ok(_) => println!("Task {:?} Finished Successfully. Took: {:?}", task.name(), start_time.elapsed()),
 						Err(e) => eprintln!("Task {:?} Error: {e}", task.name()),
 					}
+
+					send_message_to_clients(WebsocketNotification::TaskEnd(task_id));
 				}
 			}
 		});
@@ -67,7 +74,7 @@ pub struct TaskLibraryScan;
 
 #[async_trait]
 impl Task for TaskLibraryScan {
-	async fn run(&mut self, db: &Database) -> Result<()> {
+	async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
 		for library in db.list_all_libraries()? {
 			let directories = db.get_directories(library.id)?;
 
@@ -111,7 +118,7 @@ impl TaskUpdateInvalidMetadata {
 
 #[async_trait]
 impl Task for TaskUpdateInvalidMetadata {
-	async fn run(&mut self, db: &Database) -> Result<()> {
+	async fn run(&mut self, task_id: UniqueId, db: &Database) -> Result<()> {
 		match self.state.clone() {
 			// TODO: Remove at some point. Currently inside of scanner.
 			UpdatingMetadata::AutoMatchInvalid => {
@@ -165,6 +172,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 			UpdatingMetadata::AutoUpdateMetaIdByFiles(meta_id) => {
 				println!("Auto Update Metadata ID by Files: {}", meta_id);
+				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
 
 				let fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
 
@@ -174,6 +182,7 @@ impl Task for TaskUpdateInvalidMetadata {
 			// TODO: Check how long it has been since we've refreshed meta: metnew_metaa if auto-ran.
 			UpdatingMetadata::AutoUpdateMetaIdBySource(meta_id) => {
 				println!("Auto Update Metadata ID by Source: {}", meta_id);
+				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
 
 				let fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
 
@@ -241,6 +250,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 			UpdatingMetadata::UpdateMetadataWithSource { meta_id: old_meta_id, source } => {
 				println!("UpdatingMetadata::SpecificMatchSingleMetaId {{ meta_id: {:?}, source: {:?} }}", old_meta_id, source);
+				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(old_meta_id)));
 
 				match db.get_metadata_by_source(&source)? {
 					// If the metadata already exists we move the old metadata files to the new one and completely remove old metadata.
@@ -537,7 +547,7 @@ impl TaskUpdatePeople {
 
 #[async_trait]
 impl Task for TaskUpdatePeople {
-	async fn run(&mut self, db: &Database) -> Result<()> {
+	async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
 		match self.state.clone() {
 			UpdatingPeople::AutoUpdateById(person_id) => {
 				let old_person = db.get_person_by_id(person_id)?.unwrap();
