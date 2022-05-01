@@ -415,7 +415,6 @@ pub struct MediaItemProps {
 impl PartialEq for MediaItemProps {
 	fn eq(&self, other: &Self) -> bool {
 		self.item == other.item &&
-		self.callback == other.callback &&
 		self.library_list_ref == other.library_list_ref &&
 		self.is_editing == other.is_editing &&
 		self.is_updating == other.is_updating
