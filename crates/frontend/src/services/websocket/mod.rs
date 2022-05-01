@@ -1,8 +1,10 @@
+use std::time::Duration;
+
 use books_common::ws::WebsocketResponse;
 use futures::{channel::mpsc::{Sender, channel, Receiver}, SinkExt, StreamExt, stream::{SplitSink, SplitStream}};
-use lazy_static::lazy_static;
 use reqwasm::websocket::{futures::WebSocket, Message};
 
+use tokio::time::sleep;
 use wasm_bindgen_futures::spawn_local;
 use yew_agent::Dispatched;
 
@@ -11,35 +13,21 @@ pub use event_bus::WsEventBus;
 
 use crate::util::as_local_path_without_http;
 
+pub fn open_websocket_conn() {
+	let url = format!("wss://{}", as_local_path_without_http("/ws/"));
 
-lazy_static! {
-	pub static ref WEBSOCKET: WebsocketService = WebsocketService::new();
-}
+	let ws = WebSocket::open(&url).unwrap();
 
+	log::info!("Conencted to WS: {}", url);
 
-pub struct WebsocketService {
-	pub tx: Sender<WebsocketResponse>,
-}
+	// Split Websocket
+	let (write, read) = ws.split();
 
-impl WebsocketService {
-	pub fn new() -> Self {
-		let url = format!("wss://{}", as_local_path_without_http("/ws/"));
+	// Create Channel. Currently used for Ping/Pong.
+	let (send, recieve) = channel::<WebsocketResponse>(1000);
 
-		let ws = WebSocket::open(&url).unwrap();
-
-		log::info!("Conencted to WS: {}", url);
-
-		// Split Websocket
-		let (write, read) = ws.split();
-
-		// Create Channel. Currently used for Ping/Pong.
-		let (send, recieve) = channel::<WebsocketResponse>(1000);
-
-		create_outgoing_writer(write, recieve);
-		create_incoming_reader(read, send.clone());
-
-		Self { tx: send }
-	}
+	create_outgoing_writer(write, recieve);
+	create_incoming_reader(read, send);
 }
 
 
@@ -85,14 +73,14 @@ fn create_incoming_reader(mut read: SplitStream<WebSocket>, mut send_back: Sende
 				Err(e) => {
 					log::error!("Websocket: {:?}", e);
 					send_back.close_channel();
+
+					sleep(Duration::from_secs(3)).await;
+
+					open_websocket_conn();
 				}
 			}
 		}
 
 		log::debug!("WebSocket Receive Closed");
 	});
-}
-
-fn attempt_reconnect() {
-	//
 }

@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use books_common::{api, Member};
 use lazy_static::lazy_static;
-use services::WEBSOCKET;
+use services::open_websocket_conn;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -43,8 +43,7 @@ impl Component for Model {
 	fn create(ctx: &Context<Self>) -> Self {
 		ctx.link()
 		.send_future(async {
-			// Used for initial load of websocket.
-			let _ = &WEBSOCKET.tx;
+			open_websocket_conn();
 
 			Msg::LoadMemberSelf(request::get_member_self().await)
 		});
