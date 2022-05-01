@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Mutex, collections::HashMap};
+use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}};
 use wasm_bindgen::{prelude::Closure, JsCast};
@@ -58,6 +58,8 @@ pub struct LibraryPage {
 
 	// TODO: I should just have a global one
 	task_items: HashMap<UniqueId, usize>,
+	// Used along with task_items
+	task_items_updating: HashSet<usize>,
 }
 
 impl Component for LibraryPage {
@@ -82,6 +84,7 @@ impl Component for LibraryPage {
 			_producer: WsEventBus::bridge(ctx.link().callback(Msg::HandleWebsocket)),
 
 			task_items: HashMap::new(),
+			task_items_updating: HashSet::new(),
 		}
 	}
 
@@ -92,6 +95,7 @@ impl Component for LibraryPage {
 					WebsocketNotification::TaskStart { id, type_of } => {
 						if let TaskType::UpdatingMetadata(meta_id) = type_of {
 							self.task_items.insert(id, meta_id);
+							self.task_items_updating.insert(meta_id);
 						}
 					}
 
@@ -107,7 +111,9 @@ impl Component for LibraryPage {
 			}
 
 			Msg::BookItemResults(unique_id, meta) => {
-				self.task_items.remove(&unique_id);
+				if let Some(meta_id) = self.task_items.remove(&unique_id) {
+					self.task_items_updating.remove(&meta_id);
+				}
 
 				if let Some(items) = self.media_items.as_mut() {
 					if let Some(current_item) = items.iter_mut().find(|v| v.id == meta.id) {
@@ -238,7 +244,23 @@ impl Component for LibraryPage {
 			html! {
 				<div class="main-content-view">
 					<div class="library-list normal" ref={ self.library_list_ref.clone() }>
-						{ for items.iter().map(|item| self.render_media_item(item, ctx.link())) }
+						{
+							for items.iter().map(|item| {
+								let is_editing = self.editing_items.lock().unwrap().contains(&item.id);
+								let is_updating = self.task_items_updating.contains(&item.id);
+
+								html! {
+									<MediaItem
+										{is_editing}
+										{is_updating}
+
+										item={item.clone()}
+										callback={ctx.link().callback(|v| v)}
+										library_list_ref={self.library_list_ref.clone()}
+									/>
+								}
+							})
+						}
 						// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
 
 						{
@@ -358,11 +380,78 @@ impl LibraryPage {
 		})
 	}
 
-	// TODO: Move into own struct.
-	fn render_media_item(&self, item: &DisplayItem, scope: &Scope<Self>) -> Html {
+	// fn render_placeholder_item() -> Html {
+	// 	html! {
+	// 		<div class="library-item placeholder">
+	// 			<div class="poster"></div>
+	// 			<div class="info">
+	// 				<a class="author"></a>
+	// 				<a class="title"></a>
+	// 			</div>
+	// 		</div>
+	// 	}
+	// }
+
+	pub fn can_req_more(&self) -> bool {
+		let count = self.media_items.as_ref().map(|v| v.len()).unwrap_or_default();
+
+		count != 0 && count != self.total_media_count as usize
+	}
+}
+
+
+
+// Media Item
+
+#[derive(Properties)]
+pub struct MediaItemProps {
+	pub item: DisplayItem,
+	pub callback: Callback<Msg>,
+	pub library_list_ref: NodeRef,
+	pub is_editing: bool,
+	pub is_updating: bool,
+}
+
+impl PartialEq for MediaItemProps {
+	fn eq(&self, other: &Self) -> bool {
+		self.item == other.item &&
+		self.callback == other.callback &&
+		self.library_list_ref == other.library_list_ref &&
+		self.is_editing == other.is_editing &&
+		self.is_updating == other.is_updating
+	}
+}
+
+
+pub struct MediaItem;
+
+impl Component for MediaItem {
+	type Message = Msg;
+	type Properties = MediaItemProps;
+
+	fn create(_ctx: &Context<Self>) -> Self {
+		Self
+	}
+
+	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+		ctx.props().callback.emit(msg);
+		true
+	}
+
+	fn view(&self, ctx: &Context<Self>) -> Html {
+		let &MediaItemProps {
+			is_editing,
+			is_updating,
+			ref item,
+			ref library_list_ref,
+			..
+		} = ctx.props();
+
+		let library_list_ref = library_list_ref.clone();
+
 		let meta_id = item.id;
-		let library_list_ref = self.library_list_ref.clone();
-		let on_click_more = scope.callback(move |e: MouseEvent| {
+
+		let on_click_more = ctx.link().callback(move |e: MouseEvent| {
 			e.prevent_default();
 			e.stop_propagation();
 
@@ -371,22 +460,20 @@ impl LibraryPage {
 			Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { meta_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
 		});
 
-		let is_editing = self.editing_items.lock().unwrap().contains(&item.id);
-
 		html! {
-			<Link<Route> to={Route::ViewMeta { meta_id: item.id as usize }} classes={ classes!("library-item") }>
+			<Link<Route> to={Route::ViewMeta { meta_id: item.id }} classes={ classes!("library-item") }>
 				<div class="poster">
 					<div class="top-left">
 						<input
 							checked={is_editing}
 							type="checkbox"
-							onclick={scope.callback(move |e: MouseEvent| {
+							onclick={ctx.link().callback(move |e: MouseEvent| {
 								e.prevent_default();
 								e.stop_propagation();
 
 								Msg::Ignore
 							})}
-							onmouseup={scope.callback(move |e: MouseEvent| {
+							onmouseup={ctx.link().callback(move |e: MouseEvent| {
 								let input = e.target_unchecked_into::<HtmlInputElement>();
 
 								let value = !input.checked();
@@ -401,18 +488,18 @@ impl LibraryPage {
 						<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
 					</div>
 					<div class="bottom-left">
-						<span class="material-icons" onclick={scope.callback_future(move |e: MouseEvent| {
+						<span class="material-icons" onclick={ctx.link().callback_future(move |e: MouseEvent| {
 							e.prevent_default();
 							e.stop_propagation();
 
 							async move {
-								Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(meta_id as usize).await))))
+								Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(meta_id).await))))
 							}
 						})} title="More Options">{ "edit" }</span>
 					</div>
 					<img src={ item.get_thumb_url() } />
 					{
-						if self.task_items.values().any(|&v| item.id == v) {
+						if is_updating {
 							html! {
 								<div class="changing"></div>
 							}
@@ -436,25 +523,8 @@ impl LibraryPage {
 			</Link<Route>>
 		}
 	}
-
-	// fn render_placeholder_item() -> Html {
-	// 	html! {
-	// 		<div class="library-item placeholder">
-	// 			<div class="poster"></div>
-	// 			<div class="info">
-	// 				<a class="author"></a>
-	// 				<a class="title"></a>
-	// 			</div>
-	// 		</div>
-	// 	}
-	// }
-
-	pub fn can_req_more(&self) -> bool {
-		let count = self.media_items.as_ref().map(|v| v.len()).unwrap_or_default();
-
-		count != 0 && count != self.total_media_count as usize
-	}
 }
+
 
 
 
