@@ -30,7 +30,7 @@ pub async fn load_resource(
 	if res.configure_pages {
 		let body = match book.read_path_as_bytes(
 			&resource_path,
-			Some(&format!("/book/{}/res", book_id)),
+			Some(&format!("/api/book/{}/res", book_id)),
 			Some(&[include_str!("../../../../../app/book_stylings.css")])
 		) {
 			Ok(v) => v,
