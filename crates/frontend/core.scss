@@ -1,3 +1,5 @@
+@use "sass:math";
+
 @font-face {
 	font-family: 'Material Icons';
 	font-style: normal;
@@ -111,12 +113,24 @@ body {
 	}
 }
 
+form,
+form > .form-container {
+	display: flex;
+	flex-direction: column;
+
+	&.row {
+		flex-direction: row;
+	}
+}
+
+
+
 // Using --gradient-2
 @keyframes rotate {
 	// Generates Underscores:  _% { ...: ...(___deg, ...) 1; }
 	@for $i from 0 through 100 {
 		#{$i}#{"%"} {
-			border-image: linear-gradient(#{360*$i/100}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
+			border-image: linear-gradient(#{math.div(360 * $i, 100)}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
 		}
 	}
 }
@@ -125,7 +139,7 @@ body {
 	// Generates Underscores:  _% { ...: ...(___deg, ...) 1; }
 	@for $i from 0 through 100 {
 		#{$i}#{"%"} {
-			border-image: linear-gradient(#{360*$i/100}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
+			border-image: linear-gradient(#{math.div(360 * $i, 100)}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
 		}
 	}
 }

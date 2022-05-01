@@ -81,7 +81,7 @@ impl Component for NavbarModule {
 				}
 				</div>
 				<div class="center-content">
-					<form class="search-bar">
+					<form class="search-bar row">
 						<input id={input_id} placeholder="Search" class="alternate" />
 						<button for={input_id} class="alternate" onclick={
 							ctx.link().callback(move |e: MouseEvent| {

@@ -72,7 +72,7 @@ impl Component for PopupSearchBook {
 			>
 				<h1>{"Book Search"}</h1>
 
-				<form>
+				<form class="row">
 					<input id={input_id} name="book_search" placeholder="Search For Title" value={ self.input_value.clone() } />
 					<button onclick={
 						ctx.link().callback_future(move |e: MouseEvent| async move {
