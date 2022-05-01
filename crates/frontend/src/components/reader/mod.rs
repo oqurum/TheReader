@@ -574,6 +574,8 @@ fn create_iframe() -> HtmlIFrameElement {
 fn generate_pages(book_dimensions: Option<(i32, i32)>, book_id: usize, chapter: Chapter, scope: Scope<Reader>) -> ChapterContents {
 	let iframe = create_iframe();
 
+	iframe.set_attribute("fetchPriority", "low").unwrap();
+
 	iframe.set_attribute(
 		"src",
 		&request::compile_book_resource_path(
