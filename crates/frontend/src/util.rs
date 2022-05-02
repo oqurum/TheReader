@@ -41,6 +41,13 @@ pub fn truncate_on_indices(s: &mut String, max_chars: usize) {
 
 
 
+pub enum LoadingItem<V> {
+	Loading,
+	Loaded(V),
+}
+
+
+
 // TODO: Implement for Frontend Editing.
 pub struct EditManager<T: Clone + PartialEq> {
 	changed: T,

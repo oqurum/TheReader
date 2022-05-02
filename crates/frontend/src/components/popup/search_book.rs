@@ -4,7 +4,7 @@ use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::{request, util};
+use crate::{request, util::{self, LoadingItem}};
 
 use super::{Popup, PopupType};
 
@@ -24,12 +24,14 @@ pub struct Property {
 pub enum Msg {
 	BookSearchResponse(String, MetadataSearchResponse),
 
+	SearchFor(String),
+
 	Ignore,
 }
 
 
 pub struct PopupSearchBook {
-	cached_posters: Option<MetadataSearchResponse>,
+	cached_posters: Option<LoadingItem<MetadataSearchResponse>>,
 	input_value: String,
 }
 
@@ -38,23 +40,34 @@ impl Component for PopupSearchBook {
 	type Properties = Property;
 
 	fn create(ctx: &Context<Self>) -> Self {
+		ctx.link().send_message(Msg::SearchFor(ctx.props().input_value.clone()));
+
 		Self {
 			cached_posters: None,
 			input_value: ctx.props().input_value.clone(),
 		}
 	}
 
-	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
 			Msg::Ignore => {
 				return false;
 			}
 
-			Msg::BookSearchResponse(search, resp) => {
-				self.cached_posters = Some(resp);
-				self.input_value = search;
+			Msg::SearchFor(search) => {
+				self.cached_posters = Some(LoadingItem::Loading);
 
-				let test = self.cached_posters.as_ref().unwrap();
+				ctx.link()
+				.send_future(async move {
+					let resp = request::search_for(&search, SearchType::Book).await;
+
+					Msg::BookSearchResponse(search, resp)
+				});
+			}
+
+			Msg::BookSearchResponse(search, resp) => {
+				self.cached_posters = Some(LoadingItem::Loaded(resp));
+				self.input_value = search;
 			}
 		}
 
@@ -75,12 +88,12 @@ impl Component for PopupSearchBook {
 				<form class="row">
 					<input id={input_id} name="book_search" placeholder="Search For Title" value={ self.input_value.clone() } />
 					<button onclick={
-						ctx.link().callback_future(move |e: MouseEvent| async move {
+						ctx.link().callback(move |e: MouseEvent| {
 							e.prevent_default();
 
 							let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
 
-							Msg::BookSearchResponse(input.value(), request::search_for(&input.value(), SearchType::Book).await)
+							Msg::SearchFor(input.value())
 						})
 					}>{ "Search" }</button>
 				</form>
@@ -88,17 +101,23 @@ impl Component for PopupSearchBook {
 				<div class="external-book-search-container">
 					{
 						if let Some(resp) = self.cached_posters.as_ref() {
-							html! {
-								<>
-									<h2>{ "Results" }</h2>
-									<div class="book-search-items">
-									{
-										for resp.items.iter()
-											.flat_map(|(name, values)| values.iter().map(|v| (name.clone(), v)))
-											.map(|(site, item)| Self::render_poster_container(site, item, ctx))
-									}
-									</div>
-								</>
+							match resp {
+								LoadingItem::Loaded(resp) => html! {
+									<>
+										<h2>{ "Results" }</h2>
+										<div class="book-search-items">
+										{
+											for resp.items.iter()
+												.flat_map(|(name, values)| values.iter().map(|v| (name.clone(), v)))
+												.map(|(site, item)| Self::render_poster_container(site, item, ctx))
+										}
+										</div>
+									</>
+								},
+
+								LoadingItem::Loading => html! {
+									<h2>{ "Loading..." }</h2>
+								}
 							}
 						} else {
 							html! {}
