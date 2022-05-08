@@ -1,10 +1,8 @@
-use std::time::Duration;
-
 use books_common::ws::WebsocketResponse;
 use futures::{channel::mpsc::{Sender, channel, Receiver}, SinkExt, StreamExt, stream::{SplitSink, SplitStream}};
+use gloo_timers::future::TimeoutFuture;
 use reqwasm::websocket::{futures::WebSocket, Message};
 
-use tokio::time::sleep;
 use wasm_bindgen_futures::spawn_local;
 use yew_agent::Dispatched;
 
@@ -74,7 +72,7 @@ fn create_incoming_reader(mut read: SplitStream<WebSocket>, mut send_back: Sende
 					log::error!("Websocket: {:?}", e);
 					send_back.close_channel();
 
-					sleep(Duration::from_secs(3)).await;
+					TimeoutFuture::new(3_000).await;
 
 					open_websocket_conn();
 				}
