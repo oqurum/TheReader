@@ -810,6 +810,7 @@ form > .form-container {
 
 			> .description {
 				max-inline-size: var(--text-size-content-4);
+				white-space: pre-wrap;
 			}
 		}
 	}
