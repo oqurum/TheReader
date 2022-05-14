@@ -107,6 +107,9 @@ pub enum Route {
 	#[at("/options")]
 	Options,
 
+	#[at("/setup")]
+	Setup,
+
 	#[at("/")]
 	#[not_found]
 	Dashboard
@@ -143,6 +146,10 @@ fn switch(route: &Route) -> Html {
 
 		Route::Options => {
 			html! { <pages::OptionsPage /> }
+		}
+
+		Route::Setup => {
+			html! { <pages::SetupPage /> }
 		}
 
 		Route::Dashboard => {
