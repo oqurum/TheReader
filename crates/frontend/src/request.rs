@@ -12,7 +12,7 @@ use books_common::{api::*, Progression, SearchType, Either, setup::SetupConfig};
 
 
 // Setup
-pub async fn check_if_setup() -> bool {
+pub async fn check_if_setup() -> ApiGetIsSetupResponse {
 	fetch(
 		"GET",
 		"/api/setup",
@@ -31,7 +31,7 @@ pub async fn finish_setup(value: SetupConfig) -> bool {
 
 // Image
 
-pub async fn get_posters_for_meta(metadata_id: usize) -> GetPostersResponse {
+pub async fn get_posters_for_meta(metadata_id: usize) -> ApiGetPosterByMetaIdResponse {
 	fetch(
 		"GET",
 		&format!("/api/posters/{}", metadata_id),
@@ -52,14 +52,14 @@ pub async fn change_poster_for_meta(metadata_id: usize, url_or_id: Either<String
 
 // Member
 
-pub async fn get_member_self() -> GetMemberSelfResponse {
+pub async fn get_member_self() -> ApiGetMemberSelfResponse {
 	fetch("GET", "/api/member", Option::<&()>::None).await.unwrap()
 }
 
 
 // Libraries
 
-pub async fn get_libraries() -> GetLibrariesResponse {
+pub async fn get_libraries() -> ApiGetLibrariesResponse {
 	fetch("GET", "/api/libraries", Option::<&()>::None).await.unwrap()
 }
 
@@ -74,7 +74,7 @@ pub async fn update_metadata(id: usize, value: &PostMetadataBody) {
 	).await.ok();
 }
 
-pub async fn get_media_view(metadata_id: usize) -> MediaViewResponse {
+pub async fn get_media_view(metadata_id: usize) -> ApiGetMetadataByIdResponse {
 	fetch(
 		"GET",
 		&format!("/api/metadata/{}", metadata_id),
@@ -83,7 +83,7 @@ pub async fn get_media_view(metadata_id: usize) -> MediaViewResponse {
 }
 
 
-pub async fn search_for(search: &str, search_for: SearchType) -> MetadataSearchResponse {
+pub async fn search_for(search: &str, search_for: SearchType) -> ApiGetMetadataSearchResponse {
 	fetch(
 		"GET",
 		&format!(
@@ -107,7 +107,7 @@ pub async fn update_person(id: usize, value: &PostPersonBody) {
 	).await.ok();
 }
 
-pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Option<usize>) -> GetPeopleResponse {
+pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Option<usize>) -> ApiGetPeopleResponse {
 	let mut url = String::from("/api/people?");
 
 	if let Some(value) = offset {
@@ -142,7 +142,7 @@ pub async fn get_books(
 	offset: Option<usize>,
 	limit: Option<usize>,
 	search: Option<SearchQuery>,
-) -> GetBookListResponse {
+) -> ApiGetBookListResponse {
 	let url = format!(
 		"/api/books?{}",
 		serde_urlencoded::to_string(BookListQuery::new(library, offset, limit, search).unwrap()).unwrap()
@@ -151,11 +151,11 @@ pub async fn get_books(
 	fetch("GET", &url, Option::<&()>::None).await.unwrap()
 }
 
-pub async fn get_book_info(id: usize) -> GetBookIdResponse {
+pub async fn get_book_info(id: usize) -> ApiGetBookByIdResponse {
 	fetch("GET", &format!("/api/book/{}", id), Option::<&()>::None).await.unwrap()
 }
 
-pub async fn get_book_pages(book_id: usize, start: usize, end: usize) -> GetChaptersResponse {
+pub async fn get_book_pages(book_id: usize, start: usize, end: usize) -> ApiGetBookPagesByIdResponse {
 	fetch("GET", &format!("/api/book/{}/pages/{}-{}", book_id, start, end), Option::<&()>::None).await.unwrap()
 }
 
@@ -190,7 +190,7 @@ pub async fn remove_book_progress(book_id: usize) {
 
 // Notes
 
-pub async fn get_book_notes(book_id: usize) -> Option<String> {
+pub async fn get_book_notes(book_id: usize) -> ApiGetBookNotesByIdResponse {
 	fetch("GET", &format!("/api/book/{}/notes", book_id), Option::<&()>::None).await.ok()
 }
 
@@ -213,7 +213,7 @@ pub async fn remove_book_notes(book_id: usize) {
 
 // Options
 
-pub async fn get_options() -> GetOptionsResponse {
+pub async fn get_options() -> ApiGetOptionsResponse {
 	fetch("GET", "/api/options", Option::<&()>::None).await.unwrap()
 }
 

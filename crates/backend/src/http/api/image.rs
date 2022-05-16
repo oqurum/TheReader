@@ -24,7 +24,7 @@ async fn get_local_image(path: web::Path<(String, String)>) -> impl Responder {
 async fn get_poster_list(
 	path: web::Path<usize>,
 	db: web::Data<Database>
-) -> WebResult<web::Json<api::GetPostersResponse>> {
+) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
 	let meta = db.get_metadata_by_id(*path)?.unwrap();
 
 	// TODO: For Open Library we need to go from an Edition to Work.

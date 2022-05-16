@@ -5,7 +5,7 @@ use crate::{database::Database, WebResult};
 
 
 #[get("/options")]
-async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::GetOptionsResponse>> {
+async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetOptionsResponse>> {
 	let libraries = db.list_all_libraries()?;
 	let mut directories = db.get_all_directories()?;
 

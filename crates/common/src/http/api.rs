@@ -5,6 +5,84 @@ use serde::{Serialize, Deserialize};
 use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Source, Member, Poster, Result};
 
 
+// API Routes
+
+// BOOKS
+/// GET     /books
+pub type ApiGetBookListResponse = self::GetBookListResponse;
+/// GET     /book/{id}
+pub type ApiGetBookByIdResponse = Option<self::GetBookIdResponse>;
+/// GET     /book/{id}/res/{tail:.*}
+pub type ApiGetBookResourceByIdResponse = String;
+/// GET     /book/{id}/pages/{pages}
+pub type ApiGetBookPagesByIdResponse = self::GetChaptersResponse;
+/// GET     /book/{id}/debug/{tail:.*}
+pub type ApiGetBookDebugByIdResponse = String;
+/// POST    /book/{id}/progress
+pub type ApiPostBookProgressByIdResponse = ();
+/// DELETE  /book/{id}/progress
+pub type ApiDeleteBookProgressByIdResponse = ();
+/// GET     /book/{id}/notes
+pub type ApiGetBookNotesByIdResponse = Option<String>;
+/// POST    /book/{id}/notes
+pub type ApiPostBookNotesByIdResponse = ();
+/// DELETE  /book/{id}/notes
+pub type ApiDeleteBookNotesByIdResponse = ();
+
+// IMAGES
+/// GET     /image/{type}/{id}
+pub type ApiGetImageTypeByIdResponse = Vec<u8>;
+/// GET     /posters/{meta_id}
+pub type ApiGetPosterByMetaIdResponse = self::GetPostersResponse;
+/// POST    /posters/{meta_id}
+pub type ApiPostPosterByMetaIdResponse = ();
+
+// Libraries
+/// GET     /libraries
+pub type ApiGetLibrariesResponse = self::GetLibrariesResponse;
+
+// Members
+/// GET     /member
+pub type ApiGetMemberSelfResponse = self::GetMemberSelfResponse;
+
+// Metadata
+/// GET     /metadata/{id}/thumbnail
+pub type ApiGetMetadataThumbnailResponse = Vec<u8>;
+/// GET     /metadata/{id}
+pub type ApiGetMetadataByIdResponse = self::MediaViewResponse;
+/// POST    /metadata/{id}
+pub type ApiPostUpdateMetadataResponse = ();
+/// GET     /metadata/search
+pub type ApiGetMetadataSearchResponse = self::MetadataSearchResponse;
+
+// Options
+/// GET     /options
+pub type ApiGetOptionsResponse = self::GetOptionsResponse;
+/// POST    /options/add
+pub type ApiPostOptionsAddResponse = ();
+/// POST    /options/remove
+pub type ApiPostOptionsRemoveResponse = ();
+
+// People
+/// GET     /people
+pub type ApiGetPeopleResponse = self::GetPeopleResponse;
+/// GET     /person/{id}/thumbnail
+pub type ApiGetPersonThumbnailResponse = Vec<u8>;
+/// POST    /person/{id}
+pub type ApiPostUpdatePersonResponse = ();
+
+// Task
+/// POST    /task
+pub type ApiPostRunTaskResponse = ();
+
+// Setup
+/// GET     /setup
+pub type ApiGetIsSetupResponse = bool;
+/// POST    /setup
+pub type ApiPostSetupResponse = ();
+
+
+
 // Images
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

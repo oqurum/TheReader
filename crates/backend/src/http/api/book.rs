@@ -60,7 +60,7 @@ pub async fn load_resource(
 
 
 #[get("/book/{id}/pages/{pages}")]
-pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::GetChaptersResponse>> {
+pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
 	let (book_id, chapters) = path.into_inner();
 
 	let file = db.find_file_by_id(book_id)?.unwrap();
@@ -179,9 +179,9 @@ pub async fn notes_book_get(
 	file_id: web::Path<usize>,
 	db: web::Data<Database>,
 	member: MemberCookie,
-) -> WebResult<HttpResponse> {
+) -> WebResult<web::Json<api::ApiGetBookNotesByIdResponse>> {
 	let v = db.get_notes(member.member_id(), *file_id)?;
-	Ok(HttpResponse::Ok().body(v.map(|v| v.data).unwrap_or_default()))
+	Ok(web::Json(v.map(|v| v.data)))
 }
 
 #[post("/book/{id}/notes")]
@@ -219,7 +219,7 @@ pub async fn notes_book_delete(
 pub async fn load_book_list(
 	query: web::Query<api::BookListQuery>,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::GetBookListResponse>> {
+) -> WebResult<web::Json<api::ApiGetBookListResponse>> {
 	let (items, count) = if let Some(search) = query.search_query() {
 		let search = search?;
 

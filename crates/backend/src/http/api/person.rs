@@ -10,7 +10,7 @@ use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{
 pub async fn load_author_list(
 	db: web::Data<Database>,
 	query: web::Query<api::SimpleListQuery>,
-) -> WebResult<web::Json<api::GetPeopleResponse>> {
+) -> WebResult<web::Json<api::ApiGetPeopleResponse>> {
 	let offset = query.offset.unwrap_or(0);
 	let limit = query.offset.unwrap_or(50);
 

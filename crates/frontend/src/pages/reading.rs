@@ -299,7 +299,7 @@ impl Component for ReadingBook {
 			let id = ctx.props().id;
 
 			ctx.link().send_future(async move {
-				Msg::RetrieveBook(request::get_book_info(id).await)
+				Msg::RetrieveBook(request::get_book_info(id).await.expect("Book Id Doesn't exist"))
 			});
 		}
 	}

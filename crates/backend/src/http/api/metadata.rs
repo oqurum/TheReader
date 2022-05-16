@@ -47,7 +47,7 @@ pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api
 }
 
 #[get("/metadata/{id}")]
-pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<web::Json<api::MediaViewResponse>> {
+pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
 	let meta = db.get_metadata_by_id(*meta_id)?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
@@ -72,7 +72,7 @@ pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Data
 }
 
 #[get("/metadata/search")]
-pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<web::Json<api::MetadataSearchResponse>> {
+pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<web::Json<api::ApiGetMetadataSearchResponse>> {
 	let search = metadata::search_all_agents(
 		&body.query,
 		match body.search_type {
@@ -121,4 +121,3 @@ pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> We
 			.collect()
 	}))
 }
-
