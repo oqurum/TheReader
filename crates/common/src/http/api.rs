@@ -28,14 +28,14 @@ pub type ApiGetBookNotesByIdResponse = Option<String>;
 pub type ApiPostBookNotesByIdResponse = ();
 /// DELETE  /book/{id}/notes
 pub type ApiDeleteBookNotesByIdResponse = ();
+/// GET     /book/{id}/posters
+pub type ApiGetPosterByMetaIdResponse = self::GetPostersResponse;
+/// POST    /book/{id}/posters
+pub type ApiPostPosterByMetaIdResponse = ();
 
 // IMAGES
 /// GET     /image/{type}/{id}
 pub type ApiGetImageTypeByIdResponse = Vec<u8>;
-/// GET     /posters/{meta_id}
-pub type ApiGetPosterByMetaIdResponse = self::GetPostersResponse;
-/// POST    /posters/{meta_id}
-pub type ApiPostPosterByMetaIdResponse = ();
 
 // Libraries
 /// GET     /libraries
@@ -46,6 +46,7 @@ pub type ApiGetLibrariesResponse = self::GetLibrariesResponse;
 pub type ApiGetMemberSelfResponse = self::GetMemberSelfResponse;
 
 // Metadata
+// TODO: Remove? Use /image/{type}/{id}?
 /// GET     /metadata/{id}/thumbnail
 pub type ApiGetMetadataThumbnailResponse = Vec<u8>;
 /// GET     /metadata/{id}
@@ -58,14 +59,15 @@ pub type ApiGetMetadataSearchResponse = self::MetadataSearchResponse;
 // Options
 /// GET     /options
 pub type ApiGetOptionsResponse = self::GetOptionsResponse;
-/// POST    /options/add
+/// POST    /options
 pub type ApiPostOptionsAddResponse = ();
-/// POST    /options/remove
+/// DELETE  /options
 pub type ApiPostOptionsRemoveResponse = ();
 
 // People
 /// GET     /people
 pub type ApiGetPeopleResponse = self::GetPeopleResponse;
+// TODO: Remove? Use /image/{type}/{id}?
 /// GET     /person/{id}/thumbnail
 pub type ApiGetPersonThumbnailResponse = Vec<u8>;
 /// POST    /person/{id}

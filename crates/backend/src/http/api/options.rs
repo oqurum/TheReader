@@ -43,7 +43,7 @@ fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) ->
 	ret
 }
 
-#[post("/options/add")]
+#[post("/options")]
 async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let api::ModifyOptionsBody {
 		library,
@@ -62,7 +62,7 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 	Ok(HttpResponse::Ok().finish())
 }
 
-#[post("/options/remove")]
+#[post("/options")]
 async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let api::ModifyOptionsBody {
 		library,

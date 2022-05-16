@@ -43,8 +43,6 @@ pub fn api_route() -> Scope<
 
 		// Image
 		.service(image::get_local_image)
-		.service(image::get_poster_list)
-		.service(image::post_change_poster)
 
 		// Member
 		.service(member::load_member_self)
@@ -54,6 +52,8 @@ pub fn api_route() -> Scope<
 		.service(metadata::update_item_metadata)
 		.service(metadata::get_metadata_search)
 		.service(metadata::get_all_metadata_comp)
+		.service(metadata::get_poster_list)
+		.service(metadata::post_change_poster)
 
 		// Person
 		.service(person::load_author_list)

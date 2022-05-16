@@ -1,8 +1,9 @@
 use actix_web::{get, web, HttpResponse, post};
 
-use books_common::{api, SearchType, SearchFor, SearchForBooksBy};
+use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, ThumbnailStoreType, Either};
+use chrono::Utc;
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error};
+use crate::{database::{Database, table::NewPoster}, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image};
 
 
 
@@ -24,28 +25,6 @@ async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>
 
 
 // Metadata
-
-#[post("/metadata/{id}")]
-pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
-	let meta_id = *meta_id;
-
-	match body.into_inner() {
-		api::PostMetadataBody::AutoMatchMetaIdByFiles => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdByFiles(meta_id)));
-		}
-
-		api::PostMetadataBody::AutoMatchMetaIdBySource => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdBySource(meta_id)));
-		}
-
-		api::PostMetadataBody::UpdateMetaBySource(source) => {
-			queue_task_priority(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::UpdateMetadataWithSource { meta_id, source }));
-		}
-	}
-
-	HttpResponse::Ok().finish()
-}
-
 #[get("/metadata/{id}")]
 pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
 	let meta = db.get_metadata_by_id(*meta_id)?.unwrap();
@@ -70,6 +49,125 @@ pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Data
 			.collect(),
 	}))
 }
+
+#[post("/metadata/{id}")]
+pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
+	let meta_id = *meta_id;
+
+	match body.into_inner() {
+		api::PostMetadataBody::AutoMatchMetaIdByFiles => {
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdByFiles(meta_id)));
+		}
+
+		api::PostMetadataBody::AutoMatchMetaIdBySource => {
+			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdBySource(meta_id)));
+		}
+
+		api::PostMetadataBody::UpdateMetaBySource(source) => {
+			queue_task_priority(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::UpdateMetadataWithSource { meta_id, source }));
+		}
+	}
+
+	HttpResponse::Ok().finish()
+}
+
+
+#[get("/metadata/{id}/posters")]
+async fn get_poster_list(
+	path: web::Path<usize>,
+	db: web::Data<Database>
+) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
+	let meta = db.get_metadata_by_id(*path)?.unwrap();
+
+	// TODO: For Open Library we need to go from an Edition to Work.
+	// Work is the main book. Usually consisting of more posters.
+	// We can do they by works[0].key = "/works/OLXXXXXXW"
+
+	let mut items: Vec<Poster> = db.get_posters_by_linked_id(*path)?
+		.into_iter()
+		.map(|poster| Poster {
+			id: Some(poster.id),
+
+			selected: poster.path == meta.thumb_path,
+
+			path: poster.path.as_url(),
+
+			created_at: poster.created_at,
+		})
+		.collect();
+
+	let search = crate::metadata::search_all_agents(
+		&format!(
+			"{} {}",
+			meta.title.as_deref().or(meta.title.as_deref()).unwrap_or_default(),
+			meta.cached.author.as_deref().unwrap_or_default(),
+		),
+		books_common::SearchFor::Book(books_common::SearchForBooksBy::Query)
+	).await?;
+
+	for item in search.0.into_values().flatten() {
+		if let crate::metadata::SearchItem::Book(item) = item {
+			for path in item.thumb_locations.into_iter().filter_map(|v| v.into_url_value()) {
+				items.push(Poster {
+					id: None,
+
+					selected: false,
+					path,
+
+					created_at: Utc::now(),
+				});
+			}
+		}
+	}
+
+	Ok(web::Json(api::GetPostersResponse {
+		items
+	}))
+}
+
+#[post("/metadata/{id}/posters")]
+async fn post_change_poster(
+	metadata_id: web::Path<usize>,
+	body: web::Json<api::ChangePosterBody>,
+	db: web::Data<Database>
+) -> WebResult<HttpResponse> {
+	let mut meta = db.get_metadata_by_id(*metadata_id)?.unwrap();
+
+	match body.into_inner().url_or_id {
+		Either::Left(url) => {
+			let resp = reqwest::get(url)
+				.await.map_err(Error::from)?
+				.bytes()
+				.await.map_err(Error::from)?;
+
+			let hash = store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await?;
+
+
+			meta.thumb_path = hash;
+
+			db.add_poster(&NewPoster {
+				link_id: meta.id,
+				path: meta.thumb_path.clone(),
+				created_at: Utc::now(),
+			})?;
+		}
+
+		Either::Right(id) => {
+			let poster = db.get_poster_by_id(id)?.unwrap();
+
+			if meta.thumb_path == poster.path {
+				return Ok(HttpResponse::Ok().finish());
+			}
+
+			meta.thumb_path = poster.path;
+		}
+	}
+
+	db.update_metadata(&meta)?;
+
+	Ok(HttpResponse::Ok().finish())
+}
+
 
 #[get("/metadata/search")]
 pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<web::Json<api::ApiGetMetadataSearchResponse>> {

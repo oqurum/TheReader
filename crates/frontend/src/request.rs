@@ -34,7 +34,7 @@ pub async fn finish_setup(value: SetupConfig) -> bool {
 pub async fn get_posters_for_meta(metadata_id: usize) -> ApiGetPosterByMetaIdResponse {
 	fetch(
 		"GET",
-		&format!("/api/posters/{}", metadata_id),
+		&format!("/api/book/{metadata_id}/posters"),
 		Option::<&()>::None
 	).await.unwrap()
 }
@@ -42,7 +42,7 @@ pub async fn get_posters_for_meta(metadata_id: usize) -> ApiGetPosterByMetaIdRes
 pub async fn change_poster_for_meta(metadata_id: usize, url_or_id: Either<String, usize>) {
 	let _: Option<String> = fetch(
 		"POST",
-		&format!("/api/posters/{}", metadata_id),
+		&format!("/api/book/{metadata_id}/posters"),
 		Some(&ChangePosterBody {
 			url_or_id
 		})
@@ -220,15 +220,15 @@ pub async fn get_options() -> ApiGetOptionsResponse {
 pub async fn update_options_add(options: ModifyOptionsBody) {
 	let _: Option<String> = fetch(
 		"POST",
-		"/api/options/add",
+		"/api/options",
 		Some(&options)
 	).await.ok();
 }
 
 pub async fn update_options_remove(options: ModifyOptionsBody) {
 	let _: Option<String> = fetch(
-		"POST",
-		"/api/options/remove",
+		"DELETE",
+		"/api/options",
 		Some(&options)
 	).await.ok();
 }
