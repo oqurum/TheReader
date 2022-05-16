@@ -1,4 +1,4 @@
-use actix_web::{web, Scope, dev::{ServiceFactory, ServiceRequest, ServiceResponse}};
+use actix_web::{web, Scope, dev::{ServiceFactory, ServiceRequest, ServiceResponse}, HttpResponse};
 
 use super::LoginRequired;
 
@@ -45,7 +45,6 @@ pub fn api_route() -> Scope<
 		.service(image::get_local_image)
 		.service(image::get_poster_list)
 		.service(image::post_change_poster)
-		.service(image::put_upload_poster)
 
 		// Member
 		.service(member::load_member_self)

@@ -1,5 +1,5 @@
 use actix_files::NamedFile;
-use actix_web::{get, web, HttpResponse, post, put, Responder};
+use actix_web::{get, web, HttpResponse, post, Responder};
 use books_common::{api, Poster, Either, ThumbnailStoreType};
 use chrono::Utc;
 
@@ -115,16 +115,4 @@ async fn post_change_poster(
 	db.update_metadata(&meta)?;
 
 	Ok(HttpResponse::Ok().finish())
-}
-
-
-#[put("/posters/{meta_id}")]
-async fn put_upload_poster(
-	path: web::Path<usize>,
-	// body: web::Payload,
-	db: web::Data<Database>
-) -> HttpResponse {
-	//
-
-	HttpResponse::Ok().finish()
 }

@@ -3,7 +3,6 @@ use actix_web::HttpResponse;
 use actix_web::http::header;
 use actix_web::{web, App, HttpServer, cookie::SameSite};
 
-use crate::WebResult;
 use crate::database::Database;
 
 mod api;
