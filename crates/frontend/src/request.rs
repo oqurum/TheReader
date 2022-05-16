@@ -5,10 +5,28 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::*, Progression, SearchType, Either};
+use books_common::{api::*, Progression, SearchType, Either, setup::SetupConfig};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
+
+
+// Setup
+pub async fn check_if_setup() -> bool {
+	fetch(
+		"GET",
+		"/api/setup",
+		Option::<&()>::None,
+	).await.unwrap()
+}
+
+pub async fn finish_setup(value: SetupConfig) -> bool {
+	fetch_jsvalue(
+		"POST",
+		"/api/setup",
+		Some(&value),
+	).await.is_ok()
+}
 
 
 // Image
@@ -231,6 +249,12 @@ pub async fn run_task() { // TODO: Use common::api::RunTaskBody
 
 
 async fn fetch<V: for<'a> Deserialize<'a>>(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<V, JsValue> {
+	let text = fetch_jsvalue(method, url, body).await?;
+
+	Ok(text.into_serde().unwrap())
+}
+
+async fn fetch_jsvalue(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<JsValue, JsValue> {
 	let mut opts = RequestInit::new();
 	opts.method(method);
 	opts.mode(RequestMode::Cors);
@@ -249,9 +273,7 @@ async fn fetch<V: for<'a> Deserialize<'a>>(method: &str, url: &str, body: Option
 	let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
 	let resp: Response = resp_value.dyn_into().unwrap();
 
-	let text = JsFuture::from(resp.json()?).await?;
-
-	Ok(text.into_serde().unwrap())
+	JsFuture::from(resp.json()?).await
 }
 
 

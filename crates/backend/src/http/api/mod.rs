@@ -10,6 +10,7 @@ pub mod metadata;
 pub mod options;
 pub mod person;
 pub mod task;
+pub mod settings;
 
 
 pub fn api_route() -> Scope<
@@ -23,6 +24,10 @@ pub fn api_route() -> Scope<
 > {
 	web::scope("/api")
 		.wrap(LoginRequired)
+
+		// Settings
+		.service(settings::is_setup)
+		.service(settings::save_initial_setup)
 
 		// Book
 		.service(book::load_book_debug)
@@ -66,4 +71,10 @@ pub fn api_route() -> Scope<
 
 		// Task
 		.service(task::run_task)
+
+		.default_service(web::route().to(default_handler))
+}
+
+async fn default_handler() -> HttpResponse {
+	HttpResponse::NotFound().finish()
 }
