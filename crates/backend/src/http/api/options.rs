@@ -1,4 +1,4 @@
-use actix_web::{get, web, HttpResponse, post};
+use actix_web::{get, web, HttpResponse, post, delete};
 use books_common::{api, LibraryColl};
 
 use crate::{database::Database, WebResult};
@@ -62,7 +62,7 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 	Ok(HttpResponse::Ok().finish())
 }
 
-#[post("/options")]
+#[delete("/options")]
 async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let api::ModifyOptionsBody {
 		library,
