@@ -1,5 +1,5 @@
 use actix_web::{get, web, HttpResponse, post, delete};
-use books_common::{api, LibraryColl};
+use books_common::{api, LibraryColl, util::take_from_and_swap};
 
 use crate::{database::Database, WebResult};
 
@@ -26,21 +26,6 @@ async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGe
 			})
 			.collect()
 	}))
-}
-
-// TODO: Move to utils file.
-fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) -> Vec<V> {
-	let mut ret = Vec::new();
-
-	for i in (0..array.len()).rev() {
-		if predicate(&array[i]) {
-			ret.push(array.swap_remove(i));
-		}
-	}
-
-	ret.reverse();
-
-	ret
 }
 
 #[post("/options")]

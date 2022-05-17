@@ -28,6 +28,20 @@ pub fn file_size_bytes_to_readable_string(value: i64) -> String {
 }
 
 
+pub fn take_from_and_swap<V, P: Fn(&V) -> bool>(array: &mut Vec<V>, predicate: P) -> Vec<V> {
+	let mut ret = Vec::new();
+
+	for i in (0..array.len()).rev() {
+		if predicate(&array[i]) {
+			ret.push(array.swap_remove(i));
+		}
+	}
+
+	ret.reverse();
+
+	ret
+}
+
 
 
 
