@@ -15,9 +15,9 @@ pub async fn is_setup() -> web::Json<api::ApiGetIsSetupResponse> {
 #[post("/setup")]
 pub async fn save_initial_setup(
 	body: web::Json<SetupConfig>,
-	db: web::Data<Database>,
+	_db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
-	//
+	crate::config::save_config(body.into_inner()).await?;
 
 	Ok(HttpResponse::Ok().finish())
 }

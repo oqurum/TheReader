@@ -45,8 +45,7 @@ impl Component for SetupPage {
 		match msg {
 			Msg::IsAlreadySetupResponse(is_setup) => {
 				self.is_setup = if is_setup {
-					let history = use_history().unwrap();
-
+					let history = ctx.link().history().unwrap();
     				history.push(Route::Dashboard);
 
 					IsSetup::Yes
@@ -56,14 +55,12 @@ impl Component for SetupPage {
 			}
 
 			Msg::AfterSentConfig => {
-				let history = use_history().unwrap();
+				let history = ctx.link().history().unwrap();
 				history.push(Route::Dashboard);
 			}
 
 			Msg::Finish => {
-				if self.is_finishing {
-					return false;
-				} else {
+				if !self.is_finishing {
 					self.is_finishing = true;
 
 					let config = self.config.as_changed_value().clone();
@@ -78,6 +75,8 @@ impl Component for SetupPage {
 						Msg::AfterSentConfig
 					});
 				}
+
+				return false;
 			}
 
 			Msg::UpdateInput(type_of, value) => match type_of {
@@ -134,7 +133,7 @@ impl Component for SetupPage {
 impl SetupPage {
 	fn render_first(&self, ctx: &Context<Self>) -> Html {
 		html! {
-			<form>
+			<div>
 				<div class="form-container">
 					<label for="our-name">{ "What would you like to name me?" }</label>
 					<input
@@ -155,7 +154,7 @@ impl SetupPage {
 				<div>
 					<button disabled={self.is_finishing} onclick={ctx.link().callback(|_| Msg::Finish)}>{ "Continue" }</button>
 				</div>
-			</form>
+			</div>
 		}
 	}
 

@@ -5,3 +5,4 @@
 
 database.db
 /app/thumbnails
+/app/config.json
