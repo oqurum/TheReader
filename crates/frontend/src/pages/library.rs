@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}};
-use frontend_component::popup::{Popup, PopupType};
+use common::component::popup::{Popup, PopupType};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::{prelude::*, html::Scope};

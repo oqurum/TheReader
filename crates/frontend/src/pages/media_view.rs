@@ -1,5 +1,5 @@
 use books_common::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string};
-use frontend_component::popup::{Popup, PopupType};
+use common::component::popup::{Popup, PopupType};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::*;
 

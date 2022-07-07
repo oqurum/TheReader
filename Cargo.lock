@@ -494,6 +494,7 @@ dependencies = [
  "bookie",
  "books-common",
  "chrono",
+ "common",
  "futures",
  "image",
  "lazy_static",
@@ -531,7 +532,7 @@ dependencies = [
  "anyhow",
  "base64",
  "books-common",
- "frontend-component",
+ "common",
  "futures",
  "gloo-file",
  "gloo-timers",
@@ -687,6 +688,27 @@ name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
+
+[[package]]
+name = "common"
+version = "0.1.0"
+source = "git+https://github.com/oqurum/common?rev=656ddb2#656ddb263351fd6e8f9b5b541dd9de2402e6d54b"
+dependencies = [
+ "futures",
+ "gloo-file",
+ "gloo-timers",
+ "gloo-utils",
+ "log",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "thiserror",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "yew",
+]
 
 [[package]]
 name = "console_error_panic_hook"
@@ -1039,24 +1061,6 @@ checksum = "5fc25a87fa4fd2094bffb06925852034d90a17f0d1e05197d4956d3555752191"
 dependencies = [
  "matches",
  "percent-encoding",
-]
-
-[[package]]
-name = "frontend-component"
-version = "0.1.0"
-source = "git+https://github.com/oqurum/frontend-components?rev=e134b55#e134b55c145f278b2a45252ca883f2d35864ae1a"
-dependencies = [
- "futures",
- "gloo-file",
- "gloo-timers",
- "gloo-utils",
- "log",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "yew",
 ]
 
 [[package]]

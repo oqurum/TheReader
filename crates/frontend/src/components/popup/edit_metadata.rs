@@ -1,5 +1,5 @@
+use common::component::popup::{Popup, PopupType};
 use books_common::{api::{MediaViewResponse, GetPostersResponse}, Either};
-use frontend_component::popup::{Popup, PopupType};
 use yew::prelude::*;
 
 use crate::request;

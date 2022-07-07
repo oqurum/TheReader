@@ -1,5 +1,5 @@
 use books_common::{api, Person, SearchType};
-use frontend_component::popup::{Popup, PopupType};
+use common::component::popup::{Popup, PopupType};
 use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, HtmlInputElement};

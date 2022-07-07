@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 books-common = { path = "../common" }
 
-frontend-component = { git = "https://github.com/oqurum/frontend-components", rev = "e134b55"  }
+common = { git = "https://github.com/oqurum/common", rev = "656ddb2", features = ["frontend"] }
 
 
 # reqwest = { version = "0.11", features = ["multipart"] }
