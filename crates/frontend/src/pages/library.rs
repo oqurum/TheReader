@@ -1,13 +1,14 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}};
+use frontend_component::popup::{Popup, PopupType};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
 use yew_agent::{Bridge, Bridged};
 use yew_router::prelude::Link;
 
-use crate::{Route, request, components::{Popup, PopupSearchBook, PopupEditMetadata, PopupType, MassSelectBar}, services::WsEventBus};
+use crate::{Route, request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar}, services::WsEventBus};
 
 
 #[derive(Properties, PartialEq)]

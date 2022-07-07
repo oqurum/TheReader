@@ -531,6 +531,7 @@ dependencies = [
  "anyhow",
  "base64",
  "books-common",
+ "frontend-component",
  "futures",
  "gloo-file",
  "gloo-timers",
@@ -1041,6 +1042,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "frontend-component"
+version = "0.1.0"
+source = "git+https://github.com/oqurum/frontend-components?rev=e134b55#e134b55c145f278b2a45252ca883f2d35864ae1a"
+dependencies = [
+ "futures",
+ "gloo-file",
+ "gloo-timers",
+ "gloo-utils",
+ "log",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "yew",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1222,9 +1241,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-file"
-version = "0.2.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d31ba1f51868ae10a0b665c6dccd5ed967486e7c17055d1c889596ee983be493"
+checksum = "a8d5564e570a38b43d78bdc063374a0c3098c4f0d64005b12f9bbe87e869b6d7"
 dependencies = [
  "futures-channel",
  "gloo-events",

@@ -1,4 +1,5 @@
 use books_common::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType};
+use frontend_component::popup::{Popup, PopupType};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -6,7 +7,6 @@ use yew::prelude::*;
 
 use crate::{request, util::{self, LoadingItem}};
 
-use super::{Popup, PopupType};
 
 
 #[derive(Properties, PartialEq)]

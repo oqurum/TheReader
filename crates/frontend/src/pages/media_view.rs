@@ -1,8 +1,9 @@
 use books_common::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string};
+use frontend_component::popup::{Popup, PopupType};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::*;
 
-use crate::{request, Route, components::{Popup, PopupType, PopupSearchBook, PopupEditMetadata}};
+use crate::{request, Route, components::{PopupSearchBook, PopupEditMetadata}};
 
 #[derive(Clone)]
 pub enum Msg {
