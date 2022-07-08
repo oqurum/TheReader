@@ -2,7 +2,7 @@ use rusqlite::{Row, types::FromSql};
 
 
 pub mod image;
-
+pub mod library;
 
 
 pub trait TableRow<'a> where Self: Sized {

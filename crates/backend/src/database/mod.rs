@@ -2,7 +2,6 @@ use std::sync::{Mutex, MutexGuard};
 
 use crate::Result;
 use books_common::{Progression, api, FileId, MetadataId, LibraryId};
-use chrono::Utc;
 use common::{MemberId, PersonId, Either, Source};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
@@ -22,7 +21,6 @@ pub async fn init() -> Result<Database> {
 			"id" 				INTEGER NOT NULL UNIQUE,
 
 			"name" 				TEXT UNIQUE,
-			"type_of" 			TEXT,
 
 			"scanned_at" 		DATETIME NOT NULL,
 			"created_at" 		DATETIME NOT NULL,
@@ -287,54 +285,6 @@ impl Database {
 
 	pub fn write(&self) -> Result<MutexGuard<Connection>> {
 		Ok(self.0.lock()?)
-	}
-
-
-	// Libraries
-
-	pub fn add_library(&self, name: String) -> Result<()> {
-		// TODO: Create outside of fn.
-		let lib = NewLibrary {
-			name,
-			type_of: String::new(),
-			scanned_at: Utc::now(),
-			created_at: Utc::now(),
-			updated_at: Utc::now(),
-		};
-
-		self.lock()?.execute(
-			r#"INSERT INTO library (name, type_of, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)"#,
-			params![&lib.name, &lib.type_of, lib.scanned_at.timestamp_millis(), lib.created_at.timestamp_millis(), lib.updated_at.timestamp_millis()]
-		)?;
-
-		Ok(())
-	}
-
-	pub fn remove_library(&self, id: LibraryId) -> Result<usize> {
-		self.remove_directories_by_library_id(id)?;
-
-		Ok(self.lock()?.execute(
-			r#"DELETE FROM library WHERE id = ?1"#,
-			params![id]
-		)?)
-	}
-
-	pub fn list_all_libraries(&self) -> Result<Vec<Library>> {
-		let this = self.lock()?;
-
-		let mut conn = this.prepare("SELECT * FROM library")?;
-
-		let map = conn.query_map([], |v| Library::try_from(v))?;
-
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
-
-	pub fn get_library_by_name(&self, value: &str) -> Result<Option<Library>> {
-		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM library WHERE name = ?1 LIMIT 1"#,
-			params![value],
-			|v| Library::try_from(v)
-		).optional()?)
 	}
 
 

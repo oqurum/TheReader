@@ -302,48 +302,6 @@ impl From<FileProgression> for Progression {
 }
 
 
-// Library
-
-pub struct NewLibrary {
-	pub name: String,
-	pub type_of: String,
-
-	pub scanned_at: DateTime<Utc>,
-	pub created_at: DateTime<Utc>,
-	pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Library {
-	pub id: LibraryId,
-
-	pub name: String,
-	pub type_of: String,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub scanned_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub updated_at: DateTime<Utc>,
-}
-
-impl<'a> TryFrom<&Row<'a>> for Library {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			id: value.get(0)?,
-			name: value.get(1)?,
-			type_of: value.get(2)?,
-			scanned_at: Utc.timestamp_millis(value.get(3)?),
-			created_at: Utc.timestamp_millis(value.get(4)?),
-			updated_at: Utc.timestamp_millis(value.get(5)?),
-		})
-	}
-}
-
-
 // Directory
 
 pub struct Directory {

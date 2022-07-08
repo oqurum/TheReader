@@ -1,12 +1,13 @@
 use actix_web::{get, web, HttpResponse, post, delete};
 use books_common::{api, LibraryColl, util::take_from_and_swap};
+use chrono::Utc;
 
-use crate::{database::Database, WebResult};
+use crate::{database::Database, WebResult, model::library::{LibraryModel, NewLibraryModel}};
 
 
 #[get("/options")]
 async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetOptionsResponse>> {
-	let libraries = db.list_all_libraries()?;
+	let libraries = LibraryModel::list_all_libraries(&db)?;
 	let mut directories = db.get_all_directories()?;
 
 	Ok(web::Json(api::GetOptionsResponse {
@@ -36,7 +37,14 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 	} = modify.into_inner();
 
 	if let Some(name) = library.and_then(|v| v.name) {
-		db.add_library(name)?;
+		let lib = NewLibraryModel {
+			name,
+			created_at: Utc::now(),
+			scanned_at: Utc::now(),
+			updated_at: Utc::now(),
+		};
+
+		lib.insert(&db)?;
 	}
 
 	if let Some(directory) = directory {
@@ -55,7 +63,7 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 	} = modify.into_inner();
 
 	if let Some(id) = library.and_then(|v| v.id) {
-		db.remove_library(id)?;
+		LibraryModel::remove_by_id(id, &db)?;
 	}
 
 	if let Some(directory) = directory {
