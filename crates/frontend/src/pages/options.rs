@@ -1,4 +1,4 @@
-use books_common::{api, BasicLibrary, BasicDirectory};
+use books_common::{api, BasicLibrary, BasicDirectory, LibraryId};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlElement, HtmlInputElement};
 use yew::prelude::*;
@@ -10,7 +10,7 @@ pub enum Msg {
 	OptionsResults(api::GetOptionsResponse),
 
 	// Events
-	DisplayPopup(usize, usize),
+	DisplayPopup(usize, LibraryId),
 	ClosePopup,
 
 	RequestUpdateOptions(bool),
@@ -21,7 +21,7 @@ pub enum Msg {
 
 pub struct OptionsPage {
 	resp: Option<api::GetOptionsResponse>,
-	visible_popup: Option<(usize, usize)>,
+	visible_popup: Option<(usize, LibraryId)>,
 	update_popup: Option<api::ModifyOptionsBody>
 }
 
@@ -138,7 +138,7 @@ impl Component for OptionsPage {
 								}
 							})
 					}
-					<button class="button" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, 0))}>{ "Add Library" }</button>
+					<button class="button" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, LibraryId::none()))}>{ "Add Library" }</button>
 
 					{ self.render_popup(ctx) }
 				</div>

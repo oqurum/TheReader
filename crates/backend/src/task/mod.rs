@@ -2,8 +2,9 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 
 use actix_web::web;
 use async_trait::async_trait;
-use books_common::{Source, ThumbnailStoreType, SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}};
+use books_common::{Source, ThumbnailStoreType, SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, MetadataId};
 use chrono::Utc;
+use common::PersonId;
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
@@ -96,10 +97,10 @@ impl Task for TaskLibraryScan {
 #[derive(Clone)]
 pub enum UpdatingMetadata {
 	AutoMatchInvalid,
-	AutoUpdateMetaIdBySource(usize),
-	AutoUpdateMetaIdByFiles(usize),
+	AutoUpdateMetaIdBySource(MetadataId),
+	AutoUpdateMetaIdByFiles(MetadataId),
 	UpdateMetadataWithSource {
-		meta_id: usize,
+		meta_id: MetadataId,
 		source: Source,
 	}
 }
@@ -408,7 +409,7 @@ impl Task for TaskUpdateInvalidMetadata {
 }
 
 impl TaskUpdateInvalidMetadata {
-	async fn search_meta_by_files(meta_id: usize, mut fm_meta: MetadataItem, db: &Database) -> Result<()> {
+	async fn search_meta_by_files(meta_id: MetadataId, mut fm_meta: MetadataItem, db: &Database) -> Result<()> {
 		// Check Files first.
 		let files = db.get_files_by_metadata_id(meta_id)?;
 
@@ -524,9 +525,9 @@ impl TaskUpdateInvalidMetadata {
 
 #[derive(Clone)]
 pub enum UpdatingPeople {
-	AutoUpdateById(usize),
+	AutoUpdateById(PersonId),
 	UpdatePersonWithSource {
-		person_id: usize,
+		person_id: PersonId,
 		source: Source,
 	}
 }

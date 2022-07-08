@@ -1,6 +1,7 @@
 use actix_web::{web, get, post, HttpResponse};
 use books_common::api;
 use chrono::Utc;
+use common::{PersonId, Either};
 
 use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{self, queue_task_priority}, queue_task, WebResult, Error};
 
@@ -48,7 +49,7 @@ pub async fn load_author_list(
 
 // Person Thumbnail
 #[get("/person/{id}/thumbnail")]
-async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+async fn load_person_thumbnail(person_id: web::Path<PersonId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let meta = db.get_person_by_id(*person_id)?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_url) {
@@ -63,8 +64,8 @@ async fn load_person_thumbnail(person_id: web::Path<usize>, db: web::Data<Databa
 
 // Person Tasks - Update Person, Overwrite Person with another source.
 #[post("/person/{id}")]
-pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	let person_id = *meta_id;
+pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+	let person_id = *person_id;
 
 	match body.into_inner() {
 		api::PostPersonBody::AutoMatchById => {
@@ -94,7 +95,7 @@ pub async fn update_person_data(meta_id: web::Path<usize>, body: web::Json<api::
 			});
 
 			// Transfer Old Person Metadata to New Person
-			for met_per in db.get_meta_person_list(old_person.id)? {
+			for met_per in db.get_meta_person_list(Either::Right(old_person.id))? {
 				let _ = db.add_meta_person(&MetadataPerson {
 					metadata_id: met_per.metadata_id,
 					person_id: into_person.id,

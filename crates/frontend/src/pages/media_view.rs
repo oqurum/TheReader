@@ -1,4 +1,4 @@
-use books_common::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string};
+use books_common::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string, MetadataId};
 use common::component::popup::{Popup, PopupType};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::*;
@@ -15,14 +15,14 @@ pub enum Msg {
 	ClosePopup,
 
 	// Popup Events
-	UpdateMeta(usize),
+	UpdateMeta(MetadataId),
 
 	Ignore
 }
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
-	pub id: usize
+	pub id: MetadataId
 }
 
 pub struct MediaView {
@@ -123,7 +123,7 @@ impl Component for MediaView {
 							{
 								for media_prog.map(|(media, prog)| {
 									html! {
-										<Link<Route> to={Route::ReadBook { book_id: media.id as usize }} classes={ classes!("file-item") }>
+										<Link<Route> to={Route::ReadBook { book_id: media.id }} classes={ classes!("file-item") }>
 											<h5>{ media.file_name.clone() }</h5>
 											<div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
 											<div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
@@ -270,18 +270,18 @@ impl MediaView {
 #[derive(Clone)]
 pub enum DisplayOverlay {
 	Info {
-		meta_id: usize
+		meta_id: MetadataId
 	},
 
 	Edit(Box<api::MediaViewResponse>),
 
 	More {
-		meta_id: usize,
+		meta_id: MetadataId,
 		mouse_pos: (i32, i32)
 	},
 
 	SearchForBook {
-		meta_id: usize,
+		meta_id: MetadataId,
 		input_value: Option<String>,
 	},
 }

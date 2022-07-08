@@ -1,5 +1,6 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, Source, ThumbnailStore};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, Source, ThumbnailStore, FileId, MetadataId, LibraryId};
 use chrono::{DateTime, TimeZone, Utc};
+use common::{PersonId, MemberId, ImageId};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
 
@@ -9,9 +10,9 @@ use serde::{Serialize, Serializer};
 // TODO: Place into common
 #[derive(Debug, Clone, Serialize)]
 pub struct MetadataItem {
-	pub id: usize,
+	pub id: MetadataId,
 
-	pub library_id: usize,
+	pub library_id: LibraryId,
 
 	pub source: Source,
 	pub file_item_count: i64,
@@ -124,8 +125,8 @@ impl From<MetadataItem> for DisplayMetaItem {
 
 #[derive(Debug, Serialize)]
 pub struct MetadataPerson {
-	pub metadata_id: usize,
-	pub person_id: usize,
+	pub metadata_id: MetadataId,
+	pub person_id: PersonId,
 }
 
 impl<'a> TryFrom<&Row<'a>> for MetadataPerson {
@@ -144,8 +145,8 @@ impl<'a> TryFrom<&Row<'a>> for MetadataPerson {
 
 #[derive(Debug, Serialize)]
 pub struct FileNote {
-	pub file_id: usize,
-	pub user_id: usize,
+	pub file_id: FileId,
+	pub user_id: MemberId,
 
 	pub data: String,
 	pub data_size: i64,
@@ -157,7 +158,7 @@ pub struct FileNote {
 }
 
 impl FileNote {
-	pub fn new(file_id: usize, user_id: usize, data: String) -> Self {
+	pub fn new(file_id: FileId, user_id: MemberId, data: String) -> Self {
 		Self {
 			file_id,
 			user_id,
@@ -193,8 +194,8 @@ impl<'a> TryFrom<&Row<'a>> for FileNote {
 
 #[derive(Debug, Serialize)]
 pub struct FileProgression {
-	pub file_id: usize,
-	pub user_id: usize,
+	pub file_id: FileId,
+	pub user_id: MemberId,
 
 	pub type_of: u8,
 
@@ -215,7 +216,7 @@ pub struct FileProgression {
 }
 
 impl FileProgression {
-	pub fn new(progress: Progression, user_id: usize, file_id: usize) -> Self {
+	pub fn new(progress: Progression, user_id: MemberId, file_id: FileId) -> Self {
 		match progress {
 			Progression::Complete => Self {
 				file_id,
@@ -314,7 +315,7 @@ pub struct NewLibrary {
 
 #[derive(Debug, Serialize)]
 pub struct Library {
-	pub id: usize,
+	pub id: LibraryId,
 
 	pub name: String,
 	pub type_of: String,
@@ -346,7 +347,7 @@ impl<'a> TryFrom<&Row<'a>> for Library {
 // Directory
 
 pub struct Directory {
-	pub library_id: usize,
+	pub library_id: LibraryId,
 	pub path: String,
 }
 
@@ -371,8 +372,8 @@ pub struct NewFile {
 	pub file_type: String,
 	pub file_size: i64,
 
-	pub library_id: usize,
-	pub metadata_id: Option<usize>,
+	pub library_id: LibraryId,
+	pub metadata_id: Option<MetadataId>,
 	pub chapter_count: i64,
 
 	pub identifier: Option<String>,
@@ -383,7 +384,7 @@ pub struct NewFile {
 }
 
 impl NewFile {
-	pub fn into_file(self, id: usize) -> File {
+	pub fn into_file(self, id: FileId) -> File {
 		File {
 			id,
 			path: self.path,
@@ -404,7 +405,7 @@ impl NewFile {
 
 #[derive(Debug, Serialize)]
 pub struct File {
-	pub id: usize,
+	pub id: FileId,
 
 	pub path: String,
 
@@ -412,8 +413,8 @@ pub struct File {
 	pub file_type: String,
 	pub file_size: i64,
 
-	pub library_id: usize,
-	pub metadata_id: Option<usize>,
+	pub library_id: LibraryId,
+	pub metadata_id: Option<MetadataId>,
 	pub chapter_count: i64,
 
 	pub identifier: Option<String>,
@@ -495,7 +496,7 @@ pub struct NewTagPerson {
 
 #[derive(Debug, Serialize)]
 pub struct TagPerson {
-	pub id: usize,
+	pub id: PersonId,
 
 	pub source: Source,
 
@@ -552,7 +553,7 @@ impl From<TagPerson> for Person {
 
 #[derive(Debug, Serialize)]
 pub struct TagPersonAlt {
-	pub person_id: usize,
+	pub person_id: PersonId,
 	pub name: String,
 }
 
@@ -642,7 +643,7 @@ pub struct NewMember {
 }
 
 impl NewMember {
-	pub fn into_member(self, id: usize) -> Member {
+	pub fn into_member(self, id: MemberId) -> Member {
 		Member {
 			id,
 			name: self.name,
@@ -658,7 +659,7 @@ impl NewMember {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Member {
-	pub id: usize,
+	pub id: MemberId,
 
 	pub name: String,
 	pub email: Option<String>,
@@ -720,7 +721,7 @@ pub struct NewAuth {
 
 #[derive(Serialize)]
 pub struct NewPoster {
-	pub link_id: usize,
+	pub link_id: MetadataId,
 
 	pub path: ThumbnailStore,
 
@@ -731,9 +732,9 @@ pub struct NewPoster {
 
 #[derive(Debug, Serialize)]
 pub struct Poster {
-	pub id: usize,
+	pub id: ImageId,
 
-	pub link_id: usize,
+	pub link_id: MetadataId,
 
 	pub path: ThumbnailStore,
 

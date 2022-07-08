@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc, sync::Mutex, path::PathBuf};
 
-use books_common::{MediaItem, Progression, Chapter, api};
+use books_common::{MediaItem, Progression, Chapter, api, FileId};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};
@@ -571,7 +571,7 @@ fn create_iframe() -> HtmlIFrameElement {
 		.unwrap()
 }
 
-fn generate_pages(book_dimensions: Option<(i32, i32)>, book_id: usize, chapter: Chapter, scope: Scope<Reader>) -> ChapterContents {
+fn generate_pages(book_dimensions: Option<(i32, i32)>, book_id: FileId, chapter: Chapter, scope: Scope<Reader>) -> ChapterContents {
 	let iframe = create_iframe();
 
 	iframe.set_attribute("fetchPriority", "low").unwrap();

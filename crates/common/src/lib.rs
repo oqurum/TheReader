@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
+use common::{MemberId, PersonId, ImageId};
 use serde::{Serialize, Deserialize};
 
 use util::*;
@@ -18,7 +19,7 @@ pub use error::{Result, Error};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Member {
-	pub id: usize,
+	pub id: MemberId,
 
 	pub name: String,
 	pub email: Option<String>,
@@ -40,7 +41,7 @@ pub struct Member {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Person {
-	pub id: usize,
+	pub id: PersonId,
 
 	pub source: Source,
 
@@ -77,7 +78,7 @@ impl PartialEq for Person {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DisplayItem {
-	pub id: usize,
+	pub id: MetadataId,
 
 	pub title: String,
 	pub cached: MetadataItemCached,
@@ -116,9 +117,9 @@ impl From<DisplayMetaItem> for DisplayItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct DisplayMetaItem {
-	pub id: usize,
+	pub id: MetadataId,
 
-	pub library_id: usize,
+	pub library_id: LibraryId,
 
 	pub source: Source,
 	pub file_item_count: i64,
@@ -189,7 +190,7 @@ impl Default for DisplayMetaItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MediaItem {
-	pub id: usize,
+	pub id: FileId,
 
 	pub path: String,
 
@@ -197,8 +198,8 @@ pub struct MediaItem {
 	pub file_type: String,
 	pub file_size: i64,
 
-	pub library_id: usize,
-	pub metadata_id: Option<usize>,
+	pub library_id: LibraryId,
+	pub metadata_id: Option<MetadataId>,
 	pub chapter_count: usize,
 
 	pub identifier: Option<String>,
@@ -240,7 +241,7 @@ pub struct Chapter {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LibraryColl {
-	pub id: usize,
+	pub id: LibraryId,
 	pub name: String,
 
 	pub scanned_at: i64,
@@ -253,13 +254,13 @@ pub struct LibraryColl {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicLibrary {
-	pub id: Option<usize>,
+	pub id: Option<LibraryId>,
 	pub name: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicDirectory {
-	pub library_id: usize,
+	pub library_id: LibraryId,
 	pub path: String
 }
 
@@ -348,7 +349,7 @@ pub enum SearchForBooksBy {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Poster {
-	pub id: Option<usize>,
+	pub id: Option<ImageId>,
 
 	pub selected: bool,
 

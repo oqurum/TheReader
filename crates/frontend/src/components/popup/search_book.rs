@@ -1,4 +1,4 @@
-use books_common::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType};
+use books_common::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType, MetadataId};
 use common::component::popup::{Popup, PopupType};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
@@ -16,7 +16,7 @@ pub struct Property {
 
 	pub on_close: Callback<()>,
 
-	pub meta_id: usize,
+	pub meta_id: MetadataId,
 	pub input_value: String,
 }
 

@@ -3,7 +3,7 @@
 
 use std::{rc::Rc, sync::{Mutex, Arc}};
 
-use books_common::{MediaItem, api::{GetBookIdResponse, GetChaptersResponse}, Progression};
+use books_common::{MediaItem, api::{GetBookIdResponse, GetChaptersResponse}, Progression, FileId};
 use gloo_utils::window;
 use js_sys::Array;
 use wasm_bindgen::{JsCast, prelude::Closure};
@@ -40,7 +40,7 @@ pub enum Msg {
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
-	pub id: usize
+	pub id: FileId
 }
 
 pub struct ReadingBook {

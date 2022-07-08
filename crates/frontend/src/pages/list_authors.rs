@@ -1,5 +1,5 @@
 use books_common::{api, Person, SearchType};
-use common::component::popup::{Popup, PopupType};
+use common::{component::popup::{Popup, PopupType}, PersonId};
 use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, HtmlInputElement};
@@ -476,29 +476,29 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay),
 
 	// Popup Events
-	UpdatePerson(usize),
+	UpdatePerson(PersonId),
 }
 
 
 #[derive(Clone)]
 pub enum DisplayOverlay {
 	Info {
-		person_id: usize
+		person_id: PersonId
 	},
 
 	More {
-		person_id: usize,
+		person_id: PersonId,
 		mouse_pos: (i32, i32)
 	},
 
 	SearchForPerson {
-		person_id: usize,
+		person_id: PersonId,
 		input_value: Option<String>,
 		response: Option<api::MetadataSearchResponse>
 	},
 
 	CombinePersonWith {
-		person_id: usize,
+		person_id: PersonId,
 		input_value: Option<String>,
 		response: Option<Vec<Person>>
 	},

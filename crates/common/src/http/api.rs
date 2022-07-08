@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use common::{ImageId, PersonId};
 use serde::{Serialize, Deserialize};
 
-use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Source, Member, Poster, Result};
+use crate::{Either, MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Source, Member, Poster, Result, LibraryId};
 
 
 // API Routes
@@ -94,7 +95,7 @@ pub struct GetPostersResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChangePosterBody {
-	pub url_or_id: Either<String, usize>,
+	pub url_or_id: Either<String, ImageId>,
 }
 
 
@@ -138,7 +139,7 @@ pub struct GetBookListResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct BookListQuery {
-	pub library: Option<usize>,
+	pub library: Option<LibraryId>,
 	pub offset: Option<usize>,
 	pub limit: Option<usize>,
 	/// `SearchQuery`
@@ -146,7 +147,7 @@ pub struct BookListQuery {
 }
 
 impl BookListQuery {
-	pub fn new(library: Option<usize>, offset: Option<usize>, limit: Option<usize>, search: Option<SearchQuery>) -> Result<Self> {
+	pub fn new(library: Option<LibraryId>, offset: Option<usize>, limit: Option<usize>, search: Option<SearchQuery>) -> Result<Self> {
 		let search = search.map(serde_urlencoded::to_string)
 			.transpose()?;
 
@@ -187,7 +188,7 @@ pub enum PostPersonBody {
 
 	UpdateBySource(Source),
 
-	CombinePersonWith(usize),
+	CombinePersonWith(PersonId),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

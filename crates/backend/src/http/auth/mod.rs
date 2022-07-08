@@ -3,6 +3,7 @@ use std::{pin::Pin, future::{Ready, ready}, task::{Poll, Context}, rc::Rc};
 use actix_identity::Identity;
 use actix_web::{FromRequest, HttpRequest, dev::{Payload, Transform, Service, ServiceRequest, ServiceResponse}, error::ErrorUnauthorized, body::MessageBody};
 use chrono::Utc;
+use common::MemberId;
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,7 @@ pub mod passwordless;
 
 #[derive(Serialize, Deserialize)]
 pub struct CookieAuth {
-	pub member_id: usize,
+	pub member_id: MemberId,
 	pub stored_since: i64,
 }
 
@@ -29,7 +30,7 @@ pub fn get_auth_member(identity: &Identity, db: &Database) -> Option<table::Memb
 	db.get_member_by_id(store.member_id).ok().flatten()
 }
 
-pub fn remember_member_auth(member_id: usize, identity: &Identity) -> Result<()> {
+pub fn remember_member_auth(member_id: MemberId, identity: &Identity) -> Result<()> {
 	let value = serde_json::to_string(&CookieAuth {
 		member_id,
 		stored_since: Utc::now().timestamp_millis(),
@@ -44,7 +45,7 @@ pub fn remember_member_auth(member_id: usize, identity: &Identity) -> Result<()>
 pub struct MemberCookie(CookieAuth);
 
 impl MemberCookie {
-	pub fn member_id(&self) -> usize {
+	pub fn member_id(&self) -> MemberId {
 		self.0.member_id
 	}
 }

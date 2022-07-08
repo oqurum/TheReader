@@ -1,8 +1,9 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::Result;
-use books_common::{Progression, Source, api};
+use books_common::{Progression, Source, api, FileId, MetadataId, LibraryId};
 use chrono::Utc;
+use common::{MemberId, PersonId, ImageId, Either};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
 
@@ -289,7 +290,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn remove_library(&self, id: usize) -> Result<usize> {
+	pub fn remove_library(&self, id: LibraryId) -> Result<usize> {
 		self.remove_directories_by_library_id(id)?;
 
 		Ok(self.lock()?.execute(
@@ -319,7 +320,7 @@ impl Database {
 
 	// Directories
 
-	pub fn add_directory(&self, library_id: usize, path: String) -> Result<()> {
+	pub fn add_directory(&self, library_id: LibraryId, path: String) -> Result<()> {
 		self.lock()?.execute(
 			r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
 			params![&library_id, &path]
@@ -335,14 +336,14 @@ impl Database {
 		)?)
 	}
 
-	pub fn remove_directories_by_library_id(&self, id: usize) -> Result<usize> {
+	pub fn remove_directories_by_library_id(&self, id: LibraryId) -> Result<usize> {
 		Ok(self.lock()?.execute(
 			r#"DELETE FROM directory WHERE library_id = ?1"#,
 			params![id]
 		)?)
 	}
 
-	pub fn get_directories(&self, library_id: usize) -> Result<Vec<Directory>> {
+	pub fn get_directories(&self, library_id: LibraryId) -> Result<Vec<Directory>> {
 		let this = self.lock()?;
 
 		let mut conn = this.prepare("SELECT * FROM directory WHERE library_id = ?1")?;
@@ -365,7 +366,7 @@ impl Database {
 
 	// Files
 
-	pub fn add_file(&self, file: &NewFile) -> Result<usize> {
+	pub fn add_file(&self, file: &NewFile) -> Result<FileId> {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
@@ -379,7 +380,7 @@ impl Database {
 			file.library_id, file.metadata_id, file.chapter_count
 		])?;
 
-		Ok(conn.last_insert_rowid() as usize)
+		Ok(FileId::from(conn.last_insert_rowid() as usize))
 	}
 
 	pub fn file_exist(&self, file: &NewFile) -> Result<bool> {
@@ -422,7 +423,7 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn find_file_by_id(&self, id: usize) -> Result<Option<File>> {
+	pub fn find_file_by_id(&self, id: FileId) -> Result<Option<File>> {
 		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM file WHERE id=?1 LIMIT 1"#,
 			params![id],
@@ -430,7 +431,7 @@ impl Database {
 		).optional()?)
 	}
 
-	pub fn find_file_by_id_with_metadata(&self, id: usize) -> Result<Option<FileWithMetadata>> {
+	pub fn find_file_by_id_with_metadata(&self, id: FileId) -> Result<Option<FileWithMetadata>> {
 		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id WHERE file.id = ?1"#,
 			[id],
@@ -438,7 +439,7 @@ impl Database {
 		).optional()?)
 	}
 
-	pub fn get_files_by_metadata_id(&self, metadata_id: usize) -> Result<Vec<File>> {
+	pub fn get_files_by_metadata_id(&self, metadata_id: MetadataId) -> Result<Vec<File>> {
 		let this = self.lock()?;
 
 		let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id=?1")?;
@@ -452,7 +453,7 @@ impl Database {
 		Ok(self.lock()?.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
 	}
 
-	pub fn update_file_metadata_id(&self, file_id: usize, metadata_id: usize) -> Result<()> {
+	pub fn update_file_metadata_id(&self, file_id: FileId, metadata_id: MetadataId) -> Result<()> {
 		self.lock()?
 		.execute(r#"UPDATE file SET metadata_id = ?1 WHERE id = ?2"#,
 			params![metadata_id, file_id]
@@ -461,7 +462,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn change_files_metadata_id(&self, old_metadata_id: usize, new_metadata_id: usize) -> Result<usize> {
+	pub fn change_files_metadata_id(&self, old_metadata_id: MetadataId, new_metadata_id: MetadataId) -> Result<usize> {
 		Ok(self.lock()?
 		.execute(r#"UPDATE file SET metadata_id = ?1 WHERE metadata_id = ?2"#,
 			params![new_metadata_id, old_metadata_id]
@@ -471,7 +472,7 @@ impl Database {
 
 	// Progression
 
-	pub fn add_or_update_progress(&self, member_id: usize, file_id: usize, progress: Progression) -> Result<()> {
+	pub fn add_or_update_progress(&self, member_id: MemberId, file_id: FileId, progress: Progression) -> Result<()> {
 		let prog = FileProgression::new(progress, member_id, file_id);
 
 		if self.get_progress(member_id, file_id)?.is_some() {
@@ -489,7 +490,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn get_progress(&self, member_id: usize, file_id: usize) -> Result<Option<FileProgression>> {
+	pub fn get_progress(&self, member_id: MemberId, file_id: FileId) -> Result<Option<FileProgression>> {
 		Ok(self.lock()?.query_row(
 			"SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id],
@@ -497,7 +498,7 @@ impl Database {
 		).optional()?)
 	}
 
-	pub fn delete_progress(&self, member_id: usize, file_id: usize) -> Result<()> {
+	pub fn delete_progress(&self, member_id: MemberId, file_id: FileId) -> Result<()> {
 		self.lock()?.execute(
 			"DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id]
@@ -509,7 +510,7 @@ impl Database {
 
 	// Notes
 
-	pub fn add_or_update_notes(&self, member_id: usize, file_id: usize, data: String) -> Result<()> {
+	pub fn add_or_update_notes(&self, member_id: MemberId, file_id: FileId, data: String) -> Result<()> {
 		let prog = FileNote::new(file_id, member_id, data);
 
 		if self.get_notes(member_id, file_id)?.is_some() {
@@ -527,7 +528,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn get_notes(&self, member_id: usize, file_id: usize) -> Result<Option<FileNote>> {
+	pub fn get_notes(&self, member_id: MemberId, file_id: FileId) -> Result<Option<FileNote>> {
 		Ok(self.lock()?.query_row(
 			"SELECT * FROM file_note WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id],
@@ -535,7 +536,7 @@ impl Database {
 		).optional()?)
 	}
 
-	pub fn delete_notes(&self, member_id: usize, file_id: usize) -> Result<()> {
+	pub fn delete_notes(&self, member_id: MemberId, file_id: FileId) -> Result<()> {
 		self.lock()?.execute(
 			"DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id]
@@ -619,7 +620,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn decrement_or_remove_metadata(&self, id: usize) -> Result<()> {
+	pub fn decrement_or_remove_metadata(&self, id: MetadataId) -> Result<()> {
 		if let Some(meta) = self.get_metadata_by_id(id)? {
 			if meta.file_item_count < 1 {
 				self.lock()?
@@ -639,7 +640,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn decrement_metadata(&self, id: usize) -> Result<()> {
+	pub fn decrement_metadata(&self, id: MetadataId) -> Result<()> {
 		if let Some(meta) = self.get_metadata_by_id(id)? {
 			if meta.file_item_count > 0 {
 				self.lock()?
@@ -653,7 +654,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn set_metadata_file_count(&self, id: usize, file_count: usize) -> Result<()> {
+	pub fn set_metadata_file_count(&self, id: MetadataId, file_count: usize) -> Result<()> {
 		self.lock()?
 		.execute(
 			r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
@@ -672,7 +673,7 @@ impl Database {
 		).optional()?)
 	}
 
-	pub fn get_metadata_by_id(&self, id: usize) -> Result<Option<MetadataItem>> {
+	pub fn get_metadata_by_id(&self, id: MetadataId) -> Result<Option<MetadataItem>> {
 		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM metadata_item WHERE id = ?1 LIMIT 1"#,
 			params![id],
@@ -680,14 +681,14 @@ impl Database {
 		).optional()?)
 	}
 
-	pub fn remove_metadata_by_id(&self, id: usize) -> Result<usize> {
+	pub fn remove_metadata_by_id(&self, id: MetadataId) -> Result<usize> {
 		Ok(self.lock()?.execute(
 			r#"DELETE FROM metadata_item WHERE id = ?1"#,
 			params![id]
 		)?)
 	}
 
-	pub fn get_metadata_by(&self, library: Option<usize>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
+	pub fn get_metadata_by(&self, library: Option<LibraryId>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
 		let this = self.lock()?;
 
 		let lib_where = library.map(|v| format!("WHERE library_id={v}")).unwrap_or_default();
@@ -700,7 +701,7 @@ impl Database {
 	}
 
 	// Search
-	fn gen_search_query(search: &api::SearchQuery, library: Option<usize>) -> Option<String> {
+	fn gen_search_query(search: &api::SearchQuery, library: Option<LibraryId>) -> Option<String> {
 		let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
 		let orig_len = sql.len();
 
@@ -756,7 +757,7 @@ impl Database {
 		}
 	}
 
-	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: Option<usize>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
+	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
 		let mut sql = match Self::gen_search_query(search, library) {
 			Some(v) => v,
 			None => return Ok(Vec::new())
@@ -773,7 +774,7 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn count_search_metadata(&self, search: &api::SearchQuery, library: Option<usize>) -> Result<usize> {
+	pub fn count_search_metadata(&self, search: &api::SearchQuery, library: Option<LibraryId>) -> Result<usize> {
 		let sql = match Self::gen_search_query(search, library) {
 			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
 			None => return Ok(0)
@@ -804,7 +805,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn remove_persons_by_meta_id(&self, id: usize) -> Result<()> {
+	pub fn remove_persons_by_meta_id(&self, id: MetadataId) -> Result<()> {
 		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE metadata_id = ?1"#,
 		params![
 			id
@@ -813,7 +814,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn remove_meta_person_by_person_id(&self, id: usize) -> Result<()> {
+	pub fn remove_meta_person_by_person_id(&self, id: PersonId) -> Result<()> {
 		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE person_id = ?1"#,
 		params![
 			id
@@ -822,7 +823,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn transfer_meta_person(&self, from_id: usize, to_id: usize) -> Result<usize> {
+	pub fn transfer_meta_person(&self, from_id: PersonId, to_id: PersonId) -> Result<usize> {
 		Ok(self.lock()?.execute(r#"UPDATE metadata_person SET person_id = ?2 WHERE person_id = ?1"#,
 		params![
 			from_id,
@@ -830,20 +831,32 @@ impl Database {
 		])?)
 	}
 
-	pub fn get_meta_person_list(&self, id: usize) -> Result<Vec<MetadataPerson>> {
+	pub fn get_meta_person_list(&self, id: Either<MetadataId, PersonId>) -> Result<Vec<MetadataPerson>> {
 		let this = self.lock()?;
 
-		let mut conn = this.prepare(r#"SELECT * FROM metadata_person WHERE metadata_id = ?1"#)?;
+		match id {
+			Either::Left(id) => {
+				let mut conn = this.prepare(r#"SELECT * FROM metadata_person WHERE metadata_id = ?1"#)?;
 
-		let map = conn.query_map([id], |v| MetadataPerson::try_from(v))?;
+				let map = conn.query_map([id], |v| MetadataPerson::try_from(v))?;
 
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+				Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+			}
+
+			Either::Right(id) => {
+				let mut conn = this.prepare(r#"SELECT * FROM metadata_person WHERE person_id = ?1"#)?;
+
+				let map = conn.query_map([id], |v| MetadataPerson::try_from(v))?;
+
+				Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+			}
+		}
 	}
 
 
 	// Person
 
-	pub fn add_person(&self, person: &NewTagPerson) -> Result<usize> {
+	pub fn add_person(&self, person: &NewTagPerson) -> Result<PersonId> {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
@@ -855,7 +868,7 @@ impl Database {
 			person.updated_at.timestamp_millis(), person.created_at.timestamp_millis()
 		])?;
 
-		Ok(conn.last_insert_rowid() as usize)
+		Ok(PersonId::from(conn.last_insert_rowid() as usize))
 	}
 
 	pub fn get_person_list(&self, offset: usize, limit: usize) -> Result<Vec<TagPerson>> {
@@ -868,7 +881,7 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn get_person_list_by_meta_id(&self, id: usize) -> Result<Vec<TagPerson>> {
+	pub fn get_person_list_by_meta_id(&self, id: MetadataId) -> Result<Vec<TagPerson>> {
 		let this = self.lock()?;
 
 		let mut conn = this.prepare(r#"
@@ -927,7 +940,7 @@ impl Database {
 		}
 	}
 
-	pub fn get_person_by_id(&self, id: usize) -> Result<Option<TagPerson>> {
+	pub fn get_person_by_id(&self, id: PersonId) -> Result<Option<TagPerson>> {
 		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM tag_person WHERE id = ?1 LIMIT 1"#,
 			params![id],
@@ -969,7 +982,7 @@ impl Database {
 		Ok(())
 	}
 
-	pub fn remove_person_by_id(&self, id: usize) -> Result<usize> {
+	pub fn remove_person_by_id(&self, id: PersonId) -> Result<usize> {
 		Ok(self.lock()?.execute(
 			r#"DELETE FROM tag_person WHERE id = ?1"#,
 			params![id]
@@ -1006,14 +1019,14 @@ impl Database {
 		)?)
 	}
 
-	pub fn remove_person_alt_by_person_id(&self, id: usize) -> Result<usize> {
+	pub fn remove_person_alt_by_person_id(&self, id: PersonId) -> Result<usize> {
 		Ok(self.lock()?.execute(
 			r#"DELETE FROM tag_person_alt WHERE person_id = ?1"#,
 			params![id]
 		)?)
 	}
 
-	pub fn transfer_person_alt(&self, from_id: usize, to_id: usize) -> Result<usize> {
+	pub fn transfer_person_alt(&self, from_id: PersonId, to_id: PersonId) -> Result<usize> {
 		Ok(self.lock()?.execute(r#"UPDATE OR IGNORE tag_person_alt SET person_id = ?2 WHERE person_id = ?1"#,
 		params![
 			from_id,
@@ -1024,7 +1037,7 @@ impl Database {
 
 	// Members
 
-	pub fn add_member(&self, member: &NewMember) -> Result<usize> {
+	pub fn add_member(&self, member: &NewMember) -> Result<MemberId> {
 		let conn = self.lock()?;
 
 		conn.execute(r#"
@@ -1036,7 +1049,7 @@ impl Database {
 			member.created_at.timestamp_millis(), member.updated_at.timestamp_millis()
 		])?;
 
-		Ok(conn.last_insert_rowid() as usize)
+		Ok(MemberId::from(conn.last_insert_rowid() as usize))
 	}
 
 	pub fn get_member_by_email(&self, value: &str) -> Result<Option<Member>> {
@@ -1047,7 +1060,7 @@ impl Database {
 		).optional()?)
 	}
 
-	pub fn get_member_by_id(&self, id: usize) -> Result<Option<Member>> {
+	pub fn get_member_by_id(&self, id: MemberId) -> Result<Option<Member>> {
 		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM members WHERE id = ?1 LIMIT 1"#,
 			params![id],
@@ -1084,9 +1097,9 @@ impl Database {
 
 	// Poster
 
-	pub fn add_poster(&self, poster: &NewPoster) -> Result<usize> {
+	pub fn add_poster(&self, poster: &NewPoster) -> Result<ImageId> {
 		if poster.path.is_none() {
-			return Ok(0);
+			return Ok(ImageId::none());
 		}
 
 		let conn = self.lock()?;
@@ -1101,10 +1114,10 @@ impl Database {
 			poster.created_at.timestamp_millis()
 		])?;
 
-		Ok(conn.last_insert_rowid() as usize)
+		Ok(ImageId::from(conn.last_insert_rowid() as usize))
 	}
 
-	pub fn get_posters_by_linked_id(&self, id: usize) -> Result<Vec<Poster>> {
+	pub fn get_posters_by_linked_id(&self, id: MetadataId) -> Result<Vec<Poster>> {
 		let this = self.lock()?;
 
 		let mut conn = this.prepare(r#"SELECT * FROM uploaded_images WHERE link_id = ?1"#)?;
@@ -1114,7 +1127,7 @@ impl Database {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn get_poster_by_id(&self, id: usize) -> Result<Option<Poster>> {
+	pub fn get_poster_by_id(&self, id: ImageId) -> Result<Option<Poster>> {
 		Ok(self.lock()?.query_row(
 			r#"SELECT * FROM uploaded_images WHERE id = ?1 LIMIT 1"#,
 			params![id],

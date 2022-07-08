@@ -2,8 +2,9 @@ use std::io::Read;
 
 use actix_web::{get, web, HttpResponse, post, delete};
 
-use books_common::{Chapter, api, Progression, DisplayItem};
+use books_common::{Chapter, api, Progression, DisplayItem, FileId};
 use bookie::Book;
+use common::MemberId;
 use futures::TryStreamExt;
 
 use crate::{WebResult, Error, Result};
@@ -16,13 +17,13 @@ use crate::http::MemberCookie;
 
 #[get("/book/{id}/res/{tail:.*}")]
 pub async fn load_resource(
-	path: web::Path<(usize, String)>,
+	path: web::Path<(FileId, String)>,
 	res: web::Query<api::LoadResourceQuery>,
 	db: web::Data<Database>
 ) -> WebResult<HttpResponse> {
-	let (book_id, resource_path) = path.into_inner();
+	let (file_id, resource_path) = path.into_inner();
 
-	let file = db.find_file_by_id(book_id)?.unwrap();
+	let file = db.find_file_by_id(file_id)?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -30,7 +31,7 @@ pub async fn load_resource(
 	if res.configure_pages {
 		let body = match book.read_path_as_bytes(
 			&resource_path,
-			Some(&format!("/api/book/{}/res", book_id)),
+			Some(&format!("/api/book/{}/res", file_id)),
 			Some(&[include_str!("../../../../../app/book_stylings.css")])
 		) {
 			Ok(v) => v,
@@ -60,10 +61,10 @@ pub async fn load_resource(
 
 
 #[get("/book/{id}/pages/{pages}")]
-pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
-	let (book_id, chapters) = path.into_inner();
+pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
+	let (file_id, chapters) = path.into_inner();
 
-	let file = db.find_file_by_id(book_id)?.unwrap();
+	let file = db.find_file_by_id(file_id)?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -105,10 +106,10 @@ pub async fn load_pages(path: web::Path<(usize, String)>, db: web::Data<Database
 
 // TODO: Add body requests for specifics
 #[get("/book/{id}")]
-pub async fn load_book(file_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
+pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
 	Ok(web::Json(if let Some(file) = db.find_file_by_id(*file_id)? {
 		Some(api::GetBookIdResponse {
-			progress: db.get_progress(0, *file_id)?.map(|v| v.into()),
+			progress: db.get_progress(MemberId::none(), *file_id)?.map(|v| v.into()),
 
 			media: file.into()
 		})
@@ -119,7 +120,7 @@ pub async fn load_book(file_id: web::Path<usize>, db: web::Data<Database>) -> We
 
 
 #[get("/book/{id}/debug/{tail:.*}")]
-pub async fn load_book_debug(web_path: web::Path<(usize, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+pub async fn load_book_debug(web_path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	if let Some(file) = db.find_file_by_id(web_path.0)? {
 		if web_path.1.is_empty() {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
@@ -152,7 +153,7 @@ pub async fn load_book_debug(web_path: web::Path<(usize, String)>, db: web::Data
 
 #[post("/book/{id}/progress")]
 pub async fn progress_book_add(
-	file_id: web::Path<usize>,
+	file_id: web::Path<FileId>,
 	body: web::Json<Progression>,
 	db: web::Data<Database>,
 	member: MemberCookie,
@@ -163,7 +164,7 @@ pub async fn progress_book_add(
 
 #[delete("/book/{id}/progress")]
 pub async fn progress_book_delete(
-	file_id: web::Path<usize>,
+	file_id: web::Path<FileId>,
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {
@@ -176,7 +177,7 @@ pub async fn progress_book_delete(
 
 #[get("/book/{id}/notes")]
 pub async fn notes_book_get(
-	file_id: web::Path<usize>,
+	file_id: web::Path<FileId>,
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<web::Json<api::ApiGetBookNotesByIdResponse>> {
@@ -186,7 +187,7 @@ pub async fn notes_book_get(
 
 #[post("/book/{id}/notes")]
 pub async fn notes_book_add(
-	file_id: web::Path<usize>,
+	file_id: web::Path<FileId>,
 	mut payload: web::Payload,
 	db: web::Data<Database>,
 	member: MemberCookie,
@@ -205,7 +206,7 @@ pub async fn notes_book_add(
 
 #[delete("/book/{id}/notes")]
 pub async fn notes_book_delete(
-	file_id: web::Path<usize>,
+	file_id: web::Path<FileId>,
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {

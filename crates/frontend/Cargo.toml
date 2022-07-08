@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-books-common = { path = "../common" }
+books-common = { path = "../common", features = ["frontend"] }
 
-common = { git = "https://github.com/oqurum/common", rev = "656ddb2", features = ["frontend"] }
+common = { git = "https://github.com/oqurum/common", rev = "aeb0c9a", features = ["frontend"] }
 
 
 # reqwest = { version = "0.11", features = ["multipart"] }

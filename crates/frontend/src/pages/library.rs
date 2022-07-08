@@ -1,6 +1,6 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
-use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}};
+use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId, MetadataId};
 use common::component::popup::{Popup, PopupType};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
@@ -13,7 +13,7 @@ use crate::{Route, request, components::{PopupSearchBook, PopupEditMetadata, Mas
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
-	pub library_id: usize,
+	pub library_id: LibraryId,
 }
 
 #[derive(Clone)]
@@ -34,7 +34,7 @@ pub enum Msg {
 
 	InitEventListenerAfterMediaItems,
 
-	AddOrRemoveItemFromEditing(usize, bool),
+	AddOrRemoveItemFromEditing(MetadataId, bool),
 	DeselectAllEditing,
 
 	Ignore
@@ -53,14 +53,14 @@ pub struct LibraryPage {
 	library_list_ref: NodeRef,
 
 	// TODO: Make More Advanced
-	editing_items: Rc<Mutex<Vec<usize>>>,
+	editing_items: Rc<Mutex<Vec<MetadataId>>>,
 
 	_producer: Box<dyn Bridge<WsEventBus>>,
 
 	// TODO: I should just have a global one
-	task_items: HashMap<UniqueId, usize>,
+	task_items: HashMap<UniqueId, MetadataId>,
 	// Used along with task_items
-	task_items_updating: HashSet<usize>,
+	task_items_updating: HashSet<MetadataId>,
 }
 
 impl Component for LibraryPage {
@@ -534,27 +534,27 @@ pub enum PosterItem {
 	ShowPopup(DisplayOverlay),
 
 	// Popup Events
-	UpdateMetaBySource(usize),
+	UpdateMetaBySource(MetadataId),
 
 	// Popup Events
-	UpdateMetaByFiles(usize),
+	UpdateMetaByFiles(MetadataId),
 }
 
 #[derive(Clone)]
 pub enum DisplayOverlay {
 	Info {
-		meta_id: usize
+		meta_id: MetadataId
 	},
 
 	Edit(Box<api::MediaViewResponse>),
 
 	More {
-		meta_id: usize,
+		meta_id: MetadataId,
 		mouse_pos: (i32, i32)
 	},
 
 	SearchForBook {
-		meta_id: usize,
+		meta_id: MetadataId,
 		input_value: Option<String>,
 	},
 }

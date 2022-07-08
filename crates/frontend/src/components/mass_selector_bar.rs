@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex};
 
 use common::component::popup::button::ButtonWithPopup;
-use books_common::api;
+use books_common::{api, MetadataId};
 use web_sys::HtmlElement;
 use yew::{prelude::*, html::Scope};
 
@@ -16,7 +16,7 @@ pub struct Property {
 
 	pub editing_container: NodeRef,
 
-	pub editing_items: Rc<Mutex<Vec<usize>>>,
+	pub editing_items: Rc<Mutex<Vec<MetadataId>>>,
 }
 
 impl PartialEq for Property {

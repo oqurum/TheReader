@@ -2,8 +2,9 @@ use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
 use crate::Result;
 use async_trait::async_trait;
-use books_common::{SearchFor, Source, MetadataItemCached, ThumbnailStore, ThumbnailStoreType};
+use books_common::{SearchFor, Source, MetadataItemCached, ThumbnailStore, ThumbnailStoreType, MetadataId, LibraryId};
 use chrono::Utc;
+use common::PersonId;
 
 use crate::database::{table::{File, self, MetadataItem}, Database};
 
@@ -227,7 +228,7 @@ pub struct MetadataReturned {
 
 impl MetadataReturned {
 	/// Returns (Main Author, Person IDs)
-	pub async fn add_or_ignore_authors_into_database(&mut self, db: &Database) -> Result<(Option<String>, Vec<usize>)> {
+	pub async fn add_or_ignore_authors_into_database(&mut self, db: &Database) -> Result<(Option<String>, Vec<PersonId>)> {
 		let mut main_author = None;
 		let mut person_ids = Vec::new();
 
@@ -322,8 +323,8 @@ pub struct FoundItem {
 impl From<FoundItem> for MetadataItem {
 	fn from(val: FoundItem) -> Self {
 		MetadataItem {
-			id: 0,
-			library_id: 0,
+			id: MetadataId::none(),
+			library_id: LibraryId::none(),
 			source: val.source,
 			file_item_count: 1,
 			title: val.title.clone(),

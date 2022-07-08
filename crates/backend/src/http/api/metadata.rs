@@ -1,7 +1,8 @@
 use actix_web::{get, web, HttpResponse, post};
 
-use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, ThumbnailStoreType, Either};
+use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, ThumbnailStoreType, Either, MetadataId};
 use chrono::Utc;
+use common::MemberId;
 
 use crate::{database::{Database, table::NewPoster}, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image};
 
@@ -9,10 +10,10 @@ use crate::{database::{Database, table::NewPoster}, task::{queue_task_priority, 
 
 
 #[get("/metadata/{id}/thumbnail")]
-async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	let book_id = path.into_inner();
+async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+	let meta_id = path.into_inner();
 
-	let meta = db.get_metadata_by_id(book_id)?;
+	let meta = db.get_metadata_by_id(meta_id)?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_path) {
 		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
@@ -26,13 +27,13 @@ async fn load_metadata_thumbnail(path: web::Path<usize>, db: web::Data<Database>
 
 // Metadata
 #[get("/metadata/{id}")]
-pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
+pub async fn get_all_metadata_comp(meta_id: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
 	let meta = db.get_metadata_by_id(*meta_id)?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
 
 	for file in db.get_files_by_metadata_id(meta.id)? {
-		let prog = db.get_progress(0, file.id)?;
+		let prog = db.get_progress(MemberId::none(), file.id)?;
 
 		media.push(file.into());
 		progress.push(prog.map(|v| v.into()));
@@ -51,7 +52,7 @@ pub async fn get_all_metadata_comp(meta_id: web::Path<usize>, db: web::Data<Data
 }
 
 #[post("/metadata/{id}")]
-pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
+pub async fn update_item_metadata(meta_id: web::Path<MetadataId>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	let meta_id = *meta_id;
 
 	match body.into_inner() {
@@ -74,7 +75,7 @@ pub async fn update_item_metadata(meta_id: web::Path<usize>, body: web::Json<api
 
 #[get("/metadata/{id}/posters")]
 async fn get_poster_list(
-	path: web::Path<usize>,
+	path: web::Path<MetadataId>,
 	db: web::Data<Database>
 ) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
 	let meta = db.get_metadata_by_id(*path)?.unwrap();
@@ -127,7 +128,7 @@ async fn get_poster_list(
 
 #[post("/metadata/{id}/posters")]
 async fn post_change_poster(
-	metadata_id: web::Path<usize>,
+	metadata_id: web::Path<MetadataId>,
 	body: web::Json<api::ChangePosterBody>,
 	db: web::Data<Database>
 ) -> WebResult<HttpResponse> {
