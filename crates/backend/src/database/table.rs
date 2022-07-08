@@ -1,8 +1,8 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, FileId, MetadataId, LibraryId};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, FileId, MetadataId, LibraryId, util::{serialize_datetime, serialize_datetime_opt}};
 use chrono::{DateTime, TimeZone, Utc};
 use common::{PersonId, MemberId, ThumbnailStore, Source};
 use rusqlite::Row;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 
 
 // Metadata
@@ -527,61 +527,6 @@ impl<'a> TryFrom<&Row<'a>> for TagPersonAlt {
 }
 
 
-// Cached Images
-
-#[derive(Debug, Serialize)]
-pub struct CachedImage {
-	pub item_id: usize,
-
-	pub type_of: CacheType, // TODO: Enum
-
-	pub path: ThumbnailStore,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-}
-
-impl<'a> TryFrom<&Row<'a>> for CachedImage {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			item_id: value.get(0)?,
-			type_of: CacheType::from(value.get::<_, u8>(1)?),
-			path: ThumbnailStore::from(value.get::<_, String>(2)?),
-			created_at: Utc.timestamp_millis(value.get(3)?),
-		})
-	}
-}
-
-
-#[derive(Debug, Clone, Copy, Serialize)]
-pub enum CacheType {
-	BookPoster = 0,
-	BookBackground,
-
-	PersonPoster,
-}
-
-impl CacheType {
-	pub fn into_num(self) -> u8 {
-		self as u8
-	}
-}
-
-impl From<u8> for CacheType {
-    fn from(value: u8) -> Self {
-        match value {
-			0 => Self::BookPoster,
-			1 => Self::BookBackground,
-			2 => Self::PersonPoster,
-
-			_ => unimplemented!()
-		}
-    }
-}
-
-
 // User
 
 // TODO: type_of 0 = web page, 1 = local passwordless 2 = local password
@@ -673,22 +618,6 @@ pub struct NewAuth {
 	pub oauth_token_secret: String,
 	pub created_at: DateTime<Utc>,
 }
-
-
-
-// Utils
-
-fn serialize_datetime<S>(value: &DateTime<Utc>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
-	s.serialize_i64(value.timestamp_millis())
-}
-
-fn serialize_datetime_opt<S>(value: &Option<DateTime<Utc>>, s: S) -> std::result::Result<S::Ok, S::Error> where S: Serializer {
-	match value {
-		Some(v) => s.serialize_i64(v.timestamp_millis()),
-		None => s.serialize_none()
-	}
-}
-
 
 
 // Non Table Items
