@@ -5,6 +5,7 @@ use std::time::SystemTimeError;
 use thiserror::Error as ThisError;
 
 use bcrypt::BcryptError;
+use common::error::Error as CommonError;
 use rusqlite::Error as RusqliteError;
 use lettre::error::Error as LettreError;
 use lettre::address::AddressError;
@@ -15,7 +16,7 @@ use serde_urlencoded::ser::Error as UrlEncodedSerError;
 use serde_json::Error as JsonError;
 use serde_xml_rs::Error as XmlError;
 use serde::de::value::Error as SerdeValueError;
-use books_common::Error as CommonError;
+use books_common::Error as LocalCommonError;
 use bookie::Error as BookieError;
 
 use actix_multipart::MultipartError;
@@ -42,6 +43,10 @@ pub enum WebError {
 
 	#[error(transparent)]
 	Common(#[from] CommonError),
+
+	#[error(transparent)]
+	LocalCommon(#[from] LocalCommonError),
+
 	#[error(transparent)]
 	Bookie(#[from] BookieError),
 }

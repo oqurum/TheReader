@@ -1,9 +1,9 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::Result;
-use books_common::{Progression, Source, api, FileId, MetadataId, LibraryId};
+use books_common::{Progression, api, FileId, MetadataId, LibraryId};
 use chrono::Utc;
-use common::{MemberId, PersonId, Either};
+use common::{MemberId, PersonId, Either, Source};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
 

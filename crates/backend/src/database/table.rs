@@ -1,6 +1,6 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, Source, FileId, MetadataId, LibraryId};
+use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, FileId, MetadataId, LibraryId};
 use chrono::{DateTime, TimeZone, Utc};
-use common::{PersonId, MemberId, ThumbnailStore};
+use common::{PersonId, MemberId, ThumbnailStore, Source};
 use rusqlite::Row;
 use serde::{Serialize, Serializer};
 

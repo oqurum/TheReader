@@ -2,9 +2,9 @@ use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
 use crate::Result;
 use async_trait::async_trait;
-use books_common::{SearchFor, Source, MetadataItemCached, MetadataId, LibraryId};
+use books_common::{SearchFor, MetadataItemCached, MetadataId, LibraryId};
 use chrono::Utc;
-use common::{PersonId, ThumbnailStore};
+use common::{PersonId, ThumbnailStore, Source};
 
 use crate::database::{table::{File, self, MetadataItem}, Database};
 

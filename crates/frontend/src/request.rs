@@ -1,12 +1,12 @@
 use std::path::Path;
 
-use common::{ImageId, PersonId};
+use common::{ImageId, PersonId, Either};
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
 
-use books_common::{api::*, Progression, SearchType, Either, setup::SetupConfig, MetadataId, LibraryId, FileId};
+use books_common::{api::*, Progression, SearchType, setup::SetupConfig, MetadataId, LibraryId, FileId};
 
 // TODO: Manage Errors.
 // TODO: Correct different integer types.
