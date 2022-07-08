@@ -10,18 +10,17 @@
 
 use actix_web::web;
 
-pub mod config;
 pub mod database;
 pub mod error;
 pub mod http;
-pub mod image;
 pub mod metadata;
 pub mod scanner;
 pub mod task;
 pub mod model;
+pub mod util;
 
 pub use task::{queue_task, Task};
-pub use self::image::store_image;
+pub use util::*;
 pub use error::{Result, WebResult, WebError, Error, InternalError};
 
 
