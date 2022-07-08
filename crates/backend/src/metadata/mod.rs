@@ -254,8 +254,8 @@ impl MetadataReturned {
 					if resp.status().is_success() {
 						let bytes = resp.bytes().await?;
 
-						match crate::store_image(bytes.to_vec()).await {
-							Ok(path) => thumb_url = path,
+						match crate::store_image(bytes.to_vec(), db).await {
+							Ok(model) => thumb_url = model.path,
 							Err(e) => {
 								eprintln!("add_or_ignore_authors_into_database Error: {}", e);
 							}
@@ -389,7 +389,7 @@ impl FoundImageLocation {
 		matches!(self, Self::Url(_))
 	}
 
-	pub async fn download(&mut self) -> Result<()> {
+	pub async fn download(&mut self, db: &Database) -> Result<()> {
 		match self {
 			FoundImageLocation::Url(ref url) => {
 				let resp = reqwest::get(url)
@@ -397,14 +397,14 @@ impl FoundImageLocation {
 					.bytes()
 					.await?;
 
-				let path = crate::store_image(resp.to_vec()).await?;
+				let model = crate::store_image(resp.to_vec(), db).await?;
 
-				*self = Self::Local(path);
+				*self = Self::Local(model.path);
 			}
 
 			FoundImageLocation::FileData(image) => {
-				if let Ok(path) = crate::store_image(image.clone()).await {
-					*self = Self::Local(path)
+				if let Ok(model) = crate::store_image(image.clone(), db).await {
+					*self = Self::Local(model.path)
 				}
 			}
 

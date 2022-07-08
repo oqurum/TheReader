@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-use crate::Result;
+use crate::{Result, model::image::{NewUploadedImageModel, UploadedImageModel}, database::Database};
 use common::ThumbnailStore;
 use sha2::{Sha256, Digest};
 use tokio::fs;
 
 
-pub async fn store_image(image: Vec<u8>) -> Result<ThumbnailStore> {
+pub async fn store_image(image: Vec<u8>, db: &Database) -> Result<UploadedImageModel> {
 	// TODO: Resize? Function is currently only used for thumbnails.
 	let image = image::load_from_memory(&image)?;
 
@@ -33,7 +33,8 @@ pub async fn store_image(image: Vec<u8>) -> Result<ThumbnailStore> {
 		fs::write(&path, image).await?;
 	}
 
-	Ok(ThumbnailStore::Path(hash))
+	NewUploadedImageModel::new(ThumbnailStore::from(hash))
+		.get_or_insert(db).await
 }
 
 pub fn prefixhash_to_path(hash: &str) -> String {

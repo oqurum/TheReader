@@ -137,7 +137,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 									// TODO: This is For Local File Data. Need specify.
 									if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
-										item.download().await?;
+										item.download(db).await?;
 									}
 
 									let mut meta: MetadataItem = meta.into();
@@ -282,7 +282,7 @@ impl Task for TaskUpdateInvalidMetadata {
 								let MetadataReturned { mut meta, publisher, .. } = new_meta;
 
 								if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_url()) {
-									item.download().await?;
+									item.download(db).await?;
 								}
 
 								let mut new_meta: MetadataItem = meta.into();
@@ -344,7 +344,7 @@ impl Task for TaskUpdateInvalidMetadata {
 							let MetadataReturned { mut meta, publisher, .. } = new_meta;
 
 							if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_url()) {
-								item.download().await?;
+								item.download(db).await?;
 							}
 
 							let mut meta: MetadataItem = meta.into();
@@ -454,7 +454,7 @@ impl TaskUpdateInvalidMetadata {
 				// If we have no local files we'll download the first one.
 				if !meta.thumb_locations.iter().any(|v| v.is_local()) {
 					if let Some(item) = meta.thumb_locations.first_mut() {
-						item.download().await?;
+						item.download(db).await?;
 					}
 				}
 
@@ -581,8 +581,8 @@ impl TaskUpdatePeople {
 					if bytes.len() > 1000 {
 						println!("Cover URL: {}", url);
 
-						match crate::store_image(bytes.to_vec()).await {
-							Ok(path) => old_person.thumb_url = path,
+						match crate::store_image(bytes.to_vec(), db).await {
+							Ok(model) => old_person.thumb_url = model.path,
 							Err(e) => {
 								eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
 							}

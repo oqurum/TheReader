@@ -115,7 +115,7 @@ async fn file_match_or_create_metadata(file: File, db: &Database) -> Result<()> 
 
 			// TODO: This is For Local File Data. Need specify.
 			if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
-				item.download().await?;
+				item.download(db).await?;
 			}
 
 			let mut meta: MetadataItem = meta.into();

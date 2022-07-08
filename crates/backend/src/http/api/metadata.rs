@@ -4,7 +4,7 @@ use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, Metadat
 use chrono::Utc;
 use common::{MemberId, ImageType, Either};
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::image::{ImageLinkModel, UploadedImageModel, NewUploadedImageModel}};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::image::{ImageLinkModel, UploadedImageModel}};
 
 
 
@@ -141,14 +141,11 @@ async fn post_change_poster(
 				.bytes()
 				.await.map_err(Error::from)?;
 
-			let hash = store_image(resp.to_vec()).await?;
+			let image_model = store_image(resp.to_vec(), &db).await?;
 
-			meta.thumb_path = hash.clone();
+			meta.thumb_path = image_model.path.clone();
 
-
-			let image = NewUploadedImageModel::new(hash).get_or_insert(&db).await?;
-
-			ImageLinkModel::new_book(image.id, meta.id).insert(&db).await?;
+			ImageLinkModel::new_book(image_model.id, meta.id).insert(&db).await?;
 		}
 
 		Either::Right(id) => {
