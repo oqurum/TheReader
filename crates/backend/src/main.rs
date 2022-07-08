@@ -18,6 +18,7 @@ pub mod image;
 pub mod metadata;
 pub mod scanner;
 pub mod task;
+pub mod model;
 
 pub use task::{queue_task, Task};
 pub use self::image::store_image;

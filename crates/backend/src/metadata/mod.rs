@@ -2,9 +2,9 @@ use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
 use crate::Result;
 use async_trait::async_trait;
-use books_common::{SearchFor, Source, MetadataItemCached, ThumbnailStore, ThumbnailStoreType, MetadataId, LibraryId};
+use books_common::{SearchFor, Source, MetadataItemCached, MetadataId, LibraryId};
 use chrono::Utc;
-use common::PersonId;
+use common::{PersonId, ThumbnailStore};
 
 use crate::database::{table::{File, self, MetadataItem}, Database};
 
@@ -254,7 +254,7 @@ impl MetadataReturned {
 					if resp.status().is_success() {
 						let bytes = resp.bytes().await?;
 
-						match crate::store_image(ThumbnailStoreType::Metadata, bytes.to_vec()).await {
+						match crate::store_image(bytes.to_vec()).await {
 							Ok(path) => thumb_url = path,
 							Err(e) => {
 								eprintln!("add_or_ignore_authors_into_database Error: {}", e);
@@ -397,13 +397,13 @@ impl FoundImageLocation {
 					.bytes()
 					.await?;
 
-				let path = crate::store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await?;
+				let path = crate::store_image(resp.to_vec()).await?;
 
 				*self = Self::Local(path);
 			}
 
 			FoundImageLocation::FileData(image) => {
-				if let Ok(path) = crate::store_image(ThumbnailStoreType::Local, image.clone()).await {
+				if let Ok(path) = crate::store_image(image.clone()).await {
 					*self = Self::Local(path)
 				}
 			}

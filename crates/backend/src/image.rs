@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use crate::Result;
-use books_common::{ThumbnailStoreType, ThumbnailStore};
+use common::ThumbnailStore;
 use sha2::{Sha256, Digest};
 use tokio::fs;
 
 
-pub async fn store_image(type_of: ThumbnailStoreType, image: Vec<u8>) -> Result<ThumbnailStore> {
+pub async fn store_image(image: Vec<u8>) -> Result<ThumbnailStore> {
 	// TODO: Resize? Function is currently only used for thumbnails.
 	let image = image::load_from_memory(&image)?;
 
@@ -23,7 +23,6 @@ pub async fn store_image(type_of: ThumbnailStoreType, image: Vec<u8>) -> Result<
 	let mut path = PathBuf::new();
 
 	path.push("../../app/thumbnails");
-	path.push(type_of.path_name());
 	path.push(get_directories(&hash));
 
 	fs::DirBuilder::new().recursive(true).create(&path).await?;
@@ -34,14 +33,13 @@ pub async fn store_image(type_of: ThumbnailStoreType, image: Vec<u8>) -> Result<
 		fs::write(&path, image).await?;
 	}
 
-	Ok(ThumbnailStore::from_type(type_of, hash))
+	Ok(ThumbnailStore::Path(hash))
 }
 
-pub fn prefixhash_to_path(type_of: ThumbnailStoreType, hash: &str) -> String {
+pub fn prefixhash_to_path(hash: &str) -> String {
 	let mut path = PathBuf::new();
 
 	path.push("../../app/thumbnails");
-	path.push(type_of.path_name());
 	path.push(get_directories(hash));
 	path.push(format!("{}.jpg", &hash));
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use common::{MemberId, PersonId, ImageId};
+use common::{MemberId, PersonId, ImageId, ThumbnailStore};
 use serde::{Serialize, Deserialize};
 
 use util::*;

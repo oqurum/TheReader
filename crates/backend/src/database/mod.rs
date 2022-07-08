@@ -3,7 +3,7 @@ use std::sync::{Mutex, MutexGuard};
 use crate::Result;
 use books_common::{Progression, Source, api, FileId, MetadataId, LibraryId};
 use chrono::Utc;
-use common::{MemberId, PersonId, ImageId, Either};
+use common::{MemberId, PersonId, Either};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
 
@@ -239,23 +239,34 @@ pub async fn init() -> Result<Database> {
 	)?;
 
 
-	// TODO: type_of for Author, Book Meta, etc..
 	// Uploaded Images
 	conn.execute(
 		r#"CREATE TABLE IF NOT EXISTS "uploaded_images" (
 			"id"			INTEGER NOT NULL,
 
-			"link_id"		INTEGER NOT NULL,
-
 			"path"			TEXT NOT NULL,
 
 			"created_at"	DATETIME NOT NULL,
 
-			UNIQUE(link_id, path),
+			UNIQUE(path),
 			PRIMARY KEY("id" AUTOINCREMENT)
 		);"#,
 		[]
 	)?;
+
+	// Image Link
+	conn.execute(
+		r#"CREATE TABLE IF NOT EXISTS "image_link" (
+			"image_id"		INTEGER NOT NULL,
+
+			"link_id"		INTEGER NOT NULL,
+			"type_of"		INTEGER NOT NULL,
+
+			UNIQUE(image_id, link_id, type_of)
+		);"#,
+		[]
+	)?;
+
 
 	Ok(Database(Mutex::new(conn)))
 }
@@ -266,6 +277,15 @@ pub struct Database(Mutex<Connection>);
 
 impl Database {
 	fn lock(&self) -> Result<MutexGuard<Connection>> {
+		Ok(self.0.lock()?)
+	}
+
+	// TODO: Preparing for Transfer.
+	pub fn read(&self) -> Result<MutexGuard<Connection>> {
+		Ok(self.0.lock()?)
+	}
+
+	pub fn write(&self) -> Result<MutexGuard<Connection>> {
 		Ok(self.0.lock()?)
 	}
 
@@ -1092,46 +1112,5 @@ impl Database {
 			r#"DELETE FROM auths WHERE oauth_token = ?1 LIMIT 1"#,
 			params![value],
 		)? != 0)
-	}
-
-
-	// Poster
-
-	pub fn add_poster(&self, poster: &NewPoster) -> Result<ImageId> {
-		if poster.path.is_none() {
-			return Ok(ImageId::none());
-		}
-
-		let conn = self.lock()?;
-
-		conn.execute(r#"
-			INSERT OR IGNORE INTO uploaded_images (link_id, path, created_at)
-			VALUES (?1, ?2, ?3)
-		"#,
-		params![
-			poster.link_id,
-			poster.path.to_string(),
-			poster.created_at.timestamp_millis()
-		])?;
-
-		Ok(ImageId::from(conn.last_insert_rowid() as usize))
-	}
-
-	pub fn get_posters_by_linked_id(&self, id: MetadataId) -> Result<Vec<Poster>> {
-		let this = self.lock()?;
-
-		let mut conn = this.prepare(r#"SELECT * FROM uploaded_images WHERE link_id = ?1"#)?;
-
-		let map = conn.query_map([id], |v| Poster::try_from(v))?;
-
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
-
-	pub fn get_poster_by_id(&self, id: ImageId) -> Result<Option<Poster>> {
-		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM uploaded_images WHERE id = ?1 LIMIT 1"#,
-			params![id],
-			|v| Poster::try_from(v)
-		).optional()?)
 	}
 }

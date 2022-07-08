@@ -2,7 +2,7 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 
 use actix_web::web;
 use async_trait::async_trait;
-use books_common::{Source, ThumbnailStoreType, SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, MetadataId};
+use books_common::{Source, SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, MetadataId};
 use chrono::Utc;
 use common::PersonId;
 use lazy_static::lazy_static;
@@ -11,7 +11,7 @@ use tokio::{runtime::Runtime, time::sleep};
 use crate::{
 	Result,
 	database::{Database, table::{self, MetadataPerson, MetadataItem}},
-	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::image::{ImageLinkModel, UploadedImageModel}
 };
 
 
@@ -148,11 +148,9 @@ impl Task for TaskUpdateInvalidMetadata {
 									let meta = db.add_or_increment_metadata(&meta)?;
 									db.update_file_metadata_id(file_id, meta.id)?;
 
-									db.add_poster(&table::NewPoster {
-										link_id: meta.id,
-										path: meta.thumb_path.clone(),
-										created_at: Utc::now(),
-									})?;
+									if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
+										ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+									}
 
 									for person_id in author_ids {
 										db.add_meta_person(&table::MetadataPerson {
@@ -226,11 +224,10 @@ impl Task for TaskUpdateInvalidMetadata {
 						current_meta.description = new_meta.description;
 					}
 
-					db.add_poster(&table::NewPoster {
-						link_id: current_meta.id,
-						path: current_meta.thumb_path.clone(),
-						created_at: Utc::now(),
-					})?;
+					if let Some(image) = UploadedImageModel::get_by_path(current_meta.thumb_path.as_value(), db).await? {
+						ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+					}
+
 
 					db.update_metadata(&current_meta)?;
 
@@ -315,11 +312,10 @@ impl Task for TaskUpdateInvalidMetadata {
 									current_meta.thumb_path = new_meta.thumb_path;
 								}
 
-								db.add_poster(&table::NewPoster {
-									link_id: current_meta.id,
-									path: current_meta.thumb_path.clone(),
-									created_at: Utc::now(),
-								})?;
+								if let Some(image) = UploadedImageModel::get_by_path(current_meta.thumb_path.as_value(), db).await? {
+									ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+								}
+
 
 								db.update_metadata(&current_meta)?;
 
@@ -374,11 +370,9 @@ impl Task for TaskUpdateInvalidMetadata {
 								meta.description = old_meta.description;
 							}
 
-							db.add_poster(&table::NewPoster {
-								link_id: meta.id,
-								path: meta.thumb_path.clone(),
-								created_at: Utc::now(),
-							})?;
+							if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
+								ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+							}
 
 							db.update_metadata(&meta)?;
 
@@ -496,11 +490,9 @@ impl TaskUpdateInvalidMetadata {
 				// TODO: Only if metadata exists and IS the same source.
 				meta.created_at = fm_meta.created_at;
 
-				db.add_poster(&table::NewPoster {
-					link_id: meta.id,
-					path: meta.thumb_path.clone(),
-					created_at: Utc::now(),
-				})?;
+				if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
+					ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+				}
 
 				db.update_metadata(&meta)?;
 
@@ -589,7 +581,7 @@ impl TaskUpdatePeople {
 					if bytes.len() > 1000 {
 						println!("Cover URL: {}", url);
 
-						match crate::store_image(ThumbnailStoreType::Metadata, bytes.to_vec()).await {
+						match crate::store_image(bytes.to_vec()).await {
 							Ok(path) => old_person.thumb_url = path,
 							Err(e) => {
 								eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);

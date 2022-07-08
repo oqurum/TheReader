@@ -1,10 +1,10 @@
 use actix_web::{get, web, HttpResponse, post};
 
-use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, ThumbnailStoreType, Either, MetadataId};
+use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, Either, MetadataId};
 use chrono::Utc;
-use common::MemberId;
+use common::{MemberId, ImageType};
 
-use crate::{database::{Database, table::NewPoster}, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::image::{ImageLinkModel, UploadedImageModel, NewUploadedImageModel}};
 
 
 
@@ -16,7 +16,7 @@ async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Data
 	let meta = db.get_metadata_by_id(meta_id)?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_path) {
-		let path = crate::image::prefixhash_to_path(loc.as_type(), loc.as_value());
+		let path = crate::image::prefixhash_to_path(loc.as_value());
 
 		Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
 	} else {
@@ -84,10 +84,10 @@ async fn get_poster_list(
 	// Work is the main book. Usually consisting of more posters.
 	// We can do they by works[0].key = "/works/OLXXXXXXW"
 
-	let mut items: Vec<Poster> = db.get_posters_by_linked_id(*path)?
+	let mut items: Vec<Poster> = ImageLinkModel::get_by_linked_id(**path, ImageType::Book, &db).await?
 		.into_iter()
 		.map(|poster| Poster {
-			id: Some(poster.id),
+			id: Some(poster.image_id),
 
 			selected: poster.path == meta.thumb_path,
 
@@ -141,20 +141,18 @@ async fn post_change_poster(
 				.bytes()
 				.await.map_err(Error::from)?;
 
-			let hash = store_image(ThumbnailStoreType::Metadata, resp.to_vec()).await?;
+			let hash = store_image(resp.to_vec()).await?;
+
+			meta.thumb_path = hash.clone();
 
 
-			meta.thumb_path = hash;
+			let image = NewUploadedImageModel::new(hash).get_or_insert(&db).await?;
 
-			db.add_poster(&NewPoster {
-				link_id: meta.id,
-				path: meta.thumb_path.clone(),
-				created_at: Utc::now(),
-			})?;
+			ImageLinkModel::new_book(image.id, meta.id).insert(&db).await?;
 		}
 
 		Either::Right(id) => {
-			let poster = db.get_poster_by_id(id)?.unwrap();
+			let poster = UploadedImageModel::get_by_id(id, &db).await?.unwrap();
 
 			if meta.thumb_path == poster.path {
 				return Ok(HttpResponse::Ok().finish());
