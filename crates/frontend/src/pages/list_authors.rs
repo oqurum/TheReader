@@ -1,11 +1,11 @@
 use books_common::{api, Person, SearchType};
-use common::{component::popup::{Popup, PopupType}, PersonId};
+use common::{component::popup::{Popup, PopupType}, PersonId, util::truncate_on_indices};
 use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
 
-use crate::{request, util};
+use crate::request;
 
 
 #[derive(Properties, PartialEq)]
@@ -272,7 +272,7 @@ impl Component for AuthorListPage {
 																											<img src={ item.cover_image.clone().unwrap_or_default() } />
 																											<div class="person-info">
 																												<h4>{ item.name.clone() }</h4>
-																												<p>{ item.description.clone().map(|mut v| { util::truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
+																												<p>{ item.description.clone().map(|mut v| { truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
 																											</div>
 																										</div>
 																									}
@@ -357,7 +357,7 @@ impl Component for AuthorListPage {
 																						<div class="person-info">
 																							<h4>{ item.name.clone() }</h4>
 																							<p>{ item.description.clone()
-																									.map(|mut v| { util::truncate_on_indices(&mut v, 300); v })
+																									.map(|mut v| { truncate_on_indices(&mut v, 300); v })
 																									.unwrap_or_default() }</p>
 																						</div>
 																					</div>

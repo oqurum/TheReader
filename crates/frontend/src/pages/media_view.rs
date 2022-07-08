@@ -35,7 +35,7 @@ impl Component for MediaView {
 	type Message = Msg;
 	type Properties = Property;
 
-	fn create(ctx: &Context<Self>) -> Self {
+	fn create(_ctx: &Context<Self>) -> Self {
 		Self {
 			media: None,
 			media_popup: None,
@@ -121,7 +121,7 @@ impl Component for MediaView {
 						<h2>{ "Files" }</h2>
 						<div class="files-container">
 							{
-								for media_prog.map(|(media, prog)| {
+								for media_prog.map(|(media, _prog)| {
 									html! {
 										<Link<Route> to={Route::ReadBook { book_id: media.id }} classes={ classes!("file-item") }>
 											<h5>{ media.file_name.clone() }</h5>

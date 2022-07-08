@@ -1,6 +1,6 @@
 // TODO: Expand to multiple inlined pages.
 
-use books_common::{api, EditManager, setup::SetupConfig};
+use books_common::{EditManager, setup::SetupConfig};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::{prelude::*, html::Scope};

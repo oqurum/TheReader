@@ -1,13 +1,14 @@
 use std::sync::{Mutex, Arc};
 
 use books_common::api::{GetBookListResponse, self};
+use common::util::does_parent_contain_class;
 use gloo_utils::{document, body};
 use wasm_bindgen::{JsCast, prelude::Closure};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::components::Link;
 
-use crate::{Route, request, util};
+use crate::{Route, request};
 
 pub enum Msg {
 	Close,
@@ -115,7 +116,7 @@ impl Component for NavbarModule {
 		let link = ctx.link().clone();
 		let on_click = Closure::wrap(Box::new(move |event: MouseEvent| {
 			if let Some(target) = event.target() {
-				if !util::does_parent_contain_class(&target.unchecked_into(), "search-bar") {
+				if !does_parent_contain_class(&target.unchecked_into(), "search-bar") {
 					link.send_message(Msg::Close);
 				}
 			}

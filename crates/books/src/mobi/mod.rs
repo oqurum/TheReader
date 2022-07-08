@@ -49,7 +49,7 @@ impl Book for EpubBook {
 		Ok(this)
 	}
 
-	fn find(&self, search: BookSearch<'_>) -> Option<Vec<String>> {
+	fn find(&self, _search: BookSearch<'_>) -> Option<Vec<String>> {
 		None
 	}
 
@@ -69,11 +69,11 @@ impl Book for EpubBook {
 		todo!()
 	}
 
-	fn read_path_as_bytes(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
+	fn read_path_as_bytes(&mut self, _path: &str, _prepend_to_urls: Option<&str>, _add_css: Option<&[&str]>) -> Result<Vec<u8>> {
 		todo!()
 	}
 
-	fn read_page_as_bytes(&mut self, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
+	fn read_page_as_bytes(&mut self, _prepend_to_urls: Option<&str>, _add_css: Option<&[&str]>) -> Result<Vec<u8>> {
 		todo!()
 	}
 
@@ -82,7 +82,7 @@ impl Book for EpubBook {
 		todo!()
 	}
 
-	fn set_chapter(&mut self, value: usize) -> bool {
+	fn set_chapter(&mut self, _value: usize) -> bool {
 		todo!()
 	}
 

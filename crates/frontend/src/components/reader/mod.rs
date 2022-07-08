@@ -332,7 +332,7 @@ impl Component for Reader {
 
 		if let Some(prog) = props.progress.lock().unwrap().filter(|_| self.are_all_sections_generated()) {
 			match prog {
-				Progression::Ebook { chapter, page, char_pos } if self.viewing_chapter == 0 => {
+				Progression::Ebook { chapter, char_pos, .. } if self.viewing_chapter == 0 => {
 					// TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
 					self.set_chapter(chapter as usize);
 

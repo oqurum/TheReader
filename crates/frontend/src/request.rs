@@ -4,12 +4,11 @@ use common::{ImageId, PersonId, Either};
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{RequestInit, Request, RequestMode, Response, Headers, FormData};
+use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
 
 use books_common::{api::*, Progression, SearchType, setup::SetupConfig, MetadataId, LibraryId, FileId};
 
 // TODO: Manage Errors.
-// TODO: Correct different integer types.
 
 
 // Setup
@@ -247,8 +246,6 @@ pub async fn run_task() { // TODO: Use common::api::RunTaskBody
 
 
 
-
-
 async fn fetch<V: for<'a> Deserialize<'a>>(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<V, JsValue> {
 	let text = fetch_jsvalue(method, url, body).await?;
 
@@ -275,23 +272,4 @@ async fn fetch_jsvalue(method: &str, url: &str, body: Option<&impl Serialize>) -
 	let resp: Response = resp_value.dyn_into().unwrap();
 
 	JsFuture::from(resp.json()?).await
-}
-
-
-async fn fetch_url_encoded<V: for<'a> Deserialize<'a>>(method: &str, url: &str, form_data: FormData) -> Result<V, JsValue> {
-	let mut opts = RequestInit::new();
-	opts.method(method);
-	opts.mode(RequestMode::Cors);
-
-	opts.body(Some(&form_data));
-
-	let request = Request::new_with_str_and_init(url, &opts)?;
-
-	let window = gloo_utils::window();
-	let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
-	let resp: Response = resp_value.dyn_into().unwrap();
-
-	let text = JsFuture::from(resp.json()?).await?;
-
-	Ok(text.into_serde().unwrap())
 }

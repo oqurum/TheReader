@@ -1,11 +1,11 @@
 use books_common::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType, MetadataId};
-use common::component::popup::{Popup, PopupType};
+use common::{component::popup::{Popup, PopupType}, util::{LoadingItem, truncate_on_indices}};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::{request, util::{self, LoadingItem}};
+use crate::request;
 
 
 
@@ -163,7 +163,7 @@ impl PopupSearchBook {
 					<h5>{ site }</h5>
 					<span class="book-author">{ item.author.clone().unwrap_or_default() }</span>
 					<p class="book-author">{ item.description.clone()
-							.map(|mut v| { util::truncate_on_indices(&mut v, 300); v })
+							.map(|mut v| { truncate_on_indices(&mut v, 300); v })
 							.unwrap_or_default() }
 					</p>
 				</div>

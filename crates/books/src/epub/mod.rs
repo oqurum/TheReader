@@ -60,13 +60,13 @@ impl EpubBook {
 
 	fn get_path_contents(&mut self, path: &str) -> Result<Vec<u8>> {
 		// TODO: Optimize
-		let path = if path.starts_with(&self.root_file_dir.display().to_string().replace("\\", "/")) {
+		let path = if path.starts_with(&self.root_file_dir.display().to_string().replace('\\', "/")) {
 			path.to_string()
 		} else {
 			self.root_file_dir.join(path)
 				.display()
 				.to_string()
-				.replace("\\", "/")
+				.replace('\\', "/")
 		};
 
 		// FIX: Some books have encoded their manifest item @href. We need to decode them.
