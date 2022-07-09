@@ -5,7 +5,7 @@ use serde::Serialize;
 use books_common::{LibraryId, util::serialize_datetime};
 use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
+use super::{TableRow, AdvRow, directory::DirectoryModel};
 
 
 
@@ -75,7 +75,7 @@ impl NewLibraryModel {
 
 impl LibraryModel {
 	pub fn remove_by_id(id: LibraryId, db: &Database) -> Result<usize> {
-		db.remove_directories_by_library_id(id)?;
+		DirectoryModel::remove_by_library_id(id, db)?;
 
 		Ok(db.write()?.execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
 	}

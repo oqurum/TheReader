@@ -302,25 +302,6 @@ impl From<FileProgression> for Progression {
 }
 
 
-// Directory
-
-pub struct Directory {
-	pub library_id: LibraryId,
-	pub path: String,
-}
-
-impl<'a> TryFrom<&Row<'a>> for Directory {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			library_id: value.get(0)?,
-			path: value.get(1)?,
-		})
-	}
-}
-
-
 // File
 
 pub struct NewFile {

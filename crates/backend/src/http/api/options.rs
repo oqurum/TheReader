@@ -2,13 +2,13 @@ use actix_web::{get, web, HttpResponse, post, delete};
 use books_common::{api, LibraryColl, util::take_from_and_swap};
 use chrono::Utc;
 
-use crate::{database::Database, WebResult, model::library::{LibraryModel, NewLibraryModel}};
+use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}};
 
 
 #[get("/options")]
 async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetOptionsResponse>> {
 	let libraries = LibraryModel::list_all_libraries(&db)?;
-	let mut directories = db.get_all_directories()?;
+	let mut directories = DirectoryModel::get_all(&db)?;
 
 	Ok(web::Json(api::GetOptionsResponse {
 		libraries: libraries.into_iter()
@@ -49,7 +49,7 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 
 	if let Some(directory) = directory {
 		// TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
-		db.add_directory(directory.library_id, directory.path)?;
+		DirectoryModel { library_id: directory.library_id, path: directory.path }.insert(&db)?;
 	}
 
 	Ok(HttpResponse::Ok().finish())
@@ -67,7 +67,7 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 	}
 
 	if let Some(directory) = directory {
-		db.remove_directory(&directory.path)?;
+		DirectoryModel::remove_by_path(&directory.path, &db)?;
 	}
 
 	Ok(HttpResponse::Ok().finish())

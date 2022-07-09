@@ -288,52 +288,6 @@ impl Database {
 	}
 
 
-	// Directories
-
-	pub fn add_directory(&self, library_id: LibraryId, path: String) -> Result<()> {
-		self.lock()?.execute(
-			r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
-			params![&library_id, &path]
-		)?;
-
-		Ok(())
-	}
-
-	pub fn remove_directory(&self, path: &str) -> Result<usize> {
-		Ok(self.lock()?.execute(
-			r#"DELETE FROM directory WHERE path = ?1"#,
-			params![path]
-		)?)
-	}
-
-	pub fn remove_directories_by_library_id(&self, id: LibraryId) -> Result<usize> {
-		Ok(self.lock()?.execute(
-			r#"DELETE FROM directory WHERE library_id = ?1"#,
-			params![id]
-		)?)
-	}
-
-	pub fn get_directories(&self, library_id: LibraryId) -> Result<Vec<Directory>> {
-		let this = self.lock()?;
-
-		let mut conn = this.prepare("SELECT * FROM directory WHERE library_id = ?1")?;
-
-		let map = conn.query_map([library_id], |v| Directory::try_from(v))?;
-
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
-
-	pub fn get_all_directories(&self) -> Result<Vec<Directory>> {
-		let this = self.lock()?;
-
-		let mut conn = this.prepare("SELECT * FROM directory")?;
-
-		let map = conn.query_map([], |v| Directory::try_from(v))?;
-
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
-
-
 	// Files
 
 	pub fn add_file(&self, file: &NewFile) -> Result<FileId> {

@@ -1,17 +1,17 @@
 use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
-use crate::{Result, database::table::{File, MetadataItem, self}, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel}};
+use crate::{Result, database::table::{File, MetadataItem, self}, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel}};
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use tokio::fs;
 
-use crate::database::{table::{NewFile, Directory}, Database};
+use crate::database::{table::NewFile, Database};
 
 
 pub static WHITELISTED_FILE_TYPES: [&str; 1] = ["epub"];
 
 
-pub async fn library_scan(library: &LibraryModel, directories: Vec<Directory>, db: &Database) -> Result<()> {
+pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryModel>, db: &Database) -> Result<()> {
 	let mut folders: VecDeque<PathBuf> = directories.into_iter().map(|v| PathBuf::from(&v.path)).collect::<VecDeque<_>>();
 
 	while let Some(path) = folders.pop_front() {

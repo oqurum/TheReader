@@ -11,7 +11,7 @@ use tokio::{runtime::Runtime, time::sleep};
 use crate::{
 	Result,
 	database::{Database, table::{self, MetadataPerson, MetadataItem}},
-	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel}
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel}
 };
 
 
@@ -77,7 +77,7 @@ pub struct TaskLibraryScan;
 impl Task for TaskLibraryScan {
 	async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
 		for library in LibraryModel::list_all_libraries(db)? {
-			let directories = db.get_directories(library.id)?;
+			let directories = DirectoryModel::get_directories(library.id, db)?;
 
 			crate::scanner::library_scan(&library, directories, db).await?;
 		}
