@@ -4,6 +4,7 @@ pub mod directory;
 pub mod file;
 pub mod image;
 pub mod library;
+pub mod member;
 pub mod metadata;
 pub mod metadata_person;
 pub mod note;

@@ -7,7 +7,7 @@ use common::MemberId;
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, database::{table, Database}};
+use crate::{Result, database::Database, model::member::MemberModel};
 
 pub mod password;
 pub mod passwordless;
@@ -25,9 +25,9 @@ pub fn get_auth_value(identity: &Identity) -> Option<CookieAuth> {
 	serde_json::from_str(&ident).ok()
 }
 
-pub fn get_auth_member(identity: &Identity, db: &Database) -> Option<table::Member> {
+pub fn get_auth_member(identity: &Identity, db: &Database) -> Option<MemberModel> {
 	let store = get_auth_value(identity)?;
-	db.get_member_by_id(store.member_id).ok().flatten()
+	MemberModel::find_by_id(store.member_id, db).ok().flatten()
 }
 
 pub fn remember_member_auth(member_id: MemberId, identity: &Identity) -> Result<()> {

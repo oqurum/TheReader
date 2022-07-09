@@ -2,8 +2,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use crate::{Result, model::{metadata::MetadataModel, TableRow}};
 use books_common::{api, LibraryId};
-use common::MemberId;
-use rusqlite::{Connection, params, OptionalExtension};
+use rusqlite::{Connection, params};
 // TODO: use tokio::task::spawn_blocking;
 
 pub mod table;
@@ -369,40 +368,6 @@ impl Database {
 		};
 
 		Ok(self.lock()?.query_row(&sql, [], |v| v.get(0))?)
-	}
-
-
-	// Members
-
-	pub fn add_member(&self, member: &NewMember) -> Result<MemberId> {
-		let conn = self.lock()?;
-
-		conn.execute(r#"
-			INSERT INTO members (name, email, password, is_local, config, created_at, updated_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
-		"#,
-		params![
-			&member.name, member.email.as_ref(), member.password.as_ref(), member.type_of, member.config.as_ref(),
-			member.created_at.timestamp_millis(), member.updated_at.timestamp_millis()
-		])?;
-
-		Ok(MemberId::from(conn.last_insert_rowid() as usize))
-	}
-
-	pub fn get_member_by_email(&self, value: &str) -> Result<Option<Member>> {
-		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM members WHERE email = ?1 LIMIT 1"#,
-			params![value],
-			|v| Member::try_from(v)
-		).optional()?)
-	}
-
-	pub fn get_member_by_id(&self, id: MemberId) -> Result<Option<Member>> {
-		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM members WHERE id = ?1 LIMIT 1"#,
-			params![id],
-			|v| Member::try_from(v)
-		).optional()?)
 	}
 
 

@@ -7,6 +7,7 @@ use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::web;
 
+use crate::model::member::{NewMemberModel, MemberModel};
 use crate::{Result, WebResult, Error};
 use chrono::Utc;
 use lettre::message::header::ContentType;
@@ -105,10 +106,10 @@ pub async fn get_passwordless_oauth_callback(
 
 	if db.remove_verify_if_found_by_oauth_token(&oauth_token)? {
 		// Create or Update User.
-		let member = if let Some(value) = db.get_member_by_email(&email)? {
+		let member = if let Some(value) = MemberModel::find_by_email(&email, &db)? {
 			value
 		} else {
-			let new_member = table::NewMember {
+			let new_member = NewMemberModel {
 				// TODO: Strip email
 				name: email.clone(),
 				email: Some(email),
@@ -119,9 +120,7 @@ pub async fn get_passwordless_oauth_callback(
 				updated_at: Utc::now(),
 			};
 
-			let inserted_id = db.add_member(&new_member)?;
-
-			new_member.into_member(inserted_id)
+			new_member.insert(&db)?
 		};
 
 		super::remember_member_auth(member.id, &identity)?;

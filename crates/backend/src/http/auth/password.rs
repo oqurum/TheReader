@@ -12,7 +12,9 @@ use serde::{Serialize, Deserialize};
 
 use crate::Error;
 use crate::WebResult;
-use crate::database::{table, Database};
+use crate::database::Database;
+use crate::model::member::MemberModel;
+use crate::model::member::NewMemberModel;
 
 
 pub static PASSWORD_PATH: &str = "/auth/password";
@@ -38,7 +40,7 @@ pub async fn post_password_oauth(
 	let PostPasswordCallback { email, password } = query.into_inner();
 
 	// Create or Update User.
-	let member = if let Some(value) = db.get_member_by_email(&email)? {
+	let member = if let Some(value) = MemberModel::find_by_email(&email, &db)? {
 		if value.type_of != 2 {
 			panic!("Invalid Member. Member does not have a local password associated with it.");
 		}
@@ -51,7 +53,7 @@ pub async fn post_password_oauth(
 	} else {
 		let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
-		let new_member = table::NewMember {
+		let new_member = NewMemberModel {
 			// TODO: Strip email
 			name: email.clone(),
 			email: Some(email),
@@ -62,9 +64,7 @@ pub async fn post_password_oauth(
 			updated_at: Utc::now(),
 		};
 
-		let inserted_id = db.add_member(&new_member)?;
-
-		new_member.into_member(inserted_id)
+		new_member.insert(&db)?
 	};
 
 	super::remember_member_auth(member.id, &identity)?;
