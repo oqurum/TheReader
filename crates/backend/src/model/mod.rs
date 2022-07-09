@@ -6,6 +6,7 @@ pub mod image;
 pub mod library;
 pub mod metadata;
 pub mod metadata_person;
+pub mod note;
 pub mod progress;
 
 

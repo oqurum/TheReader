@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::{Result, model::{metadata::MetadataModel, TableRow}};
-use books_common::{api, FileId, MetadataId, LibraryId};
+use books_common::{api, MetadataId, LibraryId};
 use common::{MemberId, PersonId};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
@@ -285,44 +285,6 @@ impl Database {
 
 	pub fn write(&self) -> Result<MutexGuard<Connection>> {
 		Ok(self.0.lock()?)
-	}
-
-
-	// Notes
-
-	pub fn add_or_update_notes(&self, member_id: MemberId, file_id: FileId, data: String) -> Result<()> {
-		let prog = FileNote::new(file_id, member_id, data);
-
-		if self.get_notes(member_id, file_id)?.is_some() {
-			self.lock()?.execute(
-				r#"UPDATE file_note SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
-				params![prog.data, prog.data_size, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
-			)?;
-		} else {
-			self.lock()?.execute(
-				r#"INSERT INTO file_note (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
-				params![prog.file_id, prog.user_id, prog.data, prog.data_size, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
-			)?;
-		}
-
-		Ok(())
-	}
-
-	pub fn get_notes(&self, member_id: MemberId, file_id: FileId) -> Result<Option<FileNote>> {
-		Ok(self.lock()?.query_row(
-			"SELECT * FROM file_note WHERE user_id = ?1 AND file_id = ?2",
-			params![member_id, file_id],
-			|v| FileNote::try_from(v)
-		).optional()?)
-	}
-
-	pub fn delete_notes(&self, member_id: MemberId, file_id: FileId) -> Result<()> {
-		self.lock()?.execute(
-			"DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
-			params![member_id, file_id]
-		)?;
-
-		Ok(())
 	}
 
 

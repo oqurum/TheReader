@@ -1,58 +1,8 @@
-use books_common::{Person, FileId, util::serialize_datetime};
+use books_common::{Person, util::serialize_datetime};
 use chrono::{DateTime, TimeZone, Utc};
 use common::{PersonId, MemberId, ThumbnailStore, Source};
 use rusqlite::Row;
 use serde::Serialize;
-
-
-// Notes
-
-#[derive(Debug, Serialize)]
-pub struct FileNote {
-	pub file_id: FileId,
-	pub user_id: MemberId,
-
-	pub data: String,
-	pub data_size: i64,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub updated_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-}
-
-impl FileNote {
-	pub fn new(file_id: FileId, user_id: MemberId, data: String) -> Self {
-		Self {
-			file_id,
-			user_id,
-			data_size: data.len() as i64,
-			data,
-			updated_at: Utc::now(),
-			created_at: Utc::now(),
-		}
-	}
-}
-
-
-impl<'a> TryFrom<&Row<'a>> for FileNote {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			file_id: value.get(0)?,
-			user_id: value.get(1)?,
-
-			data: value.get(2)?,
-
-			data_size: value.get(3)?,
-
-			updated_at: Utc.timestamp_millis(value.get(4)?),
-			created_at: Utc.timestamp_millis(value.get(5)?),
-		})
-	}
-}
-
 
 
 // Tags People

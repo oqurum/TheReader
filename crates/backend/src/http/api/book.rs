@@ -9,6 +9,7 @@ use futures::TryStreamExt;
 
 use crate::model::file::FileModel;
 use crate::model::metadata::MetadataModel;
+use crate::model::note::FileNoteModel;
 use crate::model::progress::FileProgressionModel;
 use crate::{WebResult, Error, Result};
 use crate::database::Database;
@@ -184,7 +185,7 @@ pub async fn notes_book_get(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<web::Json<api::ApiGetBookNotesByIdResponse>> {
-	let v = db.get_notes(member.member_id(), *file_id)?;
+	let v = FileNoteModel::find_one(*file_id, member.member_id(), &db)?;
 	Ok(web::Json(v.map(|v| v.data)))
 }
 
@@ -202,7 +203,8 @@ pub async fn notes_book_add(
 
 	let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
 
-	db.add_or_update_notes(member.member_id(), *file_id, data)?;
+	FileNoteModel::new(*file_id, member.member_id(), data)
+		.insert_or_update(&db)?;
 
 	Ok(HttpResponse::Ok().finish())
 }
@@ -213,7 +215,7 @@ pub async fn notes_book_delete(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {
-	db.delete_notes(member.member_id(), *file_id)?;
+	FileNoteModel::delete_one(*file_id, member.member_id(), &db)?;
 
 	Ok(HttpResponse::Ok().finish())
 }
