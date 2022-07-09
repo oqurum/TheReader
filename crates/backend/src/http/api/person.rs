@@ -3,7 +3,7 @@ use books_common::api;
 use chrono::Utc;
 use common::{PersonId, Either};
 
-use crate::{database::{Database, table::TagPersonAlt}, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::metadata_person::MetadataPersonModel};
+use crate::{database::{Database, table::TagPersonAlt}, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel}};
 
 
 // Get List Of People and Search For People
@@ -17,7 +17,7 @@ pub async fn load_author_list(
 
 	// Return Searched People
 	if let Some(query) = query.query.as_deref() {
-		let items = db.search_person_list(query, offset, limit)?
+		let items = PersonModel::search_by(query, offset, limit, &db)?
 			.into_iter()
 			.map(|v| v.into())
 			.collect();
@@ -32,7 +32,7 @@ pub async fn load_author_list(
 
 	// Return All People
 	else {
-		let items = db.get_person_list(offset, limit)?
+		let items = PersonModel::get_list(offset, limit, &db)?
 			.into_iter()
 			.map(|v| v.into())
 			.collect();
@@ -40,7 +40,7 @@ pub async fn load_author_list(
 		Ok(web::Json(api::GetPeopleResponse {
 			offset,
 			limit,
-			total: db.get_person_count()?,
+			total: PersonModel::count(&db)?,
 			items
 		}))
 	}
@@ -50,7 +50,7 @@ pub async fn load_author_list(
 // Person Thumbnail
 #[get("/person/{id}/thumbnail")]
 async fn load_person_thumbnail(person_id: web::Path<PersonId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	let meta = db.get_person_by_id(*person_id)?;
+	let meta = PersonModel::find_one_by_id(*person_id, &db)?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_url) {
 		let path = crate::image::prefixhash_to_path(loc.as_value());
@@ -79,8 +79,8 @@ pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<
 		api::PostPersonBody::CombinePersonWith(into_person_id) => {
 			// TODO: Tests for this to ensure it's correct.
 
-			let old_person = db.get_person_by_id(person_id)?.unwrap();
-			let mut into_person = db.get_person_by_id(into_person_id)?.unwrap();
+			let old_person = PersonModel::find_one_by_id(person_id, &db)?.unwrap();
+			let mut into_person = PersonModel::find_one_by_id(into_person_id, &db)?.unwrap();
 
 			// Transfer Alt Names to Other Person
 			db.transfer_person_alt(old_person.id, into_person.id)?;
@@ -119,10 +119,10 @@ pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<
 			into_person.updated_at = Utc::now();
 
 			// Update New Person
-			db.update_person(&into_person)?;
+			into_person.update(&db)?;
 
 			// Delete Old Person
-			db.remove_person_by_id(old_person.id)?;
+			PersonModel::delete_by_id(old_person.id, &db)?;
 
 			// TODO: Update Metadata cache
 		}

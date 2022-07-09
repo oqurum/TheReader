@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
-use crate::{Result, model::{metadata::MetadataModel, file::FileModel}};
+use crate::{Result, model::{metadata::MetadataModel, file::FileModel, person::{PersonModel, NewPersonModel}}};
 use async_trait::async_trait;
 use books_common::{SearchFor, MetadataItemCached, MetadataId, LibraryId};
 use chrono::Utc;
@@ -235,7 +235,7 @@ impl MetadataReturned {
 		if let Some(authors_with_alts) = self.authors.take() {
 			for author_info in authors_with_alts {
 				// Check if we already have a person by that name anywhere in the two database tables.
-				if let Some(person) = db.get_person_by_name(&author_info.name)? {
+				if let Some(person) = PersonModel::find_one_by_name(&author_info.name, db)? {
 					person_ids.push(person.id);
 
 					if main_author.is_none() {
@@ -266,7 +266,7 @@ impl MetadataReturned {
 					}
 				}
 
-				let author = table::NewTagPerson {
+				let author = NewPersonModel {
 					source: author_info.source,
 					name: author_info.name,
 					description: author_info.description,
@@ -277,13 +277,13 @@ impl MetadataReturned {
 					created_at: Utc::now(),
 				};
 
-				let person_id = db.add_person(&author)?;
+				let person = author.insert(db)?;
 
 				if let Some(alts) = author_info.other_names {
 					for name in alts {
 						// Ignore errors. Errors should just be UNIQUE constraint failed
 						if let Err(e) = db.add_person_alt(&table::TagPersonAlt {
-							person_id,
+							person_id: person.id,
 							name,
 						}) {
 							eprintln!("[OL]: Add Alt Name Error: {e}");
@@ -291,10 +291,10 @@ impl MetadataReturned {
 					}
 				}
 
-				person_ids.push(person_id);
+				person_ids.push(person.id);
 
 				if main_author.is_none() {
-					main_author = Some(author.name);
+					main_author = Some(person.name);
 				}
 			}
 		}

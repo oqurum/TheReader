@@ -7,8 +7,8 @@ pub mod library;
 pub mod metadata;
 pub mod metadata_person;
 pub mod note;
+pub mod person;
 pub mod progress;
-
 
 pub trait TableRow<'a> where Self: Sized {
 	fn create(row: &mut AdvRow<'a>) -> rusqlite::Result<Self>;

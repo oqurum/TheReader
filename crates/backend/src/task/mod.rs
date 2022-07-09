@@ -11,7 +11,7 @@ use tokio::{runtime::Runtime, time::sleep};
 use crate::{
 	Result,
 	database::{Database, table},
-	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::FileModel, metadata_person::MetadataPersonModel}
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::FileModel, metadata_person::MetadataPersonModel, person::PersonModel}
 };
 
 
@@ -543,14 +543,14 @@ impl Task for TaskUpdatePeople {
 	async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
 		match self.state.clone() {
 			UpdatingPeople::AutoUpdateById(person_id) => {
-				let old_person = db.get_person_by_id(person_id)?.unwrap();
+				let old_person = PersonModel::find_one_by_id(person_id, db)?.unwrap();
 				let source = old_person.source.clone();
 
 				Self::overwrite_person_with_source(old_person, &source, db).await
 			}
 
 			UpdatingPeople::UpdatePersonWithSource { person_id, source } => {
-				let old_person = db.get_person_by_id(person_id)?.unwrap();
+				let old_person = PersonModel::find_one_by_id(person_id, db)?.unwrap();
 
 				Self::overwrite_person_with_source(old_person, &source, db).await
 			}
@@ -563,7 +563,7 @@ impl Task for TaskUpdatePeople {
 }
 
 impl TaskUpdatePeople {
-	pub async fn overwrite_person_with_source(mut old_person: table::TagPerson, source: &Source, db: &Database) -> Result<()> {
+	pub async fn overwrite_person_with_source(mut old_person: PersonModel, source: &Source, db: &Database) -> Result<()> {
 		if let Some(new_person) = get_person_by_source(source).await? {
 			// TODO: Need to make sure it doesn't conflict with alt names or normal names if different.
 			if old_person.name != new_person.name {
@@ -611,7 +611,7 @@ impl TaskUpdatePeople {
 			old_person.source = new_person.source;
 			old_person.updated_at = Utc::now();
 
-			db.update_person(&old_person)?;
+			old_person.update(db)?;
 
 			// TODO: Update Metadata cache
 		} else {
