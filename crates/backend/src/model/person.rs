@@ -6,7 +6,7 @@ use books_common::{util::serialize_datetime, MetadataId, Person};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
+use super::{TableRow, AdvRow, person_alt::PersonAltModel};
 
 
 
@@ -168,7 +168,7 @@ impl PersonModel {
 
 		if let Some(person) = person {
 			Ok(Some(person))
-		} else if let Some(alt) = db.get_person_alt_by_name(value)? {
+		} else if let Some(alt) = PersonAltModel::get_by_name(value, db)? {
 			Self::find_one_by_id(alt.person_id, db)
 		} else {
 			Ok(None)

@@ -10,8 +10,8 @@ use tokio::{runtime::Runtime, time::sleep};
 
 use crate::{
 	Result,
-	database::{Database, table},
-	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::FileModel, metadata_person::MetadataPersonModel, person::PersonModel}
+	database::Database,
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::FileModel, metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}
 };
 
 
@@ -597,10 +597,10 @@ impl TaskUpdatePeople {
 			if let Some(alts) = new_person.other_names {
 				for name in alts {
 					// Ignore errors. Errors should just be UNIQUE constraint failed
-					if let Err(e) = db.add_person_alt(&table::TagPersonAlt {
+					if let Err(e) = (PersonAltModel {
 						person_id: old_person.id,
 						name,
-					}) {
+					}).insert(db) {
 						eprintln!("[TASK]: Add Alt Name Error: {e}");
 					}
 				}

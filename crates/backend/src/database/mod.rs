@@ -2,7 +2,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use crate::{Result, model::{metadata::MetadataModel, TableRow}};
 use books_common::{api, LibraryId};
-use common::{MemberId, PersonId};
+use common::MemberId;
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
 
@@ -369,51 +369,6 @@ impl Database {
 		};
 
 		Ok(self.lock()?.query_row(&sql, [], |v| v.get(0))?)
-	}
-
-
-	// Person Alt
-
-	pub fn add_person_alt(&self, person: &TagPersonAlt) -> Result<()> {
-		self.lock()?.execute(r#"INSERT INTO tag_person_alt (name, person_id) VALUES (?1, ?2)"#,
-		params![
-			&person.name, &person.person_id
-		])?;
-
-		Ok(())
-	}
-
-	pub fn get_person_alt_by_name(&self, value: &str) -> Result<Option<TagPersonAlt>> {
-		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM tag_person_alt WHERE name = ?1 LIMIT 1"#,
-			params![value],
-			|v| TagPersonAlt::try_from(v)
-		).optional()?)
-	}
-
-	pub fn remove_person_alt(&self, tag_person: &TagPersonAlt) -> Result<usize> {
-		Ok(self.lock()?.execute(
-			r#"DELETE FROM tag_person_alt WHERE name = ?1 AND person_id = ?2"#,
-			params![
-				&tag_person.name,
-				&tag_person.person_id
-			]
-		)?)
-	}
-
-	pub fn remove_person_alt_by_person_id(&self, id: PersonId) -> Result<usize> {
-		Ok(self.lock()?.execute(
-			r#"DELETE FROM tag_person_alt WHERE person_id = ?1"#,
-			params![id]
-		)?)
-	}
-
-	pub fn transfer_person_alt(&self, from_id: PersonId, to_id: PersonId) -> Result<usize> {
-		Ok(self.lock()?.execute(r#"UPDATE OR IGNORE tag_person_alt SET person_id = ?2 WHERE person_id = ?1"#,
-		params![
-			from_id,
-			to_id
-		])?)
 	}
 
 

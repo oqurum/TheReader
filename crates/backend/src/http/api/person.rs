@@ -3,7 +3,7 @@ use books_common::api;
 use chrono::Utc;
 use common::{PersonId, Either};
 
-use crate::{database::{Database, table::TagPersonAlt}, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel}};
+use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}};
 
 
 // Get List Of People and Search For People
@@ -82,17 +82,17 @@ pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<
 			let old_person = PersonModel::find_one_by_id(person_id, &db)?.unwrap();
 			let mut into_person = PersonModel::find_one_by_id(into_person_id, &db)?.unwrap();
 
-			// Transfer Alt Names to Other Person
-			db.transfer_person_alt(old_person.id, into_person.id)?;
+			// Attempt to transfer to other person
+			PersonAltModel::transfer_or_ignore(old_person.id, into_person.id, &db)?;
 
 			// Delete remaining Alt Names
-			db.remove_person_alt_by_person_id(old_person.id)?;
+			PersonAltModel::remove_by_id(old_person.id, &db)?;
 
 			// Make Old Person Name an Alt Name
-			let _ = db.add_person_alt(&TagPersonAlt {
+			let _ = PersonAltModel {
 				name: old_person.name,
 				person_id: into_person.id,
-			});
+			}.insert(&db);
 
 			// Transfer Old Person Metadata to New Person
 			for met_per in MetadataPersonModel::find_list_by(Either::Right(old_person.id), &db)? {

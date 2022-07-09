@@ -1,28 +1,8 @@
 use books_common::{util::serialize_datetime};
 use chrono::{DateTime, TimeZone, Utc};
-use common::{PersonId, MemberId};
+use common::MemberId;
 use rusqlite::Row;
 use serde::Serialize;
-
-
-// Tag Person Alt
-
-#[derive(Debug, Serialize)]
-pub struct TagPersonAlt {
-	pub person_id: PersonId,
-	pub name: String,
-}
-
-impl<'a> TryFrom<&Row<'a>> for TagPersonAlt {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			person_id: value.get(0)?,
-			name: value.get(1)?,
-		})
-	}
-}
 
 
 // User
