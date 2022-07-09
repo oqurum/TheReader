@@ -1,7 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 
 use crate::{Result, model::{metadata::MetadataModel, TableRow}};
-use books_common::{Progression, api, FileId, MetadataId, LibraryId};
+use books_common::{api, FileId, MetadataId, LibraryId};
 use common::{MemberId, PersonId};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
@@ -285,44 +285,6 @@ impl Database {
 
 	pub fn write(&self) -> Result<MutexGuard<Connection>> {
 		Ok(self.0.lock()?)
-	}
-
-
-	// Progression
-
-	pub fn add_or_update_progress(&self, member_id: MemberId, file_id: FileId, progress: Progression) -> Result<()> {
-		let prog = FileProgression::new(progress, member_id, file_id);
-
-		if self.get_progress(member_id, file_id)?.is_some() {
-			self.lock()?.execute(
-				r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE file_id = ?6 AND user_id = ?7"#,
-				params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
-			)?;
-		} else {
-			self.lock()?.execute(
-				r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#,
-				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
-			)?;
-		}
-
-		Ok(())
-	}
-
-	pub fn get_progress(&self, member_id: MemberId, file_id: FileId) -> Result<Option<FileProgression>> {
-		Ok(self.lock()?.query_row(
-			"SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
-			params![member_id, file_id],
-			|v| FileProgression::try_from(v)
-		).optional()?)
-	}
-
-	pub fn delete_progress(&self, member_id: MemberId, file_id: FileId) -> Result<()> {
-		self.lock()?.execute(
-			"DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
-			params![member_id, file_id]
-		)?;
-
-		Ok(())
 	}
 
 

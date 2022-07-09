@@ -9,6 +9,7 @@ use futures::TryStreamExt;
 
 use crate::model::file::FileModel;
 use crate::model::metadata::MetadataModel;
+use crate::model::progress::FileProgressionModel;
 use crate::{WebResult, Error, Result};
 use crate::database::Database;
 use crate::http::MemberCookie;
@@ -111,7 +112,7 @@ pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Databas
 pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
 	Ok(web::Json(if let Some(file) = FileModel::find_file_by_id(*file_id, &db)? {
 		Some(api::GetBookIdResponse {
-			progress: db.get_progress(MemberId::none(), *file_id)?.map(|v| v.into()),
+			progress: FileProgressionModel::find_one(MemberId::none(), *file_id, &db)?.map(|v| v.into()),
 
 			media: file.into()
 		})
@@ -160,7 +161,7 @@ pub async fn progress_book_add(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {
-	db.add_or_update_progress(member.member_id(), *file_id, body.into_inner())?;
+	FileProgressionModel::insert_or_update(member.member_id(), *file_id, body.into_inner(), &db)?;
 	Ok(HttpResponse::Ok().finish())
 }
 
@@ -170,7 +171,7 @@ pub async fn progress_book_delete(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {
-	db.delete_progress(member.member_id(), *file_id)?;
+	FileProgressionModel::delete_one(member.member_id(), *file_id, &db)?;
 	Ok(HttpResponse::Ok().finish())
 }
 
