@@ -1,6 +1,6 @@
 use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
-use crate::{Result, database::table::{File, MetadataItem, self}, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel}};
+use crate::{Result, database::table::{File, self}, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel}};
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use tokio::fs;
@@ -118,12 +118,12 @@ async fn file_match_or_create_metadata(file: File, db: &Database) -> Result<()> 
 				item.download(db).await?;
 			}
 
-			let mut meta: MetadataItem = meta.into();
+			let mut meta: MetadataModel = meta.into();
 
 			// TODO: Store Publisher inside Database
 			meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
-			let meta = db.add_or_increment_metadata(&meta)?;
+			let meta = meta.add_or_increment(db)?;
 			db.update_file_metadata_id(file_id, meta.id)?;
 
 			if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {

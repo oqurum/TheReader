@@ -4,7 +4,7 @@ use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, Metadat
 use chrono::Utc;
 use common::{MemberId, ImageType, Either};
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::image::{ImageLinkModel, UploadedImageModel}};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel}};
 
 
 
@@ -13,7 +13,7 @@ use crate::{database::Database, task::{queue_task_priority, self}, queue_task, m
 async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let meta_id = path.into_inner();
 
-	let meta = db.get_metadata_by_id(meta_id)?;
+	let meta = MetadataModel::get_by_id(meta_id, &db)?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_path) {
 		let path = crate::image::prefixhash_to_path(loc.as_value());
@@ -28,7 +28,7 @@ async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Data
 // Metadata
 #[get("/metadata/{id}")]
 pub async fn get_all_metadata_comp(meta_id: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
-	let meta = db.get_metadata_by_id(*meta_id)?.unwrap();
+	let meta = MetadataModel::get_by_id(*meta_id, &db)?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
 
@@ -78,7 +78,7 @@ async fn get_poster_list(
 	path: web::Path<MetadataId>,
 	db: web::Data<Database>
 ) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
-	let meta = db.get_metadata_by_id(*path)?.unwrap();
+	let meta = MetadataModel::get_by_id(*path, &db)?.unwrap();
 
 	// TODO: For Open Library we need to go from an Edition to Work.
 	// Work is the main book. Usually consisting of more posters.
@@ -132,7 +132,7 @@ async fn post_change_poster(
 	body: web::Json<api::ChangePosterBody>,
 	db: web::Data<Database>
 ) -> WebResult<HttpResponse> {
-	let mut meta = db.get_metadata_by_id(*metadata_id)?.unwrap();
+	let mut meta = MetadataModel::get_by_id(*metadata_id, &db)?.unwrap();
 
 	match body.into_inner().url_or_id {
 		Either::Left(url) => {
@@ -159,7 +159,7 @@ async fn post_change_poster(
 		}
 	}
 
-	db.update_metadata(&meta)?;
+	meta.update(&db)?;
 
 	Ok(HttpResponse::Ok().finish())
 }

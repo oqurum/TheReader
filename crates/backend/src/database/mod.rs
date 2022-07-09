@@ -1,8 +1,8 @@
 use std::sync::{Mutex, MutexGuard};
 
-use crate::Result;
+use crate::{Result, model::{metadata::MetadataModel, TableRow}};
 use books_common::{Progression, api, FileId, MetadataId, LibraryId};
-use common::{MemberId, PersonId, Either, Source};
+use common::{MemberId, PersonId, Either};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
 
@@ -470,160 +470,6 @@ impl Database {
 	}
 
 
-	// Metadata
-
-	pub fn add_or_increment_metadata(&self, meta: &MetadataItem) -> Result<MetadataItem> {
-		let table_meta = if meta.id != 0 {
-			self.get_metadata_by_id(meta.id)?
-		} else {
-			self.get_metadata_by_source(&meta.source)?
-		};
-
-		if table_meta.is_none() {
-			self.lock()?
-			.execute(r#"
-				INSERT INTO metadata_item (
-					library_id, source, file_item_count,
-					title, original_title, description, rating, thumb_url,
-					cached,
-					available_at, year,
-					refreshed_at, created_at, updated_at, deleted_at,
-					hash
-				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
-				params![
-					meta.library_id, meta.source.to_string(), &meta.file_item_count,
-					&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.to_optional_string(),
-					&meta.cached.as_string_optional(),
-					&meta.available_at, &meta.year,
-					&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
-					meta.deleted_at.as_ref().map(|v| v.timestamp_millis()),
-					&meta.hash
-				]
-			)?;
-
-			return Ok(self.get_metadata_by_source(&meta.source)?.unwrap());
-		} else if meta.id != 0 {
-			self.lock()?
-			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
-				params![meta.id]
-			)?;
-		} else {
-			self.lock()?
-			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
-				params![meta.source.to_string()]
-			)?;
-		}
-
-		Ok(table_meta.unwrap())
-	}
-
-	pub fn update_metadata(&self, meta: &MetadataItem) -> Result<()> {
-		self.lock()?
-		.execute(r#"
-			UPDATE metadata_item SET
-				library_id = ?2, source = ?3, file_item_count = ?4,
-				title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
-				cached = ?10,
-				available_at = ?11, year = ?12,
-				refreshed_at = ?13, created_at = ?14, updated_at = ?15, deleted_at = ?16,
-				hash = ?17
-			WHERE id = ?1"#,
-			params![
-				meta.id,
-				meta.library_id, meta.source.to_string(), &meta.file_item_count,
-				&meta.title, &meta.original_title, &meta.description, &meta.rating, meta.thumb_path.to_optional_string(),
-				&meta.cached.as_string_optional(),
-				&meta.available_at, &meta.year,
-				&meta.refreshed_at.timestamp_millis(), &meta.created_at.timestamp_millis(), &meta.updated_at.timestamp_millis(),
-				meta.deleted_at.as_ref().map(|v| v.timestamp_millis()),
-				&meta.hash
-			]
-		)?;
-
-		Ok(())
-	}
-
-	pub fn decrement_or_remove_metadata(&self, id: MetadataId) -> Result<()> {
-		if let Some(meta) = self.get_metadata_by_id(id)? {
-			if meta.file_item_count < 1 {
-				self.lock()?
-				.execute(
-					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-					params![id]
-				)?;
-			} else {
-				self.lock()?
-				.execute(
-					r#"DELETE FROM metadata_item WHERE id = ?1"#,
-					params![id]
-				)?;
-			}
-		}
-
-		Ok(())
-	}
-
-	pub fn decrement_metadata(&self, id: MetadataId) -> Result<()> {
-		if let Some(meta) = self.get_metadata_by_id(id)? {
-			if meta.file_item_count > 0 {
-				self.lock()?
-				.execute(
-					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-					params![id]
-				)?;
-			}
-		}
-
-		Ok(())
-	}
-
-	pub fn set_metadata_file_count(&self, id: MetadataId, file_count: usize) -> Result<()> {
-		self.lock()?
-		.execute(
-			r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
-			params![id, file_count]
-		)?;
-
-		Ok(())
-	}
-
-	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
-	pub fn get_metadata_by_source(&self, source: &Source) -> Result<Option<MetadataItem>> {
-		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM metadata_item WHERE source = ?1 LIMIT 1"#,
-			params![source.to_string()],
-			|v| MetadataItem::try_from(v)
-		).optional()?)
-	}
-
-	pub fn get_metadata_by_id(&self, id: MetadataId) -> Result<Option<MetadataItem>> {
-		Ok(self.lock()?.query_row(
-			r#"SELECT * FROM metadata_item WHERE id = ?1 LIMIT 1"#,
-			params![id],
-			|v| MetadataItem::try_from(v)
-		).optional()?)
-	}
-
-	pub fn remove_metadata_by_id(&self, id: MetadataId) -> Result<usize> {
-		Ok(self.lock()?.execute(
-			r#"DELETE FROM metadata_item WHERE id = ?1"#,
-			params![id]
-		)?)
-	}
-
-	pub fn get_metadata_by(&self, library: Option<LibraryId>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
-		let this = self.lock()?;
-
-		let lib_where = library.map(|v| format!("WHERE library_id={v}")).unwrap_or_default();
-
-		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {} LIMIT ?1 OFFSET ?2"#, lib_where))?;
-
-		let map = conn.query_map([limit, offset], |v| MetadataItem::try_from(v))?;
-
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
-
 	// Search
 	fn gen_search_query(search: &api::SearchQuery, library: Option<LibraryId>) -> Option<String> {
 		let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
@@ -681,7 +527,7 @@ impl Database {
 		}
 	}
 
-	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize) -> Result<Vec<MetadataItem>> {
+	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize) -> Result<Vec<MetadataModel>> {
 		let mut sql = match Self::gen_search_query(search, library) {
 			Some(v) => v,
 			None => return Ok(Vec::new())
@@ -693,7 +539,7 @@ impl Database {
 
 		let mut conn = this.prepare(&sql)?;
 
-		let map = conn.query_map(params![limit, offset], |v| MetadataItem::try_from(v))?;
+		let map = conn.query_map(params![limit, offset], |v| MetadataModel::from_row(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}

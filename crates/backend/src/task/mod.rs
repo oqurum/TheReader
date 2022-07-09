@@ -10,8 +10,8 @@ use tokio::{runtime::Runtime, time::sleep};
 
 use crate::{
 	Result,
-	database::{Database, table::{self, MetadataPerson, MetadataItem}},
-	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel}
+	database::{Database, table::{self, MetadataPerson}},
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel}
 };
 
 
@@ -140,12 +140,12 @@ impl Task for TaskUpdateInvalidMetadata {
 										item.download(db).await?;
 									}
 
-									let mut meta: MetadataItem = meta.into();
+									let mut meta: MetadataModel = meta.into();
 
 									// TODO: Store Publisher inside Database
 									meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
-									let meta = db.add_or_increment_metadata(&meta)?;
+									let meta = meta.add_or_increment(db)?;
 									db.update_file_metadata_id(file_id, meta.id)?;
 
 									if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
@@ -173,7 +173,7 @@ impl Task for TaskUpdateInvalidMetadata {
 				println!("Auto Update Metadata ID by Files: {}", meta_id);
 				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
 
-				let fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
+				let fm_meta = MetadataModel::get_by_id(meta_id, db)?.unwrap();
 
 				Self::search_meta_by_files(meta_id, fm_meta, db).await?;
 			}
@@ -183,7 +183,7 @@ impl Task for TaskUpdateInvalidMetadata {
 				println!("Auto Update Metadata ID by Source: {}", meta_id);
 				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
 
-				let fm_meta = db.get_metadata_by_id(meta_id)?.unwrap();
+				let fm_meta = MetadataModel::get_by_id(meta_id, db)?.unwrap();
 
 				// TODO: Attempt to update source first.
 				if let Some(mut new_meta) = get_metadata_by_source(&fm_meta.source).await? {
@@ -195,7 +195,7 @@ impl Task for TaskUpdateInvalidMetadata {
 
 					let MetadataReturned { meta, publisher, .. } = new_meta;
 
-					let mut new_meta: MetadataItem = meta.into();
+					let mut new_meta: MetadataModel = meta.into();
 
 					// TODO: Utilize EditManager which is currently in frontend util.rs
 
@@ -229,7 +229,7 @@ impl Task for TaskUpdateInvalidMetadata {
 					}
 
 
-					db.update_metadata(&current_meta)?;
+					current_meta.update(db)?;
 
 					for person_id in author_ids {
 						db.add_meta_person(&table::MetadataPerson {
@@ -250,7 +250,7 @@ impl Task for TaskUpdateInvalidMetadata {
 				println!("UpdatingMetadata::SpecificMatchSingleMetaId {{ meta_id: {:?}, source: {:?} }}", old_meta_id, source);
 				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(old_meta_id)));
 
-				match db.get_metadata_by_source(&source)? {
+				match MetadataModel::get_by_source(&source, db)? {
 					// If the metadata already exists we move the old metadata files to the new one and completely remove old metadata.
 					Some(meta_item) => {
 						if meta_item.id != old_meta_id {
@@ -260,7 +260,7 @@ impl Task for TaskUpdateInvalidMetadata {
 							let changed_files = db.change_files_metadata_id(old_meta_id, meta_item.id)?;
 
 							// Update new meta file count
-							db.set_metadata_file_count(meta_item.id, meta_item.file_item_count as usize + changed_files)?;
+							MetadataModel::set_file_count(meta_item.id, meta_item.file_item_count as usize + changed_files, db)?;
 
 							// Remove old meta persons
 							db.remove_persons_by_meta_id(old_meta_id)?;
@@ -268,14 +268,14 @@ impl Task for TaskUpdateInvalidMetadata {
 							// TODO: Change to "deleted" instead of delting from database. We will delete from database every 24 hours.
 
 							// Remove old Metadata
-							db.remove_metadata_by_id(old_meta_id)?;
+							MetadataModel::remove_by_id(old_meta_id, db)?;
 						} else {
 							// Update existing metadata.
 
 							println!("Updating File Metadata.");
 
 							if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
-								let mut current_meta = db.get_metadata_by_id(old_meta_id)?.unwrap();
+								let mut current_meta = MetadataModel::get_by_id(old_meta_id, db)?.unwrap();
 
 								let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
@@ -285,7 +285,7 @@ impl Task for TaskUpdateInvalidMetadata {
 									item.download(db).await?;
 								}
 
-								let mut new_meta: MetadataItem = meta.into();
+								let mut new_meta: MetadataModel = meta.into();
 
 								// TODO: Store Publisher inside Database
 								new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
@@ -317,7 +317,7 @@ impl Task for TaskUpdateInvalidMetadata {
 								}
 
 
-								db.update_metadata(&current_meta)?;
+								current_meta.update(db)?;
 
 								for person_id in author_ids {
 									db.add_meta_person(&table::MetadataPerson {
@@ -337,7 +337,7 @@ impl Task for TaskUpdateInvalidMetadata {
 						if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
 							println!("Grabbed New Metadata from Source {:?}, updating old Metadata ({}) with it.", source, old_meta_id);
 
-							let old_meta = db.get_metadata_by_id(old_meta_id)?.unwrap();
+							let old_meta = MetadataModel::get_by_id(old_meta_id, db)?.unwrap();
 
 							let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
@@ -347,7 +347,7 @@ impl Task for TaskUpdateInvalidMetadata {
 								item.download(db).await?;
 							}
 
-							let mut meta: MetadataItem = meta.into();
+							let mut meta: MetadataModel = meta.into();
 
 							// TODO: Store Publisher inside Database
 							meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
@@ -374,7 +374,7 @@ impl Task for TaskUpdateInvalidMetadata {
 								ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
 							}
 
-							db.update_metadata(&meta)?;
+							meta.update(db)?;
 
 							// TODO: Should I start with a clean slate like this?
 							db.remove_persons_by_meta_id(old_meta_id)?;
@@ -403,7 +403,7 @@ impl Task for TaskUpdateInvalidMetadata {
 }
 
 impl TaskUpdateInvalidMetadata {
-	async fn search_meta_by_files(meta_id: MetadataId, mut fm_meta: MetadataItem, db: &Database) -> Result<()> {
+	async fn search_meta_by_files(meta_id: MetadataId, mut fm_meta: MetadataModel, db: &Database) -> Result<()> {
 		// Check Files first.
 		let files = db.get_files_by_metadata_id(meta_id)?;
 
@@ -458,7 +458,7 @@ impl TaskUpdateInvalidMetadata {
 					}
 				}
 
-				let mut meta: MetadataItem = meta.into();
+				let mut meta: MetadataModel = meta.into();
 
 				// TODO: Store Publisher inside Database
 				meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
@@ -494,7 +494,7 @@ impl TaskUpdateInvalidMetadata {
 					ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
 				}
 
-				db.update_metadata(&meta)?;
+				meta.update(db)?;
 
 				for person_id in author_ids {
 					db.add_meta_person(&MetadataPerson {

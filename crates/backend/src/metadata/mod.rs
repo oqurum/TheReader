@@ -1,12 +1,12 @@
 use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
-use crate::Result;
+use crate::{Result, model::metadata::MetadataModel};
 use async_trait::async_trait;
 use books_common::{SearchFor, MetadataItemCached, MetadataId, LibraryId};
 use chrono::Utc;
 use common::{PersonId, ThumbnailStore, Source};
 
-use crate::database::{table::{File, self, MetadataItem}, Database};
+use crate::database::{table::{File, self}, Database};
 
 use self::{
 	google_books::GoogleBooksMetadata,
@@ -320,9 +320,9 @@ pub struct FoundItem {
 	pub year: Option<i64>
 }
 
-impl From<FoundItem> for MetadataItem {
+impl From<FoundItem> for MetadataModel {
 	fn from(val: FoundItem) -> Self {
-		MetadataItem {
+		MetadataModel {
 			id: MetadataId::none(),
 			library_id: LibraryId::none(),
 			source: val.source,

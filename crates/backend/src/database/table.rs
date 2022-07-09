@@ -1,124 +1,10 @@
-use books_common::{Progression, MetadataItemCached, DisplayMetaItem, MediaItem, Person, FileId, MetadataId, LibraryId, util::{serialize_datetime, serialize_datetime_opt}};
+use books_common::{Progression, MetadataItemCached, MediaItem, Person, FileId, MetadataId, LibraryId, util::serialize_datetime};
 use chrono::{DateTime, TimeZone, Utc};
 use common::{PersonId, MemberId, ThumbnailStore, Source};
 use rusqlite::Row;
 use serde::Serialize;
 
-
-// Metadata
-
-// TODO: Place into common
-#[derive(Debug, Clone, Serialize)]
-pub struct MetadataItem {
-	pub id: MetadataId,
-
-	pub library_id: LibraryId,
-
-	pub source: Source,
-	pub file_item_count: i64,
-	pub title: Option<String>,
-	pub original_title: Option<String>,
-	pub description: Option<String>,
-	pub rating: f64,
-
-	pub thumb_path: ThumbnailStore,
-	pub all_thumb_urls: Vec<String>,
-
-	// TODO: Make table for all tags. Include publisher in it. Remove country.
-	pub cached: MetadataItemCached,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub refreshed_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub updated_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime_opt")]
-	pub deleted_at: Option<DateTime<Utc>>,
-
-	pub available_at: Option<i64>,
-	pub year: Option<i64>,
-
-	pub hash: String
-}
-
-// impl Default for MetadataItem {
-// 	fn default() -> Self {
-// 		Self {
-// 			id: Default::default(),
-// 			library_id: Default::default(),
-// 			source: Default::default(),
-// 			file_item_count: Default::default(),
-// 			title: Default::default(),
-// 			original_title: Default::default(),
-// 			description: Default::default(),
-// 			rating: Default::default(),
-// 			thumb_path: Default::default(),
-// 			all_thumb_urls: Default::default(),
-// 			cached: Default::default(),
-// 			refreshed_at: Utc::now(),
-// 			created_at: Utc::now(),
-// 			updated_at: Utc::now(),
-// 			deleted_at: Default::default(),
-// 			available_at: Default::default(),
-// 			year: Default::default(),
-// 			hash: Default::default()
-// 		}
-// 	}
-// }
-
-impl<'a> TryFrom<&Row<'a>> for MetadataItem {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			id: value.get(0)?,
-			library_id: value.get(1)?,
-			source: Source::try_from(value.get::<_, String>(2)?).unwrap(),
-			file_item_count: value.get(3)?,
-			title: value.get(4)?,
-			original_title: value.get(5)?,
-			description: value.get(6)?,
-			rating: value.get(7)?,
-			thumb_path: ThumbnailStore::from(value.get::<_, Option<String>>(8)?),
-			all_thumb_urls: Vec::new(),
-			cached: value.get::<_, Option<String>>(9)?
-				.map(|v| MetadataItemCached::from_string(&v))
-				.unwrap_or_default(),
-			available_at: value.get(10)?,
-			year: value.get(11)?,
-			refreshed_at: Utc.timestamp_millis(value.get(12)?),
-			created_at: Utc.timestamp_millis(value.get(13)?),
-			updated_at: Utc.timestamp_millis(value.get(14)?),
-			deleted_at: value.get::<_, Option<_>>(15)?.map(|v| Utc.timestamp_millis(v)),
-			hash: value.get(16)?
-		})
-	}
-}
-
-impl From<MetadataItem> for DisplayMetaItem {
-	fn from(val: MetadataItem) -> Self {
-		DisplayMetaItem {
-			id: val.id,
-			library_id: val.library_id,
-			source: val.source,
-			file_item_count: val.file_item_count,
-			title: val.title,
-			original_title: val.original_title,
-			description: val.description,
-			rating: val.rating,
-			thumb_path: val.thumb_path,
-			cached: val.cached,
-			refreshed_at: val.refreshed_at,
-			created_at: val.created_at,
-			updated_at: val.updated_at,
-			deleted_at: val.deleted_at,
-			available_at: val.available_at,
-			year: val.year,
-			hash: val.hash,
-		}
-	}
-}
+use crate::model::metadata::MetadataModel;
 
 
 // Tag Person Alt
@@ -605,7 +491,7 @@ pub struct NewAuth {
 
 pub struct FileWithMetadata {
 	pub file: File,
-	pub meta: Option<MetadataItem>
+	pub meta: Option<MetadataModel>
 }
 
 impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
@@ -635,7 +521,7 @@ impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
 
 			meta: value.get(11)
 				.ok()
-				.map(|_: i64| std::result::Result::<_, Self::Error>::Ok(MetadataItem {
+				.map(|_: i64| std::result::Result::<_, Self::Error>::Ok(MetadataModel {
 					id: value.get(11)?,
 					library_id: value.get(12)?,
 					source: Source::try_from(value.get::<_, String>(13)?).unwrap(),

@@ -3,6 +3,7 @@ use rusqlite::{Row, types::FromSql};
 pub mod directory;
 pub mod image;
 pub mod library;
+pub mod metadata;
 
 
 pub trait TableRow<'a> where Self: Sized {

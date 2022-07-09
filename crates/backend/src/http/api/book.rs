@@ -7,6 +7,7 @@ use bookie::Book;
 use common::MemberId;
 use futures::TryStreamExt;
 
+use crate::model::metadata::MetadataModel;
 use crate::{WebResult, Error, Result};
 use crate::database::Database;
 use crate::http::MemberCookie;
@@ -251,10 +252,11 @@ pub async fn load_book_list(
 	} else {
 		let count = db.get_file_count()?;
 
-		let items = db.get_metadata_by(
+		let items = MetadataModel::get_list_by(
 			query.library,
 			query.offset.unwrap_or(0),
 			query.limit.unwrap_or(50),
+			&db,
 		)?
 			.into_iter()
 			.map(|meta| {
