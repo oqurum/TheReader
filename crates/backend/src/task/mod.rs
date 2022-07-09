@@ -10,8 +10,8 @@ use tokio::{runtime::Runtime, time::sleep};
 
 use crate::{
 	Result,
-	database::{Database, table::{self, MetadataPerson}},
-	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::FileModel}
+	database::{Database, table},
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::FileModel, metadata_person::MetadataPersonModel}
 };
 
 
@@ -153,10 +153,10 @@ impl Task for TaskUpdateInvalidMetadata {
 									}
 
 									for person_id in author_ids {
-										db.add_meta_person(&table::MetadataPerson {
+										MetadataPersonModel {
 											metadata_id: meta.id,
 											person_id,
-										})?;
+										}.insert_or_ignore(db)?;
 									}
 								}
 							}
@@ -232,10 +232,10 @@ impl Task for TaskUpdateInvalidMetadata {
 					current_meta.update(db)?;
 
 					for person_id in author_ids {
-						db.add_meta_person(&table::MetadataPerson {
+						MetadataPersonModel {
 							metadata_id: new_meta.id,
 							person_id,
-						})?;
+						}.insert_or_ignore(db)?;
 					}
 
 					return Ok(());
@@ -263,7 +263,7 @@ impl Task for TaskUpdateInvalidMetadata {
 							MetadataModel::set_file_count(meta_item.id, meta_item.file_item_count as usize + changed_files, db)?;
 
 							// Remove old meta persons
-							db.remove_persons_by_meta_id(old_meta_id)?;
+							MetadataPersonModel::delete_by_meta_id(old_meta_id, db)?;
 
 							// TODO: Change to "deleted" instead of delting from database. We will delete from database every 24 hours.
 
@@ -320,10 +320,10 @@ impl Task for TaskUpdateInvalidMetadata {
 								current_meta.update(db)?;
 
 								for person_id in author_ids {
-									db.add_meta_person(&table::MetadataPerson {
+									MetadataPersonModel {
 										metadata_id: current_meta.id,
 										person_id,
-									})?;
+									}.insert_or_ignore(db)?;
 								}
 							} else {
 								println!("Unable to get metadata from source {:?}", source);
@@ -377,13 +377,13 @@ impl Task for TaskUpdateInvalidMetadata {
 							meta.update(db)?;
 
 							// TODO: Should I start with a clean slate like this?
-							db.remove_persons_by_meta_id(old_meta_id)?;
+							MetadataPersonModel::delete_by_meta_id(old_meta_id, db)?;
 
 							for person_id in author_ids {
-								db.add_meta_person(&table::MetadataPerson {
+								MetadataPersonModel {
 									metadata_id: meta.id,
 									person_id,
-								})?;
+								}.insert_or_ignore(db)?;
 							}
 						} else {
 							println!("Unable to get metadata from source {:?}", source);
@@ -497,10 +497,10 @@ impl TaskUpdateInvalidMetadata {
 				meta.update(db)?;
 
 				for person_id in author_ids {
-					db.add_meta_person(&MetadataPerson {
+					MetadataPersonModel {
 						metadata_id: meta.id,
 						person_id,
-					})?;
+					}.insert_or_ignore(db)?;
 				}
 			}
 

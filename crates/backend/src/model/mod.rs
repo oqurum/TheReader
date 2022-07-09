@@ -5,6 +5,7 @@ pub mod file;
 pub mod image;
 pub mod library;
 pub mod metadata;
+pub mod metadata_person;
 
 
 pub trait TableRow<'a> where Self: Sized {

@@ -1,6 +1,6 @@
 use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
-use crate::{Result, database::{Database, table}, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::{NewFileModel, FileModel}}};
+use crate::{Result, database::Database, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::{NewFileModel, FileModel}, metadata_person::MetadataPersonModel}};
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use tokio::fs;
@@ -130,10 +130,10 @@ async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result
 
 
 			for person_id in author_ids {
-				db.add_meta_person(&table::MetadataPerson {
+				MetadataPersonModel {
 					metadata_id: meta.id,
 					person_id,
-				})?;
+				}.insert_or_ignore(db)?;
 			}
 		}
 	}

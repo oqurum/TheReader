@@ -1,28 +1,8 @@
-use books_common::{Progression, Person, FileId, MetadataId, util::serialize_datetime};
+use books_common::{Progression, Person, FileId, util::serialize_datetime};
 use chrono::{DateTime, TimeZone, Utc};
 use common::{PersonId, MemberId, ThumbnailStore, Source};
 use rusqlite::Row;
 use serde::Serialize;
-
-
-// Tag Person Alt
-
-#[derive(Debug, Serialize)]
-pub struct MetadataPerson {
-	pub metadata_id: MetadataId,
-	pub person_id: PersonId,
-}
-
-impl<'a> TryFrom<&Row<'a>> for MetadataPerson {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			metadata_id: value.get(0)?,
-			person_id: value.get(1)?,
-		})
-	}
-}
 
 
 // Notes

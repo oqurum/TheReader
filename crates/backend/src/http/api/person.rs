@@ -3,7 +3,7 @@ use books_common::api;
 use chrono::Utc;
 use common::{PersonId, Either};
 
-use crate::{database::{Database, table::{TagPersonAlt, MetadataPerson}}, task::{self, queue_task_priority}, queue_task, WebResult, Error};
+use crate::{database::{Database, table::TagPersonAlt}, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::metadata_person::MetadataPersonModel};
 
 
 // Get List Of People and Search For People
@@ -95,14 +95,14 @@ pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<
 			});
 
 			// Transfer Old Person Metadata to New Person
-			for met_per in db.get_meta_person_list(Either::Right(old_person.id))? {
-				let _ = db.add_meta_person(&MetadataPerson {
+			for met_per in MetadataPersonModel::find_list_by(Either::Right(old_person.id), &db)? {
+				let _ = MetadataPersonModel {
 					metadata_id: met_per.metadata_id,
 					person_id: into_person.id,
-				});
+				}.insert_or_ignore(&db);
 			}
 
-			db.remove_meta_person_by_person_id(old_person.id)?;
+			MetadataPersonModel::delete_by_person_id(old_person.id, &db)?;
 
 			if into_person.birth_date.is_none() {
 				into_person.birth_date = old_person.birth_date;

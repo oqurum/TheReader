@@ -2,7 +2,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use crate::{Result, model::{metadata::MetadataModel, TableRow}};
 use books_common::{Progression, api, FileId, MetadataId, LibraryId};
-use common::{MemberId, PersonId, Either};
+use common::{MemberId, PersonId};
 use rusqlite::{Connection, params, OptionalExtension};
 // TODO: use tokio::task::spawn_blocking;
 
@@ -445,76 +445,6 @@ impl Database {
 		};
 
 		Ok(self.lock()?.query_row(&sql, [], |v| v.get(0))?)
-	}
-
-	// Metadata Person
-
-	pub fn add_meta_person(&self, person: &MetadataPerson) -> Result<()> {
-		self.lock()?.execute(r#"INSERT OR IGNORE INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
-		params![
-			&person.metadata_id,
-			&person.person_id
-		])?;
-
-		Ok(())
-	}
-
-	pub fn remove_meta_person(&self, person: &MetadataPerson) -> Result<()> {
-		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE metadata_id = ?1 AND person_id = ?2"#,
-		params![
-			&person.metadata_id,
-			&person.person_id
-		])?;
-
-		Ok(())
-	}
-
-	pub fn remove_persons_by_meta_id(&self, id: MetadataId) -> Result<()> {
-		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE metadata_id = ?1"#,
-		params![
-			id
-		])?;
-
-		Ok(())
-	}
-
-	pub fn remove_meta_person_by_person_id(&self, id: PersonId) -> Result<()> {
-		self.lock()?.execute(r#"DELETE FROM metadata_person WHERE person_id = ?1"#,
-		params![
-			id
-		])?;
-
-		Ok(())
-	}
-
-	pub fn transfer_meta_person(&self, from_id: PersonId, to_id: PersonId) -> Result<usize> {
-		Ok(self.lock()?.execute(r#"UPDATE metadata_person SET person_id = ?2 WHERE person_id = ?1"#,
-		params![
-			from_id,
-			to_id
-		])?)
-	}
-
-	pub fn get_meta_person_list(&self, id: Either<MetadataId, PersonId>) -> Result<Vec<MetadataPerson>> {
-		let this = self.lock()?;
-
-		match id {
-			Either::Left(id) => {
-				let mut conn = this.prepare(r#"SELECT * FROM metadata_person WHERE metadata_id = ?1"#)?;
-
-				let map = conn.query_map([id], |v| MetadataPerson::try_from(v))?;
-
-				Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-			}
-
-			Either::Right(id) => {
-				let mut conn = this.prepare(r#"SELECT * FROM metadata_person WHERE person_id = ?1"#)?;
-
-				let map = conn.query_map([id], |v| MetadataPerson::try_from(v))?;
-
-				Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-			}
-		}
 	}
 
 
