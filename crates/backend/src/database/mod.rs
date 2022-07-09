@@ -1,12 +1,17 @@
-use std::sync::{Mutex, MutexGuard};
+use std::{ops::Deref, sync::Arc};
 
 use crate::Result;
 use rusqlite::Connection;
+use tokio::sync::{RwLock, Semaphore, SemaphorePermit, RwLockReadGuard, RwLockWriteGuard};
 // TODO: use tokio::task::spawn_blocking;
+
+const DATABASE_PATH: &str = "database.db";
 
 
 pub async fn init() -> Result<Database> {
-	let conn = rusqlite::Connection::open("database.db")?;
+	let database = Database::open(5, || Ok(Connection::open(DATABASE_PATH)?))?;
+
+	let conn = database.write().await;
 
 	// TODO: Migrations https://github.com/rusqlite/rusqlite/discussions/1117
 
@@ -261,20 +266,217 @@ pub async fn init() -> Result<Database> {
 	)?;
 
 
-	Ok(Database(Mutex::new(conn)))
+	drop(conn);
+
+	Ok(database)
 }
 
-// TODO: Replace with tokio Mutex?
-pub struct Database(Mutex<Connection>);
 
+pub struct Database {
+	// Using RwLock to engage the r/w locks.
+	lock: RwLock<()>,
+
+	// Store all our open connections to the database.
+	read_conns: Vec<Arc<Connection>>,
+
+	// Max concurrent read connections
+	max_read_aquires: Semaphore,
+}
+
+unsafe impl Send for Database {}
+unsafe impl Sync for Database {}
 
 impl Database {
-	// TODO: Preparing for Transfer.
-	pub fn read(&self) -> Result<MutexGuard<Connection>> {
-		Ok(self.0.lock()?)
+	pub fn open<F: Fn() -> Result<Connection>>(count: usize, open_conn: F) -> Result<Self> {
+		let mut read_conns = Vec::new();
+
+		for _ in 0..count {
+			read_conns.push(Arc::new(open_conn()?));
+		}
+
+		Ok(Self {
+			lock: RwLock::new(()),
+
+			read_conns,
+
+			max_read_aquires: Semaphore::new(count),
+		})
 	}
 
-	pub fn write(&self) -> Result<MutexGuard<Connection>> {
-		Ok(self.0.lock()?)
+	pub async fn read(&self) -> DatabaseReadGuard<'_> {
+		let _guard = self.lock.read().await;
+
+		let _permit = self.max_read_aquires.acquire().await.unwrap();
+
+		let conn = {
+			let mut value = None;
+
+			for conn in &self.read_conns {
+				let new_conn = conn.clone();
+				// TODO: Race Conditions
+				// Strong count should eq 2 (original + cloned)
+				if Arc::strong_count(&new_conn) == 2 {
+					value = Some(new_conn);
+					break;
+				}
+			}
+
+			// This should never be reached.
+			#[allow(clippy::expect_used)]
+			value.expect("Unable to find available Read Connection")
+		};
+
+		DatabaseReadGuard {
+			_permit,
+			_guard,
+			conn
+		}
 	}
+
+	pub async fn write(&self) -> DatabaseWriteGuard<'_> {
+		let _guard = self.lock.write().await;
+
+		DatabaseWriteGuard {
+			_guard,
+			conn: &*self.read_conns[0]
+		}
+	}
+}
+
+
+pub struct DatabaseReadGuard<'a> {
+	_permit: SemaphorePermit<'a>,
+	_guard: RwLockReadGuard<'a, ()>,
+	conn: Arc<Connection>,
+}
+
+impl<'a> Deref for DatabaseReadGuard<'a> {
+	type Target = Connection;
+
+	fn deref(&self) -> &Self::Target {
+		&*self.conn
+	}
+}
+
+
+pub struct DatabaseWriteGuard<'a> {
+	_guard: RwLockWriteGuard<'a, ()>,
+	conn: &'a Connection,
+}
+
+impl<'a> Deref for DatabaseWriteGuard<'a> {
+	type Target = Connection;
+
+	fn deref(&self) -> &Self::Target {
+		self.conn
+	}
+}
+
+
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use std::{thread, time::Duration};
+	use tokio::{runtime::Runtime, time::sleep, sync::Mutex};
+
+
+	fn create_db() -> Result<Arc<Database>> {
+		Ok(Arc::new(Database::open(4, || Ok(Connection::open_in_memory()?))?))
+	}
+
+
+	#[test]
+	fn write_read() -> Result<()> {
+		let database = create_db()?;
+
+		let value = Arc::new(Mutex::new(false));
+
+		let handle_read = {
+			let db2 = database.clone();
+			let val2 = value.clone();
+
+			thread::spawn(move || {
+				Runtime::new().unwrap()
+				.block_on(async {
+					sleep(Duration::from_millis(100)).await;
+
+					let _read = db2.read().await;
+
+					assert!(*val2.lock().await);
+				});
+			})
+		};
+
+
+
+		Runtime::new().unwrap()
+		.block_on(async {
+			let _write = database.write().await;
+
+			*value.lock().await = true;
+		});
+
+		handle_read.join().unwrap();
+
+		Ok(())
+	}
+
+	#[test]
+	fn multiread_write_read() -> Result<()> {
+		let database = create_db()?;
+
+		let value = Arc::new(Mutex::new(false));
+
+		// Create 5 reads
+		let handle_reads = (0..5usize)
+			.map(|_| {
+				let db2 = database.clone();
+				let val2 = value.clone();
+
+				thread::spawn(move || {
+					Runtime::new().unwrap()
+					.block_on(async {
+						let _read = db2.read().await;
+
+						sleep(Duration::from_millis(100)).await;
+
+						assert!(!*val2.lock().await);
+					});
+				})
+			})
+			.collect::<Vec<_>>();
+
+		// Write
+		Runtime::new().unwrap()
+		.block_on(async {
+			sleep(Duration::from_millis(150)).await;
+
+			let _write = database.write().await;
+
+			*value.lock().await = true;
+		});
+
+		for handle_read in handle_reads {
+			handle_read.join().unwrap();
+		}
+
+		// Read again
+		Runtime::new().unwrap()
+		.block_on(async {
+			let _read = database.read().await;
+
+			assert!(*value.lock().await);
+		});
+
+		Ok(())
+	}
+
+	// #[test]
+	// fn multiple_reads() {}
+
+	// #[test]
+	// fn single_writes() {}
 }

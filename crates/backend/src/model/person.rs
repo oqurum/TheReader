@@ -79,8 +79,8 @@ impl From<PersonModel> for Person {
 }
 
 impl NewPersonModel {
-    pub fn insert(self, db: &Database) -> Result<PersonModel> {
-		let conn = db.write()?;
+    pub async fn insert(self, db: &Database) -> Result<PersonModel> {
+		let conn = db.write().await;
 
 		conn.execute(r#"
 			INSERT INTO tag_person (source, name, description, birth_date, thumb_url, updated_at, created_at)
@@ -106,8 +106,8 @@ impl NewPersonModel {
 
 
 impl PersonModel {
-	pub fn get_list(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
-		let this = db.read()?;
+	pub async fn get_list(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+		let this = db.read().await;
 
 		let mut conn = this.prepare(r#"SELECT * FROM tag_person LIMIT ?1 OFFSET ?2"#)?;
 
@@ -116,8 +116,8 @@ impl PersonModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn get_list_by_meta_id(id: MetadataId, db: &Database) -> Result<Vec<Self>> {
-		let this = db.read()?;
+	pub async fn get_list_by_meta_id(id: MetadataId, db: &Database) -> Result<Vec<Self>> {
+		let this = db.read().await;
 
 		let mut conn = this.prepare(r#"
 			SELECT tag_person.* FROM metadata_person
@@ -131,7 +131,7 @@ impl PersonModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn search_by(query: &str, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+	pub async fn search_by(query: &str, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
 		let mut escape_char = '\\';
 		// Change our escape character if it's in the query.
 		if query.contains(escape_char) {
@@ -150,7 +150,7 @@ impl PersonModel {
 		);
 
 
-		let this = db.read()?;
+		let this = db.read().await;
 
 		let mut conn = this.prepare(&sql)?;
 
@@ -159,8 +159,8 @@ impl PersonModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn find_one_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
-		let person = db.read()?.query_row(
+	pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
+		let person = db.read().await.query_row(
 			r#"SELECT * FROM tag_person WHERE name = ?1 LIMIT 1"#,
 			params![value],
 			|v| Self::from_row(v)
@@ -168,35 +168,35 @@ impl PersonModel {
 
 		if let Some(person) = person {
 			Ok(Some(person))
-		} else if let Some(alt) = PersonAltModel::get_by_name(value, db)? {
-			Self::find_one_by_id(alt.person_id, db)
+		} else if let Some(alt) = PersonAltModel::get_by_name(value, db).await? {
+			Self::find_one_by_id(alt.person_id, db).await
 		} else {
 			Ok(None)
 		}
 	}
 
-	pub fn find_one_by_id(id: PersonId, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+	pub async fn find_one_by_id(id: PersonId, db: &Database) -> Result<Option<Self>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM tag_person WHERE id = ?1 LIMIT 1"#,
 			params![id],
 			|v| Self::from_row(v)
 		).optional()?)
 	}
 
-	pub fn find_one_by_source(value: &str, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+	pub async fn find_one_by_source(value: &str, db: &Database) -> Result<Option<Self>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM tag_person WHERE source = ?1 LIMIT 1"#,
 			params![value],
 			|v| Self::from_row(v)
 		).optional()?)
 	}
 
-	pub fn count(db: &Database) -> Result<usize> {
-		Ok(db.read()?.query_row(r#"SELECT COUNT(*) FROM tag_person"#, [], |v| v.get(0))?)
+	pub async fn count(db: &Database) -> Result<usize> {
+		Ok(db.read().await.query_row(r#"SELECT COUNT(*) FROM tag_person"#, [], |v| v.get(0))?)
 	}
 
-	pub fn update(&self, db: &Database) -> Result<()> {
-		db.write()?
+	pub async fn update(&self, db: &Database) -> Result<()> {
+		db.write().await
 		.execute(r#"
 			UPDATE tag_person SET
 				source = ?2,
@@ -217,8 +217,8 @@ impl PersonModel {
 		Ok(())
 	}
 
-	pub fn delete_by_id(id: PersonId, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn delete_by_id(id: PersonId, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
 			r#"DELETE FROM tag_person WHERE id = ?1"#,
 			params![id]
 		)?)

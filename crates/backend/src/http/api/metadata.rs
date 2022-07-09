@@ -13,7 +13,7 @@ use crate::{database::Database, task::{queue_task_priority, self}, queue_task, m
 async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let meta_id = path.into_inner();
 
-	let meta = MetadataModel::get_by_id(meta_id, &db)?;
+	let meta = MetadataModel::get_by_id(meta_id, &db).await?;
 
 	if let Some(loc) = meta.map(|v| v.thumb_path) {
 		let path = crate::image::prefixhash_to_path(loc.as_value());
@@ -28,18 +28,18 @@ async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Data
 // Metadata
 #[get("/metadata/{id}")]
 pub async fn get_all_metadata_comp(meta_id: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
-	let meta = MetadataModel::get_by_id(*meta_id, &db)?.unwrap();
+	let meta = MetadataModel::get_by_id(*meta_id, &db).await?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
 
-	for file in FileModel::get_files_by_metadata_id(meta.id, &db)? {
-		let prog = FileProgressionModel::find_one(MemberId::none(), file.id, &db)?;
+	for file in FileModel::get_files_by_metadata_id(meta.id, &db).await? {
+		let prog = FileProgressionModel::find_one(MemberId::none(), file.id, &db).await?;
 
 		media.push(file.into());
 		progress.push(prog.map(|v| v.into()));
 	}
 
-	let people = PersonModel::get_list_by_meta_id(meta.id, &db)?;
+	let people = PersonModel::get_list_by_meta_id(meta.id, &db).await?;
 
 	Ok(web::Json(api::MediaViewResponse {
 		metadata: meta.into(),
@@ -78,7 +78,7 @@ async fn get_poster_list(
 	path: web::Path<MetadataId>,
 	db: web::Data<Database>
 ) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
-	let meta = MetadataModel::get_by_id(*path, &db)?.unwrap();
+	let meta = MetadataModel::get_by_id(*path, &db).await?.unwrap();
 
 	// TODO: For Open Library we need to go from an Edition to Work.
 	// Work is the main book. Usually consisting of more posters.
@@ -132,7 +132,7 @@ async fn post_change_poster(
 	body: web::Json<api::ChangePosterBody>,
 	db: web::Data<Database>
 ) -> WebResult<HttpResponse> {
-	let mut meta = MetadataModel::get_by_id(*metadata_id, &db)?.unwrap();
+	let mut meta = MetadataModel::get_by_id(*metadata_id, &db).await?.unwrap();
 
 	match body.into_inner().url_or_id {
 		Either::Left(url) => {
@@ -159,7 +159,7 @@ async fn post_change_poster(
 		}
 	}
 
-	meta.update(&db)?;
+	meta.update(&db).await?;
 
 	Ok(HttpResponse::Ok().finish())
 }

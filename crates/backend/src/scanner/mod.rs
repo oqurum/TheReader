@@ -78,8 +78,8 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 						created_at: Utc.timestamp_millis(meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
 					};
 
-					if !FileModel::path_exists(&file.path, db)? {
-						let file = file.insert(db)?;
+					if !FileModel::path_exists(&file.path, db).await? {
+						let file = file.insert(db).await?;
 						let file_id = file.id;
 
 						// TODO: Run Concurrently.
@@ -94,7 +94,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 		}
 	}
 
-	println!("Found {} Files", FileModel::get_file_count(db)?);
+	println!("Found {} Files", FileModel::get_file_count(db).await?);
 
 	Ok(())
 }
@@ -121,8 +121,8 @@ async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result
 			// TODO: Store Publisher inside Database
 			meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
-			let meta = meta.add_or_increment(db)?;
-			FileModel::update_file_metadata_id(file_id, meta.id, db)?;
+			let meta = meta.add_or_increment(db).await?;
+			FileModel::update_file_metadata_id(file_id, meta.id, db).await?;
 
 			if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
 				ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
@@ -133,7 +133,7 @@ async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result
 				MetadataPersonModel {
 					metadata_id: meta.id,
 					person_id,
-				}.insert_or_ignore(db)?;
+				}.insert_or_ignore(db).await?;
 			}
 		}
 	}

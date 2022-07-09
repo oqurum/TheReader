@@ -27,7 +27,7 @@ pub async fn load_resource(
 ) -> WebResult<HttpResponse> {
 	let (file_id, resource_path) = path.into_inner();
 
-	let file = FileModel::find_file_by_id(file_id, &db)?.unwrap();
+	let file = FileModel::find_file_by_id(file_id, &db).await?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -68,7 +68,7 @@ pub async fn load_resource(
 pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
 	let (file_id, chapters) = path.into_inner();
 
-	let file = FileModel::find_file_by_id(file_id, &db)?.unwrap();
+	let file = FileModel::find_file_by_id(file_id, &db).await?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -111,9 +111,9 @@ pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Databas
 // TODO: Add body requests for specifics
 #[get("/book/{id}")]
 pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
-	Ok(web::Json(if let Some(file) = FileModel::find_file_by_id(*file_id, &db)? {
+	Ok(web::Json(if let Some(file) = FileModel::find_file_by_id(*file_id, &db).await? {
 		Some(api::GetBookIdResponse {
-			progress: FileProgressionModel::find_one(MemberId::none(), *file_id, &db)?.map(|v| v.into()),
+			progress: FileProgressionModel::find_one(MemberId::none(), *file_id, &db).await?.map(|v| v.into()),
 
 			media: file.into()
 		})
@@ -125,7 +125,7 @@ pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> W
 
 #[get("/book/{id}/debug/{tail:.*}")]
 pub async fn load_book_debug(web_path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	if let Some(file) = FileModel::find_file_by_id(web_path.0, &db)? {
+	if let Some(file) = FileModel::find_file_by_id(web_path.0, &db).await? {
 		if web_path.1.is_empty() {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
 
@@ -162,7 +162,7 @@ pub async fn progress_book_add(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {
-	FileProgressionModel::insert_or_update(member.member_id(), *file_id, body.into_inner(), &db)?;
+	FileProgressionModel::insert_or_update(member.member_id(), *file_id, body.into_inner(), &db).await?;
 	Ok(HttpResponse::Ok().finish())
 }
 
@@ -172,7 +172,7 @@ pub async fn progress_book_delete(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {
-	FileProgressionModel::delete_one(member.member_id(), *file_id, &db)?;
+	FileProgressionModel::delete_one(member.member_id(), *file_id, &db).await?;
 	Ok(HttpResponse::Ok().finish())
 }
 
@@ -185,7 +185,7 @@ pub async fn notes_book_get(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<web::Json<api::ApiGetBookNotesByIdResponse>> {
-	let v = FileNoteModel::find_one(*file_id, member.member_id(), &db)?;
+	let v = FileNoteModel::find_one(*file_id, member.member_id(), &db).await?;
 	Ok(web::Json(v.map(|v| v.data)))
 }
 
@@ -204,7 +204,7 @@ pub async fn notes_book_add(
 	let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
 
 	FileNoteModel::new(*file_id, member.member_id(), data)
-		.insert_or_update(&db)?;
+		.insert_or_update(&db).await?;
 
 	Ok(HttpResponse::Ok().finish())
 }
@@ -215,7 +215,7 @@ pub async fn notes_book_delete(
 	db: web::Data<Database>,
 	member: MemberCookie,
 ) -> WebResult<HttpResponse> {
-	FileNoteModel::delete_one(*file_id, member.member_id(), &db)?;
+	FileNoteModel::delete_one(*file_id, member.member_id(), &db).await?;
 
 	Ok(HttpResponse::Ok().finish())
 }
@@ -229,7 +229,7 @@ pub async fn load_book_list(
 	let (items, count) = if let Some(search) = query.search_query() {
 		let search = search?;
 
-		let count = MetadataModel::count_search_metadata(&search, query.library, &db)?;
+		let count = MetadataModel::count_search_metadata(&search, query.library, &db).await?;
 
 		let items = if count == 0 {
 			Vec::new()
@@ -240,7 +240,7 @@ pub async fn load_book_list(
 				query.offset.unwrap_or(0),
 				query.limit.unwrap_or(50),
 				&db,
-			)?
+			).await?
 				.into_iter()
 				.map(|meta| {
 					DisplayItem {
@@ -255,14 +255,14 @@ pub async fn load_book_list(
 
 		(items, count)
 	} else {
-		let count = FileModel::get_file_count(&db)?;
+		let count = FileModel::get_file_count(&db).await?;
 
 		let items = MetadataModel::get_list_by(
 			query.library,
 			query.offset.unwrap_or(0),
 			query.limit.unwrap_or(50),
 			&db,
-		)?
+		).await?
 			.into_iter()
 			.map(|meta| {
 				DisplayItem {

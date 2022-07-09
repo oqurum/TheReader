@@ -100,15 +100,15 @@ impl TableRow<'_> for MetadataModel {
 
 
 impl MetadataModel {
-	pub fn add_or_increment(&self, db: &Database) -> Result<MetadataModel> {
+	pub async fn add_or_increment(&self, db: &Database) -> Result<MetadataModel> {
 		let table_meta = if self.id != 0 {
-			Self::get_by_id(self.id, db)?
+			Self::get_by_id(self.id, db).await?
 		} else {
-			Self::get_by_source(&self.source, db)?
+			Self::get_by_source(&self.source, db).await?
 		};
 
 		if table_meta.is_none() {
-			db.write()?
+			db.write().await
 			.execute(r#"
 				INSERT INTO metadata_item (
 					library_id, source, file_item_count,
@@ -130,14 +130,14 @@ impl MetadataModel {
 				]
 			)?;
 
-			return Ok(Self::get_by_source(&self.source, db)?.unwrap());
+			return Ok(Self::get_by_source(&self.source, db).await?.unwrap());
 		} else if self.id != 0 {
-			db.write()?
+			db.write().await
 			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
 				params![self.id]
 			)?;
 		} else {
-			db.write()?
+			db.write().await
 			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
 				params![self.source.to_string()]
 			)?;
@@ -146,8 +146,8 @@ impl MetadataModel {
 		Ok(table_meta.unwrap())
 	}
 
-	pub fn update(&self, db: &Database) -> Result<()> {
-		db.write()?
+	pub async fn update(&self, db: &Database) -> Result<()> {
+		db.write().await
 		.execute(r#"
 			UPDATE metadata_item SET
 				library_id = ?2, source = ?3, file_item_count = ?4,
@@ -172,16 +172,16 @@ impl MetadataModel {
 		Ok(())
 	}
 
-	pub fn decrement_or_remove(id: MetadataId, db: &Database) -> Result<()> {
-		if let Some(meta) = Self::get_by_id(id, db)? {
+	pub async fn decrement_or_remove(id: MetadataId, db: &Database) -> Result<()> {
+		if let Some(meta) = Self::get_by_id(id, db).await? {
 			if meta.file_item_count < 1 {
-				db.write()?
+				db.write().await
 				.execute(
 					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
 					params![id]
 				)?;
 			} else {
-				db.write()?
+				db.write().await
 				.execute(
 					r#"DELETE FROM metadata_item WHERE id = ?1"#,
 					params![id]
@@ -192,10 +192,10 @@ impl MetadataModel {
 		Ok(())
 	}
 
-	pub fn decrement(id: MetadataId, db: &Database) -> Result<()> {
-		if let Some(meta) = Self::get_by_id(id, db)? {
+	pub async fn decrement(id: MetadataId, db: &Database) -> Result<()> {
+		if let Some(meta) = Self::get_by_id(id, db).await? {
 			if meta.file_item_count > 0 {
-				db.write()?
+				db.write().await
 				.execute(
 					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
 					params![id]
@@ -206,8 +206,8 @@ impl MetadataModel {
 		Ok(())
 	}
 
-	pub fn set_file_count(id: MetadataId, file_count: usize, db: &Database) -> Result<()> {
-		db.write()?
+	pub async fn set_file_count(id: MetadataId, file_count: usize, db: &Database) -> Result<()> {
+		db.write().await
 		.execute(
 			r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
 			params![id, file_count]
@@ -217,31 +217,31 @@ impl MetadataModel {
 	}
 
 	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
-	pub fn get_by_source(source: &Source, db: &Database) -> Result<Option<MetadataModel>> {
-		Ok(db.read()?.query_row(
+	pub async fn get_by_source(source: &Source, db: &Database) -> Result<Option<MetadataModel>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM metadata_item WHERE source = ?1 LIMIT 1"#,
 			params![source.to_string()],
 			|v| MetadataModel::from_row(v)
 		).optional()?)
 	}
 
-	pub fn get_by_id(id: MetadataId, db: &Database) -> Result<Option<MetadataModel>> {
-		Ok(db.read()?.query_row(
+	pub async fn get_by_id(id: MetadataId, db: &Database) -> Result<Option<MetadataModel>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM metadata_item WHERE id = ?1 LIMIT 1"#,
 			params![id],
 			|v| MetadataModel::from_row(v)
 		).optional()?)
 	}
 
-	pub fn remove_by_id(id: MetadataId, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn remove_by_id(id: MetadataId, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
 			r#"DELETE FROM metadata_item WHERE id = ?1"#,
 			params![id]
 		)?)
 	}
 
-	pub fn get_list_by(library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<MetadataModel>> {
-		let this = db.read()?;
+	pub async fn get_list_by(library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<MetadataModel>> {
+		let this = db.read().await;
 
 		let lib_where = library.map(|v| format!("WHERE library_id={v}")).unwrap_or_default();
 
@@ -311,7 +311,7 @@ impl MetadataModel {
 		}
 	}
 
-	pub fn search_metadata_list(search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<MetadataModel>> {
+	pub async fn search_metadata_list(search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<MetadataModel>> {
 		let mut sql = match Self::gen_search_query(search, library) {
 			Some(v) => v,
 			None => return Ok(Vec::new())
@@ -319,7 +319,7 @@ impl MetadataModel {
 
 		sql += "LIMIT ?1 OFFSET ?2";
 
-		let this = db.read()?;
+		let this = db.read().await;
 
 		let mut conn = this.prepare(&sql)?;
 
@@ -328,12 +328,12 @@ impl MetadataModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn count_search_metadata(search: &api::SearchQuery, library: Option<LibraryId>, db: &Database) -> Result<usize> {
+	pub async fn count_search_metadata(search: &api::SearchQuery, library: Option<LibraryId>, db: &Database) -> Result<usize> {
 		let sql = match Self::gen_search_query(search, library) {
 			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
 			None => return Ok(0)
 		};
 
-		Ok(db.read()?.query_row(&sql, [], |v| v.get(0))?)
+		Ok(db.read().await.query_row(&sql, [], |v| v.get(0))?)
 	}
 }

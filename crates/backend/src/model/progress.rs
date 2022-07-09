@@ -123,16 +123,16 @@ impl From<FileProgressionModel> for Progression {
 
 
 impl FileProgressionModel {
-	pub fn insert_or_update(member_id: MemberId, file_id: FileId, progress: Progression, db: &Database) -> Result<()> {
+	pub async fn insert_or_update(member_id: MemberId, file_id: FileId, progress: Progression, db: &Database) -> Result<()> {
 		let prog = Self::new(progress, member_id, file_id);
 
-		if Self::find_one(member_id, file_id, db)?.is_some() {
-			db.write()?.execute(
+		if Self::find_one(member_id, file_id, db).await?.is_some() {
+			db.write().await.execute(
 				r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE file_id = ?6 AND user_id = ?7"#,
 				params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
 			)?;
 		} else {
-			db.write()?.execute(
+			db.write().await.execute(
 				r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#,
 				params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
 			)?;
@@ -141,16 +141,16 @@ impl FileProgressionModel {
 		Ok(())
 	}
 
-	pub fn find_one(member_id: MemberId, file_id: FileId, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+	pub async fn find_one(member_id: MemberId, file_id: FileId, db: &Database) -> Result<Option<Self>> {
+		Ok(db.read().await.query_row(
 			"SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id],
 			|v| Self::from_row(v)
 		).optional()?)
 	}
 
-	pub fn delete_one(member_id: MemberId, file_id: FileId, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn delete_one(member_id: MemberId, file_id: FileId, db: &Database) -> Result<()> {
+		db.write().await.execute(
 			"DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id]
 		)?;

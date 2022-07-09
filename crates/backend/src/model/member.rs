@@ -96,8 +96,8 @@ impl TableRow<'_> for MemberModel {
 
 
 impl NewMemberModel {
-    pub fn insert(self, db: &Database) -> Result<MemberModel> {
-		let conn = db.write()?;
+    pub async fn insert(self, db: &Database) -> Result<MemberModel> {
+		let conn = db.write().await;
 
 		conn.execute(r#"
 			INSERT INTO members (name, email, password, is_local, config, created_at, updated_at)
@@ -114,16 +114,16 @@ impl NewMemberModel {
 
 
 impl MemberModel {
-	pub fn find_by_email(value: &str, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+	pub async fn find_by_email(value: &str, db: &Database) -> Result<Option<Self>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM members WHERE email = ?1 LIMIT 1"#,
 			params![value],
 			|v| Self::from_row(v)
 		).optional()?)
 	}
 
-	pub fn find_by_id(id: MemberId, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+	pub async fn find_by_id(id: MemberId, db: &Database) -> Result<Option<Self>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM members WHERE id = ?1 LIMIT 1"#,
 			params![id],
 			|v| Self::from_row(v)

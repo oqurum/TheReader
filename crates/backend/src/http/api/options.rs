@@ -7,8 +7,8 @@ use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLi
 
 #[get("/options")]
 async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetOptionsResponse>> {
-	let libraries = LibraryModel::list_all_libraries(&db)?;
-	let mut directories = DirectoryModel::get_all(&db)?;
+	let libraries = LibraryModel::list_all_libraries(&db).await?;
+	let mut directories = DirectoryModel::get_all(&db).await?;
 
 	Ok(web::Json(api::GetOptionsResponse {
 		libraries: libraries.into_iter()
@@ -44,12 +44,12 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 			updated_at: Utc::now(),
 		};
 
-		lib.insert(&db)?;
+		lib.insert(&db).await?;
 	}
 
 	if let Some(directory) = directory {
 		// TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
-		DirectoryModel { library_id: directory.library_id, path: directory.path }.insert(&db)?;
+		DirectoryModel { library_id: directory.library_id, path: directory.path }.insert(&db).await?;
 	}
 
 	Ok(HttpResponse::Ok().finish())
@@ -63,11 +63,11 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 	} = modify.into_inner();
 
 	if let Some(id) = library.and_then(|v| v.id) {
-		LibraryModel::remove_by_id(id, &db)?;
+		LibraryModel::remove_by_id(id, &db).await?;
 	}
 
 	if let Some(directory) = directory {
-		DirectoryModel::remove_by_path(&directory.path, &db)?;
+		DirectoryModel::remove_by_path(&directory.path, &db).await?;
 	}
 
 	Ok(HttpResponse::Ok().finish())

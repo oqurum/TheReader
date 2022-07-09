@@ -40,7 +40,7 @@ pub async fn post_password_oauth(
 	let PostPasswordCallback { email, password } = query.into_inner();
 
 	// Create or Update User.
-	let member = if let Some(value) = MemberModel::find_by_email(&email, &db)? {
+	let member = if let Some(value) = MemberModel::find_by_email(&email, &db).await? {
 		if value.type_of != 2 {
 			panic!("Invalid Member. Member does not have a local password associated with it.");
 		}
@@ -64,7 +64,7 @@ pub async fn post_password_oauth(
 			updated_at: Utc::now(),
 		};
 
-		new_member.insert(&db)?
+		new_member.insert(&db).await?
 	};
 
 	super::remember_member_auth(member.id, &identity)?;

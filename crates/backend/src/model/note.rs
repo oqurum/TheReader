@@ -57,14 +57,14 @@ impl TableRow<'_> for FileNoteModel {
 
 
 impl FileNoteModel {
-	pub fn insert_or_update(&self, db: &Database) -> Result<()> {
-		if Self::find_one(self.file_id, self.member_id, db)?.is_some() {
-			db.write()?.execute(
+	pub async fn insert_or_update(&self, db: &Database) -> Result<()> {
+		if Self::find_one(self.file_id, self.member_id, db).await?.is_some() {
+			db.write().await.execute(
 				r#"UPDATE file_note SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
 				params![self.data, self.data_size, self.updated_at.timestamp_millis(), self.file_id, self.member_id]
 			)?;
 		} else {
-			db.write()?.execute(
+			db.write().await.execute(
 				r#"INSERT INTO file_note (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
 				params![self.file_id, self.member_id, self.data, self.data_size, self.updated_at.timestamp_millis(), self.created_at.timestamp_millis()]
 			)?;
@@ -73,16 +73,16 @@ impl FileNoteModel {
 		Ok(())
 	}
 
-	pub fn find_one(file_id: FileId, member_id: MemberId, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+	pub async fn find_one(file_id: FileId, member_id: MemberId, db: &Database) -> Result<Option<Self>> {
+		Ok(db.read().await.query_row(
 			"SELECT * FROM file_note WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id],
 			|v| Self::from_row(v)
 		).optional()?)
 	}
 
-	pub fn delete_one(file_id: FileId, member_id: MemberId, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn delete_one(file_id: FileId, member_id: MemberId, db: &Database) -> Result<()> {
+		db.write().await.execute(
 			"DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
 			params![member_id, file_id]
 		)?;

@@ -24,8 +24,8 @@ impl TableRow<'_> for MetadataPersonModel {
 }
 
 impl MetadataPersonModel {
-	pub fn insert_or_ignore(&self, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn insert_or_ignore(&self, db: &Database) -> Result<()> {
+		db.write().await.execute(
 			r#"INSERT OR IGNORE INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
 			params![
 				self.metadata_id,
@@ -36,8 +36,8 @@ impl MetadataPersonModel {
 		Ok(())
 	}
 
-	pub fn delete(&self, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn delete(&self, db: &Database) -> Result<()> {
+		db.write().await.execute(
 			r#"DELETE FROM metadata_person WHERE metadata_id = ?1 AND person_id = ?2"#,
 			params![
 				self.metadata_id,
@@ -48,8 +48,8 @@ impl MetadataPersonModel {
 		Ok(())
 	}
 
-	pub fn delete_by_meta_id(id: MetadataId, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn delete_by_meta_id(id: MetadataId, db: &Database) -> Result<()> {
+		db.write().await.execute(
 			r#"DELETE FROM metadata_person WHERE metadata_id = ?1"#,
 			[ id ]
 		)?;
@@ -57,8 +57,8 @@ impl MetadataPersonModel {
 		Ok(())
 	}
 
-	pub fn delete_by_person_id(id: PersonId, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn delete_by_person_id(id: PersonId, db: &Database) -> Result<()> {
+		db.write().await.execute(
 			r#"DELETE FROM metadata_person WHERE person_id = ?1"#,
 			[ id ]
 		)?;
@@ -66,15 +66,15 @@ impl MetadataPersonModel {
 		Ok(())
 	}
 
-	pub fn transfer_person(from_id: PersonId, to_id: PersonId, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn transfer_person(from_id: PersonId, to_id: PersonId, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
 			r#"UPDATE metadata_person SET person_id = ?2 WHERE person_id = ?1"#,
 			[ from_id, to_id ]
 		)?)
 	}
 
-	pub fn find_list_by(id: Either<MetadataId, PersonId>, db: &Database) -> Result<Vec<Self>> {
-		let this = db.read()?;
+	pub async fn find_list_by(id: Either<MetadataId, PersonId>, db: &Database) -> Result<Vec<Self>> {
+		let this = db.read().await;
 
 		match id {
 			Either::Left(id) => {

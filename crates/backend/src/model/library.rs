@@ -49,8 +49,8 @@ impl TableRow<'_> for LibraryModel {
 
 
 impl NewLibraryModel {
-	pub fn insert(self, db: &Database) -> Result<LibraryModel> {
-		let lock = db.write()?;
+	pub async fn insert(self, db: &Database) -> Result<LibraryModel> {
+		let lock = db.write().await;
 
 		lock.execute(
 			r#"INSERT INTO library (name, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)"#,
@@ -74,14 +74,14 @@ impl NewLibraryModel {
 
 
 impl LibraryModel {
-	pub fn remove_by_id(id: LibraryId, db: &Database) -> Result<usize> {
-		DirectoryModel::remove_by_library_id(id, db)?;
+	pub async fn remove_by_id(id: LibraryId, db: &Database) -> Result<usize> {
+		DirectoryModel::remove_by_library_id(id, db).await?;
 
-		Ok(db.write()?.execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
+		Ok(db.write().await.execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
 	}
 
-	pub fn list_all_libraries(db: &Database) -> Result<Vec<LibraryModel>> {
-		let this = db.read()?;
+	pub async fn list_all_libraries(db: &Database) -> Result<Vec<LibraryModel>> {
+		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM library")?;
 
@@ -90,8 +90,8 @@ impl LibraryModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn get_library_by_name(value: &str, db: &Database) -> Result<Option<LibraryModel>> {
-		Ok(db.read()?.query_row(
+	pub async fn get_library_by_name(value: &str, db: &Database) -> Result<Option<LibraryModel>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM library WHERE name = ?1 LIMIT 1"#,
 			params![value],
 			|v| LibraryModel::from_row(v)

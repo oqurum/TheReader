@@ -76,7 +76,7 @@ pub async fn post_passwordless_oauth(
 		// TODO:
 		oauth_token_secret: String::new(),
 		created_at: Utc::now(),
-	}.insert(&db)?;
+	}.insert(&db).await?;
 
 	send_auth_email(query.0.email, auth_url, main_html, &email_config)?;
 
@@ -105,9 +105,9 @@ pub async fn get_passwordless_oauth_callback(
 		email,
 	} = query.into_inner();
 
-	if AuthModel::remove_by_oauth_token(&oauth_token, &db)? {
+	if AuthModel::remove_by_oauth_token(&oauth_token, &db).await? {
 		// Create or Update User.
-		let member = if let Some(value) = MemberModel::find_by_email(&email, &db)? {
+		let member = if let Some(value) = MemberModel::find_by_email(&email, &db).await? {
 			value
 		} else {
 			let new_member = NewMemberModel {
@@ -121,7 +121,7 @@ pub async fn get_passwordless_oauth_callback(
 				updated_at: Utc::now(),
 			};
 
-			new_member.insert(&db)?
+			new_member.insert(&db).await?
 		};
 
 		super::remember_member_auth(member.id, &identity)?;

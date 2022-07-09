@@ -89,7 +89,7 @@ impl NewUploadedImageModel {
 	}
 
 	pub async fn insert(self, db: &Database) -> Result<UploadedImageModel> {
-		let conn = db.write()?;
+		let conn = db.write().await;
 
 		conn.execute(r#"
 			INSERT OR IGNORE INTO uploaded_images (path, created_at)
@@ -108,7 +108,7 @@ impl NewUploadedImageModel {
 	}
 
 	pub async fn path_exists(path: &str, db: &Database) -> Result<bool> {
-		Ok(db.read()?.query_row(
+		Ok(db.read().await.query_row(
 			"SELECT COUNT(*) FROM uploaded_images WHERE path = ?1",
 			[ path ],
 			|v| Ok(v.get::<_, usize>(0)? != 0)
@@ -119,7 +119,7 @@ impl NewUploadedImageModel {
 
 impl UploadedImageModel {
 	pub async fn get_by_path(value: &str, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM uploaded_images WHERE path = ?1"#,
 			[value],
 			|v| Self::from_row(v)
@@ -127,7 +127,7 @@ impl UploadedImageModel {
 	}
 
 	pub async fn get_by_id(value: ImageId, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM uploaded_images WHERE id = ?1"#,
 			[value],
 			|v| Self::from_row(v)
@@ -137,7 +137,7 @@ impl UploadedImageModel {
 	pub async fn remove(link_id: MetadataId, path: ThumbnailStore, db: &Database) -> Result<()> {
 		// TODO: Check for currently set images
 		// TODO: Remove image links.
-		db.write()?
+		db.write().await
 		.execute(r#"DELETE FROM uploaded_images WHERE link_id = ?1 AND path = ?2"#,
 			params![
 				link_id,
@@ -169,7 +169,7 @@ impl ImageLinkModel {
 
 
 	pub async fn insert(&self, db: &Database) -> Result<()> {
-		let conn = db.write()?;
+		let conn = db.write().await;
 
 		conn.execute(r#"
 			INSERT OR IGNORE INTO image_link (image_id, link_id, type_of)
@@ -185,7 +185,7 @@ impl ImageLinkModel {
 	}
 
 	pub async fn remove(self, db: &Database) -> Result<()> {
-		db.write()?
+		db.write().await
 		.execute(r#"DELETE FROM image_link WHERE image_id = ?1 AND link_id = ?2 AND type_of = ?3"#,
 			params![
 				self.image_id,
@@ -199,7 +199,7 @@ impl ImageLinkModel {
 
 	// TODO: Place into ImageWithLink struct?
 	pub async fn get_by_linked_id(id: usize, type_of: ImageType, db: &Database) -> Result<Vec<ImageWithLink>> {
-		let this = db.read()?;
+		let this = db.read().await;
 
 		let mut conn = this.prepare(r#"
 			SELECT image_link.*, uploaded_images.path, uploaded_images.created_at

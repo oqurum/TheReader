@@ -26,8 +26,8 @@ impl TableRow<'_> for DirectoryModel {
 
 
 impl DirectoryModel {
-	pub fn insert(&self, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn insert(&self, db: &Database) -> Result<()> {
+		db.write().await.execute(
 			r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
 			params![&self.library_id, &self.path]
 		)?;
@@ -35,22 +35,22 @@ impl DirectoryModel {
 		Ok(())
 	}
 
-	pub fn remove_by_path(path: &str, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn remove_by_path(path: &str, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
 			r#"DELETE FROM directory WHERE path = ?1"#,
 			[path]
 		)?)
 	}
 
-	pub fn remove_by_library_id(id: LibraryId, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn remove_by_library_id(id: LibraryId, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
 			r#"DELETE FROM directory WHERE library_id = ?1"#,
 			[id]
 		)?)
 	}
 
-	pub fn get_directories(library_id: LibraryId, db: &Database) -> Result<Vec<DirectoryModel>> {
-		let this = db.read()?;
+	pub async fn get_directories(library_id: LibraryId, db: &Database) -> Result<Vec<DirectoryModel>> {
+		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM directory WHERE library_id = ?1")?;
 
@@ -59,8 +59,8 @@ impl DirectoryModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub fn get_all(db: &Database) -> Result<Vec<DirectoryModel>> {
-		let this = db.read()?;
+	pub async fn get_all(db: &Database) -> Result<Vec<DirectoryModel>> {
+		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM directory")?;
 

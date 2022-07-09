@@ -25,8 +25,8 @@ impl TableRow<'_> for PersonAltModel {
 
 
 impl PersonAltModel {
-	pub fn insert(&self, db: &Database) -> Result<()> {
-		db.write()?.execute(
+	pub async fn insert(&self, db: &Database) -> Result<()> {
+		db.write().await.execute(
             r#"INSERT INTO tag_person_alt (name, person_id) VALUES (?1, ?2)"#,
             params![
                 &self.name, &self.person_id
@@ -36,16 +36,16 @@ impl PersonAltModel {
 		Ok(())
 	}
 
-	pub fn get_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read()?.query_row(
+	pub async fn get_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
+		Ok(db.read().await.query_row(
 			r#"SELECT * FROM tag_person_alt WHERE name = ?1 LIMIT 1"#,
 			params![value],
 			|v| Self::from_row(v)
 		).optional()?)
 	}
 
-	pub fn delete(&self, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn delete(&self, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
 			r#"DELETE FROM tag_person_alt WHERE name = ?1 AND person_id = ?2"#,
 			params![
 				&self.name,
@@ -54,15 +54,15 @@ impl PersonAltModel {
 		)?)
 	}
 
-	pub fn remove_by_id(id: PersonId, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn remove_by_id(id: PersonId, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
 			r#"DELETE FROM tag_person_alt WHERE person_id = ?1"#,
 			params![id]
 		)?)
 	}
 
-	pub fn transfer_or_ignore(from_id: PersonId, to_id: PersonId, db: &Database) -> Result<usize> {
-		Ok(db.write()?.execute(
+	pub async fn transfer_or_ignore(from_id: PersonId, to_id: PersonId, db: &Database) -> Result<usize> {
+		Ok(db.write().await.execute(
             r#"UPDATE OR IGNORE tag_person_alt SET person_id = ?2 WHERE person_id = ?1"#,
             params![
                 from_id,
