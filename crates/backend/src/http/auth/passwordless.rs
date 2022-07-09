@@ -7,6 +7,7 @@ use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::web;
 
+use crate::model::auth::AuthModel;
 use crate::model::member::{NewMemberModel, MemberModel};
 use crate::{Result, WebResult, Error};
 use chrono::Utc;
@@ -18,7 +19,7 @@ use rand::Rng;
 use rand::prelude::ThreadRng;
 use serde::{Serialize, Deserialize};
 
-use crate::database::{table, Database};
+use crate::database::Database;
 
 
 pub static PASSWORDLESS_PATH: &str = "/auth/passwordless";
@@ -70,12 +71,12 @@ pub async fn post_passwordless_oauth(
 		PASSWORDLESS_PATH_CB,
 	);
 
-	db.add_verify(&table::NewAuth {
+	AuthModel {
 		oauth_token,
 		// TODO:
 		oauth_token_secret: String::new(),
 		created_at: Utc::now(),
-	})?;
+	}.insert(&db)?;
 
 	send_auth_email(query.0.email, auth_url, main_html, &email_config)?;
 
@@ -104,7 +105,7 @@ pub async fn get_passwordless_oauth_callback(
 		email,
 	} = query.into_inner();
 
-	if db.remove_verify_if_found_by_oauth_token(&oauth_token)? {
+	if AuthModel::remove_by_oauth_token(&oauth_token, &db)? {
 		// Create or Update User.
 		let member = if let Some(value) = MemberModel::find_by_email(&email, &db)? {
 			value

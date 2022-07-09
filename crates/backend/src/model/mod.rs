@@ -1,5 +1,6 @@
 use rusqlite::{Row, types::FromSql};
 
+pub mod auth;
 pub mod directory;
 pub mod file;
 pub mod image;

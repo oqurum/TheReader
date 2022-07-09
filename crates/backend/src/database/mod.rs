@@ -5,9 +5,6 @@ use books_common::{api, LibraryId};
 use rusqlite::{Connection, params};
 // TODO: use tokio::task::spawn_blocking;
 
-pub mod table;
-use table::*;
-
 
 pub async fn init() -> Result<Database> {
 	let conn = rusqlite::Connection::open("database.db")?;
@@ -368,31 +365,5 @@ impl Database {
 		};
 
 		Ok(self.lock()?.query_row(&sql, [], |v| v.get(0))?)
-	}
-
-
-	// Verify
-
-	pub fn add_verify(&self, auth: &NewAuth) -> Result<usize> {
-		let conn = self.lock()?;
-
-		conn.execute(r#"
-			INSERT INTO auths (oauth_token, oauth_token_secret, created_at)
-			VALUES (?1, ?2, ?3)
-		"#,
-		params![
-			&auth.oauth_token,
-			&auth.oauth_token_secret,
-			auth.created_at.timestamp_millis()
-		])?;
-
-		Ok(conn.last_insert_rowid() as usize)
-	}
-
-	pub fn remove_verify_if_found_by_oauth_token(&self, value: &str) -> Result<bool> {
-		Ok(self.lock()?.execute(
-			r#"DELETE FROM auths WHERE oauth_token = ?1 LIMIT 1"#,
-			params![value],
-		)? != 0)
 	}
 }
