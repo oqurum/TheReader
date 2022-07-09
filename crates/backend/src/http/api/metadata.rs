@@ -4,7 +4,7 @@ use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, Metadat
 use chrono::Utc;
 use common::{MemberId, ImageType, Either};
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel}};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel, file::FileModel}};
 
 
 
@@ -32,7 +32,7 @@ pub async fn get_all_metadata_comp(meta_id: web::Path<MetadataId>, db: web::Data
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
 
-	for file in db.get_files_by_metadata_id(meta.id)? {
+	for file in FileModel::get_files_by_metadata_id(meta.id, &db)? {
 		let prog = db.get_progress(MemberId::none(), file.id)?;
 
 		media.push(file.into());

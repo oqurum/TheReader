@@ -4,14 +4,14 @@
 
 use std::collections::HashMap;
 
-use crate::Result;
+use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
 use books_common::{MetadataItemCached, SearchForBooksBy};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Serialize, Deserialize};
 
-use crate::{database::table::File, metadata::{FoundItem, FoundImageLocation}};
+use crate::metadata::{FoundItem, FoundImageLocation};
 use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
 
 lazy_static! {
@@ -26,7 +26,7 @@ impl Metadata for GoogleBooksMetadata {
 		"googlebooks"
 	}
 
-	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
+	async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {
 		for file in files {
 			if let Some(isbn) = file.identifier.clone() {
 				match self.request_query(isbn).await {

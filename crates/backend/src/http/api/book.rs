@@ -7,6 +7,7 @@ use bookie::Book;
 use common::MemberId;
 use futures::TryStreamExt;
 
+use crate::model::file::FileModel;
 use crate::model::metadata::MetadataModel;
 use crate::{WebResult, Error, Result};
 use crate::database::Database;
@@ -24,7 +25,7 @@ pub async fn load_resource(
 ) -> WebResult<HttpResponse> {
 	let (file_id, resource_path) = path.into_inner();
 
-	let file = db.find_file_by_id(file_id)?.unwrap();
+	let file = FileModel::find_file_by_id(file_id, &db)?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -65,7 +66,7 @@ pub async fn load_resource(
 pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
 	let (file_id, chapters) = path.into_inner();
 
-	let file = db.find_file_by_id(file_id)?.unwrap();
+	let file = FileModel::find_file_by_id(file_id, &db)?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -108,7 +109,7 @@ pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Databas
 // TODO: Add body requests for specifics
 #[get("/book/{id}")]
 pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
-	Ok(web::Json(if let Some(file) = db.find_file_by_id(*file_id)? {
+	Ok(web::Json(if let Some(file) = FileModel::find_file_by_id(*file_id, &db)? {
 		Some(api::GetBookIdResponse {
 			progress: db.get_progress(MemberId::none(), *file_id)?.map(|v| v.into()),
 
@@ -122,7 +123,7 @@ pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> W
 
 #[get("/book/{id}/debug/{tail:.*}")]
 pub async fn load_book_debug(web_path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	if let Some(file) = db.find_file_by_id(web_path.0)? {
+	if let Some(file) = FileModel::find_file_by_id(web_path.0, &db)? {
 		if web_path.1.is_empty() {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
 
@@ -250,7 +251,7 @@ pub async fn load_book_list(
 
 		(items, count)
 	} else {
-		let count = db.get_file_count()?;
+		let count = FileModel::get_file_count(&db)?;
 
 		let items = MetadataModel::get_list_by(
 			query.library,

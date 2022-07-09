@@ -1,12 +1,12 @@
 use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
-use crate::{Result, model::metadata::MetadataModel};
+use crate::{Result, model::{metadata::MetadataModel, file::FileModel}};
 use async_trait::async_trait;
 use books_common::{SearchFor, MetadataItemCached, MetadataId, LibraryId};
 use chrono::Utc;
 use common::{PersonId, ThumbnailStore, Source};
 
-use crate::database::{table::{File, self}, Database};
+use crate::database::{table, Database};
 
 use self::{
 	google_books::GoogleBooksMetadata,
@@ -45,7 +45,7 @@ pub trait Metadata {
 	fn get_prefix(&self) -> &'static str;
 
 	// Metadata
-	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>>;
+	async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>>;
 
 	async fn get_metadata_by_source_id(&mut self, _value: &str) -> Result<Option<MetadataReturned>> {
 		Ok(None)
@@ -70,7 +70,7 @@ pub trait Metadata {
 /// Attempts to return the first valid Metadata from Files.
 ///
 /// Also checks local agent.
-pub async fn get_metadata_from_files(files: &[File]) -> Result<Option<MetadataReturned>> {
+pub async fn get_metadata_from_files(files: &[FileModel]) -> Result<Option<MetadataReturned>> {
 	return_if_found!(GoogleBooksMetadata.get_metadata_from_files(files).await);
 	return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
 

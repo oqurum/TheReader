@@ -1,11 +1,10 @@
 // https://openlibrary.org/developers/api
 
-use crate::Result;
+use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
 use books_common::{MetadataItemCached, SearchForBooksBy};
 use serde::{Serialize, Deserialize};
 
-use crate::database::table::File;
 use self::book::BookSearchType;
 
 use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo, FoundItem, FoundImageLocation};
@@ -23,7 +22,7 @@ impl Metadata for OpenLibraryMetadata {
 		"openlibrary"
 	}
 
-	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
+	async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {
 		for file in files {
 			if let Some(isbn) = file.identifier.clone() {
 				let id = match BookId::make_assumptions(isbn) {

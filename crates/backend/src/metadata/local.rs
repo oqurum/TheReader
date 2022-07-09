@@ -1,9 +1,7 @@
-use crate::Result;
+use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
 use bookie::BookSearch;
 use books_common::MetadataItemCached;
-
-use crate::database::table::File;
 
 use super::{Metadata, MetadataReturned, AuthorInfo, FoundItem, FoundImageLocation};
 
@@ -17,7 +15,7 @@ impl Metadata for LocalMetadata {
 		"local"
 	}
 
-	async fn get_metadata_from_files(&mut self, files: &[File]) -> Result<Option<MetadataReturned>> {
+	async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {
 		for file in files {
 			// Wrapped to prevent "future cannot be sent between threads safely"
 			let (meta, authors, publisher) = {

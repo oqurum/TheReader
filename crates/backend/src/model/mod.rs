@@ -1,6 +1,7 @@
 use rusqlite::{Row, types::FromSql};
 
 pub mod directory;
+pub mod file;
 pub mod image;
 pub mod library;
 pub mod metadata;
@@ -33,5 +34,9 @@ impl<'a> AdvRow<'a> {
 
 	pub fn next_opt<T: FromSql>(&mut self) -> rusqlite::Result<Option<T>> {
 		self.next()
+	}
+
+	pub fn has_next(&self) -> rusqlite::Result<bool> {
+		self.row.get::<_, Option<String>>(self.index).map(|v| v.is_some())
 	}
 }

@@ -1,11 +1,9 @@
 use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
-use crate::{Result, database::table::{File, self}, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel}};
+use crate::{Result, database::{Database, table}, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::{NewFileModel, FileModel}}};
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use tokio::fs;
-
-use crate::database::{table::NewFile, Database};
 
 
 pub static WHITELISTED_FILE_TYPES: [&str; 1] = ["epub"];
@@ -62,7 +60,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 						}
 					};
 
-					let file = NewFile {
+					let file = NewFileModel {
 						path: path.to_str().unwrap().replace('\\', "/"),
 
 						file_name,
@@ -80,9 +78,9 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 						created_at: Utc.timestamp_millis(meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64),
 					};
 
-					if !db.file_exist(&file)? {
-						let file_id = db.add_file(&file)?;
-						let file = file.into_file(file_id);
+					if !FileModel::path_exists(&file.path, db)? {
+						let file = file.insert(db)?;
+						let file_id = file.id;
 
 						// TODO: Run Concurrently.
 						if let Err(e) = file_match_or_create_metadata(file, db).await {
@@ -96,13 +94,13 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 		}
 	}
 
-	println!("Found {} Files", db.get_file_count()?);
+	println!("Found {} Files", FileModel::get_file_count(db)?);
 
 	Ok(())
 }
 
 
-async fn file_match_or_create_metadata(file: File, db: &Database) -> Result<()> {
+async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result<()> {
 	if file.metadata_id.is_none() {
 		let file_id = file.id;
 
@@ -124,7 +122,7 @@ async fn file_match_or_create_metadata(file: File, db: &Database) -> Result<()> 
 			meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
 			let meta = meta.add_or_increment(db)?;
-			db.update_file_metadata_id(file_id, meta.id)?;
+			FileModel::update_file_metadata_id(file_id, meta.id, db)?;
 
 			if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
 				ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;

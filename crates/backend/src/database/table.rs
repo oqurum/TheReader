@@ -1,10 +1,8 @@
-use books_common::{Progression, MetadataItemCached, MediaItem, Person, FileId, MetadataId, LibraryId, util::serialize_datetime};
+use books_common::{Progression, Person, FileId, MetadataId, util::serialize_datetime};
 use chrono::{DateTime, TimeZone, Utc};
 use common::{PersonId, MemberId, ThumbnailStore, Source};
 use rusqlite::Row;
 use serde::Serialize;
-
-use crate::model::metadata::MetadataModel;
 
 
 // Tag Person Alt
@@ -184,121 +182,6 @@ impl From<FileProgression> for Progression {
 
 			_ => unreachable!()
 		}
-    }
-}
-
-
-// File
-
-pub struct NewFile {
-	pub path: String,
-
-	pub file_name: String,
-	pub file_type: String,
-	pub file_size: i64,
-
-	pub library_id: LibraryId,
-	pub metadata_id: Option<MetadataId>,
-	pub chapter_count: i64,
-
-	pub identifier: Option<String>,
-
-	pub modified_at: DateTime<Utc>,
-	pub accessed_at: DateTime<Utc>,
-	pub created_at: DateTime<Utc>,
-}
-
-impl NewFile {
-	pub fn into_file(self, id: FileId) -> File {
-		File {
-			id,
-			path: self.path,
-			file_name: self.file_name,
-			file_type: self.file_type,
-			file_size: self.file_size,
-			library_id: self.library_id,
-			metadata_id: self.metadata_id,
-			chapter_count: self.chapter_count,
-			identifier: self.identifier,
-			modified_at: self.modified_at,
-			accessed_at: self.accessed_at,
-			created_at: self.created_at,
-		}
-	}
-}
-
-
-#[derive(Debug, Serialize)]
-pub struct File {
-	pub id: FileId,
-
-	pub path: String,
-
-	pub file_name: String,
-	pub file_type: String,
-	pub file_size: i64,
-
-	pub library_id: LibraryId,
-	pub metadata_id: Option<MetadataId>,
-	pub chapter_count: i64,
-
-	pub identifier: Option<String>,
-
-	#[serde(serialize_with = "serialize_datetime")]
-	pub modified_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub accessed_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-}
-
-impl<'a> TryFrom<&Row<'a>> for File {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			id: value.get(0)?,
-
-			path: value.get(1)?,
-
-			file_name: value.get(2)?,
-			file_type: value.get(3)?,
-			file_size: value.get(4)?,
-
-			library_id: value.get(5)?,
-			metadata_id: value.get(6)?,
-			chapter_count: value.get(7)?,
-
-			identifier: value.get(8)?,
-
-			modified_at: Utc.timestamp_millis(value.get(9)?),
-			accessed_at: Utc.timestamp_millis(value.get(10)?),
-			created_at: Utc.timestamp_millis(value.get(11)?),
-		})
-	}
-}
-
-impl From<File> for MediaItem {
-    fn from(file: File) -> Self {
-        Self {
-            id: file.id,
-
-			path: file.path,
-
-            file_name: file.file_name,
-            file_type: file.file_type,
-            file_size: file.file_size,
-
-			library_id: file.library_id,
-			metadata_id: file.metadata_id,
-			chapter_count: file.chapter_count as usize,
-
-			identifier: file.identifier,
-
-            modified_at: file.modified_at.timestamp_millis(),
-            accessed_at: file.accessed_at.timestamp_millis(),
-            created_at: file.created_at.timestamp_millis(),
-        }
     }
 }
 
@@ -484,66 +367,4 @@ pub struct NewAuth {
 	pub oauth_token: String,
 	pub oauth_token_secret: String,
 	pub created_at: DateTime<Utc>,
-}
-
-
-// Non Table Items
-
-pub struct FileWithMetadata {
-	pub file: File,
-	pub meta: Option<MetadataModel>
-}
-
-impl<'a> TryFrom<&Row<'a>> for FileWithMetadata {
-	type Error = rusqlite::Error;
-
-	fn try_from(value: &Row<'a>) -> std::result::Result<Self, Self::Error> {
-		Ok(Self {
-			file: File {
-				id: value.get(0)?,
-
-				path: value.get(1)?,
-
-				file_name: value.get(2)?,
-				file_type: value.get(3)?,
-				file_size: value.get(4)?,
-
-				library_id: value.get(5)?,
-				metadata_id: value.get(6)?,
-				chapter_count: value.get(7)?,
-
-				identifier: value.get(8)?,
-
-				modified_at: Utc.timestamp_millis(value.get(9)?),
-				accessed_at: Utc.timestamp_millis(value.get(10)?),
-				created_at: Utc.timestamp_millis(value.get(11)?),
-			},
-
-			meta: value.get(11)
-				.ok()
-				.map(|_: i64| std::result::Result::<_, Self::Error>::Ok(MetadataModel {
-					id: value.get(11)?,
-					library_id: value.get(12)?,
-					source: Source::try_from(value.get::<_, String>(13)?).unwrap(),
-					file_item_count: value.get(14)?,
-					title: value.get(15)?,
-					original_title: value.get(16)?,
-					description: value.get(17)?,
-					rating: value.get(18)?,
-					thumb_path: ThumbnailStore::from(value.get::<_, Option<String>>(19)?),
-					all_thumb_urls: Vec::new(),
-					cached: value.get::<_, Option<String>>(20)?
-						.map(|v| MetadataItemCached::from_string(&v))
-						.unwrap_or_default(),
-					available_at: value.get(21)?,
-					year: value.get(22)?,
-					refreshed_at: Utc.timestamp_millis(value.get(23)?),
-					created_at: Utc.timestamp_millis(value.get(24)?),
-					updated_at: Utc.timestamp_millis(value.get(25)?),
-					deleted_at: value.get::<_, Option<_>>(26)?.map(|v| Utc.timestamp_millis(v)),
-					hash: value.get(27)?
-				}))
-				.transpose()?
-		})
-	}
 }
