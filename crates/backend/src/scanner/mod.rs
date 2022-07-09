@@ -94,7 +94,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 		}
 	}
 
-	println!("Found {} Files", FileModel::get_file_count(db).await?);
+	println!("Found {} Files", FileModel::count(db).await?);
 
 	Ok(())
 }
@@ -121,8 +121,8 @@ async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result
 			// TODO: Store Publisher inside Database
 			meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
-			let meta = meta.add_or_increment(db).await?;
-			FileModel::update_file_metadata_id(file_id, meta.id, db).await?;
+			let meta = meta.insert_or_increment(db).await?;
+			FileModel::update_metadata_id(file_id, meta.id, db).await?;
 
 			if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
 				ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;

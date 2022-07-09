@@ -184,7 +184,7 @@ impl ImageLinkModel {
 		Ok(())
 	}
 
-	pub async fn remove(self, db: &Database) -> Result<()> {
+	pub async fn delete(self, db: &Database) -> Result<()> {
 		db.write().await
 		.execute(r#"DELETE FROM image_link WHERE image_id = ?1 AND link_id = ?2 AND type_of = ?3"#,
 			params![
@@ -198,7 +198,7 @@ impl ImageLinkModel {
 	}
 
 	// TODO: Place into ImageWithLink struct?
-	pub async fn get_by_linked_id(id: usize, type_of: ImageType, db: &Database) -> Result<Vec<ImageWithLink>> {
+	pub async fn find_with_link_by_link_id(id: usize, type_of: ImageType, db: &Database) -> Result<Vec<ImageWithLink>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare(r#"

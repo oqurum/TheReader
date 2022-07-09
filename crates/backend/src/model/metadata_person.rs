@@ -73,7 +73,7 @@ impl MetadataPersonModel {
 		)?)
 	}
 
-	pub async fn find_list_by(id: Either<MetadataId, PersonId>, db: &Database) -> Result<Vec<Self>> {
+	pub async fn find_by(id: Either<MetadataId, PersonId>, db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
 		match id {

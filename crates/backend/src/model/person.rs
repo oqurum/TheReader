@@ -106,7 +106,7 @@ impl NewPersonModel {
 
 
 impl PersonModel {
-	pub async fn get_list(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+	pub async fn find(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare(r#"SELECT * FROM tag_person LIMIT ?1 OFFSET ?2"#)?;
@@ -116,7 +116,7 @@ impl PersonModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn get_list_by_meta_id(id: MetadataId, db: &Database) -> Result<Vec<Self>> {
+	pub async fn find_by_meta_id(id: MetadataId, db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare(r#"
@@ -168,7 +168,7 @@ impl PersonModel {
 
 		if let Some(person) = person {
 			Ok(Some(person))
-		} else if let Some(alt) = PersonAltModel::get_by_name(value, db).await? {
+		} else if let Some(alt) = PersonAltModel::find_one_by_name(value, db).await? {
 			Self::find_one_by_id(alt.person_id, db).await
 		} else {
 			Ok(None)

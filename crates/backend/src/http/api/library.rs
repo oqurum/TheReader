@@ -8,7 +8,7 @@ use crate::{database::Database, WebResult, model::library::LibraryModel};
 #[get("/libraries")]
 async fn load_library_list(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetLibrariesResponse>> {
 	Ok(web::Json(api::GetLibrariesResponse {
-		items: LibraryModel::list_all_libraries(&db).await?
+		items: LibraryModel::get_all(&db).await?
 			.into_iter()
 			.map(|file| {
 				LibraryColl {

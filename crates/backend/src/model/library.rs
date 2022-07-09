@@ -74,13 +74,13 @@ impl NewLibraryModel {
 
 
 impl LibraryModel {
-	pub async fn remove_by_id(id: LibraryId, db: &Database) -> Result<usize> {
-		DirectoryModel::remove_by_library_id(id, db).await?;
+	pub async fn delete_by_id(id: LibraryId, db: &Database) -> Result<usize> {
+		DirectoryModel::delete_by_library_id(id, db).await?;
 
 		Ok(db.write().await.execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
 	}
 
-	pub async fn list_all_libraries(db: &Database) -> Result<Vec<LibraryModel>> {
+	pub async fn get_all(db: &Database) -> Result<Vec<LibraryModel>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM library")?;
@@ -90,7 +90,7 @@ impl LibraryModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn get_library_by_name(value: &str, db: &Database) -> Result<Option<LibraryModel>> {
+	pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<LibraryModel>> {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM library WHERE name = ?1 LIMIT 1"#,
 			params![value],

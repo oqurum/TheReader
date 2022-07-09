@@ -42,14 +42,14 @@ impl DirectoryModel {
 		)?)
 	}
 
-	pub async fn remove_by_library_id(id: LibraryId, db: &Database) -> Result<usize> {
+	pub async fn delete_by_library_id(id: LibraryId, db: &Database) -> Result<usize> {
 		Ok(db.write().await.execute(
 			r#"DELETE FROM directory WHERE library_id = ?1"#,
 			[id]
 		)?)
 	}
 
-	pub async fn get_directories(library_id: LibraryId, db: &Database) -> Result<Vec<DirectoryModel>> {
+	pub async fn find_directories_by_library_id(library_id: LibraryId, db: &Database) -> Result<Vec<DirectoryModel>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM directory WHERE library_id = ?1")?;

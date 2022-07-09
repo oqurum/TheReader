@@ -36,7 +36,7 @@ impl PersonAltModel {
 		Ok(())
 	}
 
-	pub async fn get_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
+	pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM tag_person_alt WHERE name = ?1 LIMIT 1"#,
 			params![value],
@@ -54,7 +54,7 @@ impl PersonAltModel {
 		)?)
 	}
 
-	pub async fn remove_by_id(id: PersonId, db: &Database) -> Result<usize> {
+	pub async fn delete_by_id(id: PersonId, db: &Database) -> Result<usize> {
 		Ok(db.write().await.execute(
 			r#"DELETE FROM tag_person_alt WHERE person_id = ?1"#,
 			params![id]

@@ -27,7 +27,7 @@ pub async fn load_resource(
 ) -> WebResult<HttpResponse> {
 	let (file_id, resource_path) = path.into_inner();
 
-	let file = FileModel::find_file_by_id(file_id, &db).await?.unwrap();
+	let file = FileModel::find_one_by_id(file_id, &db).await?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -68,7 +68,7 @@ pub async fn load_resource(
 pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
 	let (file_id, chapters) = path.into_inner();
 
-	let file = FileModel::find_file_by_id(file_id, &db).await?.unwrap();
+	let file = FileModel::find_one_by_id(file_id, &db).await?.unwrap();
 
 	let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -111,7 +111,7 @@ pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Databas
 // TODO: Add body requests for specifics
 #[get("/book/{id}")]
 pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
-	Ok(web::Json(if let Some(file) = FileModel::find_file_by_id(*file_id, &db).await? {
+	Ok(web::Json(if let Some(file) = FileModel::find_one_by_id(*file_id, &db).await? {
 		Some(api::GetBookIdResponse {
 			progress: FileProgressionModel::find_one(MemberId::none(), *file_id, &db).await?.map(|v| v.into()),
 
@@ -125,7 +125,7 @@ pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> W
 
 #[get("/book/{id}/debug/{tail:.*}")]
 pub async fn load_book_debug(web_path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	if let Some(file) = FileModel::find_file_by_id(web_path.0, &db).await? {
+	if let Some(file) = FileModel::find_one_by_id(web_path.0, &db).await? {
 		if web_path.1.is_empty() {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
 
@@ -229,12 +229,12 @@ pub async fn load_book_list(
 	let (items, count) = if let Some(search) = query.search_query() {
 		let search = search?;
 
-		let count = MetadataModel::count_search_metadata(&search, query.library, &db).await?;
+		let count = MetadataModel::count_search_by(&search, query.library, &db).await?;
 
 		let items = if count == 0 {
 			Vec::new()
 		} else {
-			MetadataModel::search_metadata_list(
+			MetadataModel::search_by(
 				&search,
 				query.library,
 				query.offset.unwrap_or(0),
@@ -255,9 +255,9 @@ pub async fn load_book_list(
 
 		(items, count)
 	} else {
-		let count = FileModel::get_file_count(&db).await?;
+		let count = FileModel::count(&db).await?;
 
-		let items = MetadataModel::get_list_by(
+		let items = MetadataModel::find_by(
 			query.library,
 			query.offset.unwrap_or(0),
 			query.limit.unwrap_or(50),

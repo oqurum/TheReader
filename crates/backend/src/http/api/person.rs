@@ -32,7 +32,7 @@ pub async fn load_author_list(
 
 	// Return All People
 	else {
-		let items = PersonModel::get_list(offset, limit, &db).await?
+		let items = PersonModel::find(offset, limit, &db).await?
 			.into_iter()
 			.map(|v| v.into())
 			.collect();
@@ -86,7 +86,7 @@ pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<
 			PersonAltModel::transfer_or_ignore(old_person.id, into_person.id, &db).await?;
 
 			// Delete remaining Alt Names
-			PersonAltModel::remove_by_id(old_person.id, &db).await?;
+			PersonAltModel::delete_by_id(old_person.id, &db).await?;
 
 			// Make Old Person Name an Alt Name
 			let _ = PersonAltModel {
@@ -95,7 +95,7 @@ pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<
 			}.insert(&db).await;
 
 			// Transfer Old Person Metadata to New Person
-			for met_per in MetadataPersonModel::find_list_by(Either::Right(old_person.id), &db).await? {
+			for met_per in MetadataPersonModel::find_by(Either::Right(old_person.id), &db).await? {
 				let _ = MetadataPersonModel {
 					metadata_id: met_per.metadata_id,
 					person_id: into_person.id,

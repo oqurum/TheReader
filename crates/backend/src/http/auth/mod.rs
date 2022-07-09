@@ -27,7 +27,7 @@ pub fn get_auth_value(identity: &Identity) -> Option<CookieAuth> {
 
 pub async fn get_auth_member(identity: &Identity, db: &Database) -> Option<MemberModel> {
 	let store = get_auth_value(identity)?;
-	MemberModel::find_by_id(store.member_id, db).await.ok().flatten()
+	MemberModel::find_one_by_id(store.member_id, db).await.ok().flatten()
 }
 
 pub fn remember_member_auth(member_id: MemberId, identity: &Identity) -> Result<()> {

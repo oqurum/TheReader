@@ -76,8 +76,8 @@ pub struct TaskLibraryScan;
 #[async_trait]
 impl Task for TaskLibraryScan {
 	async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
-		for library in LibraryModel::list_all_libraries(db).await? {
-			let directories = DirectoryModel::get_directories(library.id, db).await?;
+		for library in LibraryModel::get_all(db).await? {
+			let directories = DirectoryModel::find_directories_by_library_id(library.id, db).await?;
 
 			crate::scanner::library_scan(&library, directories, db).await?;
 		}
@@ -123,7 +123,7 @@ impl Task for TaskUpdateInvalidMetadata {
 		match self.state.clone() {
 			// TODO: Remove at some point. Currently inside of scanner.
 			UpdatingMetadata::AutoMatchInvalid => {
-				for file in FileModel::get_files_of_no_metadata(db).await? {
+				for file in FileModel::find_by_missing_metadata(db).await? {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.
 					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
 						let file_id = file.id;
@@ -145,8 +145,8 @@ impl Task for TaskUpdateInvalidMetadata {
 									// TODO: Store Publisher inside Database
 									meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
 
-									let meta = meta.add_or_increment(db).await?;
-									FileModel::update_file_metadata_id(file_id, meta.id, db).await?;
+									let meta = meta.insert_or_increment(db).await?;
+									FileModel::update_metadata_id(file_id, meta.id, db).await?;
 
 									if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
 										ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
@@ -173,7 +173,7 @@ impl Task for TaskUpdateInvalidMetadata {
 				println!("Auto Update Metadata ID by Files: {}", meta_id);
 				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
 
-				let fm_meta = MetadataModel::get_by_id(meta_id, db).await?.unwrap();
+				let fm_meta = MetadataModel::find_one_by_id(meta_id, db).await?.unwrap();
 
 				Self::search_meta_by_files(meta_id, fm_meta, db).await?;
 			}
@@ -183,7 +183,7 @@ impl Task for TaskUpdateInvalidMetadata {
 				println!("Auto Update Metadata ID by Source: {}", meta_id);
 				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
 
-				let fm_meta = MetadataModel::get_by_id(meta_id, db).await?.unwrap();
+				let fm_meta = MetadataModel::find_one_by_id(meta_id, db).await?.unwrap();
 
 				// TODO: Attempt to update source first.
 				if let Some(mut new_meta) = get_metadata_by_source(&fm_meta.source).await? {
@@ -250,14 +250,14 @@ impl Task for TaskUpdateInvalidMetadata {
 				println!("UpdatingMetadata::SpecificMatchSingleMetaId {{ meta_id: {:?}, source: {:?} }}", old_meta_id, source);
 				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(old_meta_id)));
 
-				match MetadataModel::get_by_source(&source, db).await? {
+				match MetadataModel::find_one_by_source(&source, db).await? {
 					// If the metadata already exists we move the old metadata files to the new one and completely remove old metadata.
 					Some(meta_item) => {
 						if meta_item.id != old_meta_id {
 							println!("Changing Current File Metadata ({}) to New File Metadata ({})", old_meta_id, meta_item.id);
 
 							// Change file metas'from old to new meta
-							let changed_files = FileModel::change_files_metadata_id(old_meta_id, meta_item.id, db).await?;
+							let changed_files = FileModel::transfer_metadata_id(old_meta_id, meta_item.id, db).await?;
 
 							// Update new meta file count
 							MetadataModel::set_file_count(meta_item.id, meta_item.file_item_count as usize + changed_files, db).await?;
@@ -268,14 +268,14 @@ impl Task for TaskUpdateInvalidMetadata {
 							// TODO: Change to "deleted" instead of delting from database. We will delete from database every 24 hours.
 
 							// Remove old Metadata
-							MetadataModel::remove_by_id(old_meta_id, db).await?;
+							MetadataModel::delete_by_id(old_meta_id, db).await?;
 						} else {
 							// Update existing metadata.
 
 							println!("Updating File Metadata.");
 
 							if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
-								let mut current_meta = MetadataModel::get_by_id(old_meta_id, db).await?.unwrap();
+								let mut current_meta = MetadataModel::find_one_by_id(old_meta_id, db).await?.unwrap();
 
 								let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
@@ -337,7 +337,7 @@ impl Task for TaskUpdateInvalidMetadata {
 						if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
 							println!("Grabbed New Metadata from Source {:?}, updating old Metadata ({}) with it.", source, old_meta_id);
 
-							let old_meta = MetadataModel::get_by_id(old_meta_id, db).await?.unwrap();
+							let old_meta = MetadataModel::find_one_by_id(old_meta_id, db).await?.unwrap();
 
 							let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
@@ -405,7 +405,7 @@ impl Task for TaskUpdateInvalidMetadata {
 impl TaskUpdateInvalidMetadata {
 	async fn search_meta_by_files(meta_id: MetadataId, mut fm_meta: MetadataModel, db: &Database) -> Result<()> {
 		// Check Files first.
-		let files = FileModel::get_files_by_metadata_id(meta_id, db).await?;
+		let files = FileModel::find_by_metadata_id(meta_id, db).await?;
 
 		let found_meta = match get_metadata_from_files(&files).await? {
 			None => if let Some(title) = fm_meta.title.as_deref() { // TODO: Place into own function

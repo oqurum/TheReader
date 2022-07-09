@@ -7,7 +7,7 @@ use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLi
 
 #[get("/options")]
 async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetOptionsResponse>> {
-	let libraries = LibraryModel::list_all_libraries(&db).await?;
+	let libraries = LibraryModel::get_all(&db).await?;
 	let mut directories = DirectoryModel::get_all(&db).await?;
 
 	Ok(web::Json(api::GetOptionsResponse {
@@ -63,7 +63,7 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 	} = modify.into_inner();
 
 	if let Some(id) = library.and_then(|v| v.id) {
-		LibraryModel::remove_by_id(id, &db).await?;
+		LibraryModel::delete_by_id(id, &db).await?;
 	}
 
 	if let Some(directory) = directory {

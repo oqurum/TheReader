@@ -13,7 +13,7 @@ pub async fn load_member_self(
 	identity: Identity,
 ) -> WebResult<web::Json<api::ApiGetMemberSelfResponse>> {
 	if let Some(cookie) = get_auth_value(&identity) {
-		if let Some(member) = MemberModel::find_by_id(cookie.member_id, &db).await? {
+		if let Some(member) = MemberModel::find_one_by_id(cookie.member_id, &db).await? {
 			return Ok(web::Json(api::GetMemberSelfResponse {
 				member: Some(member.into())
 			}));

@@ -107,7 +107,7 @@ pub async fn get_passwordless_oauth_callback(
 
 	if AuthModel::remove_by_oauth_token(&oauth_token, &db).await? {
 		// Create or Update User.
-		let member = if let Some(value) = MemberModel::find_by_email(&email, &db).await? {
+		let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
 			value
 		} else {
 			let new_member = NewMemberModel {

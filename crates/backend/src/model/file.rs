@@ -147,7 +147,7 @@ impl FileModel {
 		Ok(db.read().await.query_row(r#"SELECT id FROM file WHERE path = ?1"#, [path], |_| Ok(1)).optional()?.is_some())
 	}
 
-	pub async fn get_list_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+	pub async fn find_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM file WHERE library_id = ?1 LIMIT ?2 OFFSET ?3")?;
@@ -157,7 +157,7 @@ impl FileModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn get_files_with_metadata_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<FileWithMetadata>> {
+	pub async fn find_with_metadata_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<FileWithMetadata>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare(r#"
@@ -173,7 +173,7 @@ impl FileModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn get_files_of_no_metadata(db: &Database) -> Result<Vec<Self>> {
+	pub async fn find_by_missing_metadata(db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id = 0 OR metadata_id = NULL")?;
@@ -183,7 +183,7 @@ impl FileModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn find_file_by_id(id: FileId, db: &Database) -> Result<Option<Self>> {
+	pub async fn find_one_by_id(id: FileId, db: &Database) -> Result<Option<Self>> {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM file WHERE id=?1 LIMIT 1"#,
 			params![id],
@@ -191,7 +191,7 @@ impl FileModel {
 		).optional()?)
 	}
 
-	pub async fn find_file_by_id_with_metadata(id: FileId, db: &Database) -> Result<Option<FileWithMetadata>> {
+	pub async fn find_one_by_id_with_metadata(id: FileId, db: &Database) -> Result<Option<FileWithMetadata>> {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id WHERE file.id = ?1"#,
 			[id],
@@ -199,7 +199,7 @@ impl FileModel {
 		).optional()?)
 	}
 
-	pub async fn get_files_by_metadata_id(metadata_id: MetadataId, db: &Database) -> Result<Vec<Self>> {
+	pub async fn find_by_metadata_id(metadata_id: MetadataId, db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
 		let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id=?1")?;
@@ -209,11 +209,11 @@ impl FileModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn get_file_count(db: &Database) -> Result<usize> {
+	pub async fn count(db: &Database) -> Result<usize> {
 		Ok(db.read().await.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
 	}
 
-	pub async fn update_file_metadata_id(file_id: FileId, metadata_id: MetadataId, db: &Database) -> Result<()> {
+	pub async fn update_metadata_id(file_id: FileId, metadata_id: MetadataId, db: &Database) -> Result<()> {
 		db.write().await
 		.execute(r#"UPDATE file SET metadata_id = ?1 WHERE id = ?2"#,
 			params![metadata_id, file_id]
@@ -222,7 +222,7 @@ impl FileModel {
 		Ok(())
 	}
 
-	pub async fn change_files_metadata_id(old_metadata_id: MetadataId, new_metadata_id: MetadataId, db: &Database) -> Result<usize> {
+	pub async fn transfer_metadata_id(old_metadata_id: MetadataId, new_metadata_id: MetadataId, db: &Database) -> Result<usize> {
 		Ok(db.write().await
 		.execute(r#"UPDATE file SET metadata_id = ?1 WHERE metadata_id = ?2"#,
 			params![new_metadata_id, old_metadata_id]

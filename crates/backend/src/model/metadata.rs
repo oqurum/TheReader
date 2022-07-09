@@ -100,11 +100,11 @@ impl TableRow<'_> for MetadataModel {
 
 
 impl MetadataModel {
-	pub async fn add_or_increment(&self, db: &Database) -> Result<MetadataModel> {
+	pub async fn insert_or_increment(&self, db: &Database) -> Result<Self> {
 		let table_meta = if self.id != 0 {
-			Self::get_by_id(self.id, db).await?
+			Self::find_one_by_id(self.id, db).await?
 		} else {
-			Self::get_by_source(&self.source, db).await?
+			Self::find_one_by_source(&self.source, db).await?
 		};
 
 		if table_meta.is_none() {
@@ -130,7 +130,7 @@ impl MetadataModel {
 				]
 			)?;
 
-			return Ok(Self::get_by_source(&self.source, db).await?.unwrap());
+			return Ok(Self::find_one_by_source(&self.source, db).await?.unwrap());
 		} else if self.id != 0 {
 			db.write().await
 			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
@@ -172,8 +172,8 @@ impl MetadataModel {
 		Ok(())
 	}
 
-	pub async fn decrement_or_remove(id: MetadataId, db: &Database) -> Result<()> {
-		if let Some(meta) = Self::get_by_id(id, db).await? {
+	pub async fn delete_or_decrement(id: MetadataId, db: &Database) -> Result<()> {
+		if let Some(meta) = Self::find_one_by_id(id, db).await? {
 			if meta.file_item_count < 1 {
 				db.write().await
 				.execute(
@@ -193,7 +193,7 @@ impl MetadataModel {
 	}
 
 	pub async fn decrement(id: MetadataId, db: &Database) -> Result<()> {
-		if let Some(meta) = Self::get_by_id(id, db).await? {
+		if let Some(meta) = Self::find_one_by_id(id, db).await? {
 			if meta.file_item_count > 0 {
 				db.write().await
 				.execute(
@@ -217,7 +217,7 @@ impl MetadataModel {
 	}
 
 	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
-	pub async fn get_by_source(source: &Source, db: &Database) -> Result<Option<MetadataModel>> {
+	pub async fn find_one_by_source(source: &Source, db: &Database) -> Result<Option<Self>> {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM metadata_item WHERE source = ?1 LIMIT 1"#,
 			params![source.to_string()],
@@ -225,7 +225,7 @@ impl MetadataModel {
 		).optional()?)
 	}
 
-	pub async fn get_by_id(id: MetadataId, db: &Database) -> Result<Option<MetadataModel>> {
+	pub async fn find_one_by_id(id: MetadataId, db: &Database) -> Result<Option<Self>> {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM metadata_item WHERE id = ?1 LIMIT 1"#,
 			params![id],
@@ -233,14 +233,14 @@ impl MetadataModel {
 		).optional()?)
 	}
 
-	pub async fn remove_by_id(id: MetadataId, db: &Database) -> Result<usize> {
+	pub async fn delete_by_id(id: MetadataId, db: &Database) -> Result<usize> {
 		Ok(db.write().await.execute(
 			r#"DELETE FROM metadata_item WHERE id = ?1"#,
 			params![id]
 		)?)
 	}
 
-	pub async fn get_list_by(library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<MetadataModel>> {
+	pub async fn find_by(library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
 		let lib_where = library.map(|v| format!("WHERE library_id={v}")).unwrap_or_default();
@@ -311,7 +311,7 @@ impl MetadataModel {
 		}
 	}
 
-	pub async fn search_metadata_list(search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<MetadataModel>> {
+	pub async fn search_by(search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
 		let mut sql = match Self::gen_search_query(search, library) {
 			Some(v) => v,
 			None => return Ok(Vec::new())
@@ -328,7 +328,7 @@ impl MetadataModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn count_search_metadata(search: &api::SearchQuery, library: Option<LibraryId>, db: &Database) -> Result<usize> {
+	pub async fn count_search_by(search: &api::SearchQuery, library: Option<LibraryId>, db: &Database) -> Result<usize> {
 		let sql = match Self::gen_search_query(search, library) {
 			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
 			None => return Ok(0)
