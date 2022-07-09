@@ -229,16 +229,17 @@ pub async fn load_book_list(
 	let (items, count) = if let Some(search) = query.search_query() {
 		let search = search?;
 
-		let count = db.count_search_metadata(&search, query.library)?;
+		let count = MetadataModel::count_search_metadata(&search, query.library, &db)?;
 
 		let items = if count == 0 {
 			Vec::new()
 		} else {
-			db.search_metadata_list(
+			MetadataModel::search_metadata_list(
 				&search,
 				query.library,
 				query.offset.unwrap_or(0),
 				query.limit.unwrap_or(50),
+				&db,
 			)?
 				.into_iter()
 				.map(|meta| {

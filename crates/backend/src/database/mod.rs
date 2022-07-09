@@ -1,8 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 
-use crate::{Result, model::{metadata::MetadataModel, TableRow}};
-use books_common::{api, LibraryId};
-use rusqlite::{Connection, params};
+use crate::Result;
+use rusqlite::Connection;
 // TODO: use tokio::task::spawn_blocking;
 
 
@@ -270,10 +269,6 @@ pub struct Database(Mutex<Connection>);
 
 
 impl Database {
-	fn lock(&self) -> Result<MutexGuard<Connection>> {
-		Ok(self.0.lock()?)
-	}
-
 	// TODO: Preparing for Transfer.
 	pub fn read(&self) -> Result<MutexGuard<Connection>> {
 		Ok(self.0.lock()?)
@@ -281,89 +276,5 @@ impl Database {
 
 	pub fn write(&self) -> Result<MutexGuard<Connection>> {
 		Ok(self.0.lock()?)
-	}
-
-
-	// Search
-	fn gen_search_query(search: &api::SearchQuery, library: Option<LibraryId>) -> Option<String> {
-		let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
-		let orig_len = sql.len();
-
-		// Library ID
-
-		if let Some(library) = library {
-			sql += &format!("library_id={} ", library);
-		}
-
-
-		// Query
-
-		if let Some(query) = search.query.as_deref() {
-			if library.is_some() {
-				sql += "AND ";
-			}
-
-			let mut escape_char = '\\';
-			// Change our escape character if it's in the query.
-			if query.contains(escape_char) {
-				for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
-					if !query.contains(car) {
-						escape_char = car;
-						break;
-					}
-				}
-			}
-
-			// TODO: Utilize title > original_title > description, and sort
-			sql += &format!(
-				"title LIKE '%{}%' ESCAPE '{}' ",
-				query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
-				escape_char
-			);
-		}
-
-
-		// Source
-
-		if let Some(source) = search.source.as_deref() {
-			if search.query.is_some() || library.is_some() {
-				sql += "AND ";
-			}
-
-			sql += &format!("source LIKE '{}%' ", source);
-		}
-
-		if sql.len() == orig_len {
-			// If sql is still unmodified
-			None
-		} else {
-			Some(sql)
-		}
-	}
-
-	pub fn search_metadata_list(&self, search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize) -> Result<Vec<MetadataModel>> {
-		let mut sql = match Self::gen_search_query(search, library) {
-			Some(v) => v,
-			None => return Ok(Vec::new())
-		};
-
-		sql += "LIMIT ?1 OFFSET ?2";
-
-		let this = self.lock()?;
-
-		let mut conn = this.prepare(&sql)?;
-
-		let map = conn.query_map(params![limit, offset], |v| MetadataModel::from_row(v))?;
-
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
-
-	pub fn count_search_metadata(&self, search: &api::SearchQuery, library: Option<LibraryId>) -> Result<usize> {
-		let sql = match Self::gen_search_query(search, library) {
-			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
-			None => return Ok(0)
-		};
-
-		Ok(self.lock()?.query_row(&sql, [], |v| v.get(0))?)
 	}
 }
