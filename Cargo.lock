@@ -519,6 +519,7 @@ dependencies = [
 name = "books-common"
 version = "0.1.0"
 dependencies = [
+ "bitflags",
  "chrono",
  "common",
  "rusqlite",

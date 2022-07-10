@@ -5,6 +5,7 @@ use actix_identity::Identity;
 use actix_web::HttpResponse;
 use actix_web::web;
 
+use books_common::Permissions;
 use chrono::Utc;
 use rand::Rng;
 use rand::prelude::ThreadRng;
@@ -18,7 +19,6 @@ use crate::model::member::NewMemberModel;
 
 
 pub static PASSWORD_PATH: &str = "/auth/password";
-
 
 
 #[derive(Serialize, Deserialize)]
@@ -59,7 +59,7 @@ pub async fn post_password_oauth(
 			email: Some(email),
 			password: Some(hash),
 			type_of: 2,
-			config: None,
+			permissions: Permissions::basic(),
 			created_at: Utc::now(),
 			updated_at: Utc::now(),
 		};
