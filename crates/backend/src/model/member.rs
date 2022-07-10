@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc, TimeZone};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use books_common::{util::serialize_datetime, Permissions};
+use books_common::{util::serialize_datetime, Permissions, MemberAuthType};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -10,14 +10,14 @@ use super::{TableRow, AdvRow};
 
 
 
-// TODO: type_of 0 = web page, 1 = local passwordless 2 = local password
-// TODO: Enum.
 pub struct NewMemberModel {
 	pub name: String,
 	pub email: Option<String>,
 	pub password: Option<String>,
 
-	pub type_of: u8,
+	pub type_of: MemberAuthType,
+
+	// TODO: pub oqurum_oauth: Option<OqurumOauth>,
 
 	pub permissions: Permissions,
 
@@ -48,7 +48,7 @@ pub struct MemberModel {
 	pub email: Option<String>,
 	pub password: Option<String>,
 
-	pub type_of: u8,
+	pub type_of: MemberAuthType,
 
 	pub permissions: Permissions,
 
@@ -98,7 +98,7 @@ impl NewMemberModel {
 		let conn = db.write().await;
 
 		conn.execute(r#"
-			INSERT INTO members (name, email, password, is_local, permissions, created_at, updated_at)
+			INSERT INTO members (name, email, password, type_of, permissions, created_at, updated_at)
 			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 		"#,
 		params![

@@ -6,7 +6,7 @@
 use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::web;
-use books_common::Permissions;
+use books_common::{Permissions, MemberAuthType};
 
 use crate::model::auth::AuthModel;
 use crate::model::member::{NewMemberModel, MemberModel};
@@ -116,7 +116,7 @@ pub async fn get_passwordless_oauth_callback(
 				name: email.clone(),
 				email: Some(email),
 				password: None,
-				type_of: 1,
+				type_of: MemberAuthType::Passwordless,
 				permissions: Permissions::basic(),
 				created_at: Utc::now(),
 				updated_at: Utc::now(),

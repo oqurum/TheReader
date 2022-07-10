@@ -24,7 +24,7 @@ pub struct Member {
 	pub name: String,
 	pub email: Option<String>,
 
-	pub type_of: u8,
+	pub type_of: MemberAuthType,
 
 	pub permissions: Permissions,
 

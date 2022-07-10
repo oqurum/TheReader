@@ -5,6 +5,7 @@ use actix_identity::Identity;
 use actix_web::HttpResponse;
 use actix_web::web;
 
+use books_common::MemberAuthType;
 use books_common::Permissions;
 use chrono::Utc;
 use rand::Rng;
@@ -41,7 +42,7 @@ pub async fn post_password_oauth(
 
 	// Create or Update User.
 	let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
-		if value.type_of != 2 {
+		if value.type_of != MemberAuthType::Password {
 			panic!("Invalid Member. Member does not have a local password associated with it.");
 		}
 
@@ -58,7 +59,7 @@ pub async fn post_password_oauth(
 			name: email.clone(),
 			email: Some(email),
 			password: Some(hash),
-			type_of: 2,
+			type_of: MemberAuthType::Password,
 			permissions: Permissions::basic(),
 			created_at: Utc::now(),
 			updated_at: Utc::now(),

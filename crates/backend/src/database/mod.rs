@@ -211,7 +211,9 @@ pub async fn init() -> Result<Database> {
 			"name"			TEXT NOT NULL COLLATE NOCASE,
 			"email"			TEXT COLLATE NOCASE,
 			"password"		TEXT,
-			"is_local"		INTEGER NOT NULL,
+
+			"type_of"		INTEGER NOT NULL,
+
 			"permissions"	TEXT NOT NULL,
 
 			"created_at" 	DATETIME NOT NULL,
