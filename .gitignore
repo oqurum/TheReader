@@ -1,8 +1,8 @@
 /target
 
 /files
-/crates/frontend/dist
 
-database.db
+/app/database.db
 /app/thumbnails
 /app/config.json
+/app/public/dist

@@ -5,7 +5,7 @@ use rusqlite::Connection;
 use tokio::sync::{RwLock, Semaphore, SemaphorePermit, RwLockReadGuard, RwLockWriteGuard};
 // TODO: use tokio::task::spawn_blocking;
 
-const DATABASE_PATH: &str = "database.db";
+const DATABASE_PATH: &str = "./app/database.db";
 
 
 pub async fn init() -> Result<Database> {

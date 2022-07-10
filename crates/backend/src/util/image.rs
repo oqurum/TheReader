@@ -22,7 +22,7 @@ pub async fn store_image(image: Vec<u8>, db: &Database) -> Result<UploadedImageM
 
 	let mut path = PathBuf::new();
 
-	path.push("../../app/thumbnails");
+	path.push("./app/thumbnails");
 	path.push(get_directories(&hash));
 
 	fs::DirBuilder::new().recursive(true).create(&path).await?;
@@ -40,7 +40,7 @@ pub async fn store_image(image: Vec<u8>, db: &Database) -> Result<UploadedImageM
 pub fn prefixhash_to_path(hash: &str) -> String {
 	let mut path = PathBuf::new();
 
-	path.push("../../app/thumbnails");
+	path.push("./app/thumbnails");
 	path.push(get_directories(hash));
 	path.push(format!("{}.jpg", &hash));
 

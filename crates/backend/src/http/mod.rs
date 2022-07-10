@@ -20,7 +20,7 @@ async fn default_handler(req: actix_web::HttpRequest) -> std::io::Result<HttpRes
 			.insert_header((header::LOCATION, "/setup"))
 			.finish())
 	} else {
-		Ok(actix_files::NamedFile::open_async("../frontend/dist/index.html").await?.into_response(&req))
+		Ok(actix_files::NamedFile::open_async("./app/public/dist/index.html").await?.into_response(&req))
 	}
 }
 
@@ -60,11 +60,11 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 			)
 
 			// Other
-			.service(actix_files::Files::new("/js", "../../app/public/js"))
-			.service(actix_files::Files::new("/css", "../../app/public/css"))
-			.service(actix_files::Files::new("/fonts", "../../app/public/fonts"))
-			.service(actix_files::Files::new("/images", "../../app/public/images"))
-			.service(actix_files::Files::new("/dist", "../frontend/dist"))
+			.service(actix_files::Files::new("/js", "./app/public/js"))
+			.service(actix_files::Files::new("/css", "./app/public/css"))
+			.service(actix_files::Files::new("/fonts", "./app/public/fonts"))
+			.service(actix_files::Files::new("/images", "./app/public/images"))
+			.service(actix_files::Files::new("/dist", "./app/public/dist"))
 			.default_service(web::route().to(default_handler))
 	})
 		.bind("0.0.0.0:8084")?

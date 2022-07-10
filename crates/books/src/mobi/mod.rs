@@ -42,9 +42,9 @@ impl Book for EpubBook {
 
 		println!("{:?}", &recompiled[0..128]);
 
-		std::fs::write("../../app/testing.html", String::from_utf8_lossy(&recompiled).to_string()).unwrap();
+		std::fs::write("./app/testing.html", String::from_utf8_lossy(&recompiled).to_string()).unwrap();
 
-		// std::fs::write("../../app/testing.html", &this.reader.content_as_string_lossy()).unwrap();
+		// std::fs::write("./app/testing.html", &this.reader.content_as_string_lossy()).unwrap();
 
 		Ok(this)
 	}

@@ -7,7 +7,7 @@ use serde::{Serialize, Deserialize};
 use crate::Result;
 
 
-pub static CONFIG_PATH: &str = "../../app/config.json";
+pub static CONFIG_PATH: &str = "./app/config.json";
 
 
 lazy_static! {
