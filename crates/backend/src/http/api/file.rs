@@ -19,8 +19,8 @@ use crate::http::MemberCookie;
 
 // Load Book Resources
 
-#[get("/book/{id}/res/{tail:.*}")]
-pub async fn load_resource(
+#[get("/file/{id}/res/{tail:.*}")]
+pub async fn load_file_resource(
 	path: web::Path<(FileId, String)>,
 	res: web::Query<api::LoadResourceQuery>,
 	db: web::Data<Database>
@@ -35,7 +35,7 @@ pub async fn load_resource(
 	if res.configure_pages {
 		let body = match book.read_path_as_bytes(
 			&resource_path,
-			Some(&format!("/api/book/{}/res", file_id)),
+			Some(&format!("/api/file/{}/res", file_id)),
 			Some(&[include_str!("../../../../../app/book_stylings.css")])
 		) {
 			Ok(v) => v,
@@ -64,8 +64,8 @@ pub async fn load_resource(
 }
 
 
-#[get("/book/{id}/pages/{pages}")]
-pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
+#[get("/file/{id}/pages/{pages}")]
+pub async fn load_file_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
 	let (file_id, chapters) = path.into_inner();
 
 	let file = FileModel::find_one_by_id(file_id, &db).await?.unwrap();
@@ -109,8 +109,8 @@ pub async fn load_pages(path: web::Path<(FileId, String)>, db: web::Data<Databas
 
 
 // TODO: Add body requests for specifics
-#[get("/book/{id}")]
-pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
+#[get("/file/{id}")]
+pub async fn load_file(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
 	Ok(web::Json(if let Some(file) = FileModel::find_one_by_id(*file_id, &db).await? {
 		Some(api::GetBookIdResponse {
 			progress: FileProgressionModel::find_one(MemberId::none(), *file_id, &db).await?.map(|v| v.into()),
@@ -123,8 +123,8 @@ pub async fn load_book(file_id: web::Path<FileId>, db: web::Data<Database>) -> W
 }
 
 
-#[get("/book/{id}/debug/{tail:.*}")]
-pub async fn load_book_debug(web_path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+#[get("/file/{id}/debug/{tail:.*}")]
+pub async fn load_file_debug(web_path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	if let Some(file) = FileModel::find_one_by_id(web_path.0, &db).await? {
 		if web_path.1.is_empty() {
 			let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
@@ -155,8 +155,8 @@ pub async fn load_book_debug(web_path: web::Path<(FileId, String)>, db: web::Dat
 
 // Progress
 
-#[post("/book/{id}/progress")]
-pub async fn progress_book_add(
+#[post("/file/{id}/progress")]
+pub async fn progress_file_add(
 	file_id: web::Path<FileId>,
 	body: web::Json<Progression>,
 	db: web::Data<Database>,
@@ -166,8 +166,8 @@ pub async fn progress_book_add(
 	Ok(HttpResponse::Ok().finish())
 }
 
-#[delete("/book/{id}/progress")]
-pub async fn progress_book_delete(
+#[delete("/file/{id}/progress")]
+pub async fn progress_file_delete(
 	file_id: web::Path<FileId>,
 	db: web::Data<Database>,
 	member: MemberCookie,
@@ -179,8 +179,8 @@ pub async fn progress_book_delete(
 
 // Notes
 
-#[get("/book/{id}/notes")]
-pub async fn notes_book_get(
+#[get("/file/{id}/notes")]
+pub async fn notes_file_get(
 	file_id: web::Path<FileId>,
 	db: web::Data<Database>,
 	member: MemberCookie,
@@ -189,8 +189,8 @@ pub async fn notes_book_get(
 	Ok(web::Json(v.map(|v| v.data)))
 }
 
-#[post("/book/{id}/notes")]
-pub async fn notes_book_add(
+#[post("/file/{id}/notes")]
+pub async fn notes_file_add(
 	file_id: web::Path<FileId>,
 	mut payload: web::Payload,
 	db: web::Data<Database>,
@@ -209,8 +209,8 @@ pub async fn notes_book_add(
 	Ok(HttpResponse::Ok().finish())
 }
 
-#[delete("/book/{id}/notes")]
-pub async fn notes_book_delete(
+#[delete("/file/{id}/notes")]
+pub async fn notes_file_delete(
 	file_id: web::Path<FileId>,
 	db: web::Data<Database>,
 	member: MemberCookie,

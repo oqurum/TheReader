@@ -2,7 +2,7 @@ use actix_web::{web, Scope, dev::{ServiceFactory, ServiceRequest, ServiceRespons
 
 use super::LoginRequired;
 
-pub mod book;
+pub mod file;
 pub mod image;
 pub mod library;
 pub mod member;
@@ -30,16 +30,16 @@ pub fn api_route() -> Scope<
 		.service(settings::save_initial_setup)
 
 		// Book
-		.service(book::load_book_debug)
-		.service(book::load_book)
-		.service(book::load_pages)
-		.service(book::load_resource)
-		.service(book::progress_book_add)
-		.service(book::progress_book_delete)
-		.service(book::notes_book_get)
-		.service(book::notes_book_add)
-		.service(book::notes_book_delete)
-		.service(book::load_book_list)
+		.service(file::load_file_debug)
+		.service(file::load_file)
+		.service(file::load_file_pages)
+		.service(file::load_file_resource)
+		.service(file::progress_file_add)
+		.service(file::progress_file_delete)
+		.service(file::notes_file_get)
+		.service(file::notes_file_add)
+		.service(file::notes_file_delete)
+		.service(file::load_book_list)
 
 		// Image
 		.service(image::get_local_image)

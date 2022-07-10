@@ -11,27 +11,27 @@ use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, C
 // BOOKS
 /// GET     /books
 pub type ApiGetBookListResponse = self::GetBookListResponse;
-/// GET     /book/{id}
+/// GET     /file/{id}
 pub type ApiGetBookByIdResponse = Option<self::GetBookIdResponse>;
-/// GET     /book/{id}/res/{tail:.*}
+/// GET     /file/{id}/res/{tail:.*}
 pub type ApiGetBookResourceByIdResponse = String;
-/// GET     /book/{id}/pages/{pages}
+/// GET     /file/{id}/pages/{pages}
 pub type ApiGetBookPagesByIdResponse = self::GetChaptersResponse;
-/// GET     /book/{id}/debug/{tail:.*}
+/// GET     /file/{id}/debug/{tail:.*}
 pub type ApiGetBookDebugByIdResponse = String;
-/// POST    /book/{id}/progress
+/// POST    /file/{id}/progress
 pub type ApiPostBookProgressByIdResponse = ();
-/// DELETE  /book/{id}/progress
+/// DELETE  /file/{id}/progress
 pub type ApiDeleteBookProgressByIdResponse = ();
-/// GET     /book/{id}/notes
+/// GET     /file/{id}/notes
 pub type ApiGetBookNotesByIdResponse = Option<String>;
-/// POST    /book/{id}/notes
+/// POST    /file/{id}/notes
 pub type ApiPostBookNotesByIdResponse = ();
-/// DELETE  /book/{id}/notes
+/// DELETE  /file/{id}/notes
 pub type ApiDeleteBookNotesByIdResponse = ();
-/// GET     /book/{id}/posters
+/// GET     /file/{id}/posters
 pub type ApiGetPosterByMetaIdResponse = self::GetPostersResponse;
-/// POST    /book/{id}/posters
+/// POST    /file/{id}/posters
 pub type ApiPostPosterByMetaIdResponse = ();
 
 // IMAGES
