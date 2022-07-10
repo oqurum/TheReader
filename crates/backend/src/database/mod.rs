@@ -281,6 +281,9 @@ pub struct Database {
 
 	// Max concurrent read connections
 	max_read_aquires: Semaphore,
+
+	// Single-acquire lock to prevent race conditions
+	conn_aquire_lock: Semaphore,
 }
 
 unsafe impl Send for Database {}
@@ -300,20 +303,26 @@ impl Database {
 			read_conns,
 
 			max_read_aquires: Semaphore::new(count),
+
+			conn_aquire_lock: Semaphore::new(1),
 		})
 	}
 
 	pub async fn read(&self) -> DatabaseReadGuard<'_> {
+		// Firstly ensure we can acquire a read lock.
 		let _guard = self.lock.read().await;
 
+		// Now we ensure we can acquire another connection
 		let _permit = self.max_read_aquires.acquire().await.unwrap();
 
 		let conn = {
+			// FIX: A single-acquire quick lock to ensure we don't have race conditions.
+			let _temp_lock = self.conn_aquire_lock.acquire().await.unwrap();
+
 			let mut value = None;
 
 			for conn in &self.read_conns {
 				let new_conn = conn.clone();
-				// TODO: Race Conditions
 				// Strong count should eq 2 (original + cloned)
 				if Arc::strong_count(&new_conn) == 2 {
 					value = Some(new_conn);
