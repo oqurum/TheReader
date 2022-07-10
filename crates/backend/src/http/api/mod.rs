@@ -6,7 +6,7 @@ pub mod file;
 pub mod image;
 pub mod library;
 pub mod member;
-pub mod metadata;
+pub mod book;
 pub mod options;
 pub mod person;
 pub mod task;
@@ -29,7 +29,7 @@ pub fn api_route() -> Scope<
 		.service(settings::is_setup)
 		.service(settings::save_initial_setup)
 
-		// Book
+		// File
 		.service(file::load_file_debug)
 		.service(file::load_file)
 		.service(file::load_file_pages)
@@ -39,7 +39,6 @@ pub fn api_route() -> Scope<
 		.service(file::notes_file_get)
 		.service(file::notes_file_add)
 		.service(file::notes_file_delete)
-		.service(file::load_book_list)
 
 		// Image
 		.service(image::get_local_image)
@@ -47,13 +46,14 @@ pub fn api_route() -> Scope<
 		// Member
 		.service(member::load_member_self)
 
-		// Metadata
-		.service(metadata::load_metadata_thumbnail)
-		.service(metadata::update_item_metadata)
-		.service(metadata::get_metadata_search)
-		.service(metadata::get_all_metadata_comp)
-		.service(metadata::get_poster_list)
-		.service(metadata::post_change_poster)
+		// Book
+		.service(book::load_book_list)
+		.service(book::load_book_thumbnail)
+		.service(book::update_book_info)
+		.service(book::book_search)
+		.service(book::load_book_info)
+		.service(book::get_book_posters)
+		.service(book::insert_or_update_book_image)
 
 		// Person
 		.service(person::load_author_list)

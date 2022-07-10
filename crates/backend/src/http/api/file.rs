@@ -2,13 +2,12 @@ use std::io::Read;
 
 use actix_web::{get, web, HttpResponse, post, delete};
 
-use books_common::{Chapter, api, Progression, DisplayItem, FileId};
+use books_common::{Chapter, api, Progression, FileId};
 use bookie::Book;
 use common::MemberId;
 use futures::TryStreamExt;
 
 use crate::model::file::FileModel;
-use crate::model::metadata::MetadataModel;
 use crate::model::note::FileNoteModel;
 use crate::model::progress::FileProgressionModel;
 use crate::{WebResult, Error, Result};
@@ -218,67 +217,4 @@ pub async fn notes_file_delete(
 	FileNoteModel::delete_one(*file_id, member.member_id(), &db).await?;
 
 	Ok(HttpResponse::Ok().finish())
-}
-
-
-#[get("/books")]
-pub async fn load_book_list(
-	query: web::Query<api::BookListQuery>,
-	db: web::Data<Database>,
-) -> WebResult<web::Json<api::ApiGetBookListResponse>> {
-	let (items, count) = if let Some(search) = query.search_query() {
-		let search = search?;
-
-		let count = MetadataModel::count_search_by(&search, query.library, &db).await?;
-
-		let items = if count == 0 {
-			Vec::new()
-		} else {
-			MetadataModel::search_by(
-				&search,
-				query.library,
-				query.offset.unwrap_or(0),
-				query.limit.unwrap_or(50),
-				&db,
-			).await?
-				.into_iter()
-				.map(|meta| {
-					DisplayItem {
-						id: meta.id,
-						title: meta.title.or(meta.original_title).unwrap_or_default(),
-						cached: meta.cached,
-						has_thumbnail: meta.thumb_path.is_some()
-					}
-				})
-				.collect()
-		};
-
-		(items, count)
-	} else {
-		let count = FileModel::count(&db).await?;
-
-		let items = MetadataModel::find_by(
-			query.library,
-			query.offset.unwrap_or(0),
-			query.limit.unwrap_or(50),
-			&db,
-		).await?
-			.into_iter()
-			.map(|meta| {
-				DisplayItem {
-					id: meta.id,
-					title: meta.title.or(meta.original_title).unwrap_or_default(),
-					cached: meta.cached,
-					has_thumbnail: meta.thumb_path.is_some()
-				}
-			})
-			.collect();
-
-		(items, count)
-	};
-
-	Ok(web::Json(api::GetBookListResponse {
-		items,
-		count,
-	}))
 }

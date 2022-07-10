@@ -88,7 +88,7 @@ pub struct DisplayItem {
 impl DisplayItem {
 	pub fn get_thumb_url(&self) -> String {
 		if self.has_thumbnail {
-			format!("/api/metadata/{}/thumbnail", self.id)
+			format!("/api/book/{}/thumbnail", self.id)
 		} else {
 			String::from("/images/missingthumbnail.jpg")
 		}
@@ -150,7 +150,7 @@ pub struct DisplayMetaItem {
 impl DisplayMetaItem {
 	pub fn get_thumb_url(&self) -> String {
 		if self.thumb_path != ThumbnailStore::None {
-			format!("/api/metadata/{}/thumbnail", self.id)
+			format!("/api/book/{}/thumbnail", self.id)
 		} else {
 			String::from("/images/missingthumbnail.jpg")
 		}

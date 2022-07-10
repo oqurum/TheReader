@@ -69,7 +69,7 @@ pub async fn get_libraries() -> ApiGetLibrariesResponse {
 pub async fn update_metadata(id: MetadataId, value: &PostMetadataBody) {
 	let _: Option<String> = fetch(
 		"POST",
-		&format!("/api/metadata/{}", id),
+		&format!("/api/book/{}", id),
 		Some(value)
 	).await.ok();
 }
@@ -77,7 +77,7 @@ pub async fn update_metadata(id: MetadataId, value: &PostMetadataBody) {
 pub async fn get_media_view(metadata_id: MetadataId) -> ApiGetMetadataByIdResponse {
 	fetch(
 		"GET",
-		&format!("/api/metadata/{}", metadata_id),
+		&format!("/api/book/{}", metadata_id),
 		Option::<&()>::None
 	).await.unwrap()
 }
@@ -87,7 +87,7 @@ pub async fn search_for(search: &str, search_for: SearchType) -> ApiGetMetadataS
 	fetch(
 		"GET",
 		&format!(
-			"/api/metadata/search?query={}&search_type={}",
+			"/api/book/search?query={}&search_type={}",
 			urlencoding::encode(search),
 			serde_json::to_string(&search_for).unwrap().replace('"', "")
 		),

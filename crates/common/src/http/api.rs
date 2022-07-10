@@ -48,13 +48,13 @@ pub type ApiGetMemberSelfResponse = self::GetMemberSelfResponse;
 
 // Metadata
 // TODO: Remove? Use /image/{type}/{id}?
-/// GET     /metadata/{id}/thumbnail
+/// GET     /book/{id}/thumbnail
 pub type ApiGetMetadataThumbnailResponse = Vec<u8>;
-/// GET     /metadata/{id}
+/// GET     /book/{id}
 pub type ApiGetMetadataByIdResponse = self::MediaViewResponse;
-/// POST    /metadata/{id}
+/// POST    /book/{id}
 pub type ApiPostUpdateMetadataResponse = ();
-/// GET     /metadata/search
+/// GET     /book/search
 pub type ApiGetMetadataSearchResponse = self::MetadataSearchResponse;
 
 // Options

@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpResponse, post};
 
-use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, MetadataId};
+use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, MetadataId, DisplayItem};
 use chrono::Utc;
 use common::{MemberId, ImageType, Either};
 
@@ -9,8 +9,75 @@ use crate::{database::Database, task::{queue_task_priority, self}, queue_task, m
 
 
 
-#[get("/metadata/{id}/thumbnail")]
-async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+#[get("/books")]
+pub async fn load_book_list(
+	query: web::Query<api::BookListQuery>,
+	db: web::Data<Database>,
+) -> WebResult<web::Json<api::ApiGetBookListResponse>> {
+	let (items, count) = if let Some(search) = query.search_query() {
+		let search = search?;
+
+		let count = MetadataModel::count_search_by(&search, query.library, &db).await?;
+
+		let items = if count == 0 {
+			Vec::new()
+		} else {
+			MetadataModel::search_by(
+				&search,
+				query.library,
+				query.offset.unwrap_or(0),
+				query.limit.unwrap_or(50),
+				&db,
+			).await?
+				.into_iter()
+				.map(|meta| {
+					DisplayItem {
+						id: meta.id,
+						title: meta.title.or(meta.original_title).unwrap_or_default(),
+						cached: meta.cached,
+						has_thumbnail: meta.thumb_path.is_some()
+					}
+				})
+				.collect()
+		};
+
+		(items, count)
+	} else {
+		let count = MetadataModel::count_search_by(
+			&api::SearchQuery { query: None, source: None },
+			query.library,
+			&db,
+		).await?;
+
+		let items = MetadataModel::find_by(
+			query.library,
+			query.offset.unwrap_or(0),
+			query.limit.unwrap_or(50),
+			&db,
+		).await?
+			.into_iter()
+			.map(|meta| {
+				DisplayItem {
+					id: meta.id,
+					title: meta.title.or(meta.original_title).unwrap_or_default(),
+					cached: meta.cached,
+					has_thumbnail: meta.thumb_path.is_some()
+				}
+			})
+			.collect();
+
+		(items, count)
+	};
+
+	Ok(web::Json(api::GetBookListResponse {
+		items,
+		count,
+	}))
+}
+
+
+#[get("/book/{id}/thumbnail")]
+async fn load_book_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let meta_id = path.into_inner();
 
 	let meta = MetadataModel::find_one_by_id(meta_id, &db).await?;
@@ -26,8 +93,8 @@ async fn load_metadata_thumbnail(path: web::Path<MetadataId>, db: web::Data<Data
 
 
 // Metadata
-#[get("/metadata/{id}")]
-pub async fn get_all_metadata_comp(meta_id: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
+#[get("/book/{id}")]
+pub async fn load_book_info(meta_id: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
 	let meta = MetadataModel::find_one_by_id(*meta_id, &db).await?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
@@ -51,8 +118,8 @@ pub async fn get_all_metadata_comp(meta_id: web::Path<MetadataId>, db: web::Data
 	}))
 }
 
-#[post("/metadata/{id}")]
-pub async fn update_item_metadata(meta_id: web::Path<MetadataId>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
+#[post("/book/{id}")]
+pub async fn update_book_info(meta_id: web::Path<MetadataId>, body: web::Json<api::PostMetadataBody>) -> HttpResponse {
 	let meta_id = *meta_id;
 
 	match body.into_inner() {
@@ -73,8 +140,8 @@ pub async fn update_item_metadata(meta_id: web::Path<MetadataId>, body: web::Jso
 }
 
 
-#[get("/metadata/{id}/posters")]
-async fn get_poster_list(
+#[get("/book/{id}/posters")]
+async fn get_book_posters(
 	path: web::Path<MetadataId>,
 	db: web::Data<Database>
 ) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
@@ -126,8 +193,8 @@ async fn get_poster_list(
 	}))
 }
 
-#[post("/metadata/{id}/posters")]
-async fn post_change_poster(
+#[post("/book/{id}/posters")]
+async fn insert_or_update_book_image(
 	metadata_id: web::Path<MetadataId>,
 	body: web::Json<api::ChangePosterBody>,
 	db: web::Data<Database>
@@ -165,8 +232,8 @@ async fn post_change_poster(
 }
 
 
-#[get("/metadata/search")]
-pub async fn get_metadata_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<web::Json<api::ApiGetMetadataSearchResponse>> {
+#[get("/book/search")]
+pub async fn book_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<web::Json<api::ApiGetMetadataSearchResponse>> {
 	let search = metadata::search_all_agents(
 		&body.query,
 		match body.search_type {
