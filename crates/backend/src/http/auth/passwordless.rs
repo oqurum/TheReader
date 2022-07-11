@@ -8,6 +8,7 @@ use actix_web::{http::header, HttpResponse};
 use actix_web::web;
 use books_common::{Permissions, MemberAuthType};
 
+use crate::config::does_config_exist;
 use crate::model::auth::AuthModel;
 use crate::model::member::{NewMemberModel, MemberModel};
 use crate::{Result, WebResult, Error};
@@ -111,7 +112,7 @@ pub async fn get_passwordless_oauth_callback(
 		let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
 			value
 		} else {
-			let new_member = NewMemberModel {
+			let mut new_member = NewMemberModel {
 				// TODO: Strip email
 				name: email.clone(),
 				email: Some(email),
@@ -121,6 +122,13 @@ pub async fn get_passwordless_oauth_callback(
 				created_at: Utc::now(),
 				updated_at: Utc::now(),
 			};
+
+
+			// Check to see if we don't have any other Members and We're in the setup phase.
+			if !does_config_exist() && MemberModel::count(&db).await? == 0 {
+				new_member.permissions = Permissions::owner();
+			}
+
 
 			new_member.insert(&db).await?
 		};

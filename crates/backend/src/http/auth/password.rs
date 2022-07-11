@@ -14,6 +14,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::Error;
 use crate::WebResult;
+use crate::config::does_config_exist;
 use crate::database::Database;
 use crate::model::member::MemberModel;
 use crate::model::member::NewMemberModel;
@@ -54,7 +55,7 @@ pub async fn post_password_oauth(
 	} else {
 		let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
-		let new_member = NewMemberModel {
+		let mut new_member = NewMemberModel {
 			// TODO: Strip email
 			name: email.clone(),
 			email: Some(email),
@@ -64,6 +65,13 @@ pub async fn post_password_oauth(
 			created_at: Utc::now(),
 			updated_at: Utc::now(),
 		};
+
+
+		// Check to see if we don't have any other Members and We're in the setup phase.
+		if !does_config_exist() && MemberModel::count(&db).await? == 0 {
+			new_member.permissions = Permissions::owner();
+		}
+
 
 		new_member.insert(&db).await?
 	};

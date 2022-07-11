@@ -127,4 +127,12 @@ impl MemberModel {
 			|v| Self::from_row(v)
 		).optional()?)
 	}
+
+	pub async fn count(db: &Database) -> Result<usize> {
+		Ok(db.read().await.query_row(
+			r#"SELECT COUNT(*) FROM members"#,
+			[],
+			|v| v.get(0)
+		)?)
+	}
 }

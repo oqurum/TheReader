@@ -8,7 +8,7 @@ use rusqlite::{Result, types::{FromSql, FromSqlResult, ValueRef, ToSql, ToSqlOut
 bitflags! {
 	#[derive(Serialize, Deserialize)]
 	pub struct GroupPermissions: u64 {
-		const ADMIN 			= 1 << 0;
+		const OWNER 			= 1 << 0;
 		const BASIC 			= 1 << 1;
 	}
 }
@@ -33,9 +33,9 @@ impl Permissions {
 		}
 	}
 
-	pub fn admin() -> Self {
+	pub fn owner() -> Self {
 		Self {
-			group: GroupPermissions::ADMIN,
+			group: GroupPermissions::OWNER,
 		}
 	}
 
@@ -52,8 +52,8 @@ impl Permissions {
 
 	// Custom
 
-	pub fn is_admin(self) -> bool {
-		self.contains_group(GroupPermissions::ADMIN)
+	pub fn is_owner(self) -> bool {
+		self.contains_group(GroupPermissions::OWNER)
 	}
 
 	pub fn is_basic(self) -> bool {
