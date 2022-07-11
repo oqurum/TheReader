@@ -6,6 +6,7 @@
 use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::web;
+use books_common::setup::ConfigEmail;
 use books_common::{Permissions, MemberAuthType};
 
 use crate::config::does_config_exist;
@@ -181,20 +182,6 @@ pub fn gen_sample_alphanumeric(amount: usize, rng: &mut ThreadRng) -> String {
 		.take(amount)
 		.map(char::from)
 		.collect()
-}
-
-
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct ConfigEmail {
-	pub display_name: String,
-	pub sending_email: String,
-	pub contact_email: String,
-
-	pub subject_line: String,
-
-	pub smtp_username: String,
-	pub smtp_password: String,
-	pub smtp_relay: String,
 }
 
 

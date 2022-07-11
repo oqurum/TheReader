@@ -16,6 +16,7 @@ use serde_urlencoded::ser::Error as UrlEncodedSerError;
 use serde_json::Error as JsonError;
 use serde_xml_rs::Error as XmlError;
 use serde::de::value::Error as SerdeValueError;
+use toml::{de::Error as TomlDeError, ser::Error as TomlSerError};
 use books_common::Error as LocalCommonError;
 use bookie::Error as BookieError;
 
@@ -71,6 +72,10 @@ pub enum Error {
 	SerdeValue(#[from] SerdeValueError),
 	#[error("Url Encoded Ser Error: {0}")]
 	UrlEncodedSer(#[from] UrlEncodedSerError),
+	#[error("TOML Deserialize Error: {0}")]
+	TomlDeValue(#[from] TomlDeError),
+	#[error("TOML Serialize Error: {0}")]
+	TomlSerValue(#[from] TomlSerError),
 
 	#[error("IO Error: {0}")]
 	Io(#[from] IoError),

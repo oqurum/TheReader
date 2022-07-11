@@ -29,7 +29,7 @@ pub fn is_signed_in() -> bool {
 
 
 enum Msg {
-	LoadMemberSelf(api::GetMemberSelfResponse)
+	LoadMemberSelf(Option<api::GetMemberSelfResponse>)
 }
 
 struct Model {
@@ -55,8 +55,11 @@ impl Component for Model {
 
 	fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
-			Msg::LoadMemberSelf(member) => {
-				*MEMBER_SELF.lock().unwrap() = member.member;
+			Msg::LoadMemberSelf(opt_resp) => {
+				if let Some(resp) = opt_resp {
+					*MEMBER_SELF.lock().unwrap() = resp.member;
+				}
+
 				self.has_loaded_member = true;
 			}
 		}
@@ -119,7 +122,7 @@ pub enum Route {
 fn switch(route: &Route) -> Html {
 	log::info!("{:?}", route);
 
-	if !is_signed_in() {
+	if !is_signed_in() && route != &Route::Setup {
 		return html! { <pages::LoginPage /> };
 	}
 

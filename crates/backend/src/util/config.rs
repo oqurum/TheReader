@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use books_common::setup::SetupConfig;
+use books_common::setup::{SetupConfig, Authenticators, ConfigEmail};
 use lazy_static::lazy_static;
 use serde::{Serialize, Deserialize};
 
@@ -14,7 +14,7 @@ lazy_static! {
 	static ref CONFIG_FILE: Mutex<Option<Config>> = {
 		if let Ok(data) = std::fs::read(CONFIG_PATH) {
 			#[allow(clippy::expect_used)]
-			Mutex::new(serde_json::from_slice(&data).expect("Loading Config File"))
+			Mutex::new(toml::from_slice(&data).expect("Loading Config File"))
 		} else {
 			Mutex::default()
 		}
@@ -34,11 +34,13 @@ pub async fn save_config(value: SetupConfig) -> Result<()> {
 	let config = Config {
 		server_name: value.name.unwrap_or_else(|| String::from("Unnamed Server")),
 		libby: None,
+		email: value.email,
+		authenticators: value.authenticators,
 	};
 
 	tokio::fs::write(
 		CONFIG_PATH,
-		serde_json::to_string_pretty(&config)?,
+		toml::to_string_pretty(&config)?,
 	).await?;
 
 	*CONFIG_FILE.lock().unwrap() = Some(config);
@@ -51,6 +53,8 @@ pub async fn save_config(value: SetupConfig) -> Result<()> {
 pub struct Config {
 	pub server_name: String,
 	pub libby: Option<LibraryConnection>,
+	pub email: Option<ConfigEmail>,
+	pub authenticators: Authenticators,
 }
 
 

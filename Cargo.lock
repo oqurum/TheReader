@@ -512,6 +512,7 @@ dependencies = [
  "strsim",
  "thiserror",
  "tokio",
+ "toml",
  "urlencoding",
 ]
 

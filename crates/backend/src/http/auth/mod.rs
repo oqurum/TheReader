@@ -115,6 +115,11 @@ where
 		async move {
 			let (r, mut pl) = req.into_parts();
 
+			// Should we ignore the check?
+			if r.path() == "/api/setup" {
+				return srv.call(ServiceRequest::from_parts(r, pl)).await;
+			}
+
 			let identity = Identity::from_request(&r, &mut pl).await?;
 
 			if get_auth_value(&identity).is_some() {

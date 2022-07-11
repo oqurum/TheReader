@@ -52,8 +52,8 @@ pub async fn change_poster_for_meta(id: MetadataId, url_or_id: Either<String, Im
 
 // Member
 
-pub async fn get_member_self() -> ApiGetMemberSelfResponse {
-	fetch("GET", "/api/member", Option::<&()>::None).await.unwrap()
+pub async fn get_member_self() -> Option<ApiGetMemberSelfResponse> {
+	fetch("GET", "/api/member", Option::<&()>::None).await.ok()
 }
 
 

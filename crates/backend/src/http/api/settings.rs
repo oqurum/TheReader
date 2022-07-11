@@ -1,14 +1,13 @@
 use actix_web::{HttpResponse, web, get, post};
 use books_common::{setup::SetupConfig, api};
 
-use crate::{database::Database, WebResult};
-
+use crate::{database::Database, WebResult, config::does_config_exist};
 
 
 
 #[get("/setup")]
 pub async fn is_setup() -> web::Json<api::ApiGetIsSetupResponse> {
-	web::Json(crate::config::does_config_exist())
+	web::Json(does_config_exist())
 }
 
 
