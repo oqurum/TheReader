@@ -43,6 +43,7 @@ log = "0.4"
 rand = "0.8"
 regex = "1.5"
 urlencoding = "2.1"
+validator = { version = "0.15", features = ["derive"] }
 
 lettre = "0.10.0-rc.5"
 

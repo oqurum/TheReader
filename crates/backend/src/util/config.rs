@@ -32,7 +32,7 @@ pub fn get_config() -> Config {
 
 pub async fn save_config(value: SetupConfig) -> Result<()> {
 	let config = Config {
-		server_name: value.name.unwrap_or_else(|| String::from("Unnamed Server")),
+		server_name: value.server_name,
 		libby: None,
 		email: value.email,
 		authenticators: value.authenticators,

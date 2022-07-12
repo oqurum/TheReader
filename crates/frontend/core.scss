@@ -257,7 +257,6 @@ body {
 	> .center-content {
 		position: relative;
 		min-width: 40%;
-		flex-grow: 1;
 
 		> .search-bar {
 			display: flex;
@@ -777,6 +776,7 @@ body {
 	.navbar-module {
 		.center-content {
 			text-align: center;
+			flex-grow: 1;
 		}
 	}
 
@@ -1019,5 +1019,25 @@ body {
 
 	> .title {
 		text-align: center;
+	}
+}
+
+
+
+.label {
+	padding: 3px;
+	border-radius: var(--radius-2);
+	background-color: var(--surface-1);
+
+	&.green {
+		background-color: var(--green-9);
+	}
+
+	&.red {
+		background-color: var(--red-9);
+	}
+
+	&.yellow {
+		background-color: var(--yellow-9);
 	}
 }

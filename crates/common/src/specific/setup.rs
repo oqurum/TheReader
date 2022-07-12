@@ -1,11 +1,14 @@
 use serde::{Serialize, Deserialize};
+use validator::Validate;
 
 
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
 pub struct SetupConfig {
-	pub name: Option<String>,
+	#[validate(length(min = 3, max = 32, message = "Must be at least 3 long and less than 32 long."))]
+	pub server_name: String,
 	pub directories: Vec<String>,
+	#[validate]
 	pub email: Option<ConfigEmail>,
 	pub authenticators: Authenticators,
 }
@@ -18,16 +21,23 @@ impl SetupConfig {
 }
 
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
 pub struct ConfigEmail {
+	#[validate(length(min = 1, message = "Cannot be empty"))]
 	pub display_name: String,
+	#[validate(length(min = 1, message = "Cannot be empty"))]
 	pub sending_email: String,
+	#[validate(length(min = 1, message = "Cannot be empty"))]
 	pub contact_email: String,
 
+	#[validate(length(min = 1, message = "Cannot be empty"))]
 	pub subject_line: String,
 
+	#[validate(length(min = 1, message = "Cannot be empty"))]
 	pub smtp_username: String,
+	#[validate(length(min = 1, message = "Cannot be empty"))]
 	pub smtp_password: String,
+	#[validate(length(min = 1, message = "Cannot be empty"))]
 	pub smtp_relay: String,
 }
 
@@ -42,7 +52,7 @@ impl Default for Authenticators {
 	fn default() -> Self {
 		Self {
 			email_pass: true,
-			email_no_pass: true,
+			email_no_pass: false,
 			main_server: true,
 		}
 	}

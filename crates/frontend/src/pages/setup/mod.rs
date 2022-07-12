@@ -1,6 +1,7 @@
 // TODO: Expand to multiple inlined pages.
 
 use books_common::{EditManager, setup::SetupConfig};
+use validator::{Validate, ValidationErrors};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -22,7 +23,9 @@ pub enum SetupPageMessage {
 pub struct SetupPage {
 	is_setup: IsSetup,
 	config: EditManager<SetupConfig>,
-	is_finishing: bool,
+	is_waiting_for_resp: bool,
+
+	current_errors: ValidationErrors,
 }
 
 impl Component for SetupPage {
@@ -36,8 +39,10 @@ impl Component for SetupPage {
 
 		Self {
 			config: EditManager::default(),
-			is_finishing: false,
+			is_waiting_for_resp: false,
 			is_setup: IsSetup::Unknown,
+
+			current_errors: ValidationErrors::new(),
 		}
 	}
 
@@ -61,13 +66,21 @@ impl Component for SetupPage {
 			}
 
 			SetupPageMessage::Finish => {
-				if !self.is_finishing {
-					self.is_finishing = true;
+				if !self.is_waiting_for_resp {
+					self.is_waiting_for_resp = true;
 
 					let config = self.config.as_changed_value().clone();
 
-					// TODO: Add checks to ensure email config is valid.
 					// TODO: Add Response to request::finish_setup
+
+					// Ensure config is valid.
+					if let Err(e) = config.validate() {
+						self.current_errors = e;
+
+						return true;
+					} else {
+						self.current_errors = ValidationErrors::new();
+					}
 
 					ctx.link().send_future(async move {
 						let is_okay = request::finish_setup(config).await;
@@ -129,7 +142,22 @@ impl Component for SetupPage {
 							{ self.render_email_setup(ctx) }
 
 							<div>
-								<button disabled={ self.is_finishing } onclick={ ctx.link().callback(|_| SetupPageMessage::Finish) }>{ "Continue" }</button>
+								{
+									if self.current_errors.is_empty() {
+										html! {}
+									} else {
+										html! {
+											<div class="label red" style="white-space: pre-wrap;">
+												// TODO: Fix. We should show errors on each input.
+												// ISSUE: Display: Struct/List aren't properly writeln'd so it will not newline
+												// https://github.com/Keats/validator/blob/master/validator/src/display_impl.rs#L49
+												{ self.current_errors.clone() }
+											</div>
+										}
+									}
+								}
+
+								<button disabled={ self.is_waiting_for_resp } onclick={ ctx.link().callback(|_| SetupPageMessage::Finish) }>{ "Continue" }</button>
 							</div>
 						</div>
 					</div>
@@ -152,10 +180,10 @@ impl SetupPage {
 					<label for="our-name">{ "Server Name" }</label>
 					<input
 						id="our-name" type="text"
-						value={ self.config.name.clone() }
+						value={ self.config.server_name.clone() }
 						onchange={
 							ctx.link().callback(move |e: Event| SetupPageMessage::UpdateInput(
-								Box::new(|e, v| { e.name = Some(v); }),
+								Box::new(|e, v| { e.server_name = v; }),
 								e.target().unwrap().unchecked_into::<HtmlInputElement>().value(),
 							))
 						}
@@ -204,7 +232,15 @@ impl SetupPage {
 						<input type="checkbox" id="my-passwordless" checked={ self.config.authenticators.email_no_pass }
 							onchange={
 								ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
-									Box::new(|e, _| { e.authenticators.email_no_pass = !e.authenticators.email_no_pass; }),
+									Box::new(|e, _| {
+										e.authenticators.email_no_pass = !e.authenticators.email_no_pass;
+
+										if e.authenticators.email_no_pass {
+											e.email = Some(Default::default());
+										} else {
+											e.email = None;
+										}
+									}),
 									String::new(),
 								))
 							}
