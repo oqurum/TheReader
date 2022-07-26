@@ -5,11 +5,11 @@
 
 use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
-use actix_web::web;
+use actix_web::{web, HttpRequest};
 use books_common::setup::ConfigEmail;
 use books_common::{Permissions, MemberAuthType};
 
-use crate::config::does_config_exist;
+use crate::config::{does_config_exist, get_config};
 use crate::model::auth::AuthModel;
 use crate::model::member::{NewMemberModel, MemberModel};
 use crate::{Result, WebResult, Error};
@@ -35,31 +35,34 @@ pub struct PostPasswordlessCallback {
 }
 
 pub async fn post_passwordless_oauth(
+	req: HttpRequest,
 	query: web::Form<PostPasswordlessCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
-	if identity.identity().is_some() {
+	if identity.identity().is_some() || !does_config_exist() {
 		return Ok(HttpResponse::MethodNotAllowed().finish()); // TODO: What's the proper status?
 	}
 
-	let email_config = ConfigEmail {
-		display_name: String::from("Bookie - Book Reader"),
-		sending_email: String::from("from@example.com"),
-		contact_email: String::from("support@example.com"),
-		subject_line: String::from("Your link to sign in to Bookie"),
-		smtp_username: String::from(""),
-		smtp_password: String::from(""),
-		smtp_relay: String::from(""),
+	let config = get_config();
+
+	let (email_config, host) = match (
+		config.email,
+		req.headers().get("host").and_then(|v| v.to_str().ok())
+	) {
+		(Some(a), Some(b)) => (a, b),
+		_ => return Ok(HttpResponse::MethodNotAllowed().finish()),
 	};
+
+	let proto = config.server.is_secure.then(|| "https").unwrap_or("http");
 
 
 	let oauth_token = gen_sample_alphanumeric(32, &mut rand::thread_rng());
 
+
+
 	let auth_url = format!(
-		"{}://{}{}?{}",
-		"http",
-		"127.0.0.1:8084",
+		"{proto}://{host}{}?{}",
 		PASSWORDLESS_PATH_CB,
 		serde_urlencoded::to_string(QueryCallback {
 			oauth_token: oauth_token.clone(),
@@ -68,8 +71,8 @@ pub async fn post_passwordless_oauth(
 	);
 
 	let main_html = render_email(
-		"http",
-		"127.0.0.1:8084",
+		proto,
+		host,
 		&email_config.display_name,
 		PASSWORDLESS_PATH_CB,
 	);

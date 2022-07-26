@@ -5,8 +5,8 @@ use validator::Validate;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
 pub struct SetupConfig {
-	#[validate(length(min = 3, max = 32, message = "Must be at least 3 long and less than 32 long."))]
-	pub server_name: String,
+	#[validate]
+	pub server: ConfigServer,
 	pub directories: Vec<String>,
 	#[validate]
 	pub email: Option<ConfigEmail>,
@@ -18,6 +18,13 @@ impl SetupConfig {
 		// TODO: Use Option::get_or_insert_default once stable
 		self.email.get_or_insert_with(Default::default)
 	}
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
+pub struct ConfigServer {
+	#[validate(length(min = 3, max = 32, message = "Must be at least 3 long and less than 32 long."))]
+	pub name: String,
+	pub is_secure: bool,
 }
 
 

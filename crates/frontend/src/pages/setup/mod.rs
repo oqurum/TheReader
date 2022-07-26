@@ -180,10 +180,10 @@ impl SetupPage {
 					<label for="our-name">{ "Server Name" }</label>
 					<input
 						id="our-name" type="text"
-						value={ self.config.server_name.clone() }
+						value={ self.config.server.name.clone() }
 						onchange={
 							ctx.link().callback(move |e: Event| SetupPageMessage::UpdateInput(
-								Box::new(|e, v| { e.server_name = v; }),
+								Box::new(|e, v| { e.server.name = v; }),
 								e.target().unwrap().unchecked_into::<HtmlInputElement>().value(),
 							))
 						}

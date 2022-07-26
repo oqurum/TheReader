@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use books_common::setup::{SetupConfig, Authenticators, ConfigEmail};
+use books_common::setup::{SetupConfig, Authenticators, ConfigEmail, ConfigServer};
 use lazy_static::lazy_static;
 use serde::{Serialize, Deserialize};
 
@@ -32,7 +32,7 @@ pub fn get_config() -> Config {
 
 pub async fn save_config(value: SetupConfig) -> Result<()> {
 	let config = Config {
-		server_name: value.server_name,
+		server: value.server,
 		libby: None,
 		email: value.email,
 		authenticators: value.authenticators,
@@ -51,7 +51,7 @@ pub async fn save_config(value: SetupConfig) -> Result<()> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-	pub server_name: String,
+	pub server: ConfigServer,
 	pub libby: Option<LibraryConnection>,
 	pub email: Option<ConfigEmail>,
 	pub authenticators: Authenticators,
