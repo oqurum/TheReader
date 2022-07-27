@@ -54,6 +54,7 @@ impl Component for OptionsPage {
 
 			Msg::UpdatePopup(update) => {
 				self.update_popup = Some(update);
+				return false;
 			}
 
 			Msg::RequestUpdateOptions(should_add_options) => {
@@ -174,7 +175,7 @@ impl OptionsPage {
 						<div style="background-color: #2b2c37; padding: 10px; border-radius: 3px;">
 							<h2>{ "New Library" }</h2>
 
-							<input type="text" name="name" placeholder="Library Name" value="" onchange={ ctx.link().callback(|e: Event| {
+							<input type="text" name="library-name" placeholder="Library Name" onchange={ ctx.link().callback(|e: Event| {
 								Msg::UpdatePopup(api::ModifyOptionsBody {
 									library: Some(BasicLibrary {
 										id: None,
@@ -198,7 +199,7 @@ impl OptionsPage {
 							<h2>{ "Add Directory to Library" }</h2>
 
 							// TODO: Directory Selector
-							<input type="text" name="directory" placeholder="Directory" value="" onchange={ ctx.link().callback(move |e: Event| {
+							<input type="text" name="directory-name" placeholder="Directory" onchange={ ctx.link().callback(move |e: Event| {
 								Msg::UpdatePopup(api::ModifyOptionsBody {
 									library: None,
 									directory: Some(BasicDirectory {
