@@ -18,7 +18,7 @@ use serde_urlencoded::ser::Error as UrlEncodedSerError;
 use serde_json::Error as JsonError;
 use serde_xml_rs::Error as XmlError;
 use serde::de::value::Error as SerdeValueError;
-use toml::{de::Error as TomlDeError, ser::Error as TomlSerError};
+use toml_edit::{de::Error as TomlDeError, ser::Error as TomlSerError};
 use books_common::Error as LocalCommonError;
 use bookie::Error as BookieError;
 

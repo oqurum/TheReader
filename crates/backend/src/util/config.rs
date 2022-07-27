@@ -14,7 +14,7 @@ lazy_static! {
 	static ref CONFIG_FILE: Mutex<Option<Config>> = {
 		if let Ok(data) = std::fs::read(CONFIG_PATH) {
 			#[allow(clippy::expect_used)]
-			Mutex::new(toml::from_slice(&data).expect("Loading Config File"))
+			Mutex::new(toml_edit::de::from_slice(&data).expect("Loading Config File"))
 		} else {
 			Mutex::default()
 		}
@@ -40,7 +40,7 @@ pub async fn save_config(value: SetupConfig) -> Result<()> {
 
 	tokio::fs::write(
 		CONFIG_PATH,
-		toml::to_string_pretty(&config)?,
+		toml_edit::ser::to_string_pretty(&config)?,
 	).await?;
 
 	*CONFIG_FILE.lock().unwrap() = Some(config);
