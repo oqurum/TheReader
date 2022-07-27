@@ -4,5 +4,5 @@
 
 /app/database.db
 /app/thumbnails
-/app/config.json
+/app/config.toml
 /app/public/dist
