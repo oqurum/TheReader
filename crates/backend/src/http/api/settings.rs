@@ -1,7 +1,8 @@
 use actix_web::{web, get, post};
 use books_common::{setup::SetupConfig, api};
+use chrono::Utc;
 
-use crate::{database::Database, WebResult, config::does_config_exist, http::passwordless::test_connection};
+use crate::{database::Database, WebResult, config::does_config_exist, http::passwordless::test_connection, model::{library::NewLibraryModel, directory::DirectoryModel}};
 
 
 
@@ -14,7 +15,7 @@ pub async fn is_setup() -> web::Json<api::ApiGetIsSetupResponse> {
 #[post("/setup")]
 pub async fn save_initial_setup(
 	body: web::Json<SetupConfig>,
-	_db: web::Data<Database>,
+	db: web::Data<Database>,
 ) -> WebResult<web::Json<api::WrappingResponse<String>>> {
 	let config = body.into_inner();
 
@@ -22,6 +23,20 @@ pub async fn save_initial_setup(
 		if !test_connection(email_config)? {
 			return Ok(web::Json(api::WrappingResponse::error("Test Connection Failed")));
 		}
+	}
+
+	for path in &config.directories {
+		let now = Utc::now();
+
+		let lib = NewLibraryModel {
+			name: format!("New Library {}", now.timestamp_millis()),
+			created_at: now,
+			scanned_at: now,
+			updated_at: now,
+		}.insert(&db).await?;
+
+		// TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
+		DirectoryModel { library_id: lib.id, path: path.clone() }.insert(&db).await?;
 	}
 
 	crate::config::save_config(config).await?;
