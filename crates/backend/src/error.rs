@@ -1,7 +1,9 @@
+use std::fmt::Write;
 use std::{num::ParseIntError, sync::PoisonError};
 use std::io::Error as IoError;
 use std::time::SystemTimeError;
 
+use books_common::api::{WrappingResponse, ApiErrorResponse};
 use thiserror::Error as ThisError;
 
 use bcrypt::BcryptError;
@@ -50,9 +52,40 @@ pub enum WebError {
 
 	#[error(transparent)]
 	Bookie(#[from] BookieError),
+
+	#[error(transparent)]
+	ApiResponse(#[from] ApiErrorResponse),
 }
 
-impl ResponseError for WebError {}
+
+impl ResponseError for WebError {
+	fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
+		let resp_value = match self {
+			Self::ApiResponse(r) => WrappingResponse::<()> {
+				resp: None,
+				error: Some(r.clone())
+			},
+
+			this => {
+				let mut description = String::new();
+				let _ = write!(&mut description, "{}", this);
+				WrappingResponse::<()>::error(description)
+			},
+		};
+
+		let mut res = actix_web::HttpResponse::new(self.status_code());
+
+		res.headers_mut().insert(
+			actix_web::http::header::CONTENT_TYPE,
+			actix_web::http::header::HeaderValue::from_static("text/plain; charset=utf-8")
+		);
+
+		res.set_body(actix_web::body::BoxBody::new(
+			serde_json::to_string(&resp_value).unwrap()
+		))
+	}
+}
+
 
 
 // Used for all Errors in Application.

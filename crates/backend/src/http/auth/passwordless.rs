@@ -198,7 +198,7 @@ pub fn gen_sample_alphanumeric(amount: usize, rng: &mut ThreadRng) -> String {
 		.collect()
 }
 
-
+// TODO: Change. Based off of peakdesign's passwordless email.
 fn render_email(
 	website_url_protocol: &str,
 	website_http_base_host: &str,

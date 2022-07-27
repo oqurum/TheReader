@@ -20,12 +20,12 @@ pub async fn check_if_setup() -> ApiGetIsSetupResponse {
 	).await.unwrap()
 }
 
-pub async fn finish_setup(value: SetupConfig) -> bool {
-	fetch_jsvalue(
+pub async fn finish_setup(value: SetupConfig) -> WrappingResponse<String> {
+	fetch(
 		"POST",
 		"/api/setup",
 		Some(&value),
-	).await.is_ok()
+	).await.unwrap()
 }
 
 

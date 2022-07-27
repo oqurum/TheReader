@@ -11,7 +11,8 @@ use crate::{request, Route};
 
 
 pub enum SetupPageMessage {
-	AfterSentConfig,
+	AfterSentConfigSuccess,
+	AfterSentConfigError(String),
 
 	Finish,
 
@@ -50,7 +51,7 @@ impl Component for SetupPage {
 		match msg {
 			SetupPageMessage::IsAlreadySetupResponse(is_setup) => {
 				self.is_setup = if is_setup {
-					// TODO: Add a delay.
+					// TODO: Add a delay + reason.
 					let history = ctx.link().history().unwrap();
     				history.push(Route::Dashboard);
 
@@ -60,9 +61,15 @@ impl Component for SetupPage {
 				};
 			}
 
-			SetupPageMessage::AfterSentConfig => {
+			SetupPageMessage::AfterSentConfigSuccess => {
 				let history = ctx.link().history().unwrap();
 				history.push(Route::Dashboard);
+			}
+
+			SetupPageMessage::AfterSentConfigError(resp) => {
+				self.is_waiting_for_resp = false;
+				log::error!("{}", resp);
+				// TODO: Show Error.
 			}
 
 			SetupPageMessage::Finish => {
@@ -70,8 +77,6 @@ impl Component for SetupPage {
 					self.is_waiting_for_resp = true;
 
 					let config = self.config.as_changed_value().clone();
-
-					// TODO: Add Response to request::finish_setup
 
 					// Ensure config is valid.
 					if let Err(e) = config.validate() {
@@ -83,13 +88,10 @@ impl Component for SetupPage {
 					}
 
 					ctx.link().send_future(async move {
-						let is_okay = request::finish_setup(config).await;
-
-						if is_okay {
-							log::info!("Successfully setup.");
+						match request::finish_setup(config).await.ok() {
+							Ok(_) => SetupPageMessage::AfterSentConfigSuccess,
+							Err(e) => SetupPageMessage::AfterSentConfigError(e.description),
 						}
-
-						SetupPageMessage::AfterSentConfig
 					});
 				}
 
