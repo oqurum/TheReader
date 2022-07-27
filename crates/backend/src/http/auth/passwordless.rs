@@ -145,7 +145,18 @@ pub async fn get_passwordless_oauth_callback(
 		.finish())
 }
 
+// TODO: Send emails/tests from own thread entirely. lettre uses a loop system.
 
+pub fn test_connection(email_config: &ConfigEmail) -> Result<bool> {
+	let creds = Credentials::new(email_config.smtp_username.clone(), email_config.smtp_password.clone());
+
+	// Open a remote connection to gmail
+	let mailer = SmtpTransport::relay(&email_config.smtp_relay)?
+		.credentials(creds)
+		.build();
+
+	Ok(mailer.test_connection()?)
+}
 
 pub fn send_auth_email(sending_to_email: String, alt_text: String, main_html: String, email_config: &ConfigEmail) -> Result<()> {
 	let email = Message::builder()
