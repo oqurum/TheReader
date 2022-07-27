@@ -26,6 +26,9 @@ pub use error::{Result, WebResult, WebError, Error, InternalError};
 
 #[actix_web::main]
 async fn main() -> Result<()> {
+	// Load Config - Otherwise it'll be lazily loaded whenever this fn is first called.
+	let _ = config::get_config();
+
 	let db = database::init().await?;
 
 	let db_data = web::Data::new(db);
