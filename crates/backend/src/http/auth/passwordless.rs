@@ -61,7 +61,7 @@ pub async fn post_passwordless_oauth(
 
 
 
-	let auth_url = format!(
+	let auth_callback_url = format!(
 		"{proto}://{host}{}?{}",
 		PASSWORDLESS_PATH_CB,
 		serde_urlencoded::to_string(QueryCallback {
@@ -74,7 +74,7 @@ pub async fn post_passwordless_oauth(
 		proto,
 		host,
 		&email_config.display_name,
-		PASSWORDLESS_PATH_CB,
+		&auth_callback_url,
 	);
 
 	AuthModel {
@@ -84,7 +84,7 @@ pub async fn post_passwordless_oauth(
 		created_at: Utc::now(),
 	}.insert(&db).await?;
 
-	send_auth_email(query.0.email, auth_url, main_html, &email_config)?;
+	send_auth_email(query.0.email, auth_callback_url, main_html, &email_config)?;
 
 	Ok(HttpResponse::Ok().finish())
 }
