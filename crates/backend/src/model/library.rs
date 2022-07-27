@@ -53,7 +53,7 @@ impl NewLibraryModel {
 		let lock = db.write().await;
 
 		lock.execute(
-			r#"INSERT INTO library (name, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)"#,
+			r#"INSERT INTO library (name, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)"#,
 			params![
 				&self.name,
 				self.scanned_at.timestamp_millis(),
