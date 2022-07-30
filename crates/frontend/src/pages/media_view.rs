@@ -92,141 +92,143 @@ impl Component for MediaView {
 			let media_prog = media.iter().zip(progress.iter());
 
 			html! {
-				<div class="media-view-container">
-					<div class="info-container">
-						<div class="poster large">
-							<div class="bottom-right">
-								<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
+				<div class="outer-view-container">
+					<div class="view-container item-view-container">
+						<div class="info-container">
+							<div class="poster large">
+								<div class="bottom-right">
+									<span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
+								</div>
+								<div class="bottom-left">
+									<span class="material-icons" onclick={ctx.link().callback_future(move |e: MouseEvent| {
+										e.prevent_default();
+										e.stop_propagation();
+
+										async move {
+											Msg::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(meta_id).await)))
+										}
+									})} title="More Options">{ "edit" }</span>
+								</div>
+
+								<img src={ metadata.get_thumb_url() } />
 							</div>
-							<div class="bottom-left">
-								<span class="material-icons" onclick={ctx.link().callback_future(move |e: MouseEvent| {
-									e.prevent_default();
-									e.stop_propagation();
-
-									async move {
-										Msg::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(meta_id).await)))
-									}
-								})} title="More Options">{ "edit" }</span>
-							</div>
-
-							<img src={ metadata.get_thumb_url() } />
-						</div>
-						<div class="metadata">
-							<h3 class="title">{ metadata.get_title() }</h3>
-							<p class="description">{ metadata.description.clone().unwrap_or_default() }</p>
-						</div>
-					</div>
-
-					<section>
-						<h2>{ "Files" }</h2>
-						<div class="files-container">
-							{
-								for media_prog.map(|(media, _prog)| {
-									html! {
-										<Link<Route> to={Route::ReadBook { book_id: media.id }} classes={ classes!("file-item") }>
-											<h5>{ media.file_name.clone() }</h5>
-											<div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
-											<div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
-										</Link<Route>>
-									}
-								})
-							}
-						</div>
-					</section>
-
-					<section>
-						<h2>{ "Characters" }</h2>
-						<div class="characters-container">
-							<div class="person-item">
-								<div class="photo"><img src="/images/missingperson.jpg" /></div>
-								<span class="title">{ "Character #1" }</span>
-							</div>
-							<div class="person-item">
-								<div class="photo"><img src="/images/missingperson.jpg" /></div>
-								<span class="title">{ "Character #2" }</span>
+							<div class="metadata">
+								<h3 class="title">{ metadata.get_title() }</h3>
+								<p class="description">{ metadata.description.clone().unwrap_or_default() }</p>
 							</div>
 						</div>
-					</section>
 
-					<section>
-						<h2>{ "People" }</h2>
-						<div class="authors-container">
-							{
-								for people.iter().map(|person| {
-									html! {
-										<div class="person-item">
-											<div class="photo"><img src={ person.get_thumb_url() } /></div>
-											<span class="title">{ person.name.clone() }</span>
-										</div>
-									}
-								})
-							}
-						</div>
-					</section>
-
-					{
-						if let Some(overlay_type) = self.media_popup.as_ref() {
-							match overlay_type {
-								DisplayOverlay::Info { meta_id: _ } => {
-									html! {
-										<Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-											<h1>{"Info"}</h1>
-										</Popup>
-									}
+						<section>
+							<h2>{ "Files" }</h2>
+							<div class="files-container">
+								{
+									for media_prog.map(|(media, _prog)| {
+										html! {
+											<Link<Route> to={Route::ReadBook { book_id: media.id }} classes={ classes!("file-item") }>
+												<h5>{ media.file_name.clone() }</h5>
+												<div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
+												<div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
+											</Link<Route>>
+										}
+									})
 								}
+							</div>
+						</section>
 
-								&DisplayOverlay::More { meta_id, mouse_pos } => {
-									html! {
-										<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-											<div class="menu-list">
-												<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
-													Self::on_click_prevdef(ctx.link(), Msg::UpdateMeta(meta_id))
-												}>{ "Refresh Metadata" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
-													Self::on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None }))
-												}>{ "Search For Book" }</div>
-												<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
-													Self::on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::Info { meta_id }))
-												}>{ "Show Info" }</div>
+						<section>
+							<h2>{ "Characters" }</h2>
+							<div class="characters-container">
+								<div class="person-item">
+									<div class="photo"><img src="/images/missingperson.jpg" /></div>
+									<span class="title">{ "Character #1" }</span>
+								</div>
+								<div class="person-item">
+									<div class="photo"><img src="/images/missingperson.jpg" /></div>
+									<span class="title">{ "Character #2" }</span>
+								</div>
+							</div>
+						</section>
+
+						<section>
+							<h2>{ "People" }</h2>
+							<div class="authors-container">
+								{
+									for people.iter().map(|person| {
+										html! {
+											<div class="person-item">
+												<div class="photo"><img src={ person.get_thumb_url() } /></div>
+												<span class="title">{ person.name.clone() }</span>
 											</div>
-										</Popup>
+										}
+									})
+								}
+							</div>
+						</section>
+
+						{
+							if let Some(overlay_type) = self.media_popup.as_ref() {
+								match overlay_type {
+									DisplayOverlay::Info { meta_id: _ } => {
+										html! {
+											<Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+												<h1>{"Info"}</h1>
+											</Popup>
+										}
+									}
+
+									&DisplayOverlay::More { meta_id, mouse_pos } => {
+										html! {
+											<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+												<div class="menu-list">
+													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef(ctx.link(), Msg::UpdateMeta(meta_id))
+													}>{ "Refresh Metadata" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None }))
+													}>{ "Search For Book" }</div>
+													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
+													<div class="menu-item" yew-close-popup="" onclick={
+														Self::on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::Info { meta_id }))
+													}>{ "Show Info" }</div>
+												</div>
+											</Popup>
+										}
+									}
+
+									DisplayOverlay::Edit(resp) => {
+										html! {
+											<PopupEditMetadata
+												on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
+												classes={ classes!("popup-book-edit") }
+												media_resp={ (&**resp).clone() }
+											/>
+										}
+									}
+
+									&DisplayOverlay::SearchForBook { meta_id, ref input_value } => {
+										let input_value = if let Some(v) = input_value {
+											v.to_string()
+										} else {
+											format!(
+												"{} {}",
+												metadata.title.as_deref().unwrap_or_default(),
+												metadata.cached.author.as_deref().unwrap_or_default()
+											)
+										};
+
+										let input_value = input_value.trim().to_string();
+
+										html! {
+											<PopupSearchBook {meta_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
+										}
 									}
 								}
-
-								DisplayOverlay::Edit(resp) => {
-									html! {
-										<PopupEditMetadata
-											on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-											classes={ classes!("popup-book-edit") }
-											media_resp={ (&**resp).clone() }
-										/>
-									}
-								}
-
-								&DisplayOverlay::SearchForBook { meta_id, ref input_value } => {
-									let input_value = if let Some(v) = input_value {
-										v.to_string()
-									} else {
-										format!(
-											"{} {}",
-											metadata.title.as_deref().unwrap_or_default(),
-											metadata.cached.author.as_deref().unwrap_or_default()
-										)
-									};
-
-									let input_value = input_value.trim().to_string();
-
-									html! {
-										<PopupSearchBook {meta_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
-									}
-								}
+							} else {
+								html! {}
 							}
-						} else {
-							html! {}
 						}
-					}
+					</div>
 				</div>
 			}
 		} else {

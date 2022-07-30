@@ -1,0 +1,115 @@
+@import "util/variables";
+@import "util/keyframes";
+
+@import "base/typography";
+
+@import "layout/form";
+@import "layout/sidebar";
+
+@import "pages/author_list";
+@import "pages/book_list";
+@import "pages/item_view";
+@import "pages/setup";
+
+@import "components/button";
+@import "components/ext_common";
+@import "components/label";
+@import "components/mass_select_bar";
+@import "components/notes";
+@import "components/popup_book_edit";
+@import "components/popup_book_search";
+@import "components/poster";
+@import "components/reader";
+
+
+// TODO: Sort rest in respective files.
+
+
+:root {
+	--ratio-portrait: 0.668;
+
+	--brand: var(--orange-3);
+	--brand-1: var(--orange-4);
+	--brand-2: var(--orange-2);
+	--text-1: var(--gray-1);
+	--text-2: var(--gray-3);
+	--surface-1: var(--gray-9);
+	--surface-2: var(--gray-8);
+	--surface-3: var(--gray-7);
+	--surface-4: var(--gray-6);
+	--text-size-content-4: 80ch;
+
+	height: 100%;
+	width: 100%;
+
+	background-color: var(--surface-2);
+	color: var(--text-1);
+	accent-color: var(--brand);
+}
+
+body {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	margin: 0;
+}
+
+.tab-bar {
+	height: 3em;
+	display: flex;
+	flex-direction: row;
+
+	.tab-bar-item {
+		background-color: var(--surface-1);
+		cursor: pointer;
+		padding: 5px;
+	}
+}
+
+/* EDITING ITEMS CONTAINER */
+
+.editing-items-inside {
+	.book-list-item {
+		.poster {
+			.top-left {
+				display: block;
+			}
+		}
+	}
+}
+
+
+/* CENTER DIV */
+.center-normal {
+	display: flex;
+	justify-content: center;
+	align-content: center;
+	width: 100%;
+	height: 100%;
+
+	> .center-container {
+		margin: auto;
+
+		&.ignore-vertical {
+			margin: 0 auto;
+		}
+	}
+}
+
+.shrink-width-to-content {
+	width: max-content;
+}
+
+
+.outer-view-container {
+	display: flex;
+	flex-direction: row;
+	flex-grow: 1;
+}
+
+.view-container {
+	margin: 0.5em;
+	flex-grow: 1;
+	overflow-y: hidden;
+}

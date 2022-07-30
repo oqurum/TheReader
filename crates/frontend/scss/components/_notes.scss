@@ -1,0 +1,24 @@
+#notary {
+	height: 500px;
+	overflow: auto;
+}
+
+.notes {
+	flex-grow: 1;
+	max-width: 32em;
+	margin-right: 0.5em;
+	padding: 0.5em;
+
+
+	.ql-stroke {
+		stroke: var(--text1) !important;
+	}
+
+	.ql-picker {
+		color: var(--text1) !important;
+	}
+
+	.ql-picker-options {
+		background-color: var(--surface3) !important;
+	}
+}

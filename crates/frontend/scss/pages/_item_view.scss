@@ -1,0 +1,160 @@
+.item-view-container {
+	// Info
+	> .info-container {
+		display: flex;
+		flex-direction: row;
+
+		> .poster {
+			flex-shrink: 0;
+		}
+
+		> .metadata-container {
+			display: flex;
+			flex-direction: row;
+			flex-wrap: wrap;
+			width: 100%;
+
+			> .metadata {
+				flex-grow: 1;
+				margin-left: 1em;
+				display: flex;
+				flex-direction: column;
+
+				> .title {
+					max-inline-size: var(--size-header-3);
+				}
+
+				> .description {
+					max-inline-size: var(--text-size-content-4);
+					white-space: pre-wrap;
+				}
+
+				// Editing
+				> input.title {
+					margin-bottom: 10px;
+				}
+			}
+		}
+	}
+
+	section {
+		margin-top: 1em;
+
+		h2 {
+			margin-bottom: 0.25em;
+		}
+	}
+
+	// Files
+	.files-container {
+		display: flex;
+		flex-wrap: wrap;
+
+		> .file-item {
+			display: block;
+			width: calc(25% - 1em);
+			padding: 0.5em;
+			margin: 0.5em;
+
+			border-radius: var(--radius-2);
+			border: var(--border-size-1) solid transparent;
+
+			&:hover {
+				border-color: var(--brand);
+			}
+		}
+	}
+
+	.posters-container {
+		display: flex;
+		overflow-x: auto;
+		flex-wrap: nowrap;
+		padding: 10px 0px;
+
+		.add-poster {
+			width: 165px;
+			height: 247px;
+			border-radius: var(--radius-2);
+			border: var(--border-size-1) solid var(--brand);
+			transition: border 0.25s;
+			flex-shrink: 0;
+			display: flex;
+			align-items: center;
+			cursor: pointer;
+
+			> span {
+				text-align: center;
+				width: 100%;
+			}
+		}
+
+		.poster {
+			flex-shrink: 0;
+			margin: 0 3px;
+			cursor: pointer;
+
+			&.selected {
+				cursor: default;
+				border-width: 4px;
+			}
+		}
+	}
+
+	// Authors
+	.authors-container,
+	.characters-container {
+		display: flex;
+		flex-direction: row;
+
+		> .add-person {
+			display: flex;
+			align-items: center;
+			transition: border 0.25s;
+			padding: 0.5em;
+			width: 10em;
+			cursor: pointer;
+
+			border-radius: var(--radius-2);
+			border: var(--border-size-1) solid var(--brand);
+
+			> span {
+				text-align: center;
+				width: 100%;
+			}
+		}
+
+		// TODO: Replace with .person-container
+		> .person-item {
+			display: flex;
+			flex-direction: column;
+			transition: border 0.25s;
+			padding: 0.5em;
+			width: 10em;
+
+			border-radius: var(--radius-2);
+			border: var(--border-size-1) solid transparent;
+
+			&:hover {
+				border-color: var(--brand);
+			}
+
+			> .photo {
+				position: relative;
+				overflow: hidden;
+				width: 9em;
+				height: 9em;
+
+				img {
+					width: 100%;
+					height: 100%;
+					object-fit: cover;
+					border-radius: var(--radius-blob-5);
+				}
+			}
+
+			> .title {
+				text-align: center;
+			}
+		}
+	}
+}

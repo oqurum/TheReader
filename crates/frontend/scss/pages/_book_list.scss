@@ -1,0 +1,82 @@
+.book-list {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	overflow-y: auto;
+	position: relative;
+	max-height: 100%;
+
+	/* NORMAL */
+	&.normal .book-list-item {
+		width: 165px;
+	}
+}
+
+
+.book-list-item {
+    text-decoration: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    margin: 1em;
+
+    /* PLACEHOLDER */
+    &.placeholder {
+        .poster {
+            background-color: #202020;
+            min-height: 247px;
+        }
+
+        .info {
+            .author {
+                background-color: #202020;
+                height: 1em;
+                width: 7em;
+                margin-bottom: 3px;
+            }
+
+            .title {
+                background-color: #202020;
+                height: 1em;
+                width: 4em;
+            }
+        }
+    }
+
+    .info {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+
+        .title {
+            color: var(--text-1);
+            text-decoration: none;
+            font-size: var(--font-size-2);
+
+            margin-block: 0;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+
+
+        .author {
+            color: var(--text-2);
+            text-decoration: none;
+            font-size: var(--font-size-1);
+
+            margin-block: 0;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+    }
+}

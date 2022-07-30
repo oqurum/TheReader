@@ -1,0 +1,19 @@
+
+
+.setup-view-container {
+	> .center-normal > .center-container {
+		width: min(600px, 100%);
+		overflow-y: auto;
+		padding: 0 10px;
+	}
+
+	// Navigation
+	.navbar-module {
+		.center-content {
+			text-align: center;
+			flex-grow: 1;
+		}
+	}
+
+	//
+}

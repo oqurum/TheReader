@@ -110,7 +110,7 @@ impl Component for SetupPage {
 		match self.is_setup {
 			IsSetup::Unknown => html! {
 				<div class="setup-container">
-					<div class="main-content-view">
+					<div class="view-container">
 						<div class="center-normal">
 							<div class="center-container">
 								<h2>{ "Loading..." }</h2>
@@ -122,7 +122,7 @@ impl Component for SetupPage {
 
 			IsSetup::Yes => html! {
 				<div class="setup-container">
-					<div class="main-content-view">
+					<div class="view-container">
 						<div class="center-normal">
 							<div class="center-container">
 								<h2>{ "Already Setup..." }</h2>
@@ -134,7 +134,7 @@ impl Component for SetupPage {
 			},
 
 			IsSetup::No => html! {
-				<div class={ "main-content-view setup-view-container" }>
+				<div class={ "view-container setup-view-container" }>
 					<div class="center-normal">
 						<div class="center-container ignore-vertical">
 							<h2>{ "Setup" }</h2>

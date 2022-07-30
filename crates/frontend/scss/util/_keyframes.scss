@@ -1,0 +1,21 @@
+@use "sass:math";
+
+
+// Using --gradient-2
+@keyframes rotate {
+	// Generates Underscores:  _% { ...: ...(___deg, ...) 1; }
+	@for $i from 0 through 100 {
+		#{$i}#{"%"} {
+			border-image: linear-gradient(#{math.div(360 * $i, 100)}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
+		}
+	}
+}
+
+@-moz-keyframes rotate {
+	// Generates Underscores:  _% { ...: ...(___deg, ...) 1; }
+	@for $i from 0 through 100 {
+		#{$i}#{"%"} {
+			border-image: linear-gradient(#{math.div(360 * $i, 100)}#{"deg"}, #48005c, #8300e2, #a269ff) 1;
+		}
+	}
+}

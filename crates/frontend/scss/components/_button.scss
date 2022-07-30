@@ -1,0 +1,20 @@
+
+
+
+button:not([disabled]),
+.button:not([disabled]) {
+	&.green {
+		--_text: var(--green-6);
+		--_border: var(--green-4);
+	}
+
+	&.red {
+		--_text: var(--red-6);
+		--_border: var(--red-4);
+	}
+
+	&.yellow {
+		--_text: var(--yellow-6);
+		--_border: var(--yellow-4);
+	}
+}

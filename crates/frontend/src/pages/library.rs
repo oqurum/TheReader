@@ -243,8 +243,8 @@ impl Component for LibraryPage {
 			// let remaining = (self.total_media_count as usize - items.len()).min(50);
 
 			html! {
-				<div class="main-content-view">
-					<div class="library-list normal" ref={ self.library_list_ref.clone() }>
+				<div class="view-container">
+					<div class="book-list normal" ref={ self.library_list_ref.clone() }>
 						{
 							for items.iter().map(|item| {
 								let is_editing = self.editing_items.lock().unwrap().contains(&item.id);
@@ -383,7 +383,7 @@ impl LibraryPage {
 
 	// fn render_placeholder_item() -> Html {
 	// 	html! {
-	// 		<div class="library-item placeholder">
+	// 		<div class="book-list-item placeholder">
 	// 			<div class="poster"></div>
 	// 			<div class="info">
 	// 				<a class="author"></a>
@@ -461,7 +461,7 @@ impl Component for MediaItem {
 		});
 
 		html! {
-			<Link<Route> to={Route::ViewMeta { meta_id: item.id }} classes={ classes!("library-item") }>
+			<Link<Route> to={Route::ViewMeta { meta_id: item.id }} classes={ classes!("book-list-item") }>
 				<div class="poster">
 					<div class="top-left">
 						<input

@@ -103,8 +103,8 @@ impl Component for PopupEditMetadata {
 				{ self.render_tab_contents(ctx) }
 
 				<div class="footer">
-					<button class="button">{ "Cancel" }</button>
-					<button class="button">{ "Save" }</button>
+					<button class="red">{ "Cancel" }</button>
+					<button class="green">{ "Save" }</button>
 				</div>
 			</Popup>
 		}

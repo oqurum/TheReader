@@ -36,11 +36,11 @@ impl Component for HomePage {
 	fn view(&self, ctx: &Context<Self>) -> Html {
 		if let Some(items) = self.library_items.as_deref() {
 			html! {
-				<div class="home-view-container">
-					<div class="sidebar">
+				<div class="outer-view-container">
+					<div class="sidebar-container">
 						{ for items.iter().map(|item| Self::render_sidebar_library_item(item, ctx.link())) }
 					</div>
-					<div class="main-content-view">
+					<div class="view-container">
 						//
 					</div>
 				</div>

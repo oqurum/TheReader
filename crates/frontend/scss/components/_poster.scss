@@ -1,0 +1,97 @@
+
+
+
+.poster {
+	position: relative;
+	overflow: hidden;
+	width: 165px;
+	height: 247px;
+	border-radius: var(--radius-2);
+	border: var(--border-size-1) solid transparent;
+	transition: border 0.25s;
+
+	&.large {
+		width: 248px;
+		height: 372px;
+	}
+
+	&.max-vertical {
+		width: auto;
+		height: 100%;
+		aspect-ratio: var(--ratio-portrait);
+	}
+
+	&:hover {
+		border-color: var(--brand);
+	}
+
+	&.selected {
+		border-color: var(--brand);
+	}
+
+
+	> .changing {
+		--angle: 0grad;
+
+		position: absolute;
+		background-color: rgba(0, 0, 0, 0.5);
+		width: 100%;
+		height: 100%;
+		top: 0;
+		left: 0;
+		border: 2px solid;
+
+		animation-name: rotate;
+		animation-duration: 2s;
+		animation-iteration-count: infinite;
+		animation-timing-function: linear;
+
+		-moz-animation-name: rotate;
+		-moz-animation-duration: 2s;
+		-moz-animation-iteration-count: infinite;
+		-moz-animation-timing-function: linear;
+	}
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.top-left,
+	.top-right,
+	.bottom-left,
+	.bottom-right {
+		z-index: 99;
+		display: none;
+		position: absolute;
+		cursor: pointer;
+	}
+
+	&:hover .bottom-left,
+	&:hover .bottom-right,
+	&:hover .top-left,
+	&:hover .top-right {
+		display: block;
+	}
+
+	.top-left {
+		top: 0px;
+		left: 4px;
+	}
+
+	.top-right {
+		top: 0px;
+		right: 3px;
+	}
+
+	.bottom-right {
+		bottom: 0px;
+		right: 3px;
+	}
+
+	.bottom-left {
+		bottom: 0px;
+		left: 3px;
+	}
+}

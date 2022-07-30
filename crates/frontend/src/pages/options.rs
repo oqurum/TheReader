@@ -74,7 +74,7 @@ impl Component for OptionsPage {
 				<div class="options-page">
 					<h2>{ "Tasks" }</h2>
 
-					<button class="button" onclick={ ctx.link().callback_future(|_| async {
+					<button onclick={ ctx.link().callback_future(|_| async {
 						request::run_task().await;
 						Msg::Ignore
 					}) }>{ "Run Library Scan + Metadata Updater" }</button>
@@ -89,7 +89,7 @@ impl Component for OptionsPage {
 								html! {
 									<>
 										<h3>{ v.name.clone() }</h3>
-										<button class="button" onclick={ ctx.link().callback(move|_| {
+										<button class="red" onclick={ ctx.link().callback(move|_| {
 											Msg::RequestUpdateOptions(
 												false,
 												api::ModifyOptionsBody {
@@ -107,7 +107,7 @@ impl Component for OptionsPage {
 													let path = v.clone();
 
 													html! {
-														<li><button class="button" onclick={ ctx.link().callback(move |_| {
+														<li><button class="red" onclick={ ctx.link().callback(move |_| {
 															Msg::RequestUpdateOptions(
 																false,
 																api::ModifyOptionsBody {
@@ -122,13 +122,13 @@ impl Component for OptionsPage {
 													}
 												})
 											}
-											<li><button class="button" onclick={ctx.link().callback(move |_| Msg::DisplayPopup(1, lib_id))}>{ "Add New" }</button></li>
+											<li><button class="green" onclick={ctx.link().callback(move |_| Msg::DisplayPopup(1, lib_id))}>{ "Add New" }</button></li>
 										</ul>
 									</>
 								}
 							})
 					}
-					<button class="button" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, LibraryId::none()))}>{ "Add Library" }</button>
+					<button class="green" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, LibraryId::none()))}>{ "Add Library" }</button>
 
 					{ self.render_popup(ctx) }
 				</div>
@@ -236,7 +236,7 @@ fn new_library(props: &NewLibraryProps) -> Html {
 			<div class="form-container">
 				<div class="row">
 					<input type="text" name="library-name" placeholder="Library Name" onchange={ on_change_lib_name } />
-					<button class="button" onclick={ on_create }>{"Create"}</button>
+					<button class="green" onclick={ on_create }>{"Create"}</button>
 				</div>
 			</div>
 
@@ -254,7 +254,7 @@ fn new_library(props: &NewLibraryProps) -> Html {
 
 							html! {
 								<div class="row">
-									<button {onclick}>{ "X" }</button>
+									<button class="red" {onclick}>{ "X" }</button>
 									<span>{ path.clone() }</span>
 								</div>
 							}
@@ -323,7 +323,7 @@ fn new_library_dir(props: &NewLibraryDirectoryProps) -> Html {
 					// TODO: Directory Selector
 					<input type="text" name="directory-name" placeholder="Directory" onchange={ on_change_lib_name } />
 
-					<button class="button" onclick={ on_create }>{"Create"}</button>
+					<button class="green" onclick={ on_create }>{"Create"}</button>
 				</div>
 			</div>
 		</Popup>

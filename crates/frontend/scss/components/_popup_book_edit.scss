@@ -1,0 +1,35 @@
+.popup-book-edit {
+	width: 58%;
+
+	// .header {}
+
+	// .footer {}
+
+	.content {
+		display: flex;
+		flex-direction: column;
+		flex-grow: 1;
+
+		&.edit-posters {
+			display: flex;
+			flex-direction: column;
+			overflow-y: auto;
+
+			.drop-container {
+				background-color: var(--surface-1);
+				cursor: pointer;
+				padding: 2em;
+			}
+
+			.poster-list {
+				display: flex;
+				flex-wrap: wrap;
+
+				.poster {
+					margin: 5px;
+					cursor: pointer;
+				}
+			}
+		}
+	}
+}
