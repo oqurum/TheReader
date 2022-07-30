@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common::{ImageId, PersonId, Either, Source};
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, BasicDirectory, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Member, Poster, Result, LibraryId};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Member, Poster, Result, LibraryId};
 
 
 // API Routes
@@ -208,7 +208,6 @@ pub struct GetOptionsResponse {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModifyOptionsBody {
 	pub library: Option<BasicLibrary>,
-	pub directory: Option<BasicDirectory>
 }
 
 

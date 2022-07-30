@@ -254,7 +254,9 @@ pub struct LibraryColl {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicLibrary {
 	pub id: Option<LibraryId>,
-	pub name: Option<String>
+	pub name: Option<String>,
+
+	pub directories: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

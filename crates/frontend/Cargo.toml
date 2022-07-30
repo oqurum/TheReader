@@ -38,6 +38,7 @@ log = "0.4"
 yew = "0.19"
 yew-agent = "0.1"
 yew-router = "0.16"
+yew-hooks = "0.1"
 
 validator = { version = "0.15", features = ["derive"] }
 wasm-logger = "0.2"
