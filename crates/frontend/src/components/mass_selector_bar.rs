@@ -3,9 +3,9 @@ use std::{rc::Rc, sync::Mutex};
 use common::component::popup::button::ButtonWithPopup;
 use books_common::{api, MetadataId};
 use web_sys::HtmlElement;
-use yew::{prelude::*, html::Scope};
+use yew::prelude::*;
 
-use crate::request;
+use crate::{request, util::on_click_prevdef};
 
 
 static EDITING_CONTAINER_CLASS: &str = "editing-items-inside";
@@ -97,7 +97,7 @@ impl Component for MassSelectBar {
 							<ButtonWithPopup class="menu-list">
 								<div class="menu-item" yew-close-popup="">{ "Refresh Metadata" }</div>
 								<div class="menu-item" yew-close-popup="" onclick={
-									Self::on_click_prevdef(ctx.link(), Msg::UpdateMetaByFiles)
+									on_click_prevdef(ctx.link(), Msg::UpdateMetaByFiles)
 								}>{ "Quick Search By Files" }</div>
 								<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
 							</ButtonWithPopup>
@@ -132,15 +132,5 @@ impl Component for MassSelectBar {
 
 	fn destroy(&mut self, _ctx: &Context<Self>) {
 		//
-	}
-}
-
-impl MassSelectBar {
-	/// A Callback which calls "prevent_default"
-	fn on_click_prevdef(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
-		scope.callback(move |e: MouseEvent| {
-			e.prevent_default();
-			msg.clone()
-		})
 	}
 }

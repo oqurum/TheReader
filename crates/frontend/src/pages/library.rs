@@ -4,11 +4,11 @@ use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskT
 use common::component::popup::{Popup, PopupType};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
-use yew::{prelude::*, html::Scope};
+use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 use yew_router::prelude::Link;
 
-use crate::{Route, request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar}, services::WsEventBus};
+use crate::{Route, request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop}};
 
 
 #[derive(Properties, PartialEq)]
@@ -281,17 +281,17 @@ impl Component for LibraryPage {
 												<div class="menu-list">
 													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaBySource(meta_id)))
+														on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaBySource(meta_id)))
 													}>{ "Refresh Metadata" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None })))
+														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None })))
 													}>{ "Search For Book" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaByFiles(meta_id)))
+														on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaByFiles(meta_id)))
 													}>{ "Quick Search By Files" }</div>
 													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))
+														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))
 													}>{ "Show Info" }</div>
 												</div>
 											</Popup>
@@ -362,25 +362,6 @@ impl Component for LibraryPage {
 }
 
 impl LibraryPage {
-	/// A Callback which calls "prevent_default" and "stop_propagation"
-	///
-	/// Also will prevent any more same events downstream from activating
-	fn on_click_prevdef_stopprop(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
-		scope.callback(move |e: MouseEvent| {
-			e.prevent_default();
-			e.stop_propagation();
-			msg.clone()
-		})
-	}
-
-	/// A Callback which calls "prevent_default"
-	fn on_click_prevdef(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
-		scope.callback(move |e: MouseEvent| {
-			e.prevent_default();
-			msg.clone()
-		})
-	}
-
 	// fn render_placeholder_item() -> Html {
 	// 	html! {
 	// 		<div class="book-list-item placeholder">

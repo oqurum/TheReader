@@ -5,7 +5,7 @@ use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
 
-use crate::request;
+use crate::{request, util::{on_click_prevdef_stopprop, on_click_prevdef}};
 
 
 #[derive(Properties, PartialEq)]
@@ -186,17 +186,17 @@ impl Component for AuthorListPage {
 												<div class="menu-list">
 													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
+														on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
 													}>{ "Refresh Person" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
+														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
 													}>{ "Search For Person" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
+														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
 													} title="Join Person into Another">{ "Join Into Person" }</div>
 													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
+														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
 													}>{ "Show Info" }</div>
 												</div>
 											</Popup>
@@ -407,23 +407,6 @@ impl Component for AuthorListPage {
 }
 
 impl AuthorListPage {
-	/// A Callback which calls "prevent_default" and "stop_propagation"
-	fn on_click_prevdef_stopprop(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
-		scope.callback(move |e: MouseEvent| {
-			e.prevent_default();
-			e.stop_propagation();
-			msg.clone()
-		})
-	}
-
-	/// A Callback which calls "prevent_default"
-	fn on_click_prevdef(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
-		scope.callback(move |e: MouseEvent| {
-			e.prevent_default();
-			msg.clone()
-		})
-	}
-
 	// TODO: Move into own struct.
 	fn render_media_item(&self, item: &Person, scope: &Scope<Self>) -> Html {
 		let person_id = item.id;

@@ -1,9 +1,9 @@
 use books_common::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string, MetadataId};
 use common::component::popup::{Popup, PopupType};
-use yew::{prelude::*, html::Scope};
+use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::{request, Route, components::{PopupSearchBook, PopupEditMetadata}};
+use crate::{request, Route, components::{PopupSearchBook, PopupEditMetadata}, util::{on_click_prevdef, on_click_prevdef_stopprop}};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -184,14 +184,14 @@ impl Component for MediaView {
 												<div class="menu-list">
 													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef(ctx.link(), Msg::UpdateMeta(meta_id))
+														on_click_prevdef(ctx.link(), Msg::UpdateMeta(meta_id))
 													}>{ "Refresh Metadata" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None }))
+														on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None }))
 													}>{ "Search For Book" }</div>
 													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
 													<div class="menu-item" yew-close-popup="" onclick={
-														Self::on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::Info { meta_id }))
+														on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::Info { meta_id }))
 													}>{ "Show Info" }</div>
 												</div>
 											</Popup>
@@ -248,25 +248,6 @@ impl Component for MediaView {
 				Msg::RetrieveMediaView(Box::new(request::get_media_view(metadata_id).await))
 			});
 		}
-	}
-}
-
-impl MediaView {
-	/// A Callback which calls "prevent_default" and "stop_propagation"
-	fn on_click_prevdef_stopprop(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
-		scope.callback(move |e: MouseEvent| {
-			e.prevent_default();
-			e.stop_propagation();
-			msg.clone()
-		})
-	}
-
-	/// A Callback which calls "prevent_default"
-	fn on_click_prevdef(scope: &Scope<Self>, msg: Msg) -> Callback<MouseEvent> {
-		scope.callback(move |e: MouseEvent| {
-			e.prevent_default();
-			msg.clone()
-		})
 	}
 }
 
