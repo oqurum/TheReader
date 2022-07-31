@@ -1,5 +1,5 @@
 use books_common::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string, MetadataId};
-use common::component::popup::{Popup, PopupType};
+use common::component::popup::{Popup, PopupClose, PopupType};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -204,17 +204,17 @@ impl MediaView {
 									html! {
 										<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
 											<div class="menu-list">
-												<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
+												<PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
+												<PopupClose class="menu-item" onclick={
 													on_click_prevdef(ctx.link(), Msg::UpdateMeta(meta_id))
-												}>{ "Refresh Metadata" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
+												}>{ "Refresh Metadata" }</PopupClose>
+												<PopupClose class="menu-item" onclick={
 													on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None }))
-												}>{ "Search For Book" }</div>
-												<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-												<div class="menu-item" yew-close-popup="" onclick={
+												}>{ "Search For Book" }</PopupClose>
+												<PopupClose class="menu-item">{ "Delete" }</PopupClose>
+												<PopupClose class="menu-item" onclick={
 													on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::Info { meta_id }))
-												}>{ "Show Info" }</div>
+												}>{ "Show Info" }</PopupClose>
 											</div>
 										</Popup>
 									}

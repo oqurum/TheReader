@@ -1,5 +1,5 @@
 use books_common::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType, MetadataId};
-use common::{component::popup::{Popup, PopupType}, util::{LoadingItem, truncate_on_indices}};
+use common::{component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -138,9 +138,8 @@ impl PopupSearchBook {
 		let source = item.source.clone();
 
 		html! {
-			<div
+			<PopupClose
 				class="book-search-item"
-				yew-close-popup=""
 				onclick={
 					ctx.link()
 					.callback_future(move |_| {
@@ -167,7 +166,7 @@ impl PopupSearchBook {
 							.unwrap_or_default() }
 					</p>
 				</div>
-			</div>
+			</PopupClose>
 		}
 	}
 }

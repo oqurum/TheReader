@@ -1,5 +1,5 @@
 use books_common::{api, Person, SearchType};
-use common::{component::popup::{Popup, PopupType}, PersonId, util::truncate_on_indices};
+use common::{component::popup::{Popup, PopupClose, PopupType}, PersonId, util::truncate_on_indices};
 use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, HtmlInputElement};
@@ -212,20 +212,20 @@ impl AuthorListPage {
 										html! {
 											<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
 												<div class="menu-list">
-													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													<PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
-													}>{ "Refresh Person" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													}>{ "Refresh Person" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
-													}>{ "Search For Person" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													}>{ "Search For Person" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
-													} title="Join Person into Another">{ "Join Into Person" }</div>
-													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													} title="Join Person into Another">{ "Join Into Person" }</PopupClose>
+													<PopupClose class="menu-item">{ "Delete" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
-													}>{ "Show Info" }</div>
+													}>{ "Show Info" }</PopupClose>
 												</div>
 											</Popup>
 										}
@@ -281,9 +281,8 @@ impl AuthorListPage {
 																									let source = item.source.clone();
 
 																									html! { // TODO: Place into own component.
-																										<div
+																										<PopupClose
 																											class="person-search-item"
-																											yew-close-popup=""
 																											onclick={
 																												ctx.link()
 																												.callback_future(move |_| {
@@ -302,7 +301,7 @@ impl AuthorListPage {
 																												<h4>{ item.name.clone() }</h4>
 																												<p>{ item.description.clone().map(|mut v| { truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
 																											</div>
-																										</div>
+																										</PopupClose>
 																									}
 																								})
 																						}
@@ -364,9 +363,8 @@ impl AuthorListPage {
 																				let other_person = item.id;
 
 																				html! { // TODO: Place into own component.
-																					<div
+																					<PopupClose
 																						class="person-search-item"
-																						yew-close-popup=""
 																						onclick={
 																							ctx.link()
 																							.callback_future(move |_| {
@@ -388,7 +386,7 @@ impl AuthorListPage {
 																									.map(|mut v| { truncate_on_indices(&mut v, 300); v })
 																									.unwrap_or_default() }</p>
 																						</div>
-																					</div>
+																					</PopupClose>
 																				}
 																			})
 																		}

@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId, MetadataId};
-use common::component::popup::{Popup, PopupType};
+use common::component::popup::{Popup, PopupClose, PopupType};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::prelude::*;
@@ -307,20 +307,20 @@ impl LibraryPage {
 										html! {
 											<Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
 												<div class="menu-list">
-													<div class="menu-item" yew-close-popup="">{ "Start Reading" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													<PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaBySource(meta_id)))
-													}>{ "Refresh Metadata" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													}>{ "Refresh Metadata" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None })))
-													}>{ "Search For Book" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													}>{ "Search For Book" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaByFiles(meta_id)))
-													}>{ "Quick Search By Files" }</div>
-													<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
-													<div class="menu-item" yew-close-popup="" onclick={
+													}>{ "Quick Search By Files" }</PopupClose>
+													<PopupClose class="menu-item" >{ "Delete" }</PopupClose>
+													<PopupClose class="menu-item" onclick={
 														on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))
-													}>{ "Show Info" }</div>
+													}>{ "Show Info" }</PopupClose>
 												</div>
 											</Popup>
 										}

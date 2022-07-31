@@ -1,6 +1,6 @@
 use std::{rc::Rc, sync::Mutex};
 
-use common::component::popup::button::ButtonWithPopup;
+use common::component::popup::{button::ButtonWithPopup, PopupClose};
 use books_common::{api, MetadataId};
 use web_sys::HtmlElement;
 use yew::prelude::*;
@@ -29,7 +29,7 @@ impl PartialEq for Property {
 #[derive(Clone)]
 pub enum Msg {
 	Ignore,
-	TogglePopup,
+	// TogglePopup,
 
 	UpdateMetaByFiles,
 }
@@ -53,9 +53,9 @@ impl Component for MassSelectBar {
 
 	fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
 		match msg {
-			Msg::TogglePopup => {
-				self.popup_open = !self.popup_open;
-			}
+			// Msg::TogglePopup => {
+			// 	self.popup_open = !self.popup_open;
+			// }
 
 			Msg::UpdateMetaByFiles => {
 				self.popup_open = false;
@@ -95,11 +95,11 @@ impl Component for MassSelectBar {
 						</div>
 						<div class="center-content">
 							<ButtonWithPopup class="menu-list">
-								<div class="menu-item" yew-close-popup="">{ "Refresh Metadata" }</div>
-								<div class="menu-item" yew-close-popup="" onclick={
+								<PopupClose class="menu-item">{ "Refresh Metadata" }</PopupClose>
+								<PopupClose class="menu-item" onclick={
 									on_click_prevdef(ctx.link(), Msg::UpdateMetaByFiles)
-								}>{ "Quick Search By Files" }</div>
-								<div class="menu-item" yew-close-popup="">{ "Delete" }</div>
+								}>{ "Quick Search By Files" }</PopupClose>
+								<PopupClose class="menu-item">{ "Delete" }</PopupClose>
 							</ButtonWithPopup>
 						</div>
 						<div class="right-content">
