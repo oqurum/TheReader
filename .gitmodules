@@ -1,0 +1,3 @@
+[submodule "global_common"]
+	path = global_common
+	url = https://github.com/oqurum/common

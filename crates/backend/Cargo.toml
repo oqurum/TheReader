@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-common = { git = "https://github.com/oqurum/common", rev = "aeb0c9a", features = ["backend"] }
+common = { path = "../../global_common", features = ["backend"] }
 
 books-common = { path = "../common", features = ["backend"] }
 bookie = { path = "../books" }

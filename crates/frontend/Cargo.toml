@@ -5,10 +5,15 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# Used for global common SCSS
+[build-dependencies]
+grass = "0.11"
+
+
 [dependencies]
 books-common = { path = "../common", features = ["frontend"] }
 
-common = { git = "https://github.com/oqurum/common", rev = "aeb0c9a", features = ["frontend"] }
+common = { path = "../../global_common", features = ["frontend"] }
 
 
 # reqwest = { version = "0.11", features = ["multipart"] }

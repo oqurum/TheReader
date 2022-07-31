@@ -19,7 +19,7 @@ num_enum = "0.5"
 thiserror = "1.0"
 validator = { version = "0.15", features = ["derive"] }
 
-common = { git = "https://github.com/oqurum/common", rev = "aeb0c9a" }
+common = { path = "../../global_common" }
 
 
 # Backend

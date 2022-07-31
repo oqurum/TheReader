@@ -2,6 +2,7 @@
 
 /files
 
+/app/public/css/gcommon.css
 /app/database.db
 /app/thumbnails
 /app/config.toml

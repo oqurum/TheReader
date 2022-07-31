@@ -1,33 +1,4 @@
-@font-face {
-	font-family: 'Material Icons';
-	font-style: normal;
-	font-weight: 400;
-	src: url("/fonts/MaterialIcons-Regular.ttf") format("truetype");
-}
-
-.material-icons {
-	font-family: 'Material Icons';
-	font-weight: normal;
-	font-style: normal;
-	font-size: 24px;
-	line-height: 1;
-	letter-spacing: normal;
-	text-transform: none;
-	display: inline-block;
-	white-space: nowrap;
-	word-wrap: normal;
-	direction: ltr;
-	font-feature-settings: 'liga';
-	-moz-font-feature-settings: 'liga';
-	-moz-osx-font-smoothing: grayscale;
-}
-
-
-
-:where(h1, h2, h3, h4, h5, h6, dt) {
-	color: var(--text-1);
-}
-
+// TODO: Move back into global common. grass crate doesn't properly compile the back brackets.
 :where(a[href]),
 :where(a[href]):visited {
 	color: var(--text-1);
@@ -37,43 +8,9 @@
 	}
 }
 
-:where(input, textarea, select) {
-	background-color: var(--surface-1);
-}
-
 :where(input, button, textarea, select),
 :where(input[type="file"])::-webkit-file-upload-button {
 	--_bg: var(--surface-2);
 	--_ink-shadow: 0 1px 0 var(--surface-1);
 	--_highlight: var(--_highlight-dark);
-}
-
-:where(input, button, textarea, select):is(:hover, :focus-visible):not([disabled]) {
-	--_border: currentColor !important;
-}
-
-:where(input, button, textarea, select) {
-	&.slim {
-		padding-block: .45ch;
-		padding-inline: 1ch;
-	}
-
-	&.alternate {
-		background: var(--surface-2) !important;
-	}
-}
-
-:where(:not(:active)):focus-visible {
-	outline-offset: 0px;
-}
-
-
-
-hr {
-	margin-block: 5px;
-	height: var(--border-size-1);
-
-	&.transparent {
-		background: rgba(255, 255, 255, 0.43);
-	}
 }
