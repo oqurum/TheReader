@@ -112,9 +112,11 @@ impl Component for MediaView {
 
 								<img src={ metadata.get_thumb_url() } />
 							</div>
-							<div class="metadata">
-								<h3 class="title">{ metadata.get_title() }</h3>
-								<p class="description">{ metadata.description.clone().unwrap_or_default() }</p>
+							<div class="metadata-container">
+								<div class="metadata">
+									<h3 class="title">{ metadata.get_title() }</h3>
+									<p class="description">{ metadata.description.clone().unwrap_or_default() }</p>
+								</div>
 							</div>
 						</div>
 
