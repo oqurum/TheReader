@@ -159,12 +159,40 @@ impl Component for AuthorListPage {
 	}
 
 	fn view(&self, ctx: &Context<Self>) -> Html {
+		html! {
+			<div class="outer-view-container">
+				<div class="sidebar-container"></div>
+				<div class="view-container">
+					{ self.render_main(ctx) }
+				</div>
+			</div>
+		}
+	}
+
+	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+		if self.on_scroll_fn.is_none() && self.author_list_ref.get().is_some() {
+			ctx.link().send_message(Msg::InitEventListenerAfterMediaItems);
+		} else if first_render {
+			ctx.link().send_message(Msg::RequestPeople);
+		}
+	}
+
+	fn destroy(&mut self, _ctx: &Context<Self>) {
+		// TODO: Determine if still needed.
+		if let Some(f) = self.on_scroll_fn.take() {
+			let _ = self.author_list_ref.cast::<HtmlElement>().unwrap().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
+		}
+	}
+}
+
+impl AuthorListPage {
+	fn render_main(&self, ctx: &Context<Self>) -> Html {
 		if let Some(items) = self.media_items.as_deref() {
 			// TODO: Placeholders
 			// let remaining = (self.total_media_count as usize - items.len()).min(50);
 
 			html! {
-				<div class="view-container">
+				<>
 					<div class="person-list" ref={ self.author_list_ref.clone() }>
 						{ for items.iter().map(|item| self.render_media_item(item, ctx.link())) }
 						// { for (0..remaining).map(|_| Self::render_placeholder_item()) }
@@ -381,7 +409,7 @@ impl Component for AuthorListPage {
 							}
 						}
 					</div>
-				</div>
+				</>
 			}
 		} else {
 			html! {
@@ -390,23 +418,7 @@ impl Component for AuthorListPage {
 		}
 	}
 
-	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-		if self.on_scroll_fn.is_none() && self.author_list_ref.get().is_some() {
-			ctx.link().send_message(Msg::InitEventListenerAfterMediaItems);
-		} else if first_render {
-			ctx.link().send_message(Msg::RequestPeople);
-		}
-	}
 
-	fn destroy(&mut self, _ctx: &Context<Self>) {
-		// TODO: Determine if still needed.
-		if let Some(f) = self.on_scroll_fn.take() {
-			let _ = self.author_list_ref.cast::<HtmlElement>().unwrap().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
-		}
-	}
-}
-
-impl AuthorListPage {
 	// TODO: Move into own struct.
 	fn render_media_item(&self, item: &Person, scope: &Scope<Self>) -> Html {
 		let person_id = item.id;

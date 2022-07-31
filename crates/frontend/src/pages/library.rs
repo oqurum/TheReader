@@ -238,12 +238,40 @@ impl Component for LibraryPage {
 	}
 
 	fn view(&self, ctx: &Context<Self>) -> Html {
+		html! {
+			<div class="outer-view-container">
+				<div class="sidebar-container"></div>
+				<div class="view-container">
+					{ self.render_main(ctx) }
+				</div>
+			</div>
+		}
+	}
+
+	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+		if self.on_scroll_fn.is_none() && self.library_list_ref.get().is_some() {
+			ctx.link().send_message(Msg::InitEventListenerAfterMediaItems);
+		} else if first_render {
+			ctx.link().send_message(Msg::RequestMediaItems);
+		}
+	}
+
+	fn destroy(&mut self, _ctx: &Context<Self>) {
+		// TODO: Determine if still needed.
+		if let Some(f) = self.on_scroll_fn.take() {
+			let _ = self.library_list_ref.cast::<HtmlElement>().unwrap().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
+		}
+	}
+}
+
+impl LibraryPage {
+	fn render_main(&self, ctx: &Context<Self>) -> Html {
 		if let Some(items) = self.media_items.as_deref() {
 			// TODO: Placeholders
 			// let remaining = (self.total_media_count as usize - items.len()).min(50);
 
 			html! {
-				<div class="view-container">
+				<>
 					<div class="book-list normal" ref={ self.library_list_ref.clone() }>
 						{
 							for items.iter().map(|item| {
@@ -336,7 +364,7 @@ impl Component for LibraryPage {
 						editing_container={self.library_list_ref.clone()}
 						editing_items={self.editing_items.clone()}
 					/>
-				</div>
+				</>
 			}
 		} else {
 			html! {
@@ -345,23 +373,7 @@ impl Component for LibraryPage {
 		}
 	}
 
-	fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-		if self.on_scroll_fn.is_none() && self.library_list_ref.get().is_some() {
-			ctx.link().send_message(Msg::InitEventListenerAfterMediaItems);
-		} else if first_render {
-			ctx.link().send_message(Msg::RequestMediaItems);
-		}
-	}
 
-	fn destroy(&mut self, _ctx: &Context<Self>) {
-		// TODO: Determine if still needed.
-		if let Some(f) = self.on_scroll_fn.take() {
-			let _ = self.library_list_ref.cast::<HtmlElement>().unwrap().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
-		}
-	}
-}
-
-impl LibraryPage {
 	// fn render_placeholder_item() -> Html {
 	// 	html! {
 	// 		<div class="book-list-item placeholder">
