@@ -1,7 +1,7 @@
 use common::{PersonId, Either};
 use rusqlite::params;
 
-use books_common::MetadataId;
+use common_local::MetadataId;
 use serde::Serialize;
 use crate::{Result, database::Database};
 

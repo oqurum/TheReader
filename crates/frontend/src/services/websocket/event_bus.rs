@@ -1,4 +1,4 @@
-use books_common::ws::WebsocketNotification;
+use common_local::ws::WebsocketNotification;
 use std::collections::HashSet;
 use yew_agent::{Agent, AgentLink, Context, HandlerId};
 

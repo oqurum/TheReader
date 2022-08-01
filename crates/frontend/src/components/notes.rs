@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use books_common::MediaItem;
+use common_local::MediaItem;
 use gloo_timers::callback::Timeout;
 use serde_json::json;
 use wasm_bindgen::{prelude::{wasm_bindgen, Closure}, JsValue, JsCast};

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use books_common::{api, Member, MetadataId, FileId, LibraryId};
+use common_local::{api, Member, MetadataId, FileId, LibraryId};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
 use yew::prelude::*;

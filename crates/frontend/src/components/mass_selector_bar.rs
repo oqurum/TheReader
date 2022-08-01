@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex};
 
 use common::component::popup::{button::ButtonWithPopup, PopupClose};
-use books_common::{api, MetadataId};
+use common_local::{api, MetadataId};
 use web_sys::HtmlElement;
 use yew::prelude::*;
 

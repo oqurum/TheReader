@@ -1,6 +1,6 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
-use books_common::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId, MetadataId};
+use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId, MetadataId};
 use common::component::popup::{Popup, PopupClose, PopupType};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};

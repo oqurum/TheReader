@@ -2,7 +2,7 @@ use chrono::{Utc, DateTime, TimeZone};
 use common::{Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
-use books_common::{LibraryId, MetadataId, MetadataItemCached, DisplayMetaItem, util::{serialize_datetime, serialize_datetime_opt}, api};
+use common_local::{LibraryId, MetadataId, MetadataItemCached, DisplayMetaItem, util::{serialize_datetime, serialize_datetime_opt}, api};
 use serde::Serialize;
 use crate::{Result, database::Database};
 

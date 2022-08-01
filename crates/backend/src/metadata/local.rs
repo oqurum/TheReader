@@ -1,7 +1,7 @@
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
 use bookie::BookSearch;
-use books_common::MetadataItemCached;
+use common_local::MetadataItemCached;
 
 use super::{Metadata, MetadataReturned, AuthorInfo, FoundItem, FoundImageLocation};
 

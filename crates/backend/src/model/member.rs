@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc, TimeZone};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use books_common::{util::serialize_datetime, Permissions, MemberAuthType};
+use common_local::{util::serialize_datetime, Permissions, MemberAuthType};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -60,9 +60,9 @@ pub struct MemberModel {
 }
 
 
-impl From<MemberModel> for books_common::Member {
-    fn from(value: MemberModel) -> books_common::Member {
-        books_common::Member {
+impl From<MemberModel> for common_local::Member {
+    fn from(value: MemberModel) -> common_local::Member {
+        common_local::Member {
             id: value.id,
             name: value.name,
             email: value.email,

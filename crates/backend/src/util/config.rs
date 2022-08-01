@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use books_common::setup::{SetupConfig, Authenticators, ConfigEmail, ConfigServer};
+use common_local::setup::{SetupConfig, Authenticators, ConfigEmail, ConfigServer};
 use lazy_static::lazy_static;
 use serde::{Serialize, Deserialize};
 

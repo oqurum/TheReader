@@ -1,4 +1,4 @@
-use books_common::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string, MetadataId};
+use common_local::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string, MetadataId};
 use common::component::popup::{Popup, PopupClose, PopupType};
 use yew::prelude::*;
 use yew_router::prelude::*;

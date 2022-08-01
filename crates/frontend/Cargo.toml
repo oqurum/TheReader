@@ -11,7 +11,7 @@ grass = "0.11"
 
 
 [dependencies]
-books-common = { path = "../common", features = ["frontend"] }
+common-local = { path = "../common", features = ["frontend"] }
 
 common = { path = "../../global_common", features = ["frontend"] }
 

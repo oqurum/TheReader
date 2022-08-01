@@ -1,4 +1,4 @@
-use books_common::{api, LibraryColl};
+use common_local::{api, LibraryColl};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 

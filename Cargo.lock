@@ -518,9 +518,9 @@ dependencies = [
  "async-trait",
  "bcrypt",
  "bookie",
- "books-common",
  "chrono",
  "common",
+ "common-local",
  "futures",
  "image",
  "lazy_static",
@@ -544,28 +544,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "books-common"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "chrono",
- "common",
- "num_enum",
- "rusqlite",
- "serde",
- "serde_urlencoded",
- "thiserror",
- "validator",
-]
-
-[[package]]
 name = "books-frontend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "books-common",
  "common",
+ "common-local",
  "futures",
  "gloo-file",
  "gloo-timers",
@@ -774,6 +759,21 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "yew",
+]
+
+[[package]]
+name = "common-local"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "chrono",
+ "common",
+ "num_enum",
+ "rusqlite",
+ "serde",
+ "serde_urlencoded",
+ "thiserror",
+ "validator",
 ]
 
 [[package]]

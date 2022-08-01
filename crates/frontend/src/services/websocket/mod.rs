@@ -1,4 +1,4 @@
-use books_common::ws::WebsocketResponse;
+use common_local::ws::WebsocketResponse;
 use futures::{channel::mpsc::{Sender, channel, Receiver}, SinkExt, StreamExt, stream::{SplitSink, SplitStream}};
 use gloo_timers::future::TimeoutFuture;
 use reqwasm::websocket::{futures::WebSocket, Message};

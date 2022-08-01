@@ -1,6 +1,6 @@
 use std::sync::{Mutex, Arc};
 
-use books_common::api::{GetBookListResponse, self};
+use common_local::api::{GetBookListResponse, self};
 use common::util::does_parent_contain_class;
 use gloo_utils::{document, body};
 use wasm_bindgen::{JsCast, prelude::Closure};

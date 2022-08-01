@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc, sync::Mutex, path::PathBuf};
 
-use books_common::{MediaItem, Progression, Chapter, api, FileId};
+use common_local::{MediaItem, Progression, Chapter, api, FileId};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
 use web_sys::HtmlIFrameElement;
 use yew::{prelude::*, html::Scope};

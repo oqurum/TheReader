@@ -2,7 +2,7 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 
 use actix_web::web;
 use async_trait::async_trait;
-use books_common::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, MetadataId};
+use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, MetadataId};
 use chrono::Utc;
 use common::{PersonId, Source};
 use lazy_static::lazy_static;

@@ -2,7 +2,7 @@ use std::io::Read;
 
 use actix_web::{get, web, HttpResponse, post, delete};
 
-use books_common::{Chapter, api, Progression, FileId};
+use common_local::{Chapter, api, Progression, FileId};
 use bookie::Book;
 use common::MemberId;
 use futures::TryStreamExt;

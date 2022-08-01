@@ -1,4 +1,4 @@
-use books_common::{api, BasicLibrary, LibraryId};
+use common_local::{api, BasicLibrary, LibraryId};
 use common::component::popup::{Popup, PopupType};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;

@@ -6,8 +6,8 @@
 use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::{web, HttpRequest};
-use books_common::setup::ConfigEmail;
-use books_common::{Permissions, MemberAuthType};
+use common_local::setup::ConfigEmail;
+use common_local::{Permissions, MemberAuthType};
 use common::api::{WrappingResponse, ApiErrorResponse};
 
 use crate::config::{does_config_exist, get_config};

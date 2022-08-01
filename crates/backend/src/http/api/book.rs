@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpResponse, post};
 
-use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, MetadataId, DisplayItem};
+use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, MetadataId, DisplayItem};
 use chrono::Utc;
 use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse}};
 
@@ -181,7 +181,7 @@ async fn get_book_posters(
 			meta.title.as_deref().or(meta.title.as_deref()).unwrap_or_default(),
 			meta.cached.author.as_deref().unwrap_or_default(),
 		),
-		books_common::SearchFor::Book(books_common::SearchForBooksBy::Query)
+		common_local::SearchFor::Book(common_local::SearchForBooksBy::Query)
 	).await?;
 
 	for item in search.0.into_values().flatten() {

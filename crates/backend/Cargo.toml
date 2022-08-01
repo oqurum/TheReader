@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 common = { path = "../../global_common", features = ["backend"] }
 
-books-common = { path = "../common", features = ["backend"] }
+common-local = { path = "../common", features = ["backend"] }
 bookie = { path = "../books" }
 
 actix = "0.13"

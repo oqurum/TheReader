@@ -1,5 +1,5 @@
 use actix_web::{get, web};
-use books_common::{api, LibraryColl};
+use common_local::{api, LibraryColl};
 
 use crate::{database::Database, WebResult, model::library::LibraryModel};
 

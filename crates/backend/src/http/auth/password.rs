@@ -4,8 +4,8 @@
 use actix_identity::Identity;
 use actix_web::web;
 
-use books_common::MemberAuthType;
-use books_common::Permissions;
+use common_local::MemberAuthType;
+use common_local::Permissions;
 use chrono::Utc;
 use common::api::ApiErrorResponse;
 use common::api::WrappingResponse;

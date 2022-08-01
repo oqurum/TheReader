@@ -1,4 +1,4 @@
-use books_common::{api, Person, SearchType};
+use common_local::{api, Person, SearchType};
 use common::{component::popup::{Popup, PopupClose, PopupType}, PersonId, util::truncate_on_indices};
 use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};

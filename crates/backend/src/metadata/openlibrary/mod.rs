@@ -2,7 +2,7 @@
 
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
-use books_common::{MetadataItemCached, SearchForBooksBy};
+use common_local::{MetadataItemCached, SearchForBooksBy};
 use serde::{Serialize, Deserialize};
 
 use self::book::BookSearchType;

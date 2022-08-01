@@ -3,7 +3,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use books_common::{util::serialize_datetime, MetadataId};
+use common_local::{util::serialize_datetime, MetadataId};
 use crate::{Result, database::Database};
 
 use super::{TableRow, AdvRow};

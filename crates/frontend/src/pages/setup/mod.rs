@@ -1,6 +1,6 @@
 // TODO: Expand to multiple inlined pages.
 
-use books_common::{EditManager, setup::SetupConfig};
+use common_local::{EditManager, setup::SetupConfig};
 use validator::{Validate, ValidationErrors};
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;

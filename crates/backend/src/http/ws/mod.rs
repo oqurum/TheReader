@@ -5,7 +5,7 @@ use std::{sync::Mutex, time::{Instant, Duration}};
 use actix::{Actor, StreamHandler, Recipient, Message, Handler, AsyncContext, ActorContext};
 use actix_web::{web, Error, HttpRequest, HttpResponse, get};
 use actix_web_actors::ws;
-use books_common::ws::{WebsocketResponse, WebsocketNotification};
+use common_local::ws::{WebsocketResponse, WebsocketNotification};
 use lazy_static::lazy_static;
 
 

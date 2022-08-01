@@ -7,7 +7,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
 
-use books_common::{api::*, Progression, SearchType, setup::SetupConfig, MetadataId, LibraryId, FileId};
+use common_local::{api::*, Progression, SearchType, setup::SetupConfig, MetadataId, LibraryId, FileId};
 
 // TODO: Manage Errors.
 

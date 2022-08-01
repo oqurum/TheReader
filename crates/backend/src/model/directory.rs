@@ -1,6 +1,6 @@
 use rusqlite::params;
 
-use books_common::LibraryId;
+use common_local::LibraryId;
 use crate::{Result, database::Database};
 
 use super::{TableRow, AdvRow};

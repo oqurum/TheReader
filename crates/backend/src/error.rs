@@ -20,7 +20,7 @@ use serde_json::Error as JsonError;
 use serde_xml_rs::Error as XmlError;
 use serde::de::value::Error as SerdeValueError;
 use toml_edit::{de::Error as TomlDeError, ser::Error as TomlSerError};
-use books_common::Error as LocalCommonError;
+use common_local::Error as LocalCommonError;
 use bookie::Error as BookieError;
 
 use actix_multipart::MultipartError;

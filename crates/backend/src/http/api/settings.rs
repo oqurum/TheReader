@@ -1,5 +1,5 @@
 use actix_web::{web, get, post};
-use books_common::{setup::SetupConfig, api};
+use common_local::{setup::SetupConfig, api};
 use chrono::Utc;
 use common::api::{ApiErrorResponse, WrappingResponse};
 

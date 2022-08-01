@@ -1,4 +1,4 @@
-use books_common::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType, MetadataId};
+use common_local::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType, MetadataId};
 use common::{component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
