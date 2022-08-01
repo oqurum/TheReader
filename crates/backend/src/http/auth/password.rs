@@ -6,9 +6,9 @@ use actix_web::web;
 
 use books_common::MemberAuthType;
 use books_common::Permissions;
-use books_common::api::ApiErrorResponse;
-use books_common::api::WrappingResponse;
 use chrono::Utc;
+use common::api::ApiErrorResponse;
+use common::api::WrappingResponse;
 use rand::Rng;
 use rand::prelude::ThreadRng;
 use serde::{Serialize, Deserialize};
@@ -17,6 +17,7 @@ use crate::Error;
 use crate::WebResult;
 use crate::config::does_config_exist;
 use crate::database::Database;
+use crate::http::JsonResponse;
 use crate::model::member::MemberModel;
 use crate::model::member::NewMemberModel;
 
@@ -35,7 +36,7 @@ pub async fn post_password_oauth(
 	query: web::Form<PostPasswordCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<WrappingResponse<String>>> {
+) -> WebResult<JsonResponse<String>> {
 	if identity.identity().is_some() {
 		return Err(ApiErrorResponse::new("Already logged in").into());
 	}

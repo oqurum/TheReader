@@ -2,9 +2,9 @@ use actix_web::{get, web, HttpResponse, post};
 
 use books_common::{api, SearchType, SearchFor, SearchForBooksBy, Poster, MetadataId, DisplayItem};
 use chrono::Utc;
-use common::{MemberId, ImageType, Either};
+use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse}};
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel, file::FileModel, progress::FileProgressionModel, person::PersonModel}, http::MemberCookie};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel, file::FileModel, progress::FileProgressionModel, person::PersonModel}, http::{MemberCookie, JsonResponse}};
 
 
 
@@ -124,13 +124,13 @@ pub async fn update_book_info(
 	body: web::Json<api::PostMetadataBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::WrappingResponse<&'static str>>> {
+) -> WebResult<JsonResponse<&'static str>> {
 	let meta_id = *meta_id;
 
 	let member = member.fetch_or_error(&db).await?;
 
 	if !member.permissions.is_owner() {
-		return Err(api::ApiErrorResponse::new("Not owner").into());
+		return Err(ApiErrorResponse::new("Not owner").into());
 	}
 
 	match body.into_inner() {
@@ -147,7 +147,7 @@ pub async fn update_book_info(
 		}
 	}
 
-	Ok(web::Json(api::WrappingResponse::okay("success")))
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 
@@ -210,11 +210,11 @@ async fn insert_or_update_book_image(
 	body: web::Json<api::ChangePosterBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::WrappingResponse<&'static str>>> {
+) -> WebResult<JsonResponse<&'static str>> {
 	let member = member.fetch_or_error(&db).await?;
 
 	if !member.permissions.is_owner() {
-		return Err(api::ApiErrorResponse::new("Not owner").into());
+		return Err(ApiErrorResponse::new("Not owner").into());
 	}
 
 	let mut meta = MetadataModel::find_one_by_id(*metadata_id, &db).await?.unwrap();
@@ -237,7 +237,7 @@ async fn insert_or_update_book_image(
 			let poster = UploadedImageModel::get_by_id(id, &db).await?.unwrap();
 
 			if meta.thumb_path == poster.path {
-				return Ok(web::Json(api::WrappingResponse::okay("success")));
+				return Ok(web::Json(WrappingResponse::okay("success")));
 			}
 
 			meta.thumb_path = poster.path;
@@ -246,7 +246,7 @@ async fn insert_or_update_book_image(
 
 	meta.update(&db).await?;
 
-	Ok(web::Json(api::WrappingResponse::okay("success")))
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 

@@ -1,7 +1,7 @@
 use actix_web::{web, get, post, HttpResponse};
 use books_common::api;
 use chrono::Utc;
-use common::{PersonId, Either};
+use common::{PersonId, Either, api::ApiErrorResponse};
 
 use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}, http::MemberCookie};
 
@@ -75,7 +75,7 @@ pub async fn update_person_data(
 	let member = member.fetch_or_error(&db).await?;
 
 	if !member.permissions.is_owner() {
-		return Err(api::ApiErrorResponse::new("Not owner").into());
+		return Err(ApiErrorResponse::new("Not owner").into());
 	}
 
 	match body.into_inner() {

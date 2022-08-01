@@ -1,8 +1,9 @@
 use actix_web::{get, web, post, delete};
 use books_common::{api, LibraryColl, util::take_from_and_swap};
 use chrono::Utc;
+use common::api::{WrappingResponse, ApiErrorResponse};
 
-use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::MemberCookie};
+use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::{MemberCookie, JsonResponse}};
 
 
 #[get("/options")]
@@ -34,11 +35,11 @@ async fn update_options_add(
 	modify: web::Json<api::ModifyOptionsBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::WrappingResponse<&'static str>>> {
+) -> WebResult<JsonResponse<&'static str>> {
 	let member = member.fetch_or_error(&db).await?;
 
 	if !member.permissions.is_owner() {
-		return Err(api::ApiErrorResponse::new("Not owner").into());
+		return Err(ApiErrorResponse::new("Not owner").into());
 	}
 
 	let api::ModifyOptionsBody { library } = modify.into_inner();
@@ -70,7 +71,7 @@ async fn update_options_add(
 		}
 	}
 
-	Ok(web::Json(api::WrappingResponse::okay("success")))
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 #[delete("/options")]
@@ -78,11 +79,11 @@ async fn update_options_remove(
 	modify: web::Json<api::ModifyOptionsBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::WrappingResponse<&'static str>>> {
+) -> WebResult<JsonResponse<&'static str>> {
 	let member = member.fetch_or_error(&db).await?;
 
 	if !member.permissions.is_owner() {
-		return Err(api::ApiErrorResponse::new("Not owner").into());
+		return Err(ApiErrorResponse::new("Not owner").into());
 	}
 
 	let api::ModifyOptionsBody { library } = modify.into_inner();
@@ -99,5 +100,5 @@ async fn update_options_remove(
 		}
 	}
 
-	Ok(web::Json(api::WrappingResponse::okay("success")))
+	Ok(web::Json(WrappingResponse::okay("success")))
 }

@@ -6,11 +6,12 @@
 use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::{web, HttpRequest};
-use books_common::api::{WrappingResponse, ApiErrorResponse};
 use books_common::setup::ConfigEmail;
 use books_common::{Permissions, MemberAuthType};
+use common::api::{WrappingResponse, ApiErrorResponse};
 
 use crate::config::{does_config_exist, get_config};
+use crate::http::JsonResponse;
 use crate::model::auth::AuthModel;
 use crate::model::member::{NewMemberModel, MemberModel};
 use crate::{Result, WebResult, Error};
@@ -40,7 +41,7 @@ pub async fn post_passwordless_oauth(
 	query: web::Form<PostPasswordlessCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<WrappingResponse<String>>> {
+) -> WebResult<JsonResponse<String>> {
 	if identity.identity().is_some() || !does_config_exist() {
 		return Err(ApiErrorResponse::new("Already logged in").into());
 	}

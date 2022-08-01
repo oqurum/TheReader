@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use common::{ImageId, PersonId, Either};
+use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse}};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use wasm_bindgen::{JsValue, JsCast};

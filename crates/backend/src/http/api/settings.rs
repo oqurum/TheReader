@@ -1,8 +1,9 @@
 use actix_web::{web, get, post};
 use books_common::{setup::SetupConfig, api};
 use chrono::Utc;
+use common::api::{ApiErrorResponse, WrappingResponse};
 
-use crate::{database::Database, WebResult, config::does_config_exist, http::{passwordless::test_connection, MemberCookie}, model::{library::NewLibraryModel, directory::DirectoryModel}};
+use crate::{database::Database, WebResult, config::does_config_exist, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::NewLibraryModel, directory::DirectoryModel}};
 
 
 
@@ -15,7 +16,7 @@ pub async fn is_setup(
 		let member = member.fetch_or_error(&db).await?;
 
 		if !member.permissions.is_owner() {
-			return Err(api::ApiErrorResponse::new("Not owner").into());
+			return Err(ApiErrorResponse::new("Not owner").into());
 		}
 
 		Ok(web::Json(does_config_exist()))
@@ -30,15 +31,15 @@ pub async fn save_initial_setup(
 	body: web::Json<SetupConfig>,
 	member: Option<MemberCookie>,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::WrappingResponse<String>>> {
+) -> WebResult<JsonResponse<String>> {
 	if let Some(member) = member {
 		let member = member.fetch_or_error(&db).await?;
 
 		if !member.permissions.is_owner() {
-			return Err(api::ApiErrorResponse::new("Not owner").into());
+			return Err(ApiErrorResponse::new("Not owner").into());
 		}
 	} else if !does_config_exist() {
-		return Err(api::ApiErrorResponse::new("Not owner").into());
+		return Err(ApiErrorResponse::new("Not owner").into());
 	}
 
 
@@ -46,7 +47,7 @@ pub async fn save_initial_setup(
 
 	if let Some(email_config) = config.email.as_ref() {
 		if !test_connection(email_config)? {
-			return Ok(web::Json(api::WrappingResponse::error("Test Connection Failed")));
+			return Ok(web::Json(WrappingResponse::error("Test Connection Failed")));
 		}
 	}
 
@@ -66,5 +67,5 @@ pub async fn save_initial_setup(
 
 	crate::config::save_config(config).await?;
 
-	Ok(web::Json(api::WrappingResponse::okay(String::new())))
+	Ok(web::Json(WrappingResponse::okay(String::new())))
 }
