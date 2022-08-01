@@ -2,21 +2,46 @@ use actix_web::{web, get, post};
 use books_common::{setup::SetupConfig, api};
 use chrono::Utc;
 
-use crate::{database::Database, WebResult, config::does_config_exist, http::passwordless::test_connection, model::{library::NewLibraryModel, directory::DirectoryModel}};
+use crate::{database::Database, WebResult, config::does_config_exist, http::{passwordless::test_connection, MemberCookie}, model::{library::NewLibraryModel, directory::DirectoryModel}};
 
 
 
 #[get("/setup")]
-pub async fn is_setup() -> web::Json<api::ApiGetIsSetupResponse> {
-	web::Json(does_config_exist())
+pub async fn is_setup(
+	member: Option<MemberCookie>,
+	db: web::Data<Database>,
+) -> WebResult<web::Json<api::ApiGetIsSetupResponse>> {
+	if let Some(member) = member.as_ref() {
+		let member = member.fetch_or_error(&db).await?;
+
+		if !member.permissions.is_owner() {
+			return Err(api::ApiErrorResponse::new("Not owner").into());
+		}
+
+		Ok(web::Json(does_config_exist()))
+	} else {
+		Ok(web::Json(false))
+	}
 }
 
 
 #[post("/setup")]
 pub async fn save_initial_setup(
 	body: web::Json<SetupConfig>,
+	member: Option<MemberCookie>,
 	db: web::Data<Database>,
 ) -> WebResult<web::Json<api::WrappingResponse<String>>> {
+	if let Some(member) = member {
+		let member = member.fetch_or_error(&db).await?;
+
+		if !member.permissions.is_owner() {
+			return Err(api::ApiErrorResponse::new("Not owner").into());
+		}
+	} else if !does_config_exist() {
+		return Err(api::ApiErrorResponse::new("Not owner").into());
+	}
+
+
 	let config = body.into_inner();
 
 	if let Some(email_config) = config.email.as_ref() {

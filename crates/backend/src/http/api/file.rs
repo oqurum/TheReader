@@ -158,8 +158,8 @@ pub async fn load_file_debug(web_path: web::Path<(FileId, String)>, db: web::Dat
 pub async fn progress_file_add(
 	file_id: web::Path<FileId>,
 	body: web::Json<Progression>,
-	db: web::Data<Database>,
 	member: MemberCookie,
+	db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
 	FileProgressionModel::insert_or_update(member.member_id(), *file_id, body.into_inner(), &db).await?;
 	Ok(HttpResponse::Ok().finish())
@@ -168,8 +168,8 @@ pub async fn progress_file_add(
 #[delete("/file/{id}/progress")]
 pub async fn progress_file_delete(
 	file_id: web::Path<FileId>,
-	db: web::Data<Database>,
 	member: MemberCookie,
+	db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
 	FileProgressionModel::delete_one(member.member_id(), *file_id, &db).await?;
 	Ok(HttpResponse::Ok().finish())
@@ -181,8 +181,8 @@ pub async fn progress_file_delete(
 #[get("/file/{id}/notes")]
 pub async fn notes_file_get(
 	file_id: web::Path<FileId>,
-	db: web::Data<Database>,
 	member: MemberCookie,
+	db: web::Data<Database>,
 ) -> WebResult<web::Json<api::ApiGetBookNotesByIdResponse>> {
 	let v = FileNoteModel::find_one(*file_id, member.member_id(), &db).await?;
 	Ok(web::Json(v.map(|v| v.data)))
@@ -192,8 +192,8 @@ pub async fn notes_file_get(
 pub async fn notes_file_add(
 	file_id: web::Path<FileId>,
 	mut payload: web::Payload,
-	db: web::Data<Database>,
 	member: MemberCookie,
+	db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
 	let mut body = web::BytesMut::new();
 	while let Some(chunk) = payload.try_next().await? {
@@ -211,8 +211,8 @@ pub async fn notes_file_add(
 #[delete("/file/{id}/notes")]
 pub async fn notes_file_delete(
 	file_id: web::Path<FileId>,
-	db: web::Data<Database>,
 	member: MemberCookie,
+	db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
 	FileNoteModel::delete_one(*file_id, member.member_id(), &db).await?;
 

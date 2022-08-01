@@ -1,8 +1,8 @@
-use actix_web::{get, web, HttpResponse, post, delete};
+use actix_web::{get, web, post, delete};
 use books_common::{api, LibraryColl, util::take_from_and_swap};
 use chrono::Utc;
 
-use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}};
+use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::MemberCookie};
 
 
 #[get("/options")]
@@ -30,7 +30,17 @@ async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGe
 }
 
 #[post("/options")]
-async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+async fn update_options_add(
+	modify: web::Json<api::ModifyOptionsBody>,
+	member: MemberCookie,
+	db: web::Data<Database>,
+) -> WebResult<web::Json<api::WrappingResponse<&'static str>>> {
+	let member = member.fetch_or_error(&db).await?;
+
+	if !member.permissions.is_owner() {
+		return Err(api::ApiErrorResponse::new("Not owner").into());
+	}
+
 	let api::ModifyOptionsBody { library } = modify.into_inner();
 
 	if let Some(mut library) = library {
@@ -60,11 +70,21 @@ async fn update_options_add(modify: web::Json<api::ModifyOptionsBody>, db: web::
 		}
 	}
 
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(api::WrappingResponse::okay("success")))
 }
 
 #[delete("/options")]
-async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+async fn update_options_remove(
+	modify: web::Json<api::ModifyOptionsBody>,
+	member: MemberCookie,
+	db: web::Data<Database>,
+) -> WebResult<web::Json<api::WrappingResponse<&'static str>>> {
+	let member = member.fetch_or_error(&db).await?;
+
+	if !member.permissions.is_owner() {
+		return Err(api::ApiErrorResponse::new("Not owner").into());
+	}
+
 	let api::ModifyOptionsBody { library } = modify.into_inner();
 
 	if let Some(library) = library {
@@ -79,6 +99,5 @@ async fn update_options_remove(modify: web::Json<api::ModifyOptionsBody>, db: we
 		}
 	}
 
-
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(api::WrappingResponse::okay("success")))
 }

@@ -3,14 +3,14 @@ use books_common::api;
 use chrono::Utc;
 use common::{PersonId, Either};
 
-use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}};
+use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}, http::MemberCookie};
 
 
 // Get List Of People and Search For People
 #[get("/people")]
 pub async fn load_author_list(
-	db: web::Data<Database>,
 	query: web::Query<api::SimpleListQuery>,
+	db: web::Data<Database>,
 ) -> WebResult<web::Json<api::ApiGetPeopleResponse>> {
 	let offset = query.offset.unwrap_or(0);
 	let limit = query.offset.unwrap_or(50);
@@ -64,8 +64,19 @@ async fn load_person_thumbnail(person_id: web::Path<PersonId>, db: web::Data<Dat
 
 // Person Tasks - Update Person, Overwrite Person with another source.
 #[post("/person/{id}")]
-pub async fn update_person_data(person_id: web::Path<PersonId>, body: web::Json<api::PostPersonBody>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+pub async fn update_person_data(
+	person_id: web::Path<PersonId>,
+	body: web::Json<api::PostPersonBody>,
+	member: MemberCookie,
+	db: web::Data<Database>,
+) -> WebResult<HttpResponse> {
 	let person_id = *person_id;
+
+	let member = member.fetch_or_error(&db).await?;
+
+	if !member.permissions.is_owner() {
+		return Err(api::ApiErrorResponse::new("Not owner").into());
+	}
 
 	match body.into_inner() {
 		api::PostPersonBody::AutoMatchById => {

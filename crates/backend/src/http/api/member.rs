@@ -9,8 +9,8 @@ use crate::{database::Database, http::get_auth_value, WebResult, model::member::
 // TODO: Add body requests for specifics
 #[get("/member")]
 pub async fn load_member_self(
-	db: web::Data<Database>,
 	identity: Identity,
+	db: web::Data<Database>,
 ) -> WebResult<web::Json<api::ApiGetMemberSelfResponse>> {
 	if let Some(cookie) = get_auth_value(&identity) {
 		if let Some(member) = MemberModel::find_one_by_id(cookie.member_id, &db).await? {

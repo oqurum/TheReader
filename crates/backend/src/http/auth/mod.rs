@@ -7,7 +7,7 @@ use common::MemberId;
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, database::Database, model::member::MemberModel};
+use crate::{Result, database::Database, model::member::MemberModel, InternalError};
 
 pub mod password;
 pub mod passwordless;
@@ -47,6 +47,17 @@ pub struct MemberCookie(CookieAuth);
 impl MemberCookie {
 	pub fn member_id(&self) -> MemberId {
 		self.0.member_id
+	}
+
+	pub async fn fetch(&self, db: &Database) -> Result<Option<MemberModel>> {
+		MemberModel::find_one_by_id(self.member_id(), db).await
+	}
+
+	pub async fn fetch_or_error(&self, db: &Database) -> Result<MemberModel> {
+		match self.fetch(db).await? {
+			Some(v) => Ok(v),
+			None => Err(InternalError::UserMissing.into()),
+		}
 	}
 }
 
