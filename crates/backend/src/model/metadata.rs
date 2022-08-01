@@ -13,110 +13,110 @@ use super::{TableRow, AdvRow};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MetadataModel {
-	pub id: MetadataId,
+    pub id: MetadataId,
 
-	pub library_id: LibraryId,
+    pub library_id: LibraryId,
 
-	pub source: Source,
-	pub file_item_count: i64,
-	pub title: Option<String>,
-	pub original_title: Option<String>,
-	pub description: Option<String>,
-	pub rating: f64,
+    pub source: Source,
+    pub file_item_count: i64,
+    pub title: Option<String>,
+    pub original_title: Option<String>,
+    pub description: Option<String>,
+    pub rating: f64,
 
-	pub thumb_path: ThumbnailStore,
-	pub all_thumb_urls: Vec<String>,
+    pub thumb_path: ThumbnailStore,
+    pub all_thumb_urls: Vec<String>,
 
-	// TODO: Make table for all tags. Include publisher in it. Remove country.
-	pub cached: MetadataItemCached,
+    // TODO: Make table for all tags. Include publisher in it. Remove country.
+    pub cached: MetadataItemCached,
 
-	#[serde(serialize_with = "serialize_datetime")]
-	pub refreshed_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub created_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime")]
-	pub updated_at: DateTime<Utc>,
-	#[serde(serialize_with = "serialize_datetime_opt")]
-	pub deleted_at: Option<DateTime<Utc>>,
+    #[serde(serialize_with = "serialize_datetime")]
+    pub refreshed_at: DateTime<Utc>,
+    #[serde(serialize_with = "serialize_datetime")]
+    pub created_at: DateTime<Utc>,
+    #[serde(serialize_with = "serialize_datetime")]
+    pub updated_at: DateTime<Utc>,
+    #[serde(serialize_with = "serialize_datetime_opt")]
+    pub deleted_at: Option<DateTime<Utc>>,
 
-	pub available_at: Option<i64>,
-	pub year: Option<i64>,
+    pub available_at: Option<i64>,
+    pub year: Option<i64>,
 
-	pub hash: String
+    pub hash: String
 }
 
 
 impl From<MetadataModel> for DisplayMetaItem {
-	fn from(val: MetadataModel) -> Self {
-		DisplayMetaItem {
-			id: val.id,
-			library_id: val.library_id,
-			source: val.source,
-			file_item_count: val.file_item_count,
-			title: val.title,
-			original_title: val.original_title,
-			description: val.description,
-			rating: val.rating,
-			thumb_path: val.thumb_path,
-			cached: val.cached,
-			refreshed_at: val.refreshed_at,
-			created_at: val.created_at,
-			updated_at: val.updated_at,
-			deleted_at: val.deleted_at,
-			available_at: val.available_at,
-			year: val.year,
-			hash: val.hash,
-		}
-	}
+    fn from(val: MetadataModel) -> Self {
+        DisplayMetaItem {
+            id: val.id,
+            library_id: val.library_id,
+            source: val.source,
+            file_item_count: val.file_item_count,
+            title: val.title,
+            original_title: val.original_title,
+            description: val.description,
+            rating: val.rating,
+            thumb_path: val.thumb_path,
+            cached: val.cached,
+            refreshed_at: val.refreshed_at,
+            created_at: val.created_at,
+            updated_at: val.updated_at,
+            deleted_at: val.deleted_at,
+            available_at: val.available_at,
+            year: val.year,
+            hash: val.hash,
+        }
+    }
 }
 
 
 impl TableRow<'_> for MetadataModel {
-	fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-		Ok(Self {
-			id: row.next()?,
-			library_id: row.next()?,
-			source: Source::try_from(row.next::<String>()?).unwrap(),
-			file_item_count: row.next()?,
-			title: row.next()?,
-			original_title: row.next()?,
-			description: row.next()?,
-			rating: row.next()?,
-			thumb_path: ThumbnailStore::from(row.next_opt::<String>()?),
-			all_thumb_urls: Vec::new(),
-			cached: row.next_opt::<String>()?
-				.map(|v| MetadataItemCached::from_string(&v))
-				.unwrap_or_default(),
-			available_at: row.next()?,
-			year: row.next()?,
-			refreshed_at: Utc.timestamp_millis(row.next()?),
-			created_at: Utc.timestamp_millis(row.next()?),
-			updated_at: Utc.timestamp_millis(row.next()?),
-			deleted_at: row.next_opt()?.map(|v| Utc.timestamp_millis(v)),
-			hash: row.next()?
-		})
-	}
+    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
+        Ok(Self {
+            id: row.next()?,
+            library_id: row.next()?,
+            source: Source::try_from(row.next::<String>()?).unwrap(),
+            file_item_count: row.next()?,
+            title: row.next()?,
+            original_title: row.next()?,
+            description: row.next()?,
+            rating: row.next()?,
+            thumb_path: ThumbnailStore::from(row.next_opt::<String>()?),
+            all_thumb_urls: Vec::new(),
+            cached: row.next_opt::<String>()?
+                .map(|v| MetadataItemCached::from_string(&v))
+                .unwrap_or_default(),
+            available_at: row.next()?,
+            year: row.next()?,
+            refreshed_at: Utc.timestamp_millis(row.next()?),
+            created_at: Utc.timestamp_millis(row.next()?),
+            updated_at: Utc.timestamp_millis(row.next()?),
+            deleted_at: row.next_opt()?.map(|v| Utc.timestamp_millis(v)),
+            hash: row.next()?
+        })
+    }
 }
 
 
 impl MetadataModel {
-	pub async fn insert_or_increment(&self, db: &Database) -> Result<Self> {
-		let table_meta = if self.id != 0 {
-			Self::find_one_by_id(self.id, db).await?
-		} else {
-			Self::find_one_by_source(&self.source, db).await?
-		};
+    pub async fn insert_or_increment(&self, db: &Database) -> Result<Self> {
+        let table_meta = if self.id != 0 {
+            Self::find_one_by_id(self.id, db).await?
+        } else {
+            Self::find_one_by_source(&self.source, db).await?
+        };
 
-		if table_meta.is_none() {
-			db.write().await
-			.execute(r#"
-				INSERT INTO metadata_item (
-					library_id, source, file_item_count,
-					title, original_title, description, rating, thumb_url,
-					cached,
-					available_at, year,
-					refreshed_at, created_at, updated_at, deleted_at,
-					hash
+        if table_meta.is_none() {
+            db.write().await
+            .execute(r#"
+                INSERT INTO metadata_item (
+                    library_id, source, file_item_count,
+                    title, original_title, description, rating, thumb_url,
+                    cached,
+                    available_at, year,
+                    refreshed_at, created_at, updated_at, deleted_at,
+            		hash
 				)
 				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
 				params![

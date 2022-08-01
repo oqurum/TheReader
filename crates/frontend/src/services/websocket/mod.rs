@@ -12,73 +12,73 @@ pub use event_bus::WsEventBus;
 use crate::util::as_local_path_without_http;
 
 pub fn open_websocket_conn() {
-	let url = format!("wss://{}", as_local_path_without_http("/ws/"));
+    let url = format!("wss://{}", as_local_path_without_http("/ws/"));
 
-	let ws = WebSocket::open(&url).unwrap();
+    let ws = WebSocket::open(&url).unwrap();
 
-	log::info!("Conencted to WS: {}", url);
+    log::info!("Conencted to WS: {}", url);
 
-	// Split Websocket
-	let (write, read) = ws.split();
+    // Split Websocket
+    let (write, read) = ws.split();
 
-	// Create Channel. Currently used for Ping/Pong.
-	let (send, recieve) = channel::<WebsocketResponse>(1000);
+    // Create Channel. Currently used for Ping/Pong.
+    let (send, recieve) = channel::<WebsocketResponse>(1000);
 
-	create_outgoing_writer(write, recieve);
-	create_incoming_reader(read, send);
+    create_outgoing_writer(write, recieve);
+    create_incoming_reader(read, send);
 }
 
 
 fn create_outgoing_writer(mut write: SplitSink<WebSocket, Message>, mut receive: Receiver<WebsocketResponse>) {
-	spawn_local(async move {
-		while let Some(s) = receive.next().await {
-			if !s.is_pong() {
-				log::debug!("WEBSOCKET [OUTGOING]: {:?}", s);
-			}
+    spawn_local(async move {
+        while let Some(s) = receive.next().await {
+            if !s.is_pong() {
+                log::debug!("WEBSOCKET [OUTGOING]: {:?}", s);
+            }
 
-			write.send(Message::Text(serde_json::to_string(&s).unwrap())).await.unwrap();
-		}
+            write.send(Message::Text(serde_json::to_string(&s).unwrap())).await.unwrap();
+        }
 
-		log::debug!("WebSocket Send Closed");
-	});
+        log::debug!("WebSocket Send Closed");
+    });
 }
 
 fn create_incoming_reader(mut read: SplitStream<WebSocket>, mut send_back: Sender<WebsocketResponse>) {
-	let mut event_bus = WsEventBus::dispatcher();
+    let mut event_bus = WsEventBus::dispatcher();
 
-	spawn_local(async move {
-		while let Some(msg) = read.next().await {
-			match msg {
-				Ok(Message::Text(data)) => {
-					let resp: WebsocketResponse = serde_json::from_str(&data).unwrap();
+    spawn_local(async move {
+        while let Some(msg) = read.next().await {
+            match msg {
+                Ok(Message::Text(data)) => {
+                    let resp: WebsocketResponse = serde_json::from_str(&data).unwrap();
 
-					if resp.is_ping() {
-						send_back.send(WebsocketResponse::Pong).await.unwrap();
-					} else if let WebsocketResponse::Notification(v) = resp {
-						log::debug!("WEBSOCKET [INCOMING] Text: {:?}", v);
-						event_bus.send(v);
-					}
-				}
+                    if resp.is_ping() {
+                        send_back.send(WebsocketResponse::Pong).await.unwrap();
+                    } else if let WebsocketResponse::Notification(v) = resp {
+                        log::debug!("WEBSOCKET [INCOMING] Text: {:?}", v);
+                        event_bus.send(v);
+                    }
+                }
 
-				Ok(Message::Bytes(b)) => {
-					let decoded = std::str::from_utf8(&b);
+                Ok(Message::Bytes(b)) => {
+                    let decoded = std::str::from_utf8(&b);
 
-					if let Ok(val) = decoded {
-						log::debug!("WEBSOCKET [INCOMING] Bytes: {}", val);
-					}
-				}
+                    if let Ok(val) = decoded {
+                        log::debug!("WEBSOCKET [INCOMING] Bytes: {}", val);
+                    }
+                }
 
-				Err(e) => {
-					log::error!("Websocket: {:?}", e);
-					send_back.close_channel();
+                Err(e) => {
+                    log::error!("Websocket: {:?}", e);
+                    send_back.close_channel();
 
-					TimeoutFuture::new(3_000).await;
+                    TimeoutFuture::new(3_000).await;
 
-					open_websocket_conn();
-				}
-			}
-		}
+                    open_websocket_conn();
+                }
+            }
+        }
 
-		log::debug!("WebSocket Receive Closed");
-	});
+        log::debug!("WebSocket Receive Closed");
+    });
 }

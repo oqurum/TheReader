@@ -20,23 +20,23 @@ pub use perms::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum MemberAuthType {
-	External = 0,
-	Passwordless = 1,
-	Password = 2,
+    External = 0,
+    Passwordless = 1,
+    Password = 2,
 }
 
 #[cfg(feature = "backend")]
 impl FromSql for MemberAuthType {
-	#[inline]
-	fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-		Ok(Self::try_from(u8::column_result(value)?).unwrap())
-	}
+    #[inline]
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        Ok(Self::try_from(u8::column_result(value)?).unwrap())
+    }
 }
 
 #[cfg(feature = "backend")]
 impl ToSql for MemberAuthType {
-	#[inline]
-	fn to_sql(&self) -> Result<ToSqlOutput<'_>> {
-		Ok(ToSqlOutput::from(u8::from(*self)))
-	}
+    #[inline]
+    fn to_sql(&self) -> Result<ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::from(u8::from(*self)))
+    }
 }

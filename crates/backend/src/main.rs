@@ -1,6 +1,6 @@
 #![warn(
-	clippy::expect_used,
-	// clippy::unwrap_used,
+    clippy::expect_used,
+    // clippy::unwrap_used,
 )]
 
 #![allow(clippy::manual_map)]
@@ -26,18 +26,18 @@ pub use error::{Result, WebResult, WebError, Error, InternalError};
 
 #[actix_web::main]
 async fn main() -> Result<()> {
-	// Load Config - Otherwise it'll be lazily loaded whenever this fn is first called.
-	let _ = config::get_config();
+    // Load Config - Otherwise it'll be lazily loaded whenever this fn is first called.
+    let _ = config::get_config();
 
-	let db = database::init().await?;
+    let db = database::init().await?;
 
-	let db_data = web::Data::new(db);
+    let db_data = web::Data::new(db);
 
-	task::start_task_manager(db_data.clone());
+    task::start_task_manager(db_data.clone());
 
-	println!("Starting HTTP Server on port 8084");
+    println!("Starting HTTP Server on port 8084");
 
-	http::register_http_service(db_data).await?;
+    http::register_http_service(db_data).await?;
 
-	Ok(())
+    Ok(())
 }
