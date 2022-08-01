@@ -2,11 +2,12 @@
 
 
 use actix_identity::Identity;
-use actix_web::HttpResponse;
 use actix_web::web;
 
 use books_common::MemberAuthType;
 use books_common::Permissions;
+use books_common::api::ApiErrorResponse;
+use books_common::api::WrappingResponse;
 use chrono::Utc;
 use rand::Rng;
 use rand::prelude::ThreadRng;
@@ -34,9 +35,9 @@ pub async fn post_password_oauth(
 	query: web::Form<PostPasswordCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
-) -> WebResult<HttpResponse> {
+) -> WebResult<web::Json<WrappingResponse<String>>> {
 	if identity.identity().is_some() {
-		return Ok(HttpResponse::MethodNotAllowed().finish()); // TODO: What's the proper status?
+		return Err(ApiErrorResponse::new("Already logged in").into());
 	}
 
 	let PostPasswordCallback { email, password } = query.into_inner();
@@ -78,7 +79,7 @@ pub async fn post_password_oauth(
 
 	super::remember_member_auth(member.id, &identity)?;
 
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(WrappingResponse::okay(String::from("success"))))
 }
 
 pub fn gen_sample_alphanumeric(amount: usize, rng: &mut ThreadRng) -> String {

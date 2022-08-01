@@ -95,6 +95,9 @@ pub enum Route {
 	#[at("/login")]
 	Login,
 
+	#[at("/logout")]
+	Logout,
+
 	#[at("/library/:library_id")]
 	ViewLibrary { library_id: LibraryId },
 
@@ -129,6 +132,10 @@ fn switch(route: &Route) -> Html {
 	match route.clone() {
 		Route::Login => {
 			html! { <pages::LoginPage /> }
+		}
+
+		Route::Logout => {
+			html! { <pages::LogoutPage /> }
 		}
 
 		Route::ViewLibrary { library_id } => {

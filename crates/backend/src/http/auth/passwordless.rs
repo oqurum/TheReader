@@ -6,6 +6,7 @@
 use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::{web, HttpRequest};
+use books_common::api::{WrappingResponse, ApiErrorResponse};
 use books_common::setup::ConfigEmail;
 use books_common::{Permissions, MemberAuthType};
 
@@ -39,9 +40,9 @@ pub async fn post_passwordless_oauth(
 	query: web::Form<PostPasswordlessCallback>,
 	identity: Identity,
 	db: web::Data<Database>,
-) -> WebResult<HttpResponse> {
+) -> WebResult<web::Json<WrappingResponse<String>>> {
 	if identity.identity().is_some() || !does_config_exist() {
-		return Ok(HttpResponse::MethodNotAllowed().finish()); // TODO: What's the proper status?
+		return Err(ApiErrorResponse::new("Already logged in").into());
 	}
 
 	let config = get_config();
@@ -51,7 +52,7 @@ pub async fn post_passwordless_oauth(
 		req.headers().get("host").and_then(|v| v.to_str().ok())
 	) {
 		(Some(a), Some(b)) => (a, b),
-		_ => return Ok(HttpResponse::MethodNotAllowed().finish()),
+		_ => return Err(ApiErrorResponse::new("Missing email from config OR unable to get host").into()),
 	};
 
 	let proto = config.server.is_secure.then(|| "https").unwrap_or("http");
@@ -86,7 +87,7 @@ pub async fn post_passwordless_oauth(
 
 	send_auth_email(query.0.email, auth_callback_url, main_html, &email_config)?;
 
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(WrappingResponse::okay(String::from("success"))))
 }
 
 #[derive(Serialize, Deserialize)]

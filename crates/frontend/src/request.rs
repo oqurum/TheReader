@@ -2,6 +2,7 @@ use std::path::Path;
 
 use common::{ImageId, PersonId, Either};
 use serde::{Serialize, Deserialize};
+use serde_json::json;
 use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
@@ -25,7 +26,7 @@ pub async fn finish_setup(value: SetupConfig) -> WrappingResponse<String> {
 		"POST",
 		"/api/setup",
 		Some(&value),
-	).await.unwrap()
+	).await.unwrap_or_else(def)
 }
 
 
@@ -245,6 +246,30 @@ pub async fn run_task() { // TODO: Use common::api::RunTaskBody
 }
 
 
+// Login In
+
+pub async fn login_with_password(email: String, password: String) -> WrappingResponse<String> {
+	fetch(
+		"POST",
+		"/auth/password",
+		Some(&json!({
+			"email": email,
+			"password": password,
+		}))
+	).await.unwrap_or_else(def)
+}
+
+pub async fn login_without_password(email: String) -> WrappingResponse<String> {
+	fetch(
+		"POST",
+		"/auth/passwordless",
+		Some(&json!({
+			"email": email,
+		}))
+	).await.unwrap_or_else(def)
+}
+
+
 
 async fn fetch<V: for<'a> Deserialize<'a>>(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<V, JsValue> {
 	let text = fetch_jsvalue(method, url, body).await?;
@@ -272,4 +297,20 @@ async fn fetch_jsvalue(method: &str, url: &str, body: Option<&impl Serialize>) -
 	let resp: Response = resp_value.dyn_into().unwrap();
 
 	JsFuture::from(resp.json()?).await
+}
+
+fn def<V>(e: JsValue) -> WrappingResponse<V> {
+	WrappingResponse {
+		resp: None,
+		error: Some(ApiErrorResponse {
+			description: {
+				use std::fmt::Write;
+
+				let mut s = String::new();
+				let _ = write!(&mut s, "{:?}", e);
+
+				s
+			}
+		})
+	}
 }
