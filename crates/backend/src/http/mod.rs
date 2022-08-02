@@ -1,4 +1,4 @@
-use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_identity::{CookieIdentityPolicy, IdentityService, Identity};
 use actix_web::HttpResponse;
 use actix_web::http::header;
 use actix_web::{web, App, HttpServer, cookie::SameSite};
@@ -29,6 +29,15 @@ async fn default_handler(req: actix_web::HttpRequest) -> std::io::Result<HttpRes
 }
 
 
+async fn logout(ident: Identity) -> HttpResponse {
+	ident.forget();
+
+	HttpResponse::TemporaryRedirect()
+		.insert_header((header::LOCATION, "/logout"))
+		.finish()
+}
+
+
 pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Result<()> {
 	HttpServer::new(move || {
 		App::new()
@@ -46,6 +55,11 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 
 			// WS
 			.service(ws::ws_index)
+
+			.route(
+				"/auth/logout",
+				web::get().to(logout)
+			)
 
 			// Password
 			.route(
