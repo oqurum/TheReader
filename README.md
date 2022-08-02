@@ -6,9 +6,7 @@ Lots of `.unwrap()`s which need to be removed.
 
 My intention will be to make it [Plex](https://plex.tv) for Books.
 
-Todo:
- - REDO SCSS and move into common git repo to share with reader
- - and more in TODO comments throughout the code
+TODO's in comments throughout the code
 
 
 # Running/Building
