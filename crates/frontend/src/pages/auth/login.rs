@@ -105,8 +105,8 @@ fn passwordless(props: &InnerProps) -> Html {
         <>
             <h2>{ "Passwordless Login" }</h2>
             <div class="form-container">
-                <label for="email">{ "Email Address" }</label>
-                <input type="email" name="email" id="email" onchange={ on_change_passless_email } />
+                <label for="emailpassless">{ "Email Address" }</label>
+                <input type="email" name="email" id="emailpassless" onchange={ on_change_passless_email } />
 
                 <input type="submit" value="Log in" class="button" onclick={ submit_passless } />
             </div>
