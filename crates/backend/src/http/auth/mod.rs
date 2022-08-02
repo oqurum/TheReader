@@ -1,13 +1,13 @@
 use std::{pin::Pin, future::{Ready, ready}, task::{Poll, Context}, rc::Rc};
 
 use actix_identity::Identity;
-use actix_web::{FromRequest, HttpRequest, dev::{Payload, Transform, Service, ServiceRequest, ServiceResponse}, error::ErrorUnauthorized, body::MessageBody};
+use actix_web::{FromRequest, HttpRequest, dev::{Payload, Transform, Service, ServiceRequest, ServiceResponse}, body::MessageBody};
 use chrono::Utc;
-use common::MemberId;
+use common::{MemberId, api::ApiErrorResponse};
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, database::Database, model::member::MemberModel, InternalError};
+use crate::{Result, database::Database, model::member::MemberModel, InternalError, WebError};
 
 pub mod password;
 pub mod passwordless;
@@ -63,8 +63,8 @@ impl MemberCookie {
 
 
 impl FromRequest for MemberCookie {
-	type Error = actix_web::Error;
-	type Future = Pin<Box<dyn std::future::Future<Output = std::result::Result<MemberCookie, actix_web::Error>>>>;
+	type Error = WebError;
+	type Future = Pin<Box<dyn std::future::Future<Output = std::result::Result<MemberCookie, Self::Error>>>>;
 
 	fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
 		let fut = Identity::from_request(req, pl);
@@ -73,7 +73,7 @@ impl FromRequest for MemberCookie {
 			if let Some(id) = get_auth_value(&fut.await?) {
 				Ok(MemberCookie(id))
 			} else {
-				Err(ErrorUnauthorized("unauthorized"))
+				Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")))
 			}
 		})
 	}
@@ -139,7 +139,7 @@ where
 
 				Ok(srv.call(ServiceRequest::from_parts(r, pl)).await?)
 			} else {
-				Err(ErrorUnauthorized("unauthorized"))
+				Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")).into())
 			}
 		}
 		.boxed_local()
