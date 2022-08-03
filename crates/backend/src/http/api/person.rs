@@ -1,9 +1,9 @@
 use actix_web::{web, get, post, HttpResponse};
 use common_local::api;
 use chrono::Utc;
-use common::{PersonId, Either, api::ApiErrorResponse};
+use common::{PersonId, Either, api::{ApiErrorResponse, WrappingResponse}};
 
-use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}, http::MemberCookie};
+use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}, http::{MemberCookie, JsonResponse}};
 
 
 // Get List Of People and Search For People
@@ -69,7 +69,7 @@ pub async fn update_person_data(
 	body: web::Json<api::PostPersonBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<HttpResponse> {
+) -> WebResult<JsonResponse<&'static str>> {
 	let person_id = *person_id;
 
 	let member = member.fetch_or_error(&db).await?;
@@ -139,5 +139,5 @@ pub async fn update_person_data(
 		}
 	}
 
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(WrappingResponse::okay("success")))
 }

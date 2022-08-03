@@ -2,6 +2,7 @@ use std::io::Read;
 
 use actix_web::{get, web, HttpResponse, post, delete};
 
+use common::api::WrappingResponse;
 use common_local::{Chapter, api, Progression, FileId};
 use bookie::Book;
 use common::MemberId;
@@ -12,7 +13,7 @@ use crate::model::note::FileNoteModel;
 use crate::model::progress::FileProgressionModel;
 use crate::{WebResult, Error, Result};
 use crate::database::Database;
-use crate::http::MemberCookie;
+use crate::http::{MemberCookie, JsonResponse};
 
 
 
@@ -160,9 +161,9 @@ pub async fn progress_file_add(
 	body: web::Json<Progression>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<HttpResponse> {
+) -> WebResult<JsonResponse<&'static str>> {
 	FileProgressionModel::insert_or_update(member.member_id(), *file_id, body.into_inner(), &db).await?;
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 #[delete("/file/{id}/progress")]
@@ -170,9 +171,9 @@ pub async fn progress_file_delete(
 	file_id: web::Path<FileId>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<HttpResponse> {
+) -> WebResult<JsonResponse<&'static str>> {
 	FileProgressionModel::delete_one(member.member_id(), *file_id, &db).await?;
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 
@@ -194,7 +195,7 @@ pub async fn notes_file_add(
 	mut payload: web::Payload,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<HttpResponse> {
+) -> WebResult<JsonResponse<&'static str>> {
 	let mut body = web::BytesMut::new();
 	while let Some(chunk) = payload.try_next().await? {
 		body.extend_from_slice(&chunk);
@@ -205,7 +206,7 @@ pub async fn notes_file_add(
 	FileNoteModel::new(*file_id, member.member_id(), data)
 		.insert_or_update(&db).await?;
 
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 #[delete("/file/{id}/notes")]
@@ -213,8 +214,8 @@ pub async fn notes_file_delete(
 	file_id: web::Path<FileId>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<HttpResponse> {
+) -> WebResult<JsonResponse<&'static str>> {
 	FileNoteModel::delete_one(*file_id, member.member_id(), &db).await?;
 
-	Ok(HttpResponse::Ok().finish())
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
