@@ -4,6 +4,7 @@ use actix_web::http::header;
 use actix_web::{web, App, HttpServer, cookie::SameSite};
 use common::api::WrappingResponse;
 
+use crate::CliArgs;
 use crate::database::Database;
 
 mod api;
@@ -38,7 +39,7 @@ async fn logout(ident: Identity) -> HttpResponse {
 }
 
 
-pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Result<()> {
+pub async fn register_http_service(cli_args: &CliArgs, db_data: web::Data<Database>) -> std::io::Result<()> {
 	HttpServer::new(move || {
 		App::new()
 			.app_data(db_data.clone())
@@ -85,7 +86,7 @@ pub async fn register_http_service(db_data: web::Data<Database>) -> std::io::Res
 			.service(actix_files::Files::new("/dist", "./app/public/dist"))
 			.default_service(web::route().to(default_handler))
 	})
-		.bind("0.0.0.0:8084")?
+		.bind(format!("0.0.0.0:{}", cli_args.port))?
 		.run()
 		.await
 }
