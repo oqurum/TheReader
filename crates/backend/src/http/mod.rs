@@ -86,7 +86,7 @@ pub async fn register_http_service(cli_args: &CliArgs, db_data: web::Data<Databa
 			.service(actix_files::Files::new("/dist", "./app/public/dist"))
 			.default_service(web::route().to(default_handler))
 	})
-		.bind(format!("0.0.0.0:{}", cli_args.port))?
+		.bind(format!("{}:{}", &cli_args.host, cli_args.port))?
 		.run()
 		.await
 }
