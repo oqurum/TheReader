@@ -29,15 +29,17 @@ cargo run --bin books-backend
 The server will now be hosted on `127.0.0.1:8084`
 
 ## Frontend:
-Inside **crates/frontend folder** execute one of these commands
+Execute one of these commands
 
 To build:
 ```bash
+cd crates/frontend
 trunk build --public-url "/dist" -d "../../app/public/dist"
 ```
 
 To build and watch:
 ```bash
+cd crates/frontend
 trunk watch --public-url "/dist" -d "../../app/public/dist"
 ```
 
