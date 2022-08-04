@@ -219,7 +219,7 @@ impl MetadataModel {
 	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
 	pub async fn find_one_by_source(source: &Source, db: &Database) -> Result<Option<Self>> {
 		Ok(db.read().await.query_row(
-			r#"SELECT * FROM metadata_item WHERE source = ?1 LIMIT 1"#,
+			r#"SELECT * FROM metadata_item WHERE source = ?1"#,
 			params![source.to_string()],
 			|v| MetadataModel::from_row(v)
 		).optional()?)
@@ -227,7 +227,7 @@ impl MetadataModel {
 
 	pub async fn find_one_by_id(id: MetadataId, db: &Database) -> Result<Option<Self>> {
 		Ok(db.read().await.query_row(
-			r#"SELECT * FROM metadata_item WHERE id = ?1 LIMIT 1"#,
+			r#"SELECT * FROM metadata_item WHERE id = ?1"#,
 			params![id],
 			|v| MetadataModel::from_row(v)
 		).optional()?)

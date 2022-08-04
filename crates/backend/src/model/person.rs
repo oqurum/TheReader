@@ -161,7 +161,7 @@ impl PersonModel {
 
     pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
         let person = db.read().await.query_row(
-            r#"SELECT * FROM tag_person WHERE name = ?1 LIMIT 1"#,
+            r#"SELECT * FROM tag_person WHERE name = ?1"#,
             params![value],
             |v| Self::from_row(v)
         ).optional()?;
@@ -177,7 +177,7 @@ impl PersonModel {
 
     pub async fn find_one_by_id(id: PersonId, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM tag_person WHERE id = ?1 LIMIT 1"#,
+            r#"SELECT * FROM tag_person WHERE id = ?1"#,
             params![id],
             |v| Self::from_row(v)
         ).optional()?)
@@ -185,7 +185,7 @@ impl PersonModel {
 
     pub async fn find_one_by_source(value: &str, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM tag_person WHERE source = ?1 LIMIT 1"#,
+            r#"SELECT * FROM tag_person WHERE source = ?1"#,
             params![value],
             |v| Self::from_row(v)
         ).optional()?)

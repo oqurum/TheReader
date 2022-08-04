@@ -185,7 +185,7 @@ impl FileModel {
 
     pub async fn find_one_by_id(id: FileId, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM file WHERE id=?1 LIMIT 1"#,
+            r#"SELECT * FROM file WHERE id=?1"#,
             params![id],
             |v| Self::from_row(v)
         ).optional()?)

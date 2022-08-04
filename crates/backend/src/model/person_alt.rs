@@ -38,7 +38,7 @@ impl PersonAltModel {
 
     pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM tag_person_alt WHERE name = ?1 LIMIT 1"#,
+            r#"SELECT * FROM tag_person_alt WHERE name = ?1"#,
             params![value],
             |v| Self::from_row(v)
         ).optional()?)

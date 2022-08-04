@@ -114,7 +114,7 @@ impl NewMemberModel {
 impl MemberModel {
     pub async fn find_one_by_email(value: &str, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM members WHERE email = ?1 LIMIT 1"#,
+            r#"SELECT * FROM members WHERE email = ?1"#,
             params![value],
             |v| Self::from_row(v)
         ).optional()?)
@@ -122,7 +122,7 @@ impl MemberModel {
 
     pub async fn find_one_by_id(id: MemberId, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM members WHERE id = ?1 LIMIT 1"#,
+            r#"SELECT * FROM members WHERE id = ?1"#,
             params![id],
             |v| Self::from_row(v)
         ).optional()?)

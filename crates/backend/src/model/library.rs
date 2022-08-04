@@ -92,7 +92,7 @@ impl LibraryModel {
 
 	pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<LibraryModel>> {
 		Ok(db.read().await.query_row(
-			r#"SELECT * FROM library WHERE name = ?1 LIMIT 1"#,
+			r#"SELECT * FROM library WHERE name = ?1"#,
 			params![value],
 			|v| LibraryModel::from_row(v)
 		).optional()?)
