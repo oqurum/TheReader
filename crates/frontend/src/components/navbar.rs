@@ -33,6 +33,7 @@ impl Component for NavbarModule {
         Self {
             left_items: vec![
                 (Route::Dashboard, DisplayType::Icon("home", "Home")),
+                (Route::People, DisplayType::Icon("person", "Authors")),
             ],
             right_items: vec![
                 (Route::Options, DisplayType::Icon("settings", "Settings")),
@@ -176,6 +177,7 @@ impl NavbarModule {
 }
 
 pub enum DisplayType {
+    #[allow(dead_code)]
     Text(&'static str),
     Icon(&'static str, &'static str),
 }
