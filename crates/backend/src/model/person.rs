@@ -6,7 +6,7 @@ use common_local::{util::serialize_datetime, MetadataId, Person};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow, person_alt::PersonAltModel};
+use super::{TableRow, AdvRow};
 
 
 
@@ -168,11 +168,13 @@ impl PersonModel {
 
         if let Some(person) = person {
             Ok(Some(person))
-        } else if let Some(alt) = PersonAltModel::find_one_by_name(value, db).await? {
-            Self::find_one_by_id(alt.person_id, db).await
         } else {
             Ok(None)
         }
+        // TODO: Enable at a later date?
+        // else if let Some(alt) = PersonAltModel::find_one_by_name(value, db).await? {
+        //     Self::find_one_by_id(alt.person_id, db).await
+        // }
     }
 
     pub async fn find_one_by_id(id: PersonId, db: &Database) -> Result<Option<Self>> {
