@@ -82,8 +82,8 @@ async fn load_book_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database
 
 	let meta = MetadataModel::find_one_by_id(meta_id, &db).await?;
 
-	if let Some(loc) = meta.map(|v| v.thumb_path) {
-		let path = crate::image::prefixhash_to_path(loc.as_value());
+	if let Some(loc) = meta.and_then(|v| v.thumb_path.into_value()) {
+		let path = crate::image::prefixhash_to_path(&loc);
 
 		Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
 	} else {
@@ -169,7 +169,7 @@ async fn get_book_posters(
 
 			selected: poster.path == meta.thumb_path,
 
-			path: poster.path.to_optional_string()
+			path: poster.path.into_value()
 				.map(|v| format!("/api/image/{v}"))
 				.unwrap_or_else(|| String::from(MISSING_THUMB_PATH)),
 

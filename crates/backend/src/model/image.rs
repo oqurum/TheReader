@@ -4,7 +4,7 @@ use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
 use common_local::{util::serialize_datetime, MetadataId};
-use crate::{Result, database::Database};
+use crate::{Result, database::Database, InternalError};
 
 use super::{TableRow, AdvRow};
 
@@ -81,14 +81,23 @@ impl NewUploadedImageModel {
 	}
 
 	pub async fn get_or_insert(self, db: &Database) -> Result<UploadedImageModel> {
-		if let Some(value) = UploadedImageModel::get_by_path(self.path.as_value(), db).await? {
-			Ok(value)
+		if let Some(path) = self.path.as_value() {
+			if let Some(value) = UploadedImageModel::get_by_path(path, db).await? {
+				Ok(value)
+			} else {
+				self.insert(db).await
+			}
 		} else {
-			self.insert(db).await
+			Err(InternalError::InvalidModel.into())
 		}
 	}
 
 	pub async fn insert(self, db: &Database) -> Result<UploadedImageModel> {
+		let path = match self.path.into_value() {
+			Some(v) => v,
+			None => return Err(InternalError::InvalidModel.into()),
+		};
+
 		let conn = db.write().await;
 
 		conn.execute(r#"
@@ -96,13 +105,13 @@ impl NewUploadedImageModel {
 			VALUES (?1, ?2)
 		"#,
 		params![
-			self.path.to_string(),
+			path.as_str(),
 			self.created_at.timestamp_millis()
 		])?;
 
 		Ok(UploadedImageModel {
 			id: ImageId::from(conn.last_insert_rowid() as usize),
-			path: self.path,
+			path: ThumbnailStore::Path(path),
 			created_at: self.created_at,
 		})
 	}
@@ -134,18 +143,20 @@ impl UploadedImageModel {
 		).optional()?)
 	}
 
-	pub async fn remove(link_id: MetadataId, path: ThumbnailStore, db: &Database) -> Result<()> {
+	pub async fn remove(link_id: MetadataId, path: ThumbnailStore, db: &Database) -> Result<usize> {
 		// TODO: Check for currently set images
 		// TODO: Remove image links.
-		db.write().await
-		.execute(r#"DELETE FROM uploaded_images WHERE link_id = ?1 AND path = ?2"#,
-			params![
-				link_id,
-				path.to_string(),
-			]
-		)?;
-
-		Ok(())
+		if let Some(path) = path.into_value() {
+			Ok(db.write().await
+			.execute(r#"DELETE FROM uploaded_images WHERE link_id = ?1 AND path = ?2"#,
+				params![
+					link_id,
+					path,
+				]
+			)?)
+		} else {
+			Ok(0)
+		}
 	}
 }
 

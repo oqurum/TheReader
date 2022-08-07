@@ -121,7 +121,7 @@ impl MetadataModel {
 				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
 				params![
 					self.library_id, self.source.to_string(), &self.file_item_count,
-					&self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.to_optional_string(),
+					&self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
 					&self.cached.as_string_optional(),
 					&self.available_at, &self.year,
 					&self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
@@ -160,7 +160,7 @@ impl MetadataModel {
 			params![
 				self.id,
 				self.library_id, self.source.to_string(), &self.file_item_count,
-				&self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.to_optional_string(),
+				&self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
 				&self.cached.as_string_optional(),
 				&self.available_at, &self.year,
 				&self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),

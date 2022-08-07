@@ -148,8 +148,10 @@ impl Task for TaskUpdateInvalidMetadata {
 									let meta = meta.insert_or_increment(db).await?;
 									FileModel::update_metadata_id(file_id, meta.id, db).await?;
 
-									if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
-										ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+									if let Some(thumb_path) = meta.thumb_path.as_value() {
+										if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
+											ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+										}
 									}
 
 									for person_id in author_ids {
@@ -224,8 +226,10 @@ impl Task for TaskUpdateInvalidMetadata {
 						current_meta.description = new_meta.description;
 					}
 
-					if let Some(image) = UploadedImageModel::get_by_path(current_meta.thumb_path.as_value(), db).await? {
-						ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+					if let Some(thumb_path) = current_meta.thumb_path.as_value() {
+						if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
+							ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+						}
 					}
 
 
@@ -312,8 +316,10 @@ impl Task for TaskUpdateInvalidMetadata {
 									current_meta.thumb_path = new_meta.thumb_path;
 								}
 
-								if let Some(image) = UploadedImageModel::get_by_path(current_meta.thumb_path.as_value(), db).await? {
-									ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+								if let Some(thumb_path) = current_meta.thumb_path.as_value() {
+									if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
+										ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+									}
 								}
 
 
@@ -370,8 +376,10 @@ impl Task for TaskUpdateInvalidMetadata {
 								meta.description = old_meta.description;
 							}
 
-							if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
-								ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+							if let Some(thumb_path) = meta.thumb_path.as_value() {
+								if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
+									ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+								}
 							}
 
 							meta.update(db).await?;
@@ -490,8 +498,10 @@ impl TaskUpdateInvalidMetadata {
 				// TODO: Only if metadata exists and IS the same source.
 				meta.created_at = fm_meta.created_at;
 
-				if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
-					ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+				if let Some(thumb_path) = meta.thumb_path.as_value() {
+					if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
+						ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+					}
 				}
 
 				meta.update(db).await?;

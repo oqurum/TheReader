@@ -124,8 +124,10 @@ async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result
 			let meta = meta.insert_or_increment(db).await?;
 			FileModel::update_metadata_id(file_id, meta.id, db).await?;
 
-			if let Some(image) = UploadedImageModel::get_by_path(meta.thumb_path.as_value(), db).await? {
-				ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+			if let Some(thumb_path) = meta.thumb_path.as_value() {
+				if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
+					ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+				}
 			}
 
 

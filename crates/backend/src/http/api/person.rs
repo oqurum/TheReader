@@ -52,8 +52,8 @@ pub async fn load_author_list(
 async fn load_person_thumbnail(person_id: web::Path<PersonId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let meta = PersonModel::find_one_by_id(*person_id, &db).await?;
 
-	if let Some(loc) = meta.map(|v| v.thumb_url) {
-		let path = crate::image::prefixhash_to_path(loc.as_value());
+	if let Some(loc) = meta.and_then(|v| v.thumb_url.into_value()) {
+		let path = crate::image::prefixhash_to_path(&loc);
 
 		Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
 	} else {

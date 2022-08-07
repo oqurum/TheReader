@@ -145,6 +145,11 @@ pub enum InternalError {
 
     #[error("The user does not exist")]
     UserMissing,
+
+    // SQL
+
+    #[error("Invalid Model")]
+    InvalidModel,
 }
 
 impl<V> From<PoisonError<V>> for Error {

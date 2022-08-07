@@ -87,7 +87,7 @@ impl NewPersonModel {
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
         "#,
         params![
-            self.source.to_string(), &self.name, &self.description, &self.birth_date, self.thumb_url.to_optional_string(),
+            self.source.to_string(), &self.name, &self.description, &self.birth_date, self.thumb_url.as_value(),
             self.updated_at.timestamp_millis(), self.created_at.timestamp_millis()
         ])?;
 
@@ -211,7 +211,7 @@ impl PersonModel {
             WHERE id = ?1"#,
             params![
                 self.id,
-                self.source.to_string(), &self.name, &self.description, &self.birth_date, self.thumb_url.to_string(),
+                self.source.to_string(), &self.name, &self.description, &self.birth_date, self.thumb_url.as_value(),
                 self.updated_at.timestamp_millis(), self.created_at.timestamp_millis()
             ]
         )?;
