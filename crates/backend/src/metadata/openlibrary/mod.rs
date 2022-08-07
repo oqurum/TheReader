@@ -2,7 +2,7 @@
 
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
-use common_local::{MetadataItemCached, SearchForBooksBy};
+use common_local::{BookItemCached, SearchForBooksBy};
 use serde::{Serialize, Deserialize};
 
 use self::book::BookSearchType;
@@ -121,7 +121,7 @@ impl Metadata for OpenLibraryMetadata {
 							thumb_locations: item.cover_edition_key.map(|v|
 								vec![FoundImageLocation::Url(CoverId::Olid(v).get_book_cover_url())]
 							).unwrap_or_default(),
-							cached: MetadataItemCached::default(),
+							cached: BookItemCached::default(),
 							available_at: None,
 							year: item.first_publish_year,
 						}));
@@ -216,7 +216,7 @@ impl OpenLibraryMetadata {
 					.filter(|v| *v != -1)
 					.map(|id| FoundImageLocation::Url(CoverId::Id(id.to_string()).get_book_cover_url()))
 					.collect(),
-				cached: MetadataItemCached::default(),
+				cached: BookItemCached::default(),
 				available_at: None,
 				year: None,
 			}

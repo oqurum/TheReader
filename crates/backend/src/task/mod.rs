@@ -11,7 +11,7 @@ use tokio::{runtime::Runtime, time::sleep};
 use crate::{
 	Result,
 	database::Database,
-	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::FileModel, metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}
+	metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::FileModel, book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}
 };
 
 
@@ -95,22 +95,22 @@ impl Task for TaskLibraryScan {
 // Metadata
 
 #[derive(Clone)]
-pub enum UpdatingMetadata {
+pub enum UpdatingBook {
 	AutoMatchInvalid,
-	AutoUpdateMetaIdBySource(BookId),
-	AutoUpdateMetaIdByFiles(BookId),
-	UpdateMetadataWithSource {
-		meta_id: BookId,
+	AutoUpdateBookIdBySource(BookId),
+	AutoUpdateBookIdByFiles(BookId),
+	UpdateBookWithSource {
+		book_id: BookId,
 		source: Source,
 	}
 }
 
-pub struct TaskUpdateInvalidMetadata {
-	state: UpdatingMetadata
+pub struct TaskUpdateInvalidBook {
+	state: UpdatingBook
 }
 
-impl TaskUpdateInvalidMetadata {
-	pub fn new(state: UpdatingMetadata) -> Self {
+impl TaskUpdateInvalidBook {
+	pub fn new(state: UpdatingBook) -> Self {
 		Self {
 			state
 		}
@@ -118,14 +118,14 @@ impl TaskUpdateInvalidMetadata {
 }
 
 #[async_trait]
-impl Task for TaskUpdateInvalidMetadata {
+impl Task for TaskUpdateInvalidBook {
 	async fn run(&mut self, task_id: UniqueId, db: &Database) -> Result<()> {
 		match self.state.clone() {
 			// TODO: Remove at some point. Currently inside of scanner.
-			UpdatingMetadata::AutoMatchInvalid => {
-				for file in FileModel::find_by_missing_metadata(db).await? {
+			UpdatingBook::AutoMatchInvalid => {
+				for file in FileModel::find_by_missing_book(db).await? {
 					// TODO: Ensure we ALWAYS creates some type of metadata for the file.
-					if file.metadata_id.map(|v| v == 0).unwrap_or(true) {
+					if file.book_id.map(|v| v == 0).unwrap_or(true) {
 						let file_id = file.id;
 
 						match get_metadata_from_files(&[file]).await {
@@ -140,23 +140,23 @@ impl Task for TaskUpdateInvalidMetadata {
 										item.download(db).await?;
 									}
 
-									let mut meta: MetadataModel = meta.into();
+									let mut book_model: BookModel = meta.into();
 
 									// TODO: Store Publisher inside Database
-									meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+									book_model.cached = book_model.cached.publisher_optional(publisher).author_optional(main_author);
 
-									let meta = meta.insert_or_increment(db).await?;
-									FileModel::update_metadata_id(file_id, meta.id, db).await?;
+									let book_model = book_model.insert_or_increment(db).await?;
+									FileModel::update_book_id(file_id, book_model.id, db).await?;
 
-									if let Some(thumb_path) = meta.thumb_path.as_value() {
+									if let Some(thumb_path) = book_model.thumb_path.as_value() {
 										if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-											ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+											ImageLinkModel::new_book(image.id, book_model.id).insert(db).await?;
 										}
 									}
 
 									for person_id in author_ids {
-										MetadataPersonModel {
-											metadata_id: meta.id,
+										BookPersonModel {
+											book_id: book_model.id,
 											person_id,
 										}.insert_or_ignore(db).await?;
 									}
@@ -171,73 +171,73 @@ impl Task for TaskUpdateInvalidMetadata {
 				}
 			}
 
-			UpdatingMetadata::AutoUpdateMetaIdByFiles(meta_id) => {
-				println!("Auto Update Metadata ID by Files: {}", meta_id);
-				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
+			UpdatingBook::AutoUpdateBookIdByFiles(book_id) => {
+				println!("Auto Update Metadata ID by Files: {}", book_id);
+				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book_id)));
 
-				let fm_meta = MetadataModel::find_one_by_id(meta_id, db).await?.unwrap();
+				let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
-				Self::search_meta_by_files(meta_id, fm_meta, db).await?;
+				Self::search_book_by_files(book_id, fm_book, db).await?;
 			}
 
-			// TODO: Check how long it has been since we've refreshed meta: metnew_metaa if auto-ran.
-			UpdatingMetadata::AutoUpdateMetaIdBySource(meta_id) => {
-				println!("Auto Update Metadata ID by Source: {}", meta_id);
-				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(meta_id)));
+			// TODO: Check how long it has been since we've refreshed meta: new_meta if auto-ran.
+			UpdatingBook::AutoUpdateBookIdBySource(book_id) => {
+				println!("Auto Update Metadata ID by Source: {}", book_id);
+				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book_id)));
 
-				let fm_meta = MetadataModel::find_one_by_id(meta_id, db).await?.unwrap();
+				let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
 				// TODO: Attempt to update source first.
-				if let Some(mut new_meta) = get_metadata_by_source(&fm_meta.source).await? {
+				if let Some(mut new_meta) = get_metadata_by_source(&fm_book.source).await? {
 					println!("Updating by source");
 
-					let mut current_meta = fm_meta.clone();
+					let mut current_book = fm_book.clone();
 
 					let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
 					let MetadataReturned { meta, publisher, .. } = new_meta;
 
-					let mut new_meta: MetadataModel = meta.into();
+					let mut new_book: BookModel = meta.into();
 
 					// TODO: Utilize EditManager which is currently in frontend util.rs
 
 					// TODO: Store Publisher inside Database
-					new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
+					new_book.cached = new_book.cached.publisher_optional(publisher).author_optional(main_author);
 
-					if current_meta.rating == 0.0 {
-						current_meta.rating = new_meta.rating;
+					if current_book.rating == 0.0 {
+						current_book.rating = new_book.rating;
 					}
 
 					// If we didn't update the original title
-					if current_meta.title == current_meta.original_title {
-						current_meta.title = new_meta.title;
+					if current_book.title == current_book.original_title {
+						current_book.title = new_book.title;
 					}
 
-					current_meta.original_title = new_meta.original_title;
-					current_meta.refreshed_at = Utc::now();
-					current_meta.updated_at = Utc::now();
+					current_book.original_title = new_book.original_title;
+					current_book.refreshed_at = Utc::now();
+					current_book.updated_at = Utc::now();
 
 					// No new thumb, but we have an old one. Set old one as new one.
-					if current_meta.thumb_path.is_none() && new_meta.thumb_path.is_some() {
-						current_meta.thumb_path = new_meta.thumb_path;
+					if current_book.thumb_path.is_none() && new_book.thumb_path.is_some() {
+						current_book.thumb_path = new_book.thumb_path;
 					}
 
-					if new_meta.description.is_some() {
-						current_meta.description = new_meta.description;
+					if new_book.description.is_some() {
+						current_book.description = new_book.description;
 					}
 
-					if let Some(thumb_path) = current_meta.thumb_path.as_value() {
+					if let Some(thumb_path) = current_book.thumb_path.as_value() {
 						if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-							ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+							ImageLinkModel::new_book(image.id, current_book.id).insert(db).await?;
 						}
 					}
 
 
-					current_meta.update(db).await?;
+					current_book.update(db).await?;
 
 					for person_id in author_ids {
-						MetadataPersonModel {
-							metadata_id: new_meta.id,
+						BookPersonModel {
+							book_id: new_book.id,
 							person_id,
 						}.insert_or_ignore(db).await?;
 					}
@@ -247,39 +247,39 @@ impl Task for TaskUpdateInvalidMetadata {
 
 				println!("Updating by file check");
 
-				Self::search_meta_by_files(meta_id, fm_meta, db).await?;
+				Self::search_book_by_files(book_id, fm_book, db).await?;
 			}
 
-			UpdatingMetadata::UpdateMetadataWithSource { meta_id: old_meta_id, source } => {
-				println!("UpdatingMetadata::SpecificMatchSingleMetaId {{ meta_id: {:?}, source: {:?} }}", old_meta_id, source);
-				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingMetadata(old_meta_id)));
+			UpdatingBook::UpdateBookWithSource { book_id: old_book_id, source } => {
+				println!("UpdatingMetadata::SpecificMatchSingleMetaId {{ book_id: {:?}, source: {:?} }}", old_book_id, source);
+				send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(old_book_id)));
 
-				match MetadataModel::find_one_by_source(&source, db).await? {
+				match BookModel::find_one_by_source(&source, db).await? {
 					// If the metadata already exists we move the old metadata files to the new one and completely remove old metadata.
-					Some(meta_item) => {
-						if meta_item.id != old_meta_id {
-							println!("Changing Current File Metadata ({}) to New File Metadata ({})", old_meta_id, meta_item.id);
+					Some(book_item) => {
+						if book_item.id != old_book_id {
+							println!("Changing Current File Metadata ({}) to New File Metadata ({})", old_book_id, book_item.id);
 
 							// Change file metas'from old to new meta
-							let changed_files = FileModel::transfer_metadata_id(old_meta_id, meta_item.id, db).await?;
+							let changed_files = FileModel::transfer_book_id(old_book_id, book_item.id, db).await?;
 
 							// Update new meta file count
-							MetadataModel::set_file_count(meta_item.id, meta_item.file_item_count as usize + changed_files, db).await?;
+							BookModel::set_file_count(book_item.id, book_item.file_item_count as usize + changed_files, db).await?;
 
 							// Remove old meta persons
-							MetadataPersonModel::delete_by_meta_id(old_meta_id, db).await?;
+							BookPersonModel::delete_by_book_id(old_book_id, db).await?;
 
 							// TODO: Change to "deleted" instead of delting from database. We will delete from database every 24 hours.
 
 							// Remove old Metadata
-							MetadataModel::delete_by_id(old_meta_id, db).await?;
+							BookModel::delete_by_id(old_book_id, db).await?;
 						} else {
 							// Update existing metadata.
 
 							println!("Updating File Metadata.");
 
 							if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
-								let mut current_meta = MetadataModel::find_one_by_id(old_meta_id, db).await?.unwrap();
+								let mut current_book = BookModel::find_one_by_id(old_book_id, db).await?.unwrap();
 
 								let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
@@ -289,50 +289,50 @@ impl Task for TaskUpdateInvalidMetadata {
 									item.download(db).await?;
 								}
 
-								let mut new_meta: MetadataModel = meta.into();
+								let mut new_book: BookModel = meta.into();
 
 								// TODO: Store Publisher inside Database
-								new_meta.cached = new_meta.cached.publisher_optional(publisher).author_optional(main_author);
+								new_book.cached = new_book.cached.publisher_optional(publisher).author_optional(main_author);
 
-								if current_meta.rating == 0.0 {
-									current_meta.rating = new_meta.rating;
+								if current_book.rating == 0.0 {
+									current_book.rating = new_book.rating;
 								}
 
 								// If we didn't update the original title
-								if current_meta.title == current_meta.original_title {
-									current_meta.title = new_meta.title;
+								if current_book.title == current_book.original_title {
+									current_book.title = new_book.title;
 								}
 
-								if new_meta.description.is_some() {
-									current_meta.description = new_meta.description;
+								if new_book.description.is_some() {
+									current_book.description = new_book.description;
 								}
 
-								current_meta.original_title = new_meta.original_title;
-								current_meta.refreshed_at = Utc::now();
-								current_meta.updated_at = Utc::now();
+								current_book.original_title = new_book.original_title;
+								current_book.refreshed_at = Utc::now();
+								current_book.updated_at = Utc::now();
 
 								// No old thumb, but we have an new one. Set new one as old one.
-								if current_meta.thumb_path.is_none() && new_meta.thumb_path.is_some() {
-									current_meta.thumb_path = new_meta.thumb_path;
+								if current_book.thumb_path.is_none() && new_book.thumb_path.is_some() {
+									current_book.thumb_path = new_book.thumb_path;
 								}
 
-								if let Some(thumb_path) = current_meta.thumb_path.as_value() {
+								if let Some(thumb_path) = current_book.thumb_path.as_value() {
 									if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-										ImageLinkModel::new_book(image.id, current_meta.id).insert(db).await?;
+										ImageLinkModel::new_book(image.id, current_book.id).insert(db).await?;
 									}
 								}
 
 
-								current_meta.update(db).await?;
+								current_book.update(db).await?;
 
 								for person_id in author_ids {
-									MetadataPersonModel {
-										metadata_id: current_meta.id,
+									BookPersonModel {
+										book_id: current_book.id,
 										person_id,
 									}.insert_or_ignore(db).await?;
 								}
 							} else {
-								println!("Unable to get metadata from source {:?}", source);
+								println!("Unable to get book metadata from source {:?}", source);
 								// TODO: Error since this shouldn't have happened.
 							}
 						}
@@ -341,9 +341,9 @@ impl Task for TaskUpdateInvalidMetadata {
 					// No metadata source. Lets scrape it and update our current one with the new one.
 					None => {
 						if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
-							println!("Grabbed New Metadata from Source {:?}, updating old Metadata ({}) with it.", source, old_meta_id);
+							println!("Grabbed New Book from Source {:?}, updating old Book ({}) with it.", source, old_book_id);
 
-							let old_meta = MetadataModel::find_one_by_id(old_meta_id, db).await?.unwrap();
+							let old_book = BookModel::find_one_by_id(old_book_id, db).await?.unwrap();
 
 							let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
 
@@ -353,43 +353,43 @@ impl Task for TaskUpdateInvalidMetadata {
 								item.download(db).await?;
 							}
 
-							let mut meta: MetadataModel = meta.into();
+							let mut book: BookModel = meta.into();
 
 							// TODO: Store Publisher inside Database
-							meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+							book.cached = book.cached.publisher_optional(publisher).author_optional(main_author);
 
-							meta.id = old_meta.id;
-							meta.library_id = old_meta.library_id;
-							meta.file_item_count = old_meta.file_item_count;
-							meta.rating = old_meta.rating;
+							book.id = old_book.id;
+							book.library_id = old_book.library_id;
+							book.file_item_count = old_book.file_item_count;
+							book.rating = old_book.rating;
 
-							if old_meta.title != old_meta.original_title {
-								meta.title = old_meta.title;
+							if old_book.title != old_book.original_title {
+								book.title = old_book.title;
 							}
 
 							// No new thumb, but we have an old one. Set old one as new one.
-							if meta.thumb_path.is_none() && old_meta.thumb_path.is_some() {
-								meta.thumb_path = old_meta.thumb_path;
+							if book.thumb_path.is_none() && old_book.thumb_path.is_some() {
+								book.thumb_path = old_book.thumb_path;
 							}
 
-							if meta.description.is_none() {
-								meta.description = old_meta.description;
+							if book.description.is_none() {
+								book.description = old_book.description;
 							}
 
-							if let Some(thumb_path) = meta.thumb_path.as_value() {
+							if let Some(thumb_path) = book.thumb_path.as_value() {
 								if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-									ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+									ImageLinkModel::new_book(image.id, book.id).insert(db).await?;
 								}
 							}
 
-							meta.update(db).await?;
+							book.update(db).await?;
 
 							// TODO: Should I start with a clean slate like this?
-							MetadataPersonModel::delete_by_meta_id(old_meta_id, db).await?;
+							BookPersonModel::delete_by_book_id(old_book_id, db).await?;
 
 							for person_id in author_ids {
-								MetadataPersonModel {
-									metadata_id: meta.id,
+								BookPersonModel {
+									book_id: book.id,
 									person_id,
 								}.insert_or_ignore(db).await?;
 							}
@@ -406,22 +406,22 @@ impl Task for TaskUpdateInvalidMetadata {
 	}
 
 	fn name(&self) ->  &'static str {
-		"Updating Metadata"
+		"Updating Book"
 	}
 }
 
-impl TaskUpdateInvalidMetadata {
-	async fn search_meta_by_files(meta_id: BookId, mut fm_meta: MetadataModel, db: &Database) -> Result<()> {
+impl TaskUpdateInvalidBook {
+	async fn search_book_by_files(book_id: BookId, mut fm_book: BookModel, db: &Database) -> Result<()> {
 		// Check Files first.
-		let files = FileModel::find_by_metadata_id(meta_id, db).await?;
+		let files = FileModel::find_by_book_id(book_id, db).await?;
 
 		let found_meta = match get_metadata_from_files(&files).await? {
-			None => if let Some(title) = fm_meta.title.as_deref() { // TODO: Place into own function
+			None => if let Some(title) = fm_book.title.as_deref() { // TODO: Place into own function
 				// Check by "title - author" secondly.
 				let search = format!(
 					"{} {}",
 					title,
-					fm_meta.cached.author.as_deref().unwrap_or_default()
+					fm_book.cached.author.as_deref().unwrap_or_default()
 				);
 
 				// Search for query.
@@ -466,55 +466,55 @@ impl TaskUpdateInvalidMetadata {
 					}
 				}
 
-				let mut meta: MetadataModel = meta.into();
+				let mut book: BookModel = meta.into();
 
 				// TODO: Store Publisher inside Database
-				meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+				book.cached = book.cached.publisher_optional(publisher).author_optional(main_author);
 
-				// Update New Metadata with old one
-				meta.id = fm_meta.id;
-				meta.library_id = fm_meta.library_id;
-				meta.rating = fm_meta.rating;
-				meta.deleted_at = fm_meta.deleted_at;
-				meta.file_item_count = fm_meta.file_item_count;
+				// Update New Book with old one
+				book.id = fm_book.id;
+				book.library_id = fm_book.library_id;
+				book.rating = fm_book.rating;
+				book.deleted_at = fm_book.deleted_at;
+				book.file_item_count = fm_book.file_item_count;
 
 				// Overwrite prev with new and replace new with prev.
-				fm_meta.cached.overwrite_with(meta.cached);
-				meta.cached = fm_meta.cached;
+				fm_book.cached.overwrite_with(book.cached);
+				book.cached = fm_book.cached;
 
-				if fm_meta.title != fm_meta.original_title {
-					meta.title = fm_meta.title;
+				if fm_book.title != fm_book.original_title {
+					book.title = fm_book.title;
 				}
 
 				// No new thumb, but we have an old one. Set old one as new one.
-				if meta.thumb_path.is_none() && fm_meta.thumb_path.is_some() {
-					meta.thumb_path = fm_meta.thumb_path;
+				if book.thumb_path.is_none() && fm_book.thumb_path.is_some() {
+					book.thumb_path = fm_book.thumb_path;
 				}
 
-				if fm_meta.description.is_some() {
-					meta.description = fm_meta.description;
+				if fm_book.description.is_some() {
+					book.description = fm_book.description;
 				}
 
-				// TODO: Only if metadata exists and IS the same source.
-				meta.created_at = fm_meta.created_at;
+				// TODO: Only if book exists and IS the same source.
+				book.created_at = fm_book.created_at;
 
-				if let Some(thumb_path) = meta.thumb_path.as_value() {
+				if let Some(thumb_path) = book.thumb_path.as_value() {
 					if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-						ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+						ImageLinkModel::new_book(image.id, book.id).insert(db).await?;
 					}
 				}
 
-				meta.update(db).await?;
+				book.update(db).await?;
 
 				for person_id in author_ids {
-					MetadataPersonModel {
-						metadata_id: meta.id,
+					BookPersonModel {
+						book_id: book.id,
 						person_id,
 					}.insert_or_ignore(db).await?;
 				}
 			}
 
-			None => eprintln!("Metadata Grabber Error: UNABLE TO FIND"),
+			None => eprintln!("Book Grabber Error: UNABLE TO FIND"),
 		}
 
 		Ok(())
@@ -623,7 +623,7 @@ impl TaskUpdatePeople {
 
 			old_person.update(db).await?;
 
-			// TODO: Update Metadata cache
+			// TODO: Update Book cache
 		} else {
 			println!("[TASK] Unable to find person to auto-update");
 		}

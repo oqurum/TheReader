@@ -1,8 +1,8 @@
 use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
-use crate::{Result, model::{metadata::MetadataModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel}};
+use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel}};
 use async_trait::async_trait;
-use common_local::{SearchFor, MetadataItemCached, LibraryId};
+use common_local::{SearchFor, BookItemCached, LibraryId};
 use chrono::Utc;
 use common::{BookId, PersonId, ThumbnailStore, Source};
 
@@ -310,15 +310,15 @@ pub struct FoundItem {
 	pub thumb_locations: Vec<FoundImageLocation>,
 
 	// TODO: Make table for all tags. Include publisher in it. Remove country.
-	pub cached: MetadataItemCached,
+	pub cached: BookItemCached,
 
 	pub available_at: Option<i64>,
 	pub year: Option<i64>
 }
 
-impl From<FoundItem> for MetadataModel {
+impl From<FoundItem> for BookModel {
 	fn from(val: FoundItem) -> Self {
-		MetadataModel {
+		BookModel {
 			id: BookId::none(),
 			library_id: LibraryId::none(),
 			source: val.source,

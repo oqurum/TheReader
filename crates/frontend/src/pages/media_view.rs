@@ -1,4 +1,4 @@
-use common_local::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string};
+use common_local::{api::{GetBookResponse, self}, util::file_size_bytes_to_readable_string};
 use common::{BookId, component::popup::{Popup, PopupClose, PopupType}};
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -8,14 +8,14 @@ use crate::{request, Route, components::{PopupSearchBook, PopupEditMetadata}, ut
 #[derive(Clone)]
 pub enum Msg {
     // Retrive
-    RetrieveMediaView(Box<MediaViewResponse>),
+    RetrieveMediaView(Box<GetBookResponse>),
 
     // Events
     ShowPopup(DisplayOverlay),
     ClosePopup,
 
     // Popup Events
-    UpdateMeta(BookId),
+    UpdateBook(BookId),
 
     Ignore
 }
@@ -26,7 +26,7 @@ pub struct Property {
 }
 
 pub struct MediaView {
-    media: Option<MediaViewResponse>,
+    media: Option<GetBookResponse>,
 
     media_popup: Option<DisplayOverlay>,
 }
@@ -66,10 +66,10 @@ impl Component for MediaView {
                 }
             }
 
-            Msg::UpdateMeta(meta_id) => {
+            Msg::UpdateBook(book_id) => {
                 ctx.link()
                 .send_future(async move {
-                    request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchMetaIdBySource).await;
+                    request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdBySource).await;
 
                     Msg::Ignore
                 });
@@ -92,10 +92,10 @@ impl Component for MediaView {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            let metadata_id = ctx.props().id;
+            let book_id = ctx.props().id;
 
             ctx.link().send_future(async move {
-                Msg::RetrieveMediaView(Box::new(request::get_media_view(metadata_id).await))
+                Msg::RetrieveMediaView(Box::new(request::get_media_view(book_id).await))
             });
         }
     }
@@ -103,13 +103,13 @@ impl Component for MediaView {
 
 impl MediaView {
     fn render_main(&self, ctx: &Context<Self>) -> Html {
-        if let Some(MediaViewResponse { people, metadata, media, progress }) = self.media.as_ref() {
-            let meta_id = metadata.id;
+        if let Some(GetBookResponse { people, book, media, progress }) = self.media.as_ref() {
+            let book_id = book.id;
             let on_click_more = ctx.link().callback(move |e: MouseEvent| {
                 e.prevent_default();
                 e.stop_propagation();
 
-                Msg::ShowPopup(DisplayOverlay::More { meta_id, mouse_pos: (e.page_x(), e.page_y()) })
+                Msg::ShowPopup(DisplayOverlay::More { book_id, mouse_pos: (e.page_x(), e.page_y()) })
             });
 
             let media_prog = media.iter().zip(progress.iter());
@@ -127,17 +127,17 @@ impl MediaView {
                                     e.stop_propagation();
 
                                     async move {
-                                        Msg::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(meta_id).await)))
+                                        Msg::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(book_id).await)))
                                     }
                                 })} title="More Options">{ "edit" }</span>
                             </div>
 
-                            <img src={ metadata.get_thumb_url() } />
+                            <img src={ book.get_thumb_url() } />
                         </div>
                         <div class="metadata-container">
                             <div class="metadata">
-                                <h3 class="title">{ metadata.get_title() }</h3>
-                                <p class="description">{ metadata.description.clone().unwrap_or_default() }</p>
+                                <h3 class="title">{ book.get_title() }</h3>
+                                <p class="description">{ book.description.clone().unwrap_or_default() }</p>
                             </div>
                         </div>
                     </div>
@@ -192,7 +192,7 @@ impl MediaView {
                     {
                         if let Some(overlay_type) = self.media_popup.as_ref() {
                             match overlay_type {
-                                DisplayOverlay::Info { meta_id: _ } => {
+                                DisplayOverlay::Info { book_id: _ } => {
                                     html! {
                                         <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
                                             <h1>{"Info"}</h1>
@@ -200,20 +200,20 @@ impl MediaView {
                                     }
                                 }
 
-                                &DisplayOverlay::More { meta_id, mouse_pos } => {
+                                &DisplayOverlay::More { book_id, mouse_pos } => {
                                     html! {
                                         <Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
                                             <div class="menu-list">
                                                 <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
-                                                    on_click_prevdef(ctx.link(), Msg::UpdateMeta(meta_id))
+                                                    on_click_prevdef(ctx.link(), Msg::UpdateBook(book_id))
                                                 }>{ "Refresh Metadata" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
-                                                    on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None }))
+                                                    on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { book_id, input_value: None }))
                                                 }>{ "Search For Book" }</PopupClose>
                                                 <PopupClose class="menu-item">{ "Delete" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
-                                                    on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::Info { meta_id }))
+                                                    on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::Info { book_id }))
                                                 }>{ "Show Info" }</PopupClose>
                                             </div>
                                         </Popup>
@@ -230,21 +230,21 @@ impl MediaView {
                                     }
                                 }
 
-                                &DisplayOverlay::SearchForBook { meta_id, ref input_value } => {
+                                &DisplayOverlay::SearchForBook { book_id, ref input_value } => {
                                     let input_value = if let Some(v) = input_value {
                                         v.to_string()
                                     } else {
                                         format!(
                                             "{} {}",
-                                            metadata.title.as_deref().unwrap_or_default(),
-                                            metadata.cached.author.as_deref().unwrap_or_default()
+                                            book.title.as_deref().unwrap_or_default(),
+                                            book.cached.author.as_deref().unwrap_or_default()
                                         )
                                     };
 
                                     let input_value = input_value.trim().to_string();
 
                                     html! {
-                                        <PopupSearchBook {meta_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
+                                        <PopupSearchBook {book_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
                                     }
                                 }
                             }
@@ -266,18 +266,18 @@ impl MediaView {
 #[derive(Clone)]
 pub enum DisplayOverlay {
     Info {
-        meta_id: BookId
+        book_id: BookId
     },
 
-    Edit(Box<api::MediaViewResponse>),
+    Edit(Box<api::GetBookResponse>),
 
     More {
-        meta_id: BookId,
+        book_id: BookId,
         mouse_pos: (i32, i32)
     },
 
     SearchForBook {
-        meta_id: BookId,
+        book_id: BookId,
         input_value: Option<String>,
     },
 }
@@ -285,11 +285,11 @@ pub enum DisplayOverlay {
 impl PartialEq for DisplayOverlay {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Info { meta_id: l_id }, Self::Info { meta_id: r_id }) => l_id == r_id,
-            (Self::More { meta_id: l_id, .. }, Self::More { meta_id: r_id, .. }) => l_id == r_id,
+            (Self::Info { book_id: l_id }, Self::Info { book_id: r_id }) => l_id == r_id,
+            (Self::More { book_id: l_id, .. }, Self::More { book_id: r_id, .. }) => l_id == r_id,
             (
-                Self::SearchForBook { meta_id: l_id, input_value: l_val, .. },
-                Self::SearchForBook { meta_id: r_id, input_value: r_val, .. }
+                Self::SearchForBook { book_id: l_id, input_value: l_val, .. },
+                Self::SearchForBook { book_id: r_id, input_value: r_val, .. }
             ) => l_id == r_id && l_val == r_val,
 
             _ => false

@@ -7,27 +7,27 @@ use crate::{Result, database::Database};
 use super::{TableRow, AdvRow};
 
 #[derive(Debug, Serialize)]
-pub struct MetadataPersonModel {
-    pub metadata_id: BookId,
+pub struct BookPersonModel {
+    pub book_id: BookId,
     pub person_id: PersonId,
 }
 
 
-impl TableRow<'_> for MetadataPersonModel {
+impl TableRow<'_> for BookPersonModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
-            metadata_id: row.next()?,
+            book_id: row.next()?,
             person_id: row.next()?,
         })
     }
 }
 
-impl MetadataPersonModel {
+impl BookPersonModel {
     pub async fn insert_or_ignore(&self, db: &Database) -> Result<()> {
         db.write().await.execute(
             r#"INSERT OR IGNORE INTO metadata_person (metadata_id, person_id) VALUES (?1, ?2)"#,
             params![
-                self.metadata_id,
+                self.book_id,
                 self.person_id
             ]
         )?;
@@ -39,7 +39,7 @@ impl MetadataPersonModel {
         db.write().await.execute(
             r#"DELETE FROM metadata_person WHERE metadata_id = ?1 AND person_id = ?2"#,
             params![
-                self.metadata_id,
+                self.book_id,
                 self.person_id
             ]
         )?;
@@ -47,7 +47,7 @@ impl MetadataPersonModel {
         Ok(())
     }
 
-    pub async fn delete_by_meta_id(id: BookId, db: &Database) -> Result<()> {
+    pub async fn delete_by_book_id(id: BookId, db: &Database) -> Result<()> {
         db.write().await.execute(
             r#"DELETE FROM metadata_person WHERE metadata_id = ?1"#,
             [ id ]

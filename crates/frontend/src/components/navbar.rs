@@ -157,7 +157,7 @@ impl NavbarModule {
                     {
                         for resp.items.iter().map(|item| {
                             html_nested! {
-                                <Link<Route> to={Route::ViewMeta { meta_id: item.id }} classes={ classes!("search-item") }>
+                                <Link<Route> to={Route::ViewBook { book_id: item.id }} classes={ classes!("search-item") }>
                                     <div class="poster max-vertical">
                                         <img src={ item.get_thumb_url() } />
                                     </div>

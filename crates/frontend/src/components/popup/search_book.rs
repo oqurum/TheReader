@@ -1,4 +1,4 @@
-use common_local::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType};
+use common_local::{api::{BookSearchResponse, PostBookBody, SearchItem}, SearchType};
 use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
@@ -16,13 +16,13 @@ pub struct Property {
 
     pub on_close: Callback<()>,
 
-    pub meta_id: BookId,
+    pub book_id: BookId,
     pub input_value: String,
 }
 
 
 pub enum Msg {
-    BookSearchResponse(String, MetadataSearchResponse),
+    BookSearchResponse(String, BookSearchResponse),
 
     SearchFor(String),
 
@@ -31,7 +31,7 @@ pub enum Msg {
 
 
 pub struct PopupSearchBook {
-    cached_posters: Option<LoadingItem<MetadataSearchResponse>>,
+    cached_posters: Option<LoadingItem<BookSearchResponse>>,
     input_value: String,
 }
 
@@ -131,7 +131,7 @@ impl Component for PopupSearchBook {
 
 impl PopupSearchBook {
     fn render_poster_container(site: String, item: &SearchItem, ctx: &Context<Self>) -> Html {
-        let meta_id = ctx.props().meta_id;
+        let book_id = ctx.props().book_id;
 
         let item = item.as_book();
 
@@ -146,9 +146,9 @@ impl PopupSearchBook {
                         let source = source.clone();
 
                         async move {
-                            request::update_metadata(
-                                meta_id,
-                                &PostMetadataBody::UpdateMetaBySource(source)
+                            request::update_book(
+                                book_id,
+                                &PostBookBody::UpdateBookBySource(source)
                             ).await;
 
                             Msg::Ignore

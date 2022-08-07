@@ -65,7 +65,7 @@ pub async fn load_file_resource(
 
 
 #[get("/file/{id}/pages/{pages}")]
-pub async fn load_file_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookPagesByIdResponse>> {
+pub async fn load_file_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetFilePagesByIdResponse>> {
 	let (file_id, chapters) = path.into_inner();
 
 	let file = FileModel::find_one_by_id(file_id, &db).await?.unwrap();
@@ -110,9 +110,9 @@ pub async fn load_file_pages(path: web::Path<(FileId, String)>, db: web::Data<Da
 
 // TODO: Add body requests for specifics
 #[get("/file/{id}")]
-pub async fn load_file(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetBookIdResponse>>> {
+pub async fn load_file(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetFileByIdResponse>>> {
 	Ok(web::Json(if let Some(file) = FileModel::find_one_by_id(*file_id, &db).await? {
-		Some(api::GetBookIdResponse {
+		Some(api::GetFileByIdResponse {
 			progress: FileProgressionModel::find_one(MemberId::none(), *file_id, &db).await?.map(|v| v.into()),
 
 			media: file.into()
@@ -184,7 +184,7 @@ pub async fn notes_file_get(
 	file_id: web::Path<FileId>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::ApiGetBookNotesByIdResponse>> {
+) -> WebResult<web::Json<api::ApiGetFileNotesByIdResponse>> {
 	let v = FileNoteModel::find_one(*file_id, member.member_id(), &db).await?;
 	Ok(web::Json(v.map(|v| v.data)))
 }

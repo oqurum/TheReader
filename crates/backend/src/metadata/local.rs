@@ -1,7 +1,7 @@
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
 use bookie::BookSearch;
-use common_local::MetadataItemCached;
+use common_local::BookItemCached;
 
 use super::{Metadata, MetadataReturned, AuthorInfo, FoundItem, FoundImageLocation};
 
@@ -53,7 +53,7 @@ impl Metadata for LocalMetadata {
 					description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
 					rating: 0.0,
 					thumb_locations: thumb_file_data.unwrap_or_default(),
-					cached: MetadataItemCached::default(),
+					cached: BookItemCached::default(),
 					available_at: None,
 					year: None,
 				}, authors, publisher)

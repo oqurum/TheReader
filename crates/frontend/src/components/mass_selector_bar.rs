@@ -31,7 +31,7 @@ pub enum Msg {
     Ignore,
     // TogglePopup,
 
-    UpdateMetaByFiles,
+    UpdateBookByFiles,
 }
 
 
@@ -57,18 +57,18 @@ impl Component for MassSelectBar {
             //     self.popup_open = !self.popup_open;
             // }
 
-            Msg::UpdateMetaByFiles => {
+            Msg::UpdateBookByFiles => {
                 self.popup_open = false;
 
-                let meta_ids = {
+                let book_ids = {
                     let items = ctx.props().editing_items.lock().unwrap();
                     items.clone()
                 };
 
                 ctx.link()
                 .send_future(async move {
-                    for meta_id in meta_ids {
-                        request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchMetaIdByFiles).await;
+                    for book_id in book_ids {
+                        request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdByFiles).await;
                     }
 
                     Msg::Ignore
@@ -95,9 +95,9 @@ impl Component for MassSelectBar {
                         </div>
                         <div class="center-content">
                             <ButtonWithPopup class="menu-list">
-                                <PopupClose class="menu-item">{ "Refresh Metadata" }</PopupClose>
+                                <PopupClose class="menu-item">{ "Refresh Book Metadata" }</PopupClose>
                                 <PopupClose class="menu-item" onclick={
-                                    on_click_prevdef(ctx.link(), Msg::UpdateMetaByFiles)
+                                    on_click_prevdef(ctx.link(), Msg::UpdateBookByFiles)
                                 }>{ "Quick Search By Files" }</PopupClose>
                                 <PopupClose class="menu-item">{ "Delete" }</PopupClose>
                             </ButtonWithPopup>

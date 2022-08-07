@@ -44,38 +44,6 @@ pub async fn get_libraries() -> ApiGetLibrariesResponse {
 }
 
 
-// Metadata
-
-pub async fn update_metadata(id: BookId, value: &PostMetadataBody) {
-    let _: Option<String> = fetch(
-        "POST",
-        &format!("/api/book/{}", id),
-        Some(value)
-    ).await.ok();
-}
-
-pub async fn get_media_view(metadata_id: BookId) -> ApiGetMetadataByIdResponse {
-    fetch(
-        "GET",
-        &format!("/api/book/{}", metadata_id),
-        Option::<&()>::None
-    ).await.unwrap()
-}
-
-
-pub async fn search_for(search: &str, search_for: SearchType) -> ApiGetMetadataSearchResponse {
-    fetch(
-        "GET",
-        &format!(
-            "/api/book/search?query={}&search_type={}",
-            urlencoding::encode(search),
-            serde_json::to_string(&search_for).unwrap().replace('"', "")
-        ),
-        Option::<&()>::None
-    ).await.unwrap()
-}
-
-
 // People
 
 pub async fn update_person(id: PersonId, value: &PostPersonBody) {
@@ -135,6 +103,37 @@ pub async fn delete_person_from_book(book_id: BookId, person_id: PersonId) -> Wr
 
 // Books
 
+
+pub async fn update_book(id: BookId, value: &PostBookBody) {
+    let _: Option<String> = fetch(
+        "POST",
+        &format!("/api/book/{}", id),
+        Some(value)
+    ).await.ok();
+}
+
+pub async fn get_media_view(book_id: BookId) -> ApiGetBookByIdResponse {
+    fetch(
+        "GET",
+        &format!("/api/book/{}", book_id),
+        Option::<&()>::None
+    ).await.unwrap()
+}
+
+
+pub async fn search_for(search: &str, search_for: SearchType) -> ApiGetBookSearchResponse {
+    fetch(
+        "GET",
+        &format!(
+            "/api/book/search?query={}&search_type={}",
+            urlencoding::encode(search),
+            serde_json::to_string(&search_for).unwrap().replace('"', "")
+        ),
+        Option::<&()>::None
+    ).await.unwrap()
+}
+
+
 pub async fn get_books(
     library: Option<LibraryId>,
     offset: Option<usize>,
@@ -149,11 +148,11 @@ pub async fn get_books(
     fetch("GET", &url, Option::<&()>::None).await.unwrap()
 }
 
-pub async fn get_book_info(id: FileId) -> ApiGetBookByIdResponse {
+pub async fn get_book_info(id: FileId) -> ApiGetFileByIdResponse {
     fetch("GET", &format!("/api/file/{}", id), Option::<&()>::None).await.unwrap()
 }
 
-pub async fn get_book_pages(book_id: FileId, start: usize, end: usize) -> ApiGetBookPagesByIdResponse {
+pub async fn get_book_pages(book_id: FileId, start: usize, end: usize) -> ApiGetFilePagesByIdResponse {
     fetch("GET", &format!("/api/file/{}/pages/{}-{}", book_id, start, end), Option::<&()>::None).await.unwrap()
 }
 
@@ -166,7 +165,7 @@ pub fn compile_book_resource_path(book_id: FileId, location: &Path, query: LoadR
     )
 }
 
-pub async fn get_posters_for_meta(id: BookId) -> ApiGetPosterByMetaIdResponse {
+pub async fn get_posters_for_book(id: BookId) -> ApiGetPosterByBookIdResponse {
     fetch(
         "GET",
         &format!("/api/book/{id}/posters"),
@@ -174,7 +173,7 @@ pub async fn get_posters_for_meta(id: BookId) -> ApiGetPosterByMetaIdResponse {
     ).await.unwrap()
 }
 
-pub async fn change_poster_for_meta(id: BookId, url_or_id: Either<String, ImageId>) {
+pub async fn change_poster_for_book(id: BookId, url_or_id: Either<String, ImageId>) {
     let _: Option<String> = fetch(
         "POST",
         &format!("/api/book/{id}/posters"),
@@ -206,7 +205,7 @@ pub async fn remove_book_progress(book_id: FileId) {
 
 // Notes
 
-pub async fn get_book_notes(book_id: FileId) -> ApiGetBookNotesByIdResponse {
+pub async fn get_book_notes(book_id: FileId) -> ApiGetFileNotesByIdResponse {
     fetch("GET", &format!("/api/file/{}/notes", book_id), Option::<&()>::None).await.ok()
 }
 

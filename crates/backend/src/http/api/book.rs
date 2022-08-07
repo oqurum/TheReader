@@ -4,7 +4,7 @@ use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, Display
 use chrono::Utc;
 use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, metadata_person::MetadataPersonModel}, http::{MemberCookie, JsonResponse}};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, book::BookModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, book_person::BookPersonModel}, http::{MemberCookie, JsonResponse}};
 
 
 
@@ -17,12 +17,12 @@ pub async fn load_book_list(
 	let (items, count) = if let Some(search) = query.search_query() {
 		let search = search?;
 
-		let count = MetadataModel::count_search_by(&search, query.library, &db).await?;
+		let count = BookModel::count_search_by(&search, query.library, &db).await?;
 
 		let items = if count == 0 {
 			Vec::new()
 		} else {
-			MetadataModel::search_by(
+			BookModel::search_by(
 				&search,
 				query.library,
 				query.offset.unwrap_or(0),
@@ -30,12 +30,12 @@ pub async fn load_book_list(
 				&db,
 			).await?
 				.into_iter()
-				.map(|meta| {
+				.map(|book| {
 					DisplayItem {
-						id: meta.id,
-						title: meta.title.or(meta.original_title).unwrap_or_default(),
-						cached: meta.cached,
-						has_thumbnail: meta.thumb_path.is_some()
+						id: book.id,
+						title: book.title.or(book.original_title).unwrap_or_default(),
+						cached: book.cached,
+						has_thumbnail: book.thumb_path.is_some()
 					}
 				})
 				.collect()
@@ -43,25 +43,25 @@ pub async fn load_book_list(
 
 		(items, count)
 	} else {
-		let count = MetadataModel::count_search_by(
+		let count = BookModel::count_search_by(
 			&api::SearchQuery { query: None, source: None },
 			query.library,
 			&db,
 		).await?;
 
-		let items = MetadataModel::find_by(
+		let items = BookModel::find_by(
 			query.library,
 			query.offset.unwrap_or(0),
 			query.limit.unwrap_or(50),
 			&db,
 		).await?
 			.into_iter()
-			.map(|meta| {
+			.map(|book| {
 				DisplayItem {
-					id: meta.id,
-					title: meta.title.or(meta.original_title).unwrap_or_default(),
-					cached: meta.cached,
-					has_thumbnail: meta.thumb_path.is_some()
+					id: book.id,
+					title: book.title.or(book.original_title).unwrap_or_default(),
+					cached: book.cached,
+					has_thumbnail: book.thumb_path.is_some()
 				}
 			})
 			.collect();
@@ -78,11 +78,11 @@ pub async fn load_book_list(
 
 #[get("/book/{id}/thumbnail")]
 async fn load_book_thumbnail(path: web::Path<BookId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	let meta_id = path.into_inner();
+	let book_id = path.into_inner();
 
-	let meta = MetadataModel::find_one_by_id(meta_id, &db).await?;
+	let book = BookModel::find_one_by_id(book_id, &db).await?;
 
-	if let Some(loc) = meta.and_then(|v| v.thumb_path.into_value()) {
+	if let Some(loc) = book.and_then(|v| v.thumb_path.into_value()) {
 		let path = crate::image::prefixhash_to_path(&loc);
 
 		Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
@@ -92,24 +92,24 @@ async fn load_book_thumbnail(path: web::Path<BookId>, db: web::Data<Database>) -
 }
 
 
-// Metadata
+// Book
 #[get("/book/{id}")]
-pub async fn load_book_info(meta_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
-	let meta = MetadataModel::find_one_by_id(*meta_id, &db).await?.unwrap();
+pub async fn load_book_info(book_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookByIdResponse>> {
+	let book = BookModel::find_one_by_id(*book_id, &db).await?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
 
-	for file in FileModel::find_by_metadata_id(meta.id, &db).await? {
+	for file in FileModel::find_by_book_id(book.id, &db).await? {
 		let prog = FileProgressionModel::find_one(MemberId::none(), file.id, &db).await?;
 
 		media.push(file.into());
 		progress.push(prog.map(|v| v.into()));
 	}
 
-	let people = PersonModel::find_by_meta_id(meta.id, &db).await?;
+	let people = PersonModel::find_by_book_id(book.id, &db).await?;
 
-	Ok(web::Json(api::MediaViewResponse {
-		metadata: meta.into(),
+	Ok(web::Json(api::GetBookResponse {
+		book: book.into(),
 		media,
 		progress,
 		people: people.into_iter()
@@ -120,12 +120,12 @@ pub async fn load_book_info(meta_id: web::Path<BookId>, db: web::Data<Database>)
 
 #[post("/book/{id}")]
 pub async fn update_book_info(
-	meta_id: web::Path<BookId>,
-	body: web::Json<api::PostMetadataBody>,
+	book_id: web::Path<BookId>,
+	body: web::Json<api::PostBookBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-	let meta_id = *meta_id;
+	let book_id = *book_id;
 
 	let member = member.fetch_or_error(&db).await?;
 
@@ -134,16 +134,16 @@ pub async fn update_book_info(
 	}
 
 	match body.into_inner() {
-		api::PostMetadataBody::AutoMatchMetaIdByFiles => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdByFiles(meta_id)));
+		api::PostBookBody::AutoMatchBookIdByFiles => {
+			queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::AutoUpdateBookIdByFiles(book_id)));
 		}
 
-		api::PostMetadataBody::AutoMatchMetaIdBySource => {
-			queue_task(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::AutoUpdateMetaIdBySource(meta_id)));
+		api::PostBookBody::AutoMatchBookIdBySource => {
+			queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::AutoUpdateBookIdBySource(book_id)));
 		}
 
-		api::PostMetadataBody::UpdateMetaBySource(source) => {
-			queue_task_priority(task::TaskUpdateInvalidMetadata::new(task::UpdatingMetadata::UpdateMetadataWithSource { meta_id, source }));
+		api::PostBookBody::UpdateBookBySource(source) => {
+			queue_task_priority(task::TaskUpdateInvalidBook::new(task::UpdatingBook::UpdateBookWithSource { book_id, source }));
 		}
 	}
 
@@ -155,8 +155,8 @@ pub async fn update_book_info(
 async fn get_book_posters(
 	path: web::Path<BookId>,
 	db: web::Data<Database>
-) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
-	let meta = MetadataModel::find_one_by_id(*path, &db).await?.unwrap();
+) -> WebResult<web::Json<api::ApiGetPosterByBookIdResponse>> {
+	let book = BookModel::find_one_by_id(*path, &db).await?.unwrap();
 
 	// TODO: For Open Library we need to go from an Edition to Work.
 	// Work is the main book. Usually consisting of more posters.
@@ -167,7 +167,7 @@ async fn get_book_posters(
 		.map(|poster| Poster {
 			id: Some(poster.image_id),
 
-			selected: poster.path == meta.thumb_path,
+			selected: poster.path == book.thumb_path,
 
 			path: poster.path.into_value()
 				.map(|v| format!("/api/image/{v}"))
@@ -180,8 +180,8 @@ async fn get_book_posters(
 	let search = crate::metadata::search_all_agents(
 		&format!(
 			"{} {}",
-			meta.title.as_deref().or(meta.title.as_deref()).unwrap_or_default(),
-			meta.cached.author.as_deref().unwrap_or_default(),
+			book.title.as_deref().or(book.title.as_deref()).unwrap_or_default(),
+			book.cached.author.as_deref().unwrap_or_default(),
 		),
 		common_local::SearchFor::Book(common_local::SearchForBooksBy::Query)
 	).await?;
@@ -208,7 +208,7 @@ async fn get_book_posters(
 
 #[post("/book/{id}/posters")]
 async fn insert_or_update_book_image(
-	metadata_id: web::Path<BookId>,
+	book_id: web::Path<BookId>,
 	body: web::Json<api::ChangePosterBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
@@ -219,7 +219,7 @@ async fn insert_or_update_book_image(
 		return Err(ApiErrorResponse::new("Not owner").into());
 	}
 
-	let mut meta = MetadataModel::find_one_by_id(*metadata_id, &db).await?.unwrap();
+	let mut book = BookModel::find_one_by_id(*book_id, &db).await?.unwrap();
 
 	match body.into_inner().url_or_id {
 		Either::Left(url) => {
@@ -230,30 +230,30 @@ async fn insert_or_update_book_image(
 
 			let image_model = store_image(resp.to_vec(), &db).await?;
 
-			meta.thumb_path = image_model.path.clone();
+			book.thumb_path = image_model.path.clone();
 
-			ImageLinkModel::new_book(image_model.id, meta.id).insert(&db).await?;
+			ImageLinkModel::new_book(image_model.id, book.id).insert(&db).await?;
 		}
 
 		Either::Right(id) => {
 			let poster = UploadedImageModel::get_by_id(id, &db).await?.unwrap();
 
-			if meta.thumb_path == poster.path {
+			if book.thumb_path == poster.path {
 				return Ok(web::Json(WrappingResponse::okay("success")));
 			}
 
-			meta.thumb_path = poster.path;
+			book.thumb_path = poster.path;
 		}
 	}
 
-	meta.update(&db).await?;
+	book.update(&db).await?;
 
 	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 
 #[get("/book/search")]
-pub async fn book_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<web::Json<api::ApiGetMetadataSearchResponse>> {
+pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<web::Json<api::ApiGetBookSearchResponse>> {
 	let search = metadata::search_all_agents(
 		&body.query,
 		match body.search_type {
@@ -263,7 +263,7 @@ pub async fn book_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<
 		}
 	).await?;
 
-	Ok(web::Json(api::MetadataSearchResponse {
+	Ok(web::Json(api::BookSearchResponse {
 		items: search.0.into_iter()
 			.map(|(a, b)| (
 				a,
@@ -319,7 +319,7 @@ async fn insert_book_person(
 		return Ok(web::Json(WrappingResponse::error("You cannot do this! No Permissions!")));
 	}
 
-	MetadataPersonModel { metadata_id: id.0, person_id: id.1 }.insert_or_ignore(&db).await?;
+	BookPersonModel { book_id: id.0, person_id: id.1 }.insert_or_ignore(&db).await?;
 
 	Ok(web::Json(WrappingResponse::okay(String::from("success"))))
 }
@@ -336,7 +336,7 @@ async fn delete_book_person(
 		return Ok(web::Json(WrappingResponse::error("You cannot do this! No Permissions!")));
 	}
 
-	MetadataPersonModel { metadata_id: id.0, person_id: id.1 }.delete(&db).await?;
+	BookPersonModel { book_id: id.0, person_id: id.1 }.delete(&db).await?;
 
 	// TODO: Return total deleted
 	Ok(web::Json(WrappingResponse::okay(DeletionResponse {

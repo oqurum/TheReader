@@ -80,7 +80,7 @@ pub struct DisplayItem {
     pub id: BookId,
 
     pub title: String,
-    pub cached: MetadataItemCached,
+    pub cached: BookItemCached,
     pub has_thumbnail: bool,
 }
 
@@ -100,8 +100,8 @@ impl PartialEq for DisplayItem {
     }
 }
 
-impl From<DisplayMetaItem> for DisplayItem {
-    fn from(val: DisplayMetaItem) -> Self {
+impl From<DisplayBookItem> for DisplayItem {
+    fn from(val: DisplayBookItem) -> Self {
         DisplayItem {
             id: val.id,
             title: val.title.or(val.original_title).unwrap_or_default(),
@@ -115,7 +115,7 @@ impl From<DisplayMetaItem> for DisplayItem {
 // Used for Media View
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct DisplayMetaItem {
+pub struct DisplayBookItem {
     pub id: BookId,
 
     pub library_id: LibraryId,
@@ -129,7 +129,7 @@ pub struct DisplayMetaItem {
     pub thumb_path: ThumbnailStore,
 
     // TODO: Make table for all tags. Include publisher in it. Remove country.
-    pub cached: MetadataItemCached,
+    pub cached: BookItemCached,
 
     #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
     pub refreshed_at: DateTime<Utc>,
@@ -146,7 +146,7 @@ pub struct DisplayMetaItem {
     pub hash: String
 }
 
-impl DisplayMetaItem {
+impl DisplayBookItem {
     pub fn get_thumb_url(&self) -> String {
         if self.thumb_path != ThumbnailStore::None {
             format!("/api/book/{}/thumbnail", self.id)
@@ -160,7 +160,7 @@ impl DisplayMetaItem {
     }
 }
 
-impl Default for DisplayMetaItem {
+impl Default for DisplayBookItem {
     fn default() -> Self {
         Self {
             id: Default::default(),
@@ -198,7 +198,7 @@ pub struct MediaItem {
     pub file_size: i64,
 
     pub library_id: LibraryId,
-    pub metadata_id: Option<BookId>,
+    pub book_id: Option<BookId>,
     pub chapter_count: usize,
 
     pub identifier: Option<String>,
@@ -268,12 +268,12 @@ pub struct BasicDirectory {
 
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct MetadataItemCached {
+pub struct BookItemCached {
     pub author: Option<String>,
     pub publisher: Option<String>,
 }
 
-impl MetadataItemCached {
+impl BookItemCached {
     pub fn as_string(&self) -> String {
         serde_urlencoded::to_string(&self).unwrap()
     }

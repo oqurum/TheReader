@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
-use common_local::{MetadataItemCached, SearchForBooksBy};
+use common_local::{BookItemCached, SearchForBooksBy};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Serialize, Deserialize};
@@ -84,7 +84,7 @@ impl Metadata for GoogleBooksMetadata {
 							description: item.volume_info.description.as_deref().map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
 							rating: item.volume_info.average_rating.unwrap_or_default(),
 							thumb_locations: vec![thumb_dl_url],
-							cached: MetadataItemCached::default(),
+							cached: BookItemCached::default(),
 							available_at: None,
 							year: None,
 						}));
@@ -144,7 +144,7 @@ impl GoogleBooksMetadata {
 				description: value.volume_info.description.as_deref().map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
 				rating: value.volume_info.average_rating.unwrap_or_default(),
 				thumb_locations: vec![thumb_dl_url],
-				cached: MetadataItemCached::default()
+				cached: BookItemCached::default()
 					.publisher_optional(value.volume_info.publisher)
 					.author_optional(value.volume_info.authors.and_then(|v| v.first().cloned())),
 				available_at: None,

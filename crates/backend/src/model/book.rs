@@ -2,7 +2,7 @@ use chrono::{Utc, DateTime, TimeZone};
 use common::{BookId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{LibraryId, MetadataItemCached, DisplayMetaItem, util::{serialize_datetime, serialize_datetime_opt}, api};
+use common_local::{LibraryId, BookItemCached, DisplayBookItem, util::{serialize_datetime, serialize_datetime_opt}, api};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -12,7 +12,7 @@ use super::{TableRow, AdvRow};
 
 
 #[derive(Debug, Clone, Serialize)]
-pub struct MetadataModel {
+pub struct BookModel {
     pub id: BookId,
 
     pub library_id: LibraryId,
@@ -28,7 +28,7 @@ pub struct MetadataModel {
     pub all_thumb_urls: Vec<String>,
 
     // TODO: Make table for all tags. Include publisher in it. Remove country.
-    pub cached: MetadataItemCached,
+    pub cached: BookItemCached,
 
     #[serde(serialize_with = "serialize_datetime")]
     pub refreshed_at: DateTime<Utc>,
@@ -46,9 +46,9 @@ pub struct MetadataModel {
 }
 
 
-impl From<MetadataModel> for DisplayMetaItem {
-    fn from(val: MetadataModel) -> Self {
-        DisplayMetaItem {
+impl From<BookModel> for DisplayBookItem {
+    fn from(val: BookModel) -> Self {
+        DisplayBookItem {
             id: val.id,
             library_id: val.library_id,
             source: val.source,
@@ -71,7 +71,7 @@ impl From<MetadataModel> for DisplayMetaItem {
 }
 
 
-impl TableRow<'_> for MetadataModel {
+impl TableRow<'_> for BookModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
             id: row.next()?,
@@ -85,7 +85,7 @@ impl TableRow<'_> for MetadataModel {
             thumb_path: ThumbnailStore::from(row.next_opt::<String>()?),
             all_thumb_urls: Vec::new(),
             cached: row.next_opt::<String>()?
-                .map(|v| MetadataItemCached::from_string(&v))
+                .map(|v| BookItemCached::from_string(&v))
                 .unwrap_or_default(),
             available_at: row.next()?,
             year: row.next()?,
@@ -99,15 +99,15 @@ impl TableRow<'_> for MetadataModel {
 }
 
 
-impl MetadataModel {
+impl BookModel {
     pub async fn insert_or_increment(&self, db: &Database) -> Result<Self> {
-        let table_meta = if self.id != 0 {
+        let table_book = if self.id != 0 {
             Self::find_one_by_id(self.id, db).await?
         } else {
             Self::find_one_by_source(&self.source, db).await?
         };
 
-        if table_meta.is_none() {
+        if table_book.is_none() {
             db.write().await
             .execute(r#"
                 INSERT INTO metadata_item (
@@ -143,7 +143,7 @@ impl MetadataModel {
 			)?;
 		}
 
-		Ok(table_meta.unwrap())
+		Ok(table_book.unwrap())
 	}
 
 	pub async fn update(&self, db: &Database) -> Result<()> {
@@ -173,8 +173,8 @@ impl MetadataModel {
 	}
 
 	pub async fn delete_or_decrement(id: BookId, db: &Database) -> Result<()> {
-		if let Some(meta) = Self::find_one_by_id(id, db).await? {
-			if meta.file_item_count < 1 {
+		if let Some(model) = Self::find_one_by_id(id, db).await? {
+			if model.file_item_count < 1 {
 				db.write().await
 				.execute(
 					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
@@ -193,8 +193,8 @@ impl MetadataModel {
 	}
 
 	pub async fn decrement(id: BookId, db: &Database) -> Result<()> {
-		if let Some(meta) = Self::find_one_by_id(id, db).await? {
-			if meta.file_item_count > 0 {
+		if let Some(model) = Self::find_one_by_id(id, db).await? {
+			if model.file_item_count > 0 {
 				db.write().await
 				.execute(
 					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
@@ -221,7 +221,7 @@ impl MetadataModel {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM metadata_item WHERE source = ?1"#,
 			params![source.to_string()],
-			|v| MetadataModel::from_row(v)
+			|v| BookModel::from_row(v)
 		).optional()?)
 	}
 
@@ -229,7 +229,7 @@ impl MetadataModel {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM metadata_item WHERE id = ?1"#,
 			params![id],
-			|v| MetadataModel::from_row(v)
+			|v| BookModel::from_row(v)
 		).optional()?)
 	}
 
@@ -247,7 +247,7 @@ impl MetadataModel {
 
 		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {} LIMIT ?1 OFFSET ?2"#, lib_where))?;
 
-		let map = conn.query_map([limit, offset], |v| MetadataModel::from_row(v))?;
+		let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
@@ -323,7 +323,7 @@ impl MetadataModel {
 
 		let mut conn = this.prepare(&sql)?;
 
-		let map = conn.query_map([limit, offset], |v| MetadataModel::from_row(v))?;
+		let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
 
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}

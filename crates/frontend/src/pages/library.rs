@@ -94,31 +94,31 @@ impl Component for LibraryPage {
             Msg::HandleWebsocket(value) => {
                 match value {
                     WebsocketNotification::TaskStart { id, type_of } => {
-                        if let TaskType::UpdatingMetadata(meta_id) = type_of {
-                            self.task_items.insert(id, meta_id);
-                            self.task_items_updating.insert(meta_id);
+                        if let TaskType::UpdatingBook(book_id) = type_of {
+                            self.task_items.insert(id, book_id);
+                            self.task_items_updating.insert(book_id);
                         }
                     }
 
                     WebsocketNotification::TaskEnd(id) => {
-                        if let Some(metadata_id) = self.task_items.get(&id).copied() {
+                        if let Some(book_id) = self.task_items.get(&id).copied() {
                             ctx.link()
                             .send_future(async move {
-                                Msg::BookItemResults(id, request::get_media_view(metadata_id).await.metadata.into())
+                                Msg::BookItemResults(id, request::get_media_view(book_id).await.book.into())
                             });
                         }
                     }
                 }
             }
 
-            Msg::BookItemResults(unique_id, meta) => {
-                if let Some(meta_id) = self.task_items.remove(&unique_id) {
-                    self.task_items_updating.remove(&meta_id);
+            Msg::BookItemResults(unique_id, book_item) => {
+                if let Some(book_id) = self.task_items.remove(&unique_id) {
+                    self.task_items_updating.remove(&book_id);
                 }
 
                 if let Some(items) = self.media_items.as_mut() {
-                    if let Some(current_item) = items.iter_mut().find(|v| v.id == meta.id) {
-                        *current_item = meta;
+                    if let Some(current_item) = items.iter_mut().find(|v| v.id == book_item.id) {
+                        *current_item = book_item;
                     }
                 }
             }
@@ -212,19 +212,19 @@ impl Component for LibraryPage {
                     }
                 }
 
-                PosterItem::UpdateMetaBySource(meta_id) => {
+                PosterItem::UpdateBookBySource(book_id) => {
                     ctx.link()
                     .send_future(async move {
-                        request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchMetaIdBySource).await;
+                        request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdBySource).await;
 
                         Msg::Ignore
                     });
                 }
 
-                PosterItem::UpdateMetaByFiles(meta_id) => {
+                PosterItem::UpdateBookByFiles(book_id) => {
                     ctx.link()
                     .send_future(async move {
-                        request::update_metadata(meta_id, &api::PostMetadataBody::AutoMatchMetaIdByFiles).await;
+                        request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdByFiles).await;
 
                         Msg::Ignore
                     });
@@ -295,7 +295,7 @@ impl LibraryPage {
                         {
                             if let Some(overlay_type) = self.media_popup.as_ref() {
                                 match overlay_type {
-                                    DisplayOverlay::Info { meta_id: _ } => {
+                                    DisplayOverlay::Info { book_id: _ } => {
                                         html! {
                                             <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
                                                 <h1>{"Info"}</h1>
@@ -303,23 +303,23 @@ impl LibraryPage {
                                         }
                                     }
 
-                                    &DisplayOverlay::More { meta_id, mouse_pos } => {
+                                    &DisplayOverlay::More { book_id, mouse_pos } => {
                                         html! {
                                             <Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
                                                 <div class="menu-list">
                                                     <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
                                                     <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaBySource(meta_id)))
+                                                        on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateBookBySource(book_id)))
                                                     }>{ "Refresh Metadata" }</PopupClose>
                                                     <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { meta_id, input_value: None })))
+                                                        on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForBook { book_id, input_value: None })))
                                                     }>{ "Search For Book" }</PopupClose>
                                                     <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateMetaByFiles(meta_id)))
+                                                        on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdateBookByFiles(book_id)))
                                                     }>{ "Quick Search By Files" }</PopupClose>
                                                     <PopupClose class="menu-item" >{ "Delete" }</PopupClose>
                                                     <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { meta_id })))
+                                                        on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { book_id })))
                                                     }>{ "Show Info" }</PopupClose>
                                                 </div>
                                             </Popup>
@@ -336,12 +336,12 @@ impl LibraryPage {
                                         }
                                     }
 
-                                    &DisplayOverlay::SearchForBook { meta_id, ref input_value } => {
+                                    &DisplayOverlay::SearchForBook { book_id, ref input_value } => {
                                         let input_value = if let Some(v) = input_value {
                                             v.to_string()
                                         } else {
                                             let items = self.media_items.as_ref().unwrap();
-                                            let item = items.iter().find(|v| v.id == meta_id).unwrap();
+                                            let item = items.iter().find(|v| v.id == book_id).unwrap();
 
                                             format!("{} {}", item.title.clone(), item.cached.author.as_deref().unwrap_or_default())
                                         };
@@ -349,7 +349,7 @@ impl LibraryPage {
                                         let input_value = input_value.trim().to_string();
 
                                         html! {
-                                            <PopupSearchBook {meta_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
+                                            <PopupSearchBook {book_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
                                         }
                                     }
                                 }
@@ -442,7 +442,7 @@ impl Component for MediaItem {
 
         let library_list_ref = library_list_ref.clone();
 
-        let meta_id = item.id;
+        let book_id = item.id;
 
         let on_click_more = ctx.link().callback(move |e: MouseEvent| {
             e.prevent_default();
@@ -450,11 +450,11 @@ impl Component for MediaItem {
 
             let scroll = library_list_ref.cast::<HtmlElement>().unwrap().scroll_top();
 
-            Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { meta_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
+            Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { book_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
         });
 
         html! {
-            <Link<Route> to={Route::ViewMeta { meta_id: item.id }} classes={ classes!("book-list-item") }>
+            <Link<Route> to={Route::ViewBook { book_id: item.id }} classes={ classes!("book-list-item") }>
                 <div class="poster">
                     <div class="top-left">
                         <input
@@ -473,7 +473,7 @@ impl Component for MediaItem {
 
                                 input.set_checked(value);
 
-                                Msg::AddOrRemoveItemFromEditing(meta_id, value)
+                                Msg::AddOrRemoveItemFromEditing(book_id, value)
                             })}
                         />
                     </div>
@@ -486,7 +486,7 @@ impl Component for MediaItem {
                             e.stop_propagation();
 
                             async move {
-                                Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(meta_id).await))))
+                                Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(book_id).await))))
                             }
                         })} title="More Options">{ "edit" }</span>
                     </div>
@@ -527,27 +527,27 @@ pub enum PosterItem {
     ShowPopup(DisplayOverlay),
 
     // Popup Events
-    UpdateMetaBySource(BookId),
+    UpdateBookBySource(BookId),
 
     // Popup Events
-    UpdateMetaByFiles(BookId),
+    UpdateBookByFiles(BookId),
 }
 
 #[derive(Clone)]
 pub enum DisplayOverlay {
     Info {
-        meta_id: BookId
+        book_id: BookId
     },
 
-    Edit(Box<api::MediaViewResponse>),
+    Edit(Box<api::GetBookResponse>),
 
     More {
-        meta_id: BookId,
+        book_id: BookId,
         mouse_pos: (i32, i32)
     },
 
     SearchForBook {
-        meta_id: BookId,
+        book_id: BookId,
         input_value: Option<String>,
     },
 }
@@ -555,11 +555,11 @@ pub enum DisplayOverlay {
 impl PartialEq for DisplayOverlay {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Info { meta_id: l_id }, Self::Info { meta_id: r_id }) => l_id == r_id,
-            (Self::More { meta_id: l_id, .. }, Self::More { meta_id: r_id, .. }) => l_id == r_id,
+            (Self::Info { book_id: l_id }, Self::Info { book_id: r_id }) => l_id == r_id,
+            (Self::More { book_id: l_id, .. }, Self::More { book_id: r_id, .. }) => l_id == r_id,
             (
-                Self::SearchForBook { meta_id: l_id, input_value: l_val, .. },
-                Self::SearchForBook { meta_id: r_id, input_value: r_val, .. }
+                Self::SearchForBook { book_id: l_id, input_value: l_val, .. },
+                Self::SearchForBook { book_id: r_id, input_value: r_val, .. }
             ) => l_id == r_id && l_val == r_val,
 
             _ => false

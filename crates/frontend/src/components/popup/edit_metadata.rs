@@ -1,5 +1,5 @@
 use common::{component::{multi_select::{MultiSelectItem, MultiSelectModule, MultiSelectEvent}, popup::{Popup, PopupType}}, PersonId, Either};
-use common_local::{api::{MediaViewResponse, GetPostersResponse, ApiGetPeopleResponse}, Person};
+use common_local::{api::{GetBookResponse, GetPostersResponse, ApiGetPeopleResponse}, Person};
 use gloo_timers::callback::Timeout;
 use yew::prelude::*;
 
@@ -21,7 +21,7 @@ pub struct Property {
 
     pub on_close: Callback<()>,
 
-    pub media_resp: MediaViewResponse,
+    pub media_resp: GetBookResponse,
 }
 
 
@@ -93,11 +93,11 @@ impl Component for PopupEditMetadata {
             }
 
             Msg::UpdatedPoster => {
-                let meta_id = ctx.props().media_resp.metadata.id;
+                let meta_id = ctx.props().media_resp.book.id;
 
                 ctx.link()
                 .send_future(async move {
-                    Msg::RetrievePostersResponse(request::get_posters_for_meta(meta_id).await)
+                    Msg::RetrievePostersResponse(request::get_posters_for_book(meta_id).await)
                 });
 
                 return false;
@@ -113,7 +113,7 @@ impl Component for PopupEditMetadata {
             }
 
             Msg::TogglePerson { toggle, id } => {
-                let book_id = ctx.props().media_resp.metadata.id;
+                let book_id = ctx.props().media_resp.book.id;
 
                 if toggle {
                     if let Some(person) = self.person_search_cache.iter().find(|v| v.id == id) {
@@ -174,11 +174,11 @@ impl PopupEditMetadata {
             TabDisplay::General => self.render_tab_general(ctx),
             TabDisplay::Poster => {
                 if self.cached_posters.is_none() {
-                    let metadata_id = ctx.props().media_resp.metadata.id;
+                    let metadata_id = ctx.props().media_resp.book.id;
 
                     ctx.link()
                     .send_future(async move {
-                        Msg::RetrievePostersResponse(request::get_posters_for_meta(metadata_id).await)
+                        Msg::RetrievePostersResponse(request::get_posters_for_book(metadata_id).await)
                     });
                 }
 
@@ -196,17 +196,17 @@ impl PopupEditMetadata {
             <div class="content">
                 <div class="form-container">
                     <label for="input-title">{ "Title" }</label>
-                    <input type="text" id="input-title" value={ resp.metadata.title.clone().unwrap_or_default() } />
+                    <input type="text" id="input-title" value={ resp.book.title.clone().unwrap_or_default() } />
                 </div>
 
                 <div class="form-container">
                     <label for="input-orig-title">{ "Original Title" }</label>
-                    <input type="text" id="input-orig-title" value={ resp.metadata.original_title.clone().unwrap_or_default() } />
+                    <input type="text" id="input-orig-title" value={ resp.book.original_title.clone().unwrap_or_default() } />
                 </div>
 
                 <div class="form-container">
                     <label for="input-descr">{ "Description" }</label>
-                    <textarea type="text" id="input-descr" rows="5" value={ resp.metadata.description.clone().unwrap_or_default() } />
+                    <textarea type="text" id="input-descr" rows="5" value={ resp.book.description.clone().unwrap_or_default() } />
                 </div>
 
                 <div class="form-container">
@@ -258,7 +258,7 @@ impl PopupEditMetadata {
                     <div class="poster-list">
                         {
                             for resp.items.iter().map(|poster| {
-                                let meta_id = ctx.props().media_resp.metadata.id;
+                                let meta_id = ctx.props().media_resp.book.id;
                                 let url_or_id = poster.id.map(Either::Right).unwrap_or_else(|| Either::Left(poster.path.clone()));
                                 let is_selected = poster.selected;
 
@@ -272,7 +272,7 @@ impl PopupEditMetadata {
                                                 if is_selected {
                                                     Msg::Ignore
                                                 } else {
-                                                    request::change_poster_for_meta(meta_id, url_or_id).await;
+                                                    request::change_poster_for_book(meta_id, url_or_id).await;
 
                                                     Msg::UpdatedPoster
                                                 }

@@ -102,8 +102,8 @@ pub enum Route {
     #[at("/library/:library_id")]
     ViewLibrary { library_id: LibraryId },
 
-    #[at("/view/:meta_id")]
-    ViewMeta { meta_id: BookId },
+    #[at("/view/:book_id")]
+    ViewBook { book_id: BookId },
 
     #[at("/read/:book_id")]
     ReadBook { book_id: FileId },
@@ -143,8 +143,8 @@ fn switch(route: &Route) -> Html {
             html! { <pages::LibraryPage library_id={library_id}  /> }
         }
 
-        Route::ViewMeta { meta_id } => {
-            html! { <pages::MediaView id={meta_id}  /> }
+        Route::ViewBook { book_id } => {
+            html! { <pages::MediaView id={book_id}  /> }
         }
 
         Route::ReadBook { book_id } => {

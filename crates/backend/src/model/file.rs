@@ -6,7 +6,7 @@ use common_local::{LibraryId, util::serialize_datetime, FileId, MediaItem};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow, metadata::MetadataModel};
+use super::{TableRow, AdvRow, book::BookModel};
 
 
 
@@ -21,7 +21,7 @@ pub struct NewFileModel {
     pub file_size: i64,
 
     pub library_id: LibraryId,
-    pub metadata_id: Option<BookId>,
+    pub book_id: Option<BookId>,
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
@@ -43,7 +43,7 @@ pub struct FileModel {
     pub file_size: i64,
 
     pub library_id: LibraryId,
-    pub metadata_id: Option<BookId>,
+    pub book_id: Option<BookId>,
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
@@ -68,7 +68,7 @@ impl From<FileModel> for MediaItem {
             file_size: file.file_size,
 
             library_id: file.library_id,
-            metadata_id: file.metadata_id,
+            book_id: file.book_id,
             chapter_count: file.chapter_count as usize,
 
             identifier: file.identifier,
@@ -92,7 +92,7 @@ impl TableRow<'_> for FileModel {
             file_size: row.next()?,
 
             library_id: row.next()?,
-            metadata_id: row.next()?,
+            book_id: row.next()?,
             chapter_count: row.next()?,
 
             identifier: row.next()?,
@@ -115,7 +115,7 @@ impl NewFileModel {
             file_type: self.file_type,
             file_size: self.file_size,
             library_id: self.library_id,
-            metadata_id: self.metadata_id,
+            book_id: self.book_id,
             chapter_count: self.chapter_count,
             identifier: self.identifier,
             modified_at: self.modified_at,
@@ -135,7 +135,7 @@ impl NewFileModel {
             &self.path, &self.file_type, &self.file_name, self.file_size,
             self.modified_at.timestamp_millis(), self.accessed_at.timestamp_millis(), self.created_at.timestamp_millis(),
             self.identifier.as_deref(),
-            self.library_id, self.metadata_id, self.chapter_count
+            self.library_id, self.book_id, self.chapter_count
         ])?;
 
         Ok(self.into_file(FileId::from(conn.last_insert_rowid() as usize)))
@@ -158,7 +158,7 @@ impl FileModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_with_metadata_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<FileWithMetadata>> {
+    pub async fn find_with_book_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<FileWithBook>> {
         let this = db.read().await;
 
         let mut conn = this.prepare(r#"
@@ -169,12 +169,12 @@ impl FileModel {
             OFFSET ?3
         "#)?;
 
-        let map = conn.query_map([library, limit, offset], |v| FileWithMetadata::from_row(v))?;
+        let map = conn.query_map([library, limit, offset], |v| FileWithBook::from_row(v))?;
 
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_by_missing_metadata(db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_missing_book(db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id = 0 OR metadata_id = NULL")?;
@@ -192,20 +192,20 @@ impl FileModel {
         ).optional()?)
     }
 
-    pub async fn find_one_by_id_with_metadata(id: FileId, db: &Database) -> Result<Option<FileWithMetadata>> {
+    pub async fn find_one_by_id_with_book(id: FileId, db: &Database) -> Result<Option<FileWithBook>> {
         Ok(db.read().await.query_row(
             r#"SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id WHERE file.id = ?1"#,
             [id],
-            |v| FileWithMetadata::from_row(v)
+            |v| FileWithBook::from_row(v)
         ).optional()?)
     }
 
-    pub async fn find_by_metadata_id(metadata_id: BookId, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_book_id(book_id: BookId, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id=?1")?;
 
-        let map = conn.query_map([metadata_id], |v| Self::from_row(v))?;
+        let map = conn.query_map([book_id], |v| Self::from_row(v))?;
 
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
@@ -214,19 +214,19 @@ impl FileModel {
         Ok(db.read().await.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
     }
 
-    pub async fn update_metadata_id(file_id: FileId, metadata_id: BookId, db: &Database) -> Result<()> {
+    pub async fn update_book_id(file_id: FileId, book_id: BookId, db: &Database) -> Result<()> {
         db.write().await
         .execute(r#"UPDATE file SET metadata_id = ?1 WHERE id = ?2"#,
-            params![metadata_id, file_id]
+            params![book_id, file_id]
         )?;
 
         Ok(())
     }
 
-    pub async fn transfer_metadata_id(old_metadata_id: BookId, new_metadata_id: BookId, db: &Database) -> Result<usize> {
+    pub async fn transfer_book_id(old_book_id: BookId, new_book_id: BookId, db: &Database) -> Result<usize> {
         Ok(db.write().await
         .execute(r#"UPDATE file SET metadata_id = ?1 WHERE metadata_id = ?2"#,
-            params![new_metadata_id, old_metadata_id]
+            params![new_book_id, old_book_id]
         )?)
     }
 }
@@ -234,19 +234,19 @@ impl FileModel {
 
 
 
-pub struct FileWithMetadata {
+pub struct FileWithBook {
     pub file: FileModel,
-    pub meta: Option<MetadataModel>
+    pub book: Option<BookModel>
 }
 
-impl TableRow<'_> for FileWithMetadata {
+impl TableRow<'_> for FileWithBook {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
             file: FileModel::create(row)?,
 
-            meta: row.has_next()
+            book: row.has_next()
                 .ok().filter(|v| *v)
-                .map(|_| MetadataModel::create(row))
+                .map(|_| BookModel::create(row))
                 .transpose()?
         })
     }

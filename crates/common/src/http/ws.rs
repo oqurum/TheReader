@@ -60,7 +60,7 @@ impl WebsocketNotification {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskType {
-    UpdatingMetadata(BookId),
+    UpdatingBook(BookId),
 
     TempRustWarningFix,
 }

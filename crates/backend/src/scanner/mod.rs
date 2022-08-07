@@ -1,6 +1,6 @@
 use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 
-use crate::{Result, database::Database, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, metadata::MetadataModel, file::{NewFileModel, FileModel}, metadata_person::MetadataPersonModel}};
+use crate::{Result, database::Database, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::{NewFileModel, FileModel}, book_person::BookPersonModel}};
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use tokio::fs;
@@ -68,7 +68,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 						file_size: file_size as i64,
 
 						library_id: library.id,
-						metadata_id: None,
+						book_id: None,
 						chapter_count,
 
 						identifier,
@@ -83,7 +83,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 						let file_id = file.id;
 
 						// TODO: Run Concurrently.
-						if let Err(e) = file_match_or_create_metadata(file, db).await {
+						if let Err(e) = file_match_or_create_book(file, db).await {
 							eprintln!("File #{file_id} file_match_or_create_metadata Error: {e}");
 						}
 					}
@@ -100,8 +100,8 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 }
 
 
-async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result<()> {
-	if file.metadata_id.is_none() {
+async fn file_match_or_create_book(file: FileModel, db: &Database) -> Result<()> {
+	if file.book_id.is_none() {
 		let file_id = file.id;
 
 		let meta = get_metadata_from_files(&[file]).await?;
@@ -116,24 +116,24 @@ async fn file_match_or_create_metadata(file: FileModel, db: &Database) -> Result
 				item.download(db).await?;
 			}
 
-			let mut meta: MetadataModel = meta.into();
+			let mut book_model: BookModel = meta.into();
 
 			// TODO: Store Publisher inside Database
-			meta.cached = meta.cached.publisher_optional(publisher).author_optional(main_author);
+			book_model.cached = book_model.cached.publisher_optional(publisher).author_optional(main_author);
 
-			let meta = meta.insert_or_increment(db).await?;
-			FileModel::update_metadata_id(file_id, meta.id, db).await?;
+			let book_model = book_model.insert_or_increment(db).await?;
+			FileModel::update_book_id(file_id, book_model.id, db).await?;
 
-			if let Some(thumb_path) = meta.thumb_path.as_value() {
+			if let Some(thumb_path) = book_model.thumb_path.as_value() {
 				if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-					ImageLinkModel::new_book(image.id, meta.id).insert(db).await?;
+					ImageLinkModel::new_book(image.id, book_model.id).insert(db).await?;
 				}
 			}
 
 
 			for person_id in author_ids {
-				MetadataPersonModel {
-					metadata_id: meta.id,
+				BookPersonModel {
+					book_id: book_model.id,
 					person_id,
 				}.insert_or_ignore(db).await?;
 			}

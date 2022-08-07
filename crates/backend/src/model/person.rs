@@ -116,7 +116,7 @@ impl PersonModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_by_meta_id(id: BookId, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_book_id(id: BookId, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare(r#"

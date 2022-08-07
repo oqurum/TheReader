@@ -3,36 +3,30 @@ use std::collections::HashMap;
 use common::{ImageId, PersonId, Either, Source, api::QueryListResponse};
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayMetaItem, Person, SearchType, Member, Poster, Result, LibraryId};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId};
 
 
 // API Routes
 
-// BOOKS
-/// GET     /books
-pub type ApiGetBookListResponse = self::GetBookListResponse;
+// Files
 /// GET     /file/{id}
-pub type ApiGetBookByIdResponse = Option<self::GetBookIdResponse>;
+pub type ApiGetFileByIdResponse = Option<self::GetFileByIdResponse>;
 /// GET     /file/{id}/res/{tail:.*}
-pub type ApiGetBookResourceByIdResponse = String;
+pub type ApiGetFileResourceByIdResponse = String;
 /// GET     /file/{id}/pages/{pages}
-pub type ApiGetBookPagesByIdResponse = self::GetChaptersResponse;
+pub type ApiGetFilePagesByIdResponse = self::GetChaptersResponse;
 /// GET     /file/{id}/debug/{tail:.*}
-pub type ApiGetBookDebugByIdResponse = String;
+pub type ApiGetFileDebugByIdResponse = String;
 /// POST    /file/{id}/progress
-pub type ApiPostBookProgressByIdResponse = ();
+pub type ApiPostFileProgressByIdResponse = ();
 /// DELETE  /file/{id}/progress
-pub type ApiDeleteBookProgressByIdResponse = ();
+pub type ApiDeleteFileProgressByIdResponse = ();
 /// GET     /file/{id}/notes
-pub type ApiGetBookNotesByIdResponse = Option<String>;
+pub type ApiGetFileNotesByIdResponse = Option<String>;
 /// POST    /file/{id}/notes
-pub type ApiPostBookNotesByIdResponse = ();
+pub type ApiPostFileNotesByIdResponse = ();
 /// DELETE  /file/{id}/notes
-pub type ApiDeleteBookNotesByIdResponse = ();
-/// GET     /file/{id}/posters
-pub type ApiGetPosterByMetaIdResponse = self::GetPostersResponse;
-/// POST    /file/{id}/posters
-pub type ApiPostPosterByMetaIdResponse = ();
+pub type ApiDeleteFileNotesByIdResponse = ();
 
 // IMAGES
 /// GET     /image/{type}/{id}
@@ -46,16 +40,22 @@ pub type ApiGetLibrariesResponse = self::GetLibrariesResponse;
 /// GET     /member
 pub type ApiGetMemberSelfResponse = self::GetMemberSelfResponse;
 
-// Metadata
+// Books
+/// GET     /books
+pub type ApiGetBookListResponse = self::GetBookListResponse;
+/// GET     /book/{id}/posters
+pub type ApiGetPosterByBookIdResponse = self::GetPostersResponse;
+/// POST    /book/{id}/posters
+pub type ApiPostPosterByBookIdResponse = String;
 // TODO: Remove? Use /image/{type}/{id}?
 /// GET     /book/{id}/thumbnail
-pub type ApiGetMetadataThumbnailResponse = Vec<u8>;
+pub type ApiGetBookThumbnailResponse = Vec<u8>;
 /// GET     /book/{id}
-pub type ApiGetMetadataByIdResponse = self::MediaViewResponse;
+pub type ApiGetBookByIdResponse = self::GetBookResponse;
 /// POST    /book/{id}
-pub type ApiPostUpdateMetadataResponse = ();
+pub type ApiPostUpdateBookResponse = ();
 /// GET     /book/search
-pub type ApiGetMetadataSearchResponse = self::MetadataSearchResponse;
+pub type ApiGetBookSearchResponse = self::BookSearchResponse;
 
 // Options
 /// GET     /options
@@ -126,7 +126,7 @@ pub struct LoadResourceQuery {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GetBookIdResponse {
+pub struct GetFileByIdResponse {
     pub media: MediaItem,
     pub progress: Option<Progression>
 }
@@ -215,8 +215,8 @@ pub struct ModifyOptionsBody {
 // Metadata
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct MediaViewResponse {
-    pub metadata: DisplayMetaItem,
+pub struct GetBookResponse {
+    pub book: DisplayBookItem,
     pub media: Vec<MediaItem>,
     pub progress: Vec<Option<Progression>>,
     pub people: Vec<Person>,
@@ -224,22 +224,22 @@ pub struct MediaViewResponse {
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum PostMetadataBody {
-    AutoMatchMetaIdBySource,
-    AutoMatchMetaIdByFiles,
+pub enum PostBookBody {
+    AutoMatchBookIdBySource,
+    AutoMatchBookIdByFiles,
 
-    UpdateMetaBySource(Source)
+    UpdateBookBySource(Source)
 }
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct GetMetadataSearch {
+pub struct GetBookSearch {
     pub query: String,
     pub search_type: SearchType,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MetadataSearchResponse {
+pub struct BookSearchResponse {
     pub items: HashMap<String, Vec<SearchItem>>
 }
 

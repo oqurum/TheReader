@@ -3,7 +3,7 @@ use common_local::api;
 use chrono::Utc;
 use common::{PersonId, Either, api::{ApiErrorResponse, WrappingResponse}};
 
-use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{metadata_person::MetadataPersonModel, person::PersonModel, person_alt::PersonAltModel}, http::{MemberCookie, JsonResponse}};
+use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}, http::{MemberCookie, JsonResponse}};
 
 
 // Get List Of People and Search For People
@@ -50,9 +50,9 @@ pub async fn load_author_list(
 // Person Thumbnail
 #[get("/person/{id}/thumbnail")]
 async fn load_person_thumbnail(person_id: web::Path<PersonId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-	let meta = PersonModel::find_one_by_id(*person_id, &db).await?;
+	let model = PersonModel::find_one_by_id(*person_id, &db).await?;
 
-	if let Some(loc) = meta.and_then(|v| v.thumb_url.into_value()) {
+	if let Some(loc) = model.and_then(|v| v.thumb_url.into_value()) {
 		let path = crate::image::prefixhash_to_path(&loc);
 
 		Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
@@ -105,15 +105,15 @@ pub async fn update_person_data(
 				person_id: into_person.id,
 			}.insert(&db).await;
 
-			// Transfer Old Person Metadata to New Person
-			for met_per in MetadataPersonModel::find_by(Either::Right(old_person.id), &db).await? {
-				let _ = MetadataPersonModel {
-					metadata_id: met_per.metadata_id,
+			// Transfer Old Person Book to New Person
+			for met_per in BookPersonModel::find_by(Either::Right(old_person.id), &db).await? {
+				let _ = BookPersonModel {
+					book_id: met_per.book_id,
 					person_id: into_person.id,
 				}.insert_or_ignore(&db).await;
 			}
 
-			MetadataPersonModel::delete_by_person_id(old_person.id, &db).await?;
+			BookPersonModel::delete_by_person_id(old_person.id, &db).await?;
 
 			if into_person.birth_date.is_none() {
 				into_person.birth_date = old_person.birth_date;
@@ -135,7 +135,7 @@ pub async fn update_person_data(
 			// Delete Old Person
 			PersonModel::delete_by_id(old_person.id, &db).await?;
 
-			// TODO: Update Metadata cache
+			// TODO: Update Book cache
 		}
 	}
 

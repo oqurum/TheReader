@@ -19,7 +19,7 @@ pub enum Msg {
 
     // Results
     PeopleListResults(api::GetPeopleResponse),
-    PersonUpdateSearchResults(String, api::MetadataSearchResponse),
+    PersonUpdateSearchResults(String, api::BookSearchResponse),
     PersonCombineSearchResults(String, Vec<Person>),
 
     // Events
@@ -487,7 +487,7 @@ pub enum DisplayOverlay {
     SearchForPerson {
         person_id: PersonId,
         input_value: Option<String>,
-        response: Option<api::MetadataSearchResponse>
+        response: Option<api::BookSearchResponse>
     },
 
     CombinePersonWith {
