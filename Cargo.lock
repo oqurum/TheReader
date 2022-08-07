@@ -795,6 +795,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "thiserror",
+ "validator",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

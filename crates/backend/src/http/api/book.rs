@@ -1,10 +1,10 @@
-use actix_web::{get, web, HttpResponse, post};
+use actix_web::{get, web, HttpResponse, post, delete};
 
 use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, MetadataId, DisplayItem};
 use chrono::Utc;
-use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse}};
+use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH};
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel, file::FileModel, progress::FileProgressionModel, person::PersonModel}, http::{MemberCookie, JsonResponse}};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, metadata_person::MetadataPersonModel}, http::{MemberCookie, JsonResponse}};
 
 
 
@@ -169,7 +169,9 @@ async fn get_book_posters(
 
 			selected: poster.path == meta.thumb_path,
 
-			path: poster.path.as_url(),
+			path: poster.path.to_optional_string()
+				.map(|v| format!("/api/image/{v}"))
+				.unwrap_or_else(|| String::from(MISSING_THUMB_PATH)),
 
 			created_at: poster.created_at,
 		})
@@ -300,3 +302,45 @@ pub async fn book_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<
 			.collect()
 	}))
 }
+
+
+
+
+
+#[post("/book/{book_id}/person/{person_id}")]
+async fn insert_book_person(
+	id: web::Path<(MetadataId, PersonId)>,
+	member: MemberCookie,
+	db: web::Data<Database>,
+) -> WebResult<JsonResponse<String>> {
+	let member = member.fetch_or_error(&db).await?;
+
+	if !member.permissions.is_owner() {
+		return Ok(web::Json(WrappingResponse::error("You cannot do this! No Permissions!")));
+	}
+
+	MetadataPersonModel { metadata_id: id.0, person_id: id.1 }.insert_or_ignore(&db).await?;
+
+	Ok(web::Json(WrappingResponse::okay(String::from("success"))))
+}
+
+#[delete("/book/{book_id}/person/{person_id}")]
+async fn delete_book_person(
+	id: web::Path<(MetadataId, PersonId)>,
+	member: MemberCookie,
+	db: web::Data<Database>,
+) -> WebResult<JsonResponse<DeletionResponse>> {
+	let member = member.fetch_or_error(&db).await?;
+
+	if !member.permissions.is_owner() {
+		return Ok(web::Json(WrappingResponse::error("You cannot do this! No Permissions!")));
+	}
+
+	MetadataPersonModel { metadata_id: id.0, person_id: id.1 }.delete(&db).await?;
+
+	// TODO: Return total deleted
+	Ok(web::Json(WrappingResponse::okay(DeletionResponse {
+		total: 1,
+	})))
+}
+

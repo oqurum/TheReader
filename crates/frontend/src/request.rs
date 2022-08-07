@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse}};
+use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse, DeletionResponse}, BookId};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use wasm_bindgen::{JsValue, JsCast};
@@ -27,27 +27,6 @@ pub async fn finish_setup(value: SetupConfig) -> WrappingResponse<String> {
         "/api/setup",
         Some(&value),
     ).await.unwrap_or_else(def)
-}
-
-
-// Image
-
-pub async fn get_posters_for_meta(id: MetadataId) -> ApiGetPosterByMetaIdResponse {
-    fetch(
-        "GET",
-        &format!("/api/file/{id}/posters"),
-        Option::<&()>::None
-    ).await.unwrap()
-}
-
-pub async fn change_poster_for_meta(id: MetadataId, url_or_id: Either<String, ImageId>) {
-    let _: Option<String> = fetch(
-        "POST",
-        &format!("/api/file/{id}/posters"),
-        Some(&ChangePosterBody {
-            url_or_id
-        })
-    ).await.ok();
 }
 
 
@@ -99,7 +78,6 @@ pub async fn search_for(search: &str, search_for: SearchType) -> ApiGetMetadataS
 
 // People
 
-
 pub async fn update_person(id: PersonId, value: &PostPersonBody) {
     let _: Option<String> = fetch(
         "POST",
@@ -136,6 +114,25 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
 }
 
 
+// Person Book Link
+
+pub async fn add_person_to_book(book_id: MetadataId, person_id: PersonId) -> WrappingResponse<String> {
+    fetch(
+        "POST",
+        &format!("/api/book/{book_id}/person/{person_id}"),
+        Option::<&()>::None
+    ).await.unwrap_or_else(def)
+}
+
+pub async fn delete_person_from_book(book_id: MetadataId, person_id: PersonId) -> WrappingResponse<DeletionResponse> {
+    fetch(
+        "DELETE",
+        &format!("/api/book/{book_id}/person/{person_id}"),
+        Option::<&()>::None
+    ).await.unwrap_or_else(def)
+}
+
+
 // Books
 
 pub async fn get_books(
@@ -167,6 +164,24 @@ pub fn compile_book_resource_path(book_id: FileId, location: &Path, query: LoadR
         location.to_str().unwrap(),
         serde_urlencoded::to_string(&query).unwrap_or_default()
     )
+}
+
+pub async fn get_posters_for_meta(id: MetadataId) -> ApiGetPosterByMetaIdResponse {
+    fetch(
+        "GET",
+        &format!("/api/book/{id}/posters"),
+        Option::<&()>::None
+    ).await.unwrap()
+}
+
+pub async fn change_poster_for_meta(id: MetadataId, url_or_id: Either<String, ImageId>) {
+    let _: Option<String> = fetch(
+        "POST",
+        &format!("/api/book/{id}/posters"),
+        Some(&ChangePosterBody {
+            url_or_id
+        })
+    ).await.ok();
 }
 
 
