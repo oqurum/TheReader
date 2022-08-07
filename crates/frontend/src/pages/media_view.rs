@@ -1,5 +1,5 @@
-use common_local::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string, MetadataId};
-use common::component::popup::{Popup, PopupClose, PopupType};
+use common_local::{api::{MediaViewResponse, self}, util::file_size_bytes_to_readable_string};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -15,14 +15,14 @@ pub enum Msg {
     ClosePopup,
 
     // Popup Events
-    UpdateMeta(MetadataId),
+    UpdateMeta(BookId),
 
     Ignore
 }
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
-    pub id: MetadataId
+    pub id: BookId
 }
 
 pub struct MediaView {
@@ -266,18 +266,18 @@ impl MediaView {
 #[derive(Clone)]
 pub enum DisplayOverlay {
     Info {
-        meta_id: MetadataId
+        meta_id: BookId
     },
 
     Edit(Box<api::MediaViewResponse>),
 
     More {
-        meta_id: MetadataId,
+        meta_id: BookId,
         mouse_pos: (i32, i32)
     },
 
     SearchForBook {
-        meta_id: MetadataId,
+        meta_id: BookId,
         input_value: Option<String>,
     },
 }

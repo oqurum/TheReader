@@ -1,8 +1,8 @@
 use chrono::{Utc, DateTime, TimeZone};
-use common::{Source, ThumbnailStore};
+use common::{BookId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{LibraryId, MetadataId, MetadataItemCached, DisplayMetaItem, util::{serialize_datetime, serialize_datetime_opt}, api};
+use common_local::{LibraryId, MetadataItemCached, DisplayMetaItem, util::{serialize_datetime, serialize_datetime_opt}, api};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -13,7 +13,7 @@ use super::{TableRow, AdvRow};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MetadataModel {
-    pub id: MetadataId,
+    pub id: BookId,
 
     pub library_id: LibraryId,
 
@@ -172,7 +172,7 @@ impl MetadataModel {
 		Ok(())
 	}
 
-	pub async fn delete_or_decrement(id: MetadataId, db: &Database) -> Result<()> {
+	pub async fn delete_or_decrement(id: BookId, db: &Database) -> Result<()> {
 		if let Some(meta) = Self::find_one_by_id(id, db).await? {
 			if meta.file_item_count < 1 {
 				db.write().await
@@ -192,7 +192,7 @@ impl MetadataModel {
 		Ok(())
 	}
 
-	pub async fn decrement(id: MetadataId, db: &Database) -> Result<()> {
+	pub async fn decrement(id: BookId, db: &Database) -> Result<()> {
 		if let Some(meta) = Self::find_one_by_id(id, db).await? {
 			if meta.file_item_count > 0 {
 				db.write().await
@@ -206,7 +206,7 @@ impl MetadataModel {
 		Ok(())
 	}
 
-	pub async fn set_file_count(id: MetadataId, file_count: usize, db: &Database) -> Result<()> {
+	pub async fn set_file_count(id: BookId, file_count: usize, db: &Database) -> Result<()> {
 		db.write().await
 		.execute(
 			r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
@@ -225,7 +225,7 @@ impl MetadataModel {
 		).optional()?)
 	}
 
-	pub async fn find_one_by_id(id: MetadataId, db: &Database) -> Result<Option<Self>> {
+	pub async fn find_one_by_id(id: BookId, db: &Database) -> Result<Option<Self>> {
 		Ok(db.read().await.query_row(
 			r#"SELECT * FROM metadata_item WHERE id = ?1"#,
 			params![id],
@@ -233,7 +233,7 @@ impl MetadataModel {
 		).optional()?)
 	}
 
-	pub async fn delete_by_id(id: MetadataId, db: &Database) -> Result<usize> {
+	pub async fn delete_by_id(id: BookId, db: &Database) -> Result<usize> {
 		Ok(db.write().await.execute(
 			r#"DELETE FROM metadata_item WHERE id = ?1"#,
 			params![id]

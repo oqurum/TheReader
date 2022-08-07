@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use common::{MemberId, PersonId, ImageId, ThumbnailStore, Source};
+use common::{MemberId, PersonId, ImageId, ThumbnailStore, Source, BookId};
 use serde::{Serialize, Deserialize};
 
 use util::*;
@@ -77,7 +77,7 @@ impl PartialEq for Person {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DisplayItem {
-    pub id: MetadataId,
+    pub id: BookId,
 
     pub title: String,
     pub cached: MetadataItemCached,
@@ -116,7 +116,7 @@ impl From<DisplayMetaItem> for DisplayItem {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct DisplayMetaItem {
-    pub id: MetadataId,
+    pub id: BookId,
 
     pub library_id: LibraryId,
 
@@ -198,7 +198,7 @@ pub struct MediaItem {
     pub file_size: i64,
 
     pub library_id: LibraryId,
-    pub metadata_id: Option<MetadataId>,
+    pub metadata_id: Option<BookId>,
     pub chapter_count: usize,
 
     pub identifier: Option<String>,

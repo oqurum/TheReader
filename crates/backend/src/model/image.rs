@@ -1,9 +1,9 @@
-use common::{ThumbnailStore, ImageId, PersonId, ImageType};
+use common::{BookId, ThumbnailStore, ImageId, PersonId, ImageType};
 use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use common_local::{util::serialize_datetime, MetadataId};
+use common_local::{util::serialize_datetime};
 use crate::{Result, database::Database, InternalError};
 
 use super::{TableRow, AdvRow};
@@ -143,7 +143,7 @@ impl UploadedImageModel {
 		).optional()?)
 	}
 
-	pub async fn remove(link_id: MetadataId, path: ThumbnailStore, db: &Database) -> Result<usize> {
+	pub async fn remove(link_id: BookId, path: ThumbnailStore, db: &Database) -> Result<usize> {
 		// TODO: Check for currently set images
 		// TODO: Remove image links.
 		if let Some(path) = path.into_value() {
@@ -162,7 +162,7 @@ impl UploadedImageModel {
 
 
 impl ImageLinkModel {
-	pub fn new_book(image_id: ImageId, link_id: MetadataId) -> Self {
+	pub fn new_book(image_id: ImageId, link_id: BookId) -> Self {
 		Self {
 			image_id,
 			link_id: *link_id,

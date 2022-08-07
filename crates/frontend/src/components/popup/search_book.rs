@@ -1,5 +1,5 @@
-use common_local::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType, MetadataId};
-use common::{component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}};
+use common_local::{api::{MetadataSearchResponse, PostMetadataBody, SearchItem}, SearchType};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -16,7 +16,7 @@ pub struct Property {
 
     pub on_close: Callback<()>,
 
-    pub meta_id: MetadataId,
+    pub meta_id: BookId,
     pub input_value: String,
 }
 

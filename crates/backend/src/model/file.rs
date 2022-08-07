@@ -1,7 +1,8 @@
 use chrono::{Utc, DateTime, TimeZone};
+use common::BookId;
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{LibraryId, MetadataId, util::serialize_datetime, FileId, MediaItem};
+use common_local::{LibraryId, util::serialize_datetime, FileId, MediaItem};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -20,7 +21,7 @@ pub struct NewFileModel {
     pub file_size: i64,
 
     pub library_id: LibraryId,
-    pub metadata_id: Option<MetadataId>,
+    pub metadata_id: Option<BookId>,
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
@@ -42,7 +43,7 @@ pub struct FileModel {
     pub file_size: i64,
 
     pub library_id: LibraryId,
-    pub metadata_id: Option<MetadataId>,
+    pub metadata_id: Option<BookId>,
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
@@ -199,7 +200,7 @@ impl FileModel {
         ).optional()?)
     }
 
-    pub async fn find_by_metadata_id(metadata_id: MetadataId, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_metadata_id(metadata_id: BookId, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id=?1")?;
@@ -213,7 +214,7 @@ impl FileModel {
         Ok(db.read().await.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
     }
 
-    pub async fn update_metadata_id(file_id: FileId, metadata_id: MetadataId, db: &Database) -> Result<()> {
+    pub async fn update_metadata_id(file_id: FileId, metadata_id: BookId, db: &Database) -> Result<()> {
         db.write().await
         .execute(r#"UPDATE file SET metadata_id = ?1 WHERE id = ?2"#,
             params![metadata_id, file_id]
@@ -222,7 +223,7 @@ impl FileModel {
         Ok(())
     }
 
-    pub async fn transfer_metadata_id(old_metadata_id: MetadataId, new_metadata_id: MetadataId, db: &Database) -> Result<usize> {
+    pub async fn transfer_metadata_id(old_metadata_id: BookId, new_metadata_id: BookId, db: &Database) -> Result<usize> {
         Ok(db.write().await
         .execute(r#"UPDATE file SET metadata_id = ?1 WHERE metadata_id = ?2"#,
             params![new_metadata_id, old_metadata_id]

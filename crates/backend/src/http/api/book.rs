@@ -1,8 +1,8 @@
 use actix_web::{get, web, HttpResponse, post, delete};
 
-use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, MetadataId, DisplayItem};
+use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem};
 use chrono::Utc;
-use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH};
+use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
 
 use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, metadata::MetadataModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, metadata_person::MetadataPersonModel}, http::{MemberCookie, JsonResponse}};
 
@@ -77,7 +77,7 @@ pub async fn load_book_list(
 
 
 #[get("/book/{id}/thumbnail")]
-async fn load_book_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
+async fn load_book_thumbnail(path: web::Path<BookId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
 	let meta_id = path.into_inner();
 
 	let meta = MetadataModel::find_one_by_id(meta_id, &db).await?;
@@ -94,7 +94,7 @@ async fn load_book_thumbnail(path: web::Path<MetadataId>, db: web::Data<Database
 
 // Metadata
 #[get("/book/{id}")]
-pub async fn load_book_info(meta_id: web::Path<MetadataId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
+pub async fn load_book_info(meta_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetMetadataByIdResponse>> {
 	let meta = MetadataModel::find_one_by_id(*meta_id, &db).await?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
@@ -120,7 +120,7 @@ pub async fn load_book_info(meta_id: web::Path<MetadataId>, db: web::Data<Databa
 
 #[post("/book/{id}")]
 pub async fn update_book_info(
-	meta_id: web::Path<MetadataId>,
+	meta_id: web::Path<BookId>,
 	body: web::Json<api::PostMetadataBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
@@ -153,7 +153,7 @@ pub async fn update_book_info(
 
 #[get("/book/{id}/posters")]
 async fn get_book_posters(
-	path: web::Path<MetadataId>,
+	path: web::Path<BookId>,
 	db: web::Data<Database>
 ) -> WebResult<web::Json<api::ApiGetPosterByMetaIdResponse>> {
 	let meta = MetadataModel::find_one_by_id(*path, &db).await?.unwrap();
@@ -208,7 +208,7 @@ async fn get_book_posters(
 
 #[post("/book/{id}/posters")]
 async fn insert_or_update_book_image(
-	metadata_id: web::Path<MetadataId>,
+	metadata_id: web::Path<BookId>,
 	body: web::Json<api::ChangePosterBody>,
 	member: MemberCookie,
 	db: web::Data<Database>,
@@ -309,7 +309,7 @@ pub async fn book_search(body: web::Query<api::GetMetadataSearch>) -> WebResult<
 
 #[post("/book/{book_id}/person/{person_id}")]
 async fn insert_book_person(
-	id: web::Path<(MetadataId, PersonId)>,
+	id: web::Path<(BookId, PersonId)>,
 	member: MemberCookie,
 	db: web::Data<Database>,
 ) -> WebResult<JsonResponse<String>> {
@@ -326,7 +326,7 @@ async fn insert_book_person(
 
 #[delete("/book/{book_id}/person/{person_id}")]
 async fn delete_book_person(
-	id: web::Path<(MetadataId, PersonId)>,
+	id: web::Path<(BookId, PersonId)>,
 	member: MemberCookie,
 	db: web::Data<Database>,
 ) -> WebResult<JsonResponse<DeletionResponse>> {

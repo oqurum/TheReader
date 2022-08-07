@@ -2,9 +2,9 @@ use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
 use crate::{Result, model::{metadata::MetadataModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel}};
 use async_trait::async_trait;
-use common_local::{SearchFor, MetadataItemCached, MetadataId, LibraryId};
+use common_local::{SearchFor, MetadataItemCached, LibraryId};
 use chrono::Utc;
-use common::{PersonId, ThumbnailStore, Source};
+use common::{BookId, PersonId, ThumbnailStore, Source};
 
 use crate::database::Database;
 
@@ -319,7 +319,7 @@ pub struct FoundItem {
 impl From<FoundItem> for MetadataModel {
 	fn from(val: FoundItem) -> Self {
 		MetadataModel {
-			id: MetadataId::none(),
+			id: BookId::none(),
 			library_id: LibraryId::none(),
 			source: val.source,
 			file_item_count: 1,

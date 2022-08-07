@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc, TimeZone};
-use common::{PersonId, ThumbnailStore, Source};
+use common::{BookId, PersonId, ThumbnailStore, Source};
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{util::serialize_datetime, MetadataId, Person};
+use common_local::{util::serialize_datetime, Person};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -116,7 +116,7 @@ impl PersonModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_by_meta_id(id: MetadataId, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_meta_id(id: BookId, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare(r#"

@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
-use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId, MetadataId};
-use common::component::popup::{Popup, PopupClose, PopupType};
+use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::prelude::*;
@@ -34,7 +34,7 @@ pub enum Msg {
 
     InitEventListenerAfterMediaItems,
 
-    AddOrRemoveItemFromEditing(MetadataId, bool),
+    AddOrRemoveItemFromEditing(BookId, bool),
     DeselectAllEditing,
 
     Ignore
@@ -53,14 +53,14 @@ pub struct LibraryPage {
     library_list_ref: NodeRef,
 
     // TODO: Make More Advanced
-    editing_items: Rc<Mutex<Vec<MetadataId>>>,
+    editing_items: Rc<Mutex<Vec<BookId>>>,
 
     _producer: Box<dyn Bridge<WsEventBus>>,
 
     // TODO: I should just have a global one
-    task_items: HashMap<UniqueId, MetadataId>,
+    task_items: HashMap<UniqueId, BookId>,
     // Used along with task_items
-    task_items_updating: HashSet<MetadataId>,
+    task_items_updating: HashSet<BookId>,
 }
 
 impl Component for LibraryPage {
@@ -527,27 +527,27 @@ pub enum PosterItem {
     ShowPopup(DisplayOverlay),
 
     // Popup Events
-    UpdateMetaBySource(MetadataId),
+    UpdateMetaBySource(BookId),
 
     // Popup Events
-    UpdateMetaByFiles(MetadataId),
+    UpdateMetaByFiles(BookId),
 }
 
 #[derive(Clone)]
 pub enum DisplayOverlay {
     Info {
-        meta_id: MetadataId
+        meta_id: BookId
     },
 
     Edit(Box<api::MediaViewResponse>),
 
     More {
-        meta_id: MetadataId,
+        meta_id: BookId,
         mouse_pos: (i32, i32)
     },
 
     SearchForBook {
-        meta_id: MetadataId,
+        meta_id: BookId,
         input_value: Option<String>,
     },
 }

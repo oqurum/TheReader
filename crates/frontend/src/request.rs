@@ -7,7 +7,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
 
-use common_local::{api::*, Progression, SearchType, setup::SetupConfig, MetadataId, LibraryId, FileId};
+use common_local::{api::*, Progression, SearchType, setup::SetupConfig, LibraryId, FileId};
 
 // TODO: Manage Errors.
 
@@ -46,7 +46,7 @@ pub async fn get_libraries() -> ApiGetLibrariesResponse {
 
 // Metadata
 
-pub async fn update_metadata(id: MetadataId, value: &PostMetadataBody) {
+pub async fn update_metadata(id: BookId, value: &PostMetadataBody) {
     let _: Option<String> = fetch(
         "POST",
         &format!("/api/book/{}", id),
@@ -54,7 +54,7 @@ pub async fn update_metadata(id: MetadataId, value: &PostMetadataBody) {
     ).await.ok();
 }
 
-pub async fn get_media_view(metadata_id: MetadataId) -> ApiGetMetadataByIdResponse {
+pub async fn get_media_view(metadata_id: BookId) -> ApiGetMetadataByIdResponse {
     fetch(
         "GET",
         &format!("/api/book/{}", metadata_id),
@@ -116,7 +116,7 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
 
 // Person Book Link
 
-pub async fn add_person_to_book(book_id: MetadataId, person_id: PersonId) -> WrappingResponse<String> {
+pub async fn add_person_to_book(book_id: BookId, person_id: PersonId) -> WrappingResponse<String> {
     fetch(
         "POST",
         &format!("/api/book/{book_id}/person/{person_id}"),
@@ -124,7 +124,7 @@ pub async fn add_person_to_book(book_id: MetadataId, person_id: PersonId) -> Wra
     ).await.unwrap_or_else(def)
 }
 
-pub async fn delete_person_from_book(book_id: MetadataId, person_id: PersonId) -> WrappingResponse<DeletionResponse> {
+pub async fn delete_person_from_book(book_id: BookId, person_id: PersonId) -> WrappingResponse<DeletionResponse> {
     fetch(
         "DELETE",
         &format!("/api/book/{book_id}/person/{person_id}"),
@@ -166,7 +166,7 @@ pub fn compile_book_resource_path(book_id: FileId, location: &Path, query: LoadR
     )
 }
 
-pub async fn get_posters_for_meta(id: MetadataId) -> ApiGetPosterByMetaIdResponse {
+pub async fn get_posters_for_meta(id: BookId) -> ApiGetPosterByMetaIdResponse {
     fetch(
         "GET",
         &format!("/api/book/{id}/posters"),
@@ -174,7 +174,7 @@ pub async fn get_posters_for_meta(id: MetadataId) -> ApiGetPosterByMetaIdRespons
     ).await.unwrap()
 }
 
-pub async fn change_poster_for_meta(id: MetadataId, url_or_id: Either<String, ImageId>) {
+pub async fn change_poster_for_meta(id: BookId, url_or_id: Either<String, ImageId>) {
     let _: Option<String> = fetch(
         "POST",
         &format!("/api/book/{id}/posters"),

@@ -1,8 +1,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use common::BookId;
 use serde::{Serialize, Deserialize};
-
-use crate::MetadataId;
 
 pub static UNIQUE_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -61,7 +60,7 @@ impl WebsocketNotification {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskType {
-    UpdatingMetadata(MetadataId),
+    UpdatingMetadata(BookId),
 
     TempRustWarningFix,
 }

@@ -2,9 +2,9 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 
 use actix_web::web;
 use async_trait::async_trait;
-use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, MetadataId};
+use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}};
 use chrono::Utc;
-use common::{PersonId, Source};
+use common::{BookId, PersonId, Source};
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
@@ -97,10 +97,10 @@ impl Task for TaskLibraryScan {
 #[derive(Clone)]
 pub enum UpdatingMetadata {
 	AutoMatchInvalid,
-	AutoUpdateMetaIdBySource(MetadataId),
-	AutoUpdateMetaIdByFiles(MetadataId),
+	AutoUpdateMetaIdBySource(BookId),
+	AutoUpdateMetaIdByFiles(BookId),
 	UpdateMetadataWithSource {
-		meta_id: MetadataId,
+		meta_id: BookId,
 		source: Source,
 	}
 }
@@ -411,7 +411,7 @@ impl Task for TaskUpdateInvalidMetadata {
 }
 
 impl TaskUpdateInvalidMetadata {
-	async fn search_meta_by_files(meta_id: MetadataId, mut fm_meta: MetadataModel, db: &Database) -> Result<()> {
+	async fn search_meta_by_files(meta_id: BookId, mut fm_meta: MetadataModel, db: &Database) -> Result<()> {
 		// Check Files first.
 		let files = FileModel::find_by_metadata_id(meta_id, db).await?;
 

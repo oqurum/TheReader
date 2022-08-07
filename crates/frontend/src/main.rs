@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use common_local::{api, Member, MetadataId, FileId, LibraryId};
+use common::BookId;
+use common_local::{api, Member, FileId, LibraryId};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
 use yew::prelude::*;
@@ -102,7 +103,7 @@ pub enum Route {
     ViewLibrary { library_id: LibraryId },
 
     #[at("/view/:meta_id")]
-    ViewMeta { meta_id: MetadataId },
+    ViewMeta { meta_id: BookId },
 
     #[at("/read/:book_id")]
     ReadBook { book_id: FileId },

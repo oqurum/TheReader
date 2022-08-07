@@ -1,7 +1,6 @@
-use common::{PersonId, Either};
+use common::{BookId, PersonId, Either};
 use rusqlite::params;
 
-use common_local::MetadataId;
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -9,7 +8,7 @@ use super::{TableRow, AdvRow};
 
 #[derive(Debug, Serialize)]
 pub struct MetadataPersonModel {
-    pub metadata_id: MetadataId,
+    pub metadata_id: BookId,
     pub person_id: PersonId,
 }
 
@@ -48,7 +47,7 @@ impl MetadataPersonModel {
         Ok(())
     }
 
-    pub async fn delete_by_meta_id(id: MetadataId, db: &Database) -> Result<()> {
+    pub async fn delete_by_meta_id(id: BookId, db: &Database) -> Result<()> {
         db.write().await.execute(
             r#"DELETE FROM metadata_person WHERE metadata_id = ?1"#,
             [ id ]
@@ -73,7 +72,7 @@ impl MetadataPersonModel {
         )?)
     }
 
-    pub async fn find_by(id: Either<MetadataId, PersonId>, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by(id: Either<BookId, PersonId>, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         match id {
