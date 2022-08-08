@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use common::BookId;
+use common::{BookId, PersonId};
 use common_local::{api, Member, FileId, LibraryId};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
@@ -111,6 +111,9 @@ pub enum Route {
     #[at("/people")]
     People,
 
+    #[at("/person/:person_id")]
+    ViewPerson { person_id: PersonId },
+
     #[at("/options")]
     Options,
 
@@ -153,6 +156,10 @@ fn switch(route: &Route) -> Html {
 
         Route::People => {
             html! { <pages::AuthorListPage /> }
+        }
+
+        Route::ViewPerson { person_id } => {
+            html! { <pages::AuthorView id={person_id}  /> }
         }
 
         Route::Options => {

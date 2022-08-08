@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, PersonId};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams, HtmlInputElement};
 use yew::prelude::*;
@@ -400,9 +400,11 @@ impl LibraryPage {
 #[derive(Properties)]
 pub struct MediaItemProps {
     pub item: DisplayItem,
-    pub callback: Callback<Msg>,
-    pub library_list_ref: NodeRef,
+    pub callback: Option<Callback<Msg>>,
+    pub library_list_ref: Option<NodeRef>,
+    #[prop_or_default]
     pub is_editing: bool,
+    #[prop_or_default]
     pub is_updating: bool,
 }
 
@@ -427,7 +429,10 @@ impl Component for MediaItem {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        ctx.props().callback.emit(msg);
+        if let Some(cb) = ctx.props().callback.as_ref() {
+            cb.emit(msg);
+        }
+
         true
     }
 
@@ -440,7 +445,7 @@ impl Component for MediaItem {
             ..
         } = ctx.props();
 
-        let library_list_ref = library_list_ref.clone();
+        let library_list_ref_clone = library_list_ref.clone();
 
         let book_id = item.id;
 
@@ -448,7 +453,7 @@ impl Component for MediaItem {
             e.prevent_default();
             e.stop_propagation();
 
-            let scroll = library_list_ref.cast::<HtmlElement>().unwrap().scroll_top();
+            let scroll = library_list_ref_clone.as_ref().unwrap().cast::<HtmlElement>().unwrap().scroll_top();
 
             Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { book_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
         });
@@ -478,7 +483,15 @@ impl Component for MediaItem {
                         />
                     </div>
                     <div class="bottom-right">
-                        <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
+                        {
+                            if library_list_ref.is_some() {
+                                html! {
+                                    <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
+                                }
+                            } else {
+                                html! {}
+                            }
+                        }
                     </div>
                     <div class="bottom-left">
                         <span class="material-icons" onclick={ctx.link().callback_future(move |e: MouseEvent| {
@@ -574,6 +587,7 @@ fn get_search_query() -> Option<api::SearchQuery> {
 
     let query = search_params.get("query");
     let source = search_params.get("source");
+    let person_id = search_params.get("person_id");
 
     if query.is_none() && source.is_none() {
         None
@@ -581,6 +595,7 @@ fn get_search_query() -> Option<api::SearchQuery> {
         Some(api::SearchQuery {
             query,
             source,
+            person_id: person_id.and_then(|v| Some(PersonId::from(v.parse::<usize>().ok()?)))
         })
     }
 }

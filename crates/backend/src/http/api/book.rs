@@ -44,7 +44,7 @@ pub async fn load_book_list(
 		(items, count)
 	} else {
 		let count = BookModel::count_search_by(
-			&api::SearchQuery { query: None, source: None },
+			&api::SearchQuery::default(),
 			query.library,
 			&db,
 		).await?;
@@ -53,6 +53,7 @@ pub async fn load_book_list(
 			query.library,
 			query.offset.unwrap_or(0),
 			query.limit.unwrap_or(50),
+			None,
 			&db,
 		).await?
 			.into_iter()

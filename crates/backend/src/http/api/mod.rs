@@ -58,6 +58,7 @@ pub fn api_route() -> Scope<
 		.service(book::delete_book_person)
 
 		// Person
+		.service(person::load_person)
 		.service(person::load_author_list)
 		.service(person::load_person_thumbnail)
 		.service(person::update_person_data)

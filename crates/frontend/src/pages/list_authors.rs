@@ -4,8 +4,9 @@ use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
+use yew_router::prelude::Link;
 
-use crate::{request, util::{on_click_prevdef_stopprop, on_click_prevdef}};
+use crate::{request, util::{on_click_prevdef_stopprop, on_click_prevdef}, Route};
 
 
 #[derive(Properties, PartialEq)]
@@ -431,7 +432,7 @@ impl AuthorListPage {
         });
 
         html! {
-            <div class="person-container">
+            <Link<Route> to={ Route::ViewPerson { person_id: item.id } } classes={ classes!("person-container") }>
                 <div class="photo">
                     <div class="bottom-right">
                         <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
@@ -439,7 +440,7 @@ impl AuthorListPage {
                     <img src={ item.get_thumb_url() } />
                 </div>
                 <span class="title">{ item.name.clone() }</span>
-            </div>
+            </Link<Route>>
         }
     }
 

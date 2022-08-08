@@ -1,5 +1,5 @@
 use chrono::{Utc, DateTime, TimeZone};
-use common::{BookId, Source, ThumbnailStore};
+use common::{BookId, Source, ThumbnailStore, PersonId};
 use rusqlite::{params, OptionalExtension};
 
 use common_local::{LibraryId, BookItemCached, DisplayBookItem, util::{serialize_datetime, serialize_datetime_opt}, api};
@@ -240,12 +240,21 @@ impl BookModel {
 		)?)
 	}
 
-	pub async fn find_by(library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+	pub async fn find_by(library: Option<LibraryId>, offset: usize, limit: usize, person_id: Option<PersonId>, db: &Database) -> Result<Vec<Self>> {
 		let this = db.read().await;
 
-		let lib_where = library.map(|v| format!("WHERE library_id={v}")).unwrap_or_default();
+		let insert_where = (library.is_some() || person_id.is_some()).then(|| "WHERE").unwrap_or_default();
+		let insert_and = (library.is_some() && person_id.is_some()).then(|| "AND").unwrap_or_default();
 
-		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {} LIMIT ?1 OFFSET ?2"#, lib_where))?;
+		let lib_id = library
+			.map(|v| format!("library_id={v}"))
+			.unwrap_or_default();
+
+		let inner_query = person_id
+			.map(|pid| format!(r#"id IN (SELECT book_id FROM book_person WHERE person_id = {pid})"#))
+			.unwrap_or_default();
+
+		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {insert_where} {lib_id} {insert_and} {inner_query} LIMIT ?1 OFFSET ?2"#))?;
 
 		let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
 
@@ -256,12 +265,14 @@ impl BookModel {
 
 	// Search
 	fn gen_search_query(search: &api::SearchQuery, library: Option<LibraryId>) -> Option<String> {
+		let mut needs_and = false;
 		let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
 		let orig_len = sql.len();
 
 		// Library ID
 
 		if let Some(library) = library {
+			needs_and = true;
 			sql += &format!("library_id={} ", library);
 		}
 
@@ -269,9 +280,11 @@ impl BookModel {
 		// Query
 
 		if let Some(query) = search.query.as_deref() {
-			if library.is_some() {
+			if needs_and {
 				sql += "AND ";
 			}
+
+			needs_and = true;
 
 			let mut escape_char = '\\';
 			// Change our escape character if it's in the query.
@@ -296,11 +309,27 @@ impl BookModel {
 		// Source
 
 		if let Some(source) = search.source.as_deref() {
-			if search.query.is_some() || library.is_some() {
+			if needs_and {
 				sql += "AND ";
 			}
 
+			needs_and = true;
+
 			sql += &format!("source LIKE '{}%' ", source);
+		}
+
+
+		// Person Id
+
+		if let Some(pid) = search.person_id {
+			if needs_and {
+				sql += "AND ";
+			}
+
+			sql += &format!(
+				r#"id IN (SELECT metadata_id FROM metadata_person WHERE person_id = {}) "#,
+				pid
+			);
 		}
 
 		if sql.len() == orig_len {

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse, DeletionResponse}, BookId};
+use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse, DeletionResponse}, BookId, ImageIdType};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use wasm_bindgen::{JsValue, JsCast};
@@ -80,6 +80,23 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
         Option::<&()>::None
     ).await.unwrap()
 }
+
+pub async fn get_person(id: PersonId) -> GetPersonResponse {
+    fetch(
+        "GET",
+        &format!("/api/person/{}", id),
+        Option::<&()>::None
+    ).await.unwrap()
+}
+
+pub async fn update_person_thumbnail(id: PersonId, url_or_id: Either<String, ImageId>) {
+    let _: Option<String> = fetch(
+        "POST",
+        &format!("/api/person/{id}/thumbnail"),
+        Some(&ChangePosterBody { url_or_id })
+    ).await.ok();
+}
+
 
 
 // Person Book Link
@@ -225,6 +242,16 @@ pub async fn remove_book_notes(book_id: FileId) {
     ).await.ok();
 }
 
+
+// Image
+
+pub async fn get_posters_for(img_id_type: ImageIdType) -> GetPostersResponse {
+    fetch(
+        "GET",
+        &format!("/api/images/{}", img_id_type),
+        Option::<&()>::None
+    ).await.unwrap()
+}
 
 // Options
 

@@ -3,7 +3,7 @@ use common_local::api;
 use chrono::Utc;
 use common::{PersonId, Either, api::{ApiErrorResponse, WrappingResponse}};
 
-use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}, http::{MemberCookie, JsonResponse}};
+use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel, image::{UploadedImageModel, ImageLinkModel}}, http::{MemberCookie, JsonResponse}, store_image};
 
 
 // Get List Of People and Search For People
@@ -60,6 +60,56 @@ async fn load_person_thumbnail(person_id: web::Path<PersonId>, db: web::Data<Dat
 		Ok(HttpResponse::NotFound().finish())
 	}
 }
+
+
+
+#[post("/person/{id}/thumbnail")]
+async fn post_change_person_thumbnail(
+	id: web::Path<PersonId>,
+	body: web::Json<api::ChangePosterBody>,
+	member: MemberCookie,
+	db: web::Data<Database>
+) -> WebResult<JsonResponse<&'static str>> {
+	let member = member.fetch(&db).await?.unwrap();
+
+	if !member.permissions.is_owner() {
+		return Ok(web::Json(WrappingResponse::error("You cannot do this! No Permissions!")));
+	}
+
+	let mut person = PersonModel::find_one_by_id(*id, &db).await?.unwrap();
+
+	match body.into_inner().url_or_id {
+		Either::Left(url) => {
+			let resp = reqwest::get(url)
+				.await.map_err(Error::from)?
+				.bytes()
+				.await.map_err(Error::from)?;
+
+			let image_model = store_image(resp.to_vec(), &db).await?;
+
+			person.thumb_url = image_model.path;
+
+			ImageLinkModel::new_person(image_model.id, person.id)
+				.insert(&db).await?;
+		}
+
+		Either::Right(id) => {
+			let poster = UploadedImageModel::get_by_id(id, &db).await?.unwrap();
+
+			if person.thumb_url == poster.path {
+				return Ok(web::Json(WrappingResponse::okay("poster already set")));
+			}
+
+			person.thumb_url = poster.path;
+		}
+	}
+
+	person.update(&db).await?;
+
+	Ok(web::Json(WrappingResponse::okay("success")))
+}
+
+
 
 
 // Person Tasks - Update Person, Overwrite Person with another source.
@@ -140,4 +190,15 @@ pub async fn update_person_data(
 	}
 
 	Ok(web::Json(WrappingResponse::okay("success")))
+}
+
+
+// Person
+#[get("/person/{id}")]
+async fn load_person(person_id: web::Path<PersonId>, db: web::Data<Database>) -> WebResult<web::Json<api::GetPersonResponse>> {
+	let person = PersonModel::find_one_by_id(*person_id, &db).await?.unwrap();
+
+	Ok(web::Json(api::GetPersonResponse {
+		person: person.into()
+	}))
 }

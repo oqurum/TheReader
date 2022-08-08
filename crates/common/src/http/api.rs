@@ -165,10 +165,11 @@ impl BookListQuery {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct SearchQuery {
     pub query: Option<String>,
     pub source: Option<String>,
+    pub person_id: Option<PersonId>,
 }
 
 
@@ -194,6 +195,12 @@ pub enum PostPersonBody {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPeopleSearch {
     pub query: Option<String>
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetPersonResponse {
+    pub person: Person,
 }
 
 
