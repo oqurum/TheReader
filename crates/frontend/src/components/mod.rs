@@ -3,6 +3,7 @@ pub mod notes;
 pub mod popup;
 pub mod reader;
 pub mod mass_selector_bar;
+pub mod book_poster_item;
 
 pub use navbar::NavbarModule;
 pub use notes::Notes;
