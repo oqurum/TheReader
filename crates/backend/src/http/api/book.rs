@@ -310,34 +310,59 @@ pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<Json
 
 #[post("/book/{book_id}/person/{person_id}")]
 async fn insert_book_person(
-	id: web::Path<(BookId, PersonId)>,
+	ids: web::Path<(BookId, PersonId)>,
 	member: MemberCookie,
 	db: web::Data<Database>,
 ) -> WebResult<JsonResponse<String>> {
+	let (book_id, person_id) = ids.into_inner();
+
 	let member = member.fetch_or_error(&db).await?;
 
 	if !member.permissions.is_owner() {
 		return Ok(web::Json(WrappingResponse::error("You cannot do this! No Permissions!")));
 	}
 
-	BookPersonModel { book_id: id.0, person_id: id.1 }.insert_or_ignore(&db).await?;
+	// If book had no other people referenced we'll update the cached author name.
+	if BookPersonModel::find_by(Either::Left(book_id), &db).await?.is_empty() {
+		let person = PersonModel::find_one_by_id(person_id, &db).await?;
+		let book = BookModel::find_one_by_id(book_id, &db).await?;
+
+		if let Some((person, mut book)) = person.zip(book) {
+			book.cached.author = Some(person.name);
+			book.update(&db).await?;
+		}
+	}
+
+	BookPersonModel { book_id, person_id }.insert_or_ignore(&db).await?;
 
 	Ok(web::Json(WrappingResponse::okay(String::from("success"))))
 }
 
 #[delete("/book/{book_id}/person/{person_id}")]
 async fn delete_book_person(
-	id: web::Path<(BookId, PersonId)>,
+	ids: web::Path<(BookId, PersonId)>,
 	member: MemberCookie,
 	db: web::Data<Database>,
 ) -> WebResult<JsonResponse<DeletionResponse>> {
+	let (book_id, person_id) = ids.into_inner();
+
 	let member = member.fetch_or_error(&db).await?;
 
 	if !member.permissions.is_owner() {
 		return Ok(web::Json(WrappingResponse::error("You cannot do this! No Permissions!")));
 	}
 
-	BookPersonModel { book_id: id.0, person_id: id.1 }.delete(&db).await?;
+	BookPersonModel { book_id, person_id }.delete(&db).await?;
+
+	// If book has no other people referenced we'll update the cached author name.
+	if BookPersonModel::find_by(Either::Left(book_id), &db).await?.is_empty() {
+		let book = BookModel::find_one_by_id(book_id, &db).await?;
+
+		if let Some(mut book) = book {
+			book.cached.author = None;
+			book.update(&db).await?;
+		}
+	}
 
 	// TODO: Return total deleted
 	Ok(web::Json(WrappingResponse::okay(DeletionResponse {

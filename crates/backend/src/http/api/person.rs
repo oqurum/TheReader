@@ -3,7 +3,7 @@ use common_local::api;
 use chrono::Utc;
 use common::{PersonId, Either, api::{ApiErrorResponse, WrappingResponse}};
 
-use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel, image::{UploadedImageModel, ImageLinkModel}}, http::{MemberCookie, JsonResponse}, store_image};
+use crate::{database::Database, task::{self, queue_task_priority}, queue_task, WebResult, Error, model::{book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel, image::{UploadedImageModel, ImageLinkModel}, book::BookModel}, http::{MemberCookie, JsonResponse}, store_image};
 
 
 // Get List Of People and Search For People
@@ -156,7 +156,8 @@ pub async fn update_person_data(
 			}.insert(&db).await;
 
 			// Transfer Old Person Book to New Person
-			for met_per in BookPersonModel::find_by(Either::Right(old_person.id), &db).await? {
+			let trans_book_person_vec = BookPersonModel::find_by(Either::Right(old_person.id), &db).await?;
+			for met_per in &trans_book_person_vec {
 				let _ = BookPersonModel {
 					book_id: met_per.book_id,
 					person_id: into_person.id,
@@ -185,7 +186,16 @@ pub async fn update_person_data(
 			// Delete Old Person
 			PersonModel::delete_by_id(old_person.id, &db).await?;
 
-			// TODO: Update Book cache
+			// Update book cache author name cache
+			for met_per in trans_book_person_vec {
+				let person = PersonModel::find_one_by_id(into_person_id, &db).await?;
+				let book = BookModel::find_one_by_id(met_per.book_id, &db).await?;
+
+				if let Some((person, mut book)) = person.zip(book) {
+					book.cached.author = Some(person.name);
+					book.update(&db).await?;
+				}
+			}
 		}
 	}
 
