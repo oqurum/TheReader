@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, PersonId};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, PersonId, api::WrappingResponse};
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, UrlSearchParams};
 use yew::prelude::*;
@@ -23,8 +23,8 @@ pub enum Msg {
     RequestMediaItems,
 
     // Results
-    MediaListResults(api::GetBookListResponse),
-    BookItemResults(UniqueId, DisplayItem),
+    MediaListResults(WrappingResponse<api::GetBookListResponse>),
+    BookItemResults(UniqueId, WrappingResponse<DisplayItem>),
 
     // Events
     OnScroll(i32),
@@ -103,22 +103,28 @@ impl Component for LibraryPage {
                         if let Some(book_id) = self.task_items.get(&id).copied() {
                             ctx.link()
                             .send_future(async move {
-                                Msg::BookItemResults(id, request::get_media_view(book_id).await.book.into())
+                                Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
                             });
                         }
                     }
                 }
             }
 
-            Msg::BookItemResults(unique_id, book_item) => {
-                if let Some(book_id) = self.task_items.remove(&unique_id) {
-                    self.task_items_updating.remove(&book_id);
-                }
+            Msg::BookItemResults(unique_id, resp) => {
+                match resp.ok() {
+                    Ok(book_item) => {
+                        if let Some(book_id) = self.task_items.remove(&unique_id) {
+                            self.task_items_updating.remove(&book_id);
+                        }
 
-                if let Some(items) = self.media_items.as_mut() {
-                    if let Some(current_item) = items.iter_mut().find(|v| v.id == book_item.id) {
-                        *current_item = book_item;
+                        if let Some(items) = self.media_items.as_mut() {
+                            if let Some(current_item) = items.iter_mut().find(|v| v.id == book_item.id) {
+                                *current_item = book_item;
+                            }
+                        }
                     }
+
+                    Err(err) => crate::display_error(err),
                 }
             }
 
@@ -167,15 +173,23 @@ impl Component for LibraryPage {
                 });
             }
 
-            Msg::MediaListResults(mut resp) => {
+            Msg::MediaListResults(resp) => {
                 self.is_fetching_media_items = false;
-                self.total_media_count = resp.count;
 
-                if let Some(items) = self.media_items.as_mut() {
-                    items.append(&mut resp.items);
-                } else {
-                    self.media_items = Some(resp.items);
+                match resp.ok() {
+                    Ok(mut resp) => {
+                        self.total_media_count = resp.count;
+
+                        if let Some(items) = self.media_items.as_mut() {
+                            items.append(&mut resp.items);
+                        } else {
+                            self.media_items = Some(resp.items);
+                        }
+                    }
+
+                    Err(err) => crate::display_error(err),
                 }
+
             }
 
             Msg::OnScroll(scroll_y) => {

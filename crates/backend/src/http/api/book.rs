@@ -13,7 +13,7 @@ use crate::{database::Database, task::{queue_task_priority, self}, queue_task, m
 pub async fn load_book_list(
 	query: web::Query<api::BookListQuery>,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::ApiGetBookListResponse>> {
+) -> WebResult<JsonResponse<api::ApiGetBookListResponse>> {
 	let (items, count) = if let Some(search) = query.search_query() {
 		let search = search?;
 
@@ -70,10 +70,10 @@ pub async fn load_book_list(
 		(items, count)
 	};
 
-	Ok(web::Json(api::GetBookListResponse {
+	Ok(web::Json(WrappingResponse::okay(api::GetBookListResponse {
 		items,
 		count,
-	}))
+	})))
 }
 
 
@@ -95,7 +95,7 @@ async fn load_book_thumbnail(path: web::Path<BookId>, db: web::Data<Database>) -
 
 // Book
 #[get("/book/{id}")]
-pub async fn load_book_info(book_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetBookByIdResponse>> {
+pub async fn load_book_info(book_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<JsonResponse<api::ApiGetBookByIdResponse>> {
 	let book = BookModel::find_one_by_id(*book_id, &db).await?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
@@ -109,14 +109,14 @@ pub async fn load_book_info(book_id: web::Path<BookId>, db: web::Data<Database>)
 
 	let people = PersonModel::find_by_book_id(book.id, &db).await?;
 
-	Ok(web::Json(api::GetBookResponse {
+	Ok(web::Json(WrappingResponse::okay(api::GetBookResponse {
 		book: book.into(),
 		media,
 		progress,
 		people: people.into_iter()
 			.map(|p| p.into())
 			.collect(),
-	}))
+	})))
 }
 
 #[post("/book/{id}")]
@@ -156,7 +156,7 @@ pub async fn update_book_info(
 async fn get_book_posters(
 	path: web::Path<BookId>,
 	db: web::Data<Database>
-) -> WebResult<web::Json<api::ApiGetPosterByBookIdResponse>> {
+) -> WebResult<JsonResponse<api::ApiGetPosterByBookIdResponse>> {
 	let book = BookModel::find_one_by_id(*path, &db).await?.unwrap();
 
 	// TODO: For Open Library we need to go from an Edition to Work.
@@ -202,9 +202,9 @@ async fn get_book_posters(
 		}
 	}
 
-	Ok(web::Json(api::GetPostersResponse {
+	Ok(web::Json(WrappingResponse::okay(api::GetPostersResponse {
 		items
-	}))
+	})))
 }
 
 #[post("/book/{id}/posters")]
@@ -254,7 +254,7 @@ async fn insert_or_update_book_image(
 
 
 #[get("/book/search")]
-pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<web::Json<api::ApiGetBookSearchResponse>> {
+pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<JsonResponse<api::ApiGetBookSearchResponse>> {
 	let search = metadata::search_all_agents(
 		&body.query,
 		match body.search_type {
@@ -264,7 +264,7 @@ pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<web:
 		}
 	).await?;
 
-	Ok(web::Json(api::BookSearchResponse {
+	Ok(web::Json(WrappingResponse::okay(api::BookSearchResponse {
 		items: search.0.into_iter()
 			.map(|(a, b)| (
 				a,
@@ -301,7 +301,7 @@ pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<web:
 				}).collect()
 			))
 			.collect()
-	}))
+	})))
 }
 
 

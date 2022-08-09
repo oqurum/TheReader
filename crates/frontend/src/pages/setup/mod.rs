@@ -1,5 +1,6 @@
 // TODO: Expand to multiple inlined pages.
 
+use common::api::WrappingResponse;
 use common_local::{EditManager, setup::SetupConfig};
 use validator::{Validate, ValidationErrors};
 use wasm_bindgen::JsCast;
@@ -18,7 +19,7 @@ pub enum SetupPageMessage {
 
     UpdateInput(Box<dyn Fn(&mut EditManager<SetupConfig>, String)>, String),
 
-    IsAlreadySetupResponse(bool),
+    IsAlreadySetupResponse(WrappingResponse<bool>),
 }
 
 pub struct SetupPage {
@@ -49,16 +50,21 @@ impl Component for SetupPage {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            SetupPageMessage::IsAlreadySetupResponse(is_setup) => {
-                self.is_setup = if is_setup {
-                    // TODO: Add a delay + reason.
-                    let history = ctx.link().history().unwrap();
-                    history.push(Route::Dashboard);
+            SetupPageMessage::IsAlreadySetupResponse(resp) => {
+                match resp.ok() {
+                    Ok(is_setup) => {
+                        self.is_setup = if is_setup {
+                            // TODO: Add a delay + reason.
+                            let history = ctx.link().history().unwrap();
+                            history.push(Route::Dashboard);
 
-                    IsSetup::Yes
-                } else {
-                    IsSetup::No
-                };
+                            IsSetup::Yes
+                        } else {
+                            IsSetup::No
+                        };
+                    },
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             SetupPageMessage::AfterSentConfigSuccess => {

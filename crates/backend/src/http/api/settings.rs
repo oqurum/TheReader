@@ -11,7 +11,7 @@ use crate::{database::Database, WebResult, config::does_config_exist, http::{pas
 pub async fn is_setup(
 	member: Option<MemberCookie>,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::ApiGetIsSetupResponse>> {
+) -> WebResult<JsonResponse<api::ApiGetIsSetupResponse>> {
 	if let Some(member) = member.as_ref() {
 		let member = member.fetch_or_error(&db).await?;
 
@@ -19,9 +19,9 @@ pub async fn is_setup(
 			return Err(ApiErrorResponse::new("Not owner").into());
 		}
 
-		Ok(web::Json(does_config_exist()))
+		Ok(web::Json(WrappingResponse::okay(does_config_exist())))
 	} else {
-		Ok(web::Json(false))
+		Ok(web::Json(WrappingResponse::okay(false)))
 	}
 }
 

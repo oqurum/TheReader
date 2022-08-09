@@ -1,5 +1,5 @@
 use common_local::{api::{BookSearchResponse, PostBookBody, SearchItem}, SearchType};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}, api::WrappingResponse};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -22,7 +22,7 @@ pub struct Property {
 
 
 pub enum Msg {
-    BookSearchResponse(String, BookSearchResponse),
+    BookSearchResponse(String, WrappingResponse<BookSearchResponse>),
 
     SearchFor(String),
 
@@ -66,8 +66,14 @@ impl Component for PopupSearchBook {
             }
 
             Msg::BookSearchResponse(search, resp) => {
-                self.cached_posters = Some(LoadingItem::Loaded(resp));
-                self.input_value = search;
+                match resp.ok() {
+                    Ok(resp) => {
+                        self.cached_posters = Some(LoadingItem::Loaded(resp));
+                        self.input_value = search;
+                    }
+
+                    Err(err) => crate::display_error(err),
+                }
             }
         }
 

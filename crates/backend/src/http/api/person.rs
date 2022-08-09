@@ -11,7 +11,7 @@ use crate::{database::Database, task::{self, queue_task_priority}, queue_task, W
 pub async fn load_author_list(
 	query: web::Query<api::SimpleListQuery>,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::ApiGetPeopleResponse>> {
+) -> WebResult<JsonResponse<api::ApiGetPeopleResponse>> {
 	let offset = query.offset.unwrap_or(0);
 	let limit = query.offset.unwrap_or(50);
 
@@ -22,12 +22,12 @@ pub async fn load_author_list(
 			.map(|v| v.into())
 			.collect();
 
-		Ok(web::Json(api::GetPeopleResponse {
+		Ok(web::Json(WrappingResponse::okay(api::GetPeopleResponse {
 			offset,
 			limit,
 			total: 0, // TODO
 			items
-		}))
+		})))
 	}
 
 	// Return All People
@@ -37,12 +37,12 @@ pub async fn load_author_list(
 			.map(|v| v.into())
 			.collect();
 
-		Ok(web::Json(api::GetPeopleResponse {
+		Ok(web::Json(WrappingResponse::okay(api::GetPeopleResponse {
 			offset,
 			limit,
 			total: PersonModel::count(&db).await?,
 			items
-		}))
+		})))
 	}
 }
 
@@ -195,10 +195,10 @@ pub async fn update_person_data(
 
 // Person
 #[get("/person/{id}")]
-async fn load_person(person_id: web::Path<PersonId>, db: web::Data<Database>) -> WebResult<web::Json<api::GetPersonResponse>> {
+async fn load_person(person_id: web::Path<PersonId>, db: web::Data<Database>) -> WebResult<JsonResponse<api::GetPersonResponse>> {
 	let person = PersonModel::find_one_by_id(*person_id, &db).await?.unwrap();
 
-	Ok(web::Json(api::GetPersonResponse {
+	Ok(web::Json(WrappingResponse::okay(api::GetPersonResponse {
 		person: person.into()
-	}))
+	})))
 }

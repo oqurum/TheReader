@@ -65,7 +65,7 @@ pub async fn load_file_resource(
 
 
 #[get("/file/{id}/pages/{pages}")]
-pub async fn load_file_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetFilePagesByIdResponse>> {
+pub async fn load_file_pages(path: web::Path<(FileId, String)>, db: web::Data<Database>) -> WebResult<JsonResponse<api::ApiGetFilePagesByIdResponse>> {
 	let (file_id, chapters) = path.into_inner();
 
 	let file = FileModel::find_one_by_id(file_id, &db).await?.unwrap();
@@ -99,19 +99,19 @@ pub async fn load_file_pages(path: web::Path<(FileId, String)>, db: web::Data<Da
 		});
 	}
 
-	Ok(web::Json(api::GetChaptersResponse {
+	Ok(web::Json(WrappingResponse::okay(api::GetChaptersResponse {
 		offset: start_chap,
 		limit: end_chap - start_chap,
 		total: book.chapter_count(),
 		items
-	}))
+	})))
 }
 
 
 // TODO: Add body requests for specifics
 #[get("/file/{id}")]
-pub async fn load_file(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<web::Json<Option<api::GetFileByIdResponse>>> {
-	Ok(web::Json(if let Some(file) = FileModel::find_one_by_id(*file_id, &db).await? {
+pub async fn load_file(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<JsonResponse<Option<api::GetFileByIdResponse>>> {
+	Ok(web::Json(WrappingResponse::okay(if let Some(file) = FileModel::find_one_by_id(*file_id, &db).await? {
 		Some(api::GetFileByIdResponse {
 			progress: FileProgressionModel::find_one(MemberId::none(), *file_id, &db).await?.map(|v| v.into()),
 
@@ -119,7 +119,7 @@ pub async fn load_file(file_id: web::Path<FileId>, db: web::Data<Database>) -> W
 		})
 	} else {
 		None
-	}))
+	})))
 }
 
 
@@ -184,9 +184,9 @@ pub async fn notes_file_get(
 	file_id: web::Path<FileId>,
 	member: MemberCookie,
 	db: web::Data<Database>,
-) -> WebResult<web::Json<api::ApiGetFileNotesByIdResponse>> {
+) -> WebResult<JsonResponse<api::ApiGetFileNotesByIdResponse>> {
 	let v = FileNoteModel::find_one(*file_id, member.member_id(), &db).await?;
-	Ok(web::Json(v.map(|v| v.data)))
+	Ok(web::Json(WrappingResponse::okay(v.map(|v| v.data))))
 }
 
 #[post("/file/{id}/notes")]

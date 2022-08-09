@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use common::api::WrappingResponse;
 use common_local::MediaItem;
 use gloo_timers::callback::Timeout;
 use serde_json::json;
@@ -21,7 +22,7 @@ impl PartialEq for Property {
 
 
 pub enum Msg {
-    RetrieveNotes(Option<String>),
+    RetrieveNotes(WrappingResponse<Option<String>>),
 
     OnDeltaChanged(JsValue),
     OnAutoSave,
@@ -87,13 +88,18 @@ impl Component for Notes {
                 ));
             }
 
-            Msg::RetrieveNotes(data) => {
-                if let Some(data) = data.filter(|v| !v.is_empty()) {
-                    self.contents = js_sys::JSON::parse(&data).unwrap();
+            Msg::RetrieveNotes(resp) => {
+                match resp.ok() {
+                    Ok(data) => {
+                        if let Some(data) = data.filter(|v| !v.is_empty()) {
+                            self.contents = js_sys::JSON::parse(&data).unwrap();
 
-                    if let Some(quill) = self.quill.as_ref() {
-                        quill.quill.set_contents(&self.contents, None);
-                    }
+                            if let Some(quill) = self.quill.as_ref() {
+                                quill.quill.set_contents(&self.contents, None);
+                            }
+                        }
+                    },
+                    Err(err) => crate::display_error(err),
                 }
             }
         }

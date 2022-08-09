@@ -120,7 +120,16 @@ impl Component for BookPosterItem {
                             e.stop_propagation();
 
                             async move {
-                                BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Edit(Box::new(request::get_media_view(book_id).await))))
+                                let resp = request::get_media_view(book_id).await;
+
+                                match resp.ok() {
+                                    Ok(res) => BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Edit(Box::new(res)))),
+                                    Err(err) => {
+                                        crate::display_error(err);
+                                        BookPosterItemMsg::Ignore
+                                    }
+                                }
+
                             }
                         })} title="More Options">{ "edit" }</span>
                     </div>

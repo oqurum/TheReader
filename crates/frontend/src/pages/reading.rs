@@ -3,7 +3,8 @@
 
 use std::{rc::Rc, sync::{Mutex, Arc}};
 
-use common_local::{MediaItem, api::{GetFileByIdResponse, GetChaptersResponse}, Progression, FileId};
+use common::api::WrappingResponse;
+use common_local::{MediaItem, api::{GetChaptersResponse, self}, Progression, FileId};
 use gloo_utils::window;
 use js_sys::Array;
 use wasm_bindgen::{JsCast, prelude::Closure};
@@ -34,8 +35,8 @@ pub enum Msg {
     SendGetChapters(usize, usize),
 
     // Retrive
-    RetrieveBook(GetFileByIdResponse),
-    RetrievePages(GetChaptersResponse),
+    RetrieveBook(WrappingResponse<api::ApiGetFileByIdResponse>),
+    RetrievePages(WrappingResponse<GetChaptersResponse>),
 }
 
 #[derive(Properties, PartialEq)]
@@ -167,20 +168,34 @@ impl Component for ReadingBook {
                 }
             }
 
-            Msg::RetrievePages(mut info) => {
-                let mut chap_container = self.chapters.lock().unwrap();
+            Msg::RetrievePages(resp) => {
+                match resp.ok() {
+                    Ok(mut info) => {
+                        let mut chap_container = self.chapters.lock().unwrap();
 
-                self.last_grabbed_count = info.limit;
-                chap_container.total = info.total;
+                        self.last_grabbed_count = info.limit;
+                        chap_container.total = info.total;
 
-                chap_container.chapters.append(&mut info.items);
+                        chap_container.chapters.append(&mut info.items);
+                    },
+
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::RetrieveBook(resp) => {
-                self.book = Some(Rc::new(resp.media));
-                *self.progress.lock().unwrap() = resp.progress;
-                // TODO: Check to see if we have progress. If so, generate those pages first.
-                ctx.link().send_message(Msg::SendGetChapters(0, 3));
+                match resp.ok() {
+                    Ok(Some(resp)) => {
+                        self.book = Some(Rc::new(resp.media));
+                        *self.progress.lock().unwrap() = resp.progress;
+                        // TODO: Check to see if we have progress. If so, generate those pages first.
+                        ctx.link().send_message(Msg::SendGetChapters(0, 3));
+                    },
+
+                    Ok(None) => (),
+
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::SendGetChapters(start, end) => {
@@ -299,7 +314,7 @@ impl Component for ReadingBook {
             let id = ctx.props().id;
 
             ctx.link().send_future(async move {
-                Msg::RetrieveBook(request::get_book_info(id).await.expect("Book Id Doesn't exist"))
+                Msg::RetrieveBook(request::get_book_info(id).await)
             });
         }
     }

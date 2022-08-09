@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, mem::MaybeUninit};
 
-use common::{BookId, PersonId};
+use common::{BookId, PersonId, api::{WrappingResponse, ApiErrorResponse}, component::popup::{Popup, PopupType}};
 use common_local::{api, Member, FileId, LibraryId};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
-use yew::prelude::*;
+use yew::{prelude::*, html::Scope};
 use yew_router::prelude::*;
 
 use components::NavbarModule;
@@ -18,6 +18,12 @@ mod components;
 
 lazy_static! {
     pub static ref MEMBER_SELF: Arc<Mutex<Option<Member>>> = Arc::new(Mutex::new(None));
+
+    static ref ERROR_POPUP: Arc<Mutex<Option<ApiErrorResponse>>> = Arc::new(Mutex::new(None));
+}
+
+thread_local! {
+    static MAIN_MODEL: Arc<Mutex<MaybeUninit<Scope<Model>>>> = Arc::new(Mutex::new(MaybeUninit::uninit()));
 }
 
 pub fn get_member_self() -> Option<Member> {
@@ -29,8 +35,40 @@ pub fn is_signed_in() -> bool {
 }
 
 
+pub fn display_error(value: ApiErrorResponse) {
+    {
+        *ERROR_POPUP.lock().unwrap() = Some(value);
+    }
+
+    MAIN_MODEL.with(|v| unsafe {
+        let lock = v.lock().unwrap();
+
+        let scope = lock.assume_init_ref();
+
+        scope.send_message(Msg::Update);
+    });
+}
+
+
+fn remove_error() {
+    {
+        *ERROR_POPUP.lock().unwrap() = None;
+    }
+
+    MAIN_MODEL.with(|v| unsafe {
+        let lock = v.lock().unwrap();
+
+        let scope = lock.assume_init_ref();
+
+        scope.send_message(Msg::Update);
+    });
+}
+
+
 enum Msg {
-    LoadMemberSelf(Option<api::GetMemberSelfResponse>)
+    LoadMemberSelf(WrappingResponse<api::GetMemberSelfResponse>),
+
+    Update
 }
 
 struct Model {
@@ -42,6 +80,9 @@ impl Component for Model {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
+        let scope = ctx.link().clone();
+        MAIN_MODEL.with(move |v| *v.lock().unwrap() = MaybeUninit::new(scope));
+
         ctx.link()
         .send_future(async {
             open_websocket_conn();
@@ -56,13 +97,19 @@ impl Component for Model {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::LoadMemberSelf(opt_resp) => {
-                if let Some(resp) = opt_resp {
-                    *MEMBER_SELF.lock().unwrap() = resp.member;
+            Msg::LoadMemberSelf(resp) => {
+                match resp.ok() {
+                    Ok(resp) => {
+                        *MEMBER_SELF.lock().unwrap() = resp.member;
+                    }
+
+                    Err(err) => display_error(err),
                 }
 
                 self.has_loaded_member = true;
             }
+
+            Msg::Update => {}
         }
 
         true
@@ -70,22 +117,39 @@ impl Component for Model {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <BrowserRouter>
-                <NavbarModule />
-                {
-                    if self.has_loaded_member {
-                        html! {
-                            <Switch<Route> render={Switch::render(switch)} />
-                        }
-                    } else {
-                        html! {
-                            <div>
-                                <h1>{ "Loading..." }</h1>
-                            </div>
+            <>
+                <BrowserRouter>
+                    <NavbarModule />
+                    {
+                        if self.has_loaded_member {
+                            html! {
+                                <Switch<Route> render={ Switch::render(switch) } />
+                            }
+                        } else {
+                            html! {
+                                <div>
+                                    <h1>{ "Loading..." }</h1>
+                                </div>
+                            }
                         }
                     }
+                </BrowserRouter>
+
+                {
+                    if let Some(error) = ERROR_POPUP.lock().unwrap().as_ref() {
+                        html! {
+                            <Popup
+                                type_of={ PopupType::FullOverlay }
+                                on_close={ Callback::from(|_| remove_error()) }
+                            >
+                                <p>{ error.description.clone() }</p>
+                            </Popup>
+                        }
+                    } else {
+                        html! {}
+                    }
                 }
-            </BrowserRouter>
+            </>
         }
     }
 }
@@ -121,7 +185,6 @@ pub enum Route {
     Setup,
 
     #[at("/")]
-    #[not_found]
     Dashboard
 }
 

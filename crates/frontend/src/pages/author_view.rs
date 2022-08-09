@@ -1,4 +1,4 @@
-use common::{component::{upload::UploadModule, popup::{Popup, PopupClose, PopupType}}, Either, PersonId, ImageIdType};
+use common::{component::{upload::UploadModule, popup::{Popup, PopupClose, PopupType}}, Either, PersonId, ImageIdType, api::WrappingResponse};
 use common_local::api::{self, GetPostersResponse, GetPersonResponse, SearchQuery};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
@@ -11,9 +11,9 @@ use crate::{components::{PopupEditMetadata, book_poster_item::{BookPosterItem, B
 #[derive(Clone)]
 pub enum Msg {
     // Retrive
-    RetrieveMediaView(Box<GetPersonResponse>),
-    RetrievePosters(GetPostersResponse),
-    BooksListResults(api::GetBookListResponse),
+    RetrieveMediaView(Box<WrappingResponse<GetPersonResponse>>),
+    RetrievePosters(WrappingResponse<GetPostersResponse>),
+    BooksListResults(WrappingResponse<api::GetBookListResponse>),
 
     UpdatedPoster,
 
@@ -86,7 +86,10 @@ impl Component for AuthorView {
             Msg::Ignore => return false,
 
             Msg::BooksListResults(resp) => {
-                self.cached_books = Some(resp);
+                match resp.ok() {
+                    Ok(resp) => self.cached_books = Some(resp),
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::ClosePopup => {
@@ -151,12 +154,18 @@ impl Component for AuthorView {
                 }
             }
 
-            Msg::RetrievePosters(value) => {
-                self.cached_posters = Some(value);
+            Msg::RetrievePosters(resp) => {
+                match resp.ok() {
+                    Ok(resp) => self.cached_posters = Some(resp),
+                    Err(err) => crate::display_error(err),
+                }
             }
 
-            Msg::RetrieveMediaView(value) => {
-                self.media = Some(*value);
+            Msg::RetrieveMediaView(resp) => {
+                match resp.ok() {
+                    Ok(resp) => self.media = Some(resp),
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::BookListItemEvent(event) => {

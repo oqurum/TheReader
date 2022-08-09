@@ -1,5 +1,5 @@
 use common_local::{api::{GetBookResponse, self}, util::file_size_bytes_to_readable_string};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, api::WrappingResponse};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -8,7 +8,7 @@ use crate::{request, Route, components::{PopupSearchBook, PopupEditMetadata}, ut
 #[derive(Clone)]
 pub enum Msg {
     // Retrive
-    RetrieveMediaView(Box<GetBookResponse>),
+    RetrieveMediaView(Box<WrappingResponse<GetBookResponse>>),
 
     // Events
     ShowPopup(DisplayOverlay),
@@ -51,7 +51,10 @@ impl Component for MediaView {
             }
 
             Msg::RetrieveMediaView(value) => {
-                self.media = Some(*value);
+                match value.ok() {
+                    Ok(resp) => self.media = Some(resp),
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::ShowPopup(new_disp) => {
@@ -127,7 +130,16 @@ impl MediaView {
                                     e.stop_propagation();
 
                                     async move {
-                                        Msg::ShowPopup(DisplayOverlay::Edit(Box::new(request::get_media_view(book_id).await)))
+                                        let resp = request::get_media_view(book_id).await;
+
+                                        match resp.ok() {
+                                            Ok(resp) => Msg::ShowPopup(DisplayOverlay::Edit(Box::new(resp))),
+                                            Err(err) => {
+                                                crate::display_error(err);
+
+                                                Msg::Ignore
+                                            }
+                                        }
                                     }
                                 })} title="More Options">{ "edit" }</span>
                             </div>

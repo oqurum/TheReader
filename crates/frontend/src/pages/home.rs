@@ -1,3 +1,4 @@
+use common::api::WrappingResponse;
 use common_local::{api, LibraryColl};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
@@ -6,7 +7,7 @@ use crate::{Route, request};
 
 pub enum Msg {
     // Results
-    LibraryListResults(api::GetLibrariesResponse)
+    LibraryListResults(WrappingResponse<api::GetLibrariesResponse>)
 }
 
 pub struct HomePage {
@@ -26,7 +27,10 @@ impl Component for HomePage {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::LibraryListResults(resp) => {
-                self.library_items = Some(resp.items);
+                match resp.ok() {
+                    Ok(resp) => self.library_items = Some(resp.items),
+                    Err(err) => crate::display_error(err),
+                }
             }
         }
 

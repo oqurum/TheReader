@@ -7,11 +7,11 @@ use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLi
 
 
 #[get("/options")]
-async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGetOptionsResponse>> {
+async fn load_options(db: web::Data<Database>) -> WebResult<JsonResponse<api::ApiGetOptionsResponse>> {
 	let libraries = LibraryModel::get_all(&db).await?;
 	let mut directories = DirectoryModel::get_all(&db).await?;
 
-	Ok(web::Json(api::GetOptionsResponse {
+	Ok(web::Json(WrappingResponse::okay(api::GetOptionsResponse {
 		libraries: libraries.into_iter()
 			.map(|lib| {
 				LibraryColl {
@@ -27,7 +27,7 @@ async fn load_options(db: web::Data<Database>) -> WebResult<web::Json<api::ApiGe
 				}
 			})
 			.collect()
-	}))
+	})))
 }
 
 #[post("/options")]

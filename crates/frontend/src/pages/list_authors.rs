@@ -1,5 +1,5 @@
 use common_local::{api, Person, SearchType};
-use common::{component::popup::{Popup, PopupClose, PopupType}, PersonId, util::truncate_on_indices};
+use common::{component::popup::{Popup, PopupClose, PopupType}, PersonId, util::truncate_on_indices, api::WrappingResponse};
 use gloo_utils::document;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::{HtmlElement, HtmlInputElement};
@@ -19,9 +19,9 @@ pub enum Msg {
     RequestPeople,
 
     // Results
-    PeopleListResults(api::GetPeopleResponse),
-    PersonUpdateSearchResults(String, api::BookSearchResponse),
-    PersonCombineSearchResults(String, Vec<Person>),
+    PeopleListResults(WrappingResponse<api::GetPeopleResponse>),
+    PersonUpdateSearchResults(String, WrappingResponse<api::BookSearchResponse>),
+    PersonCombineSearchResults(String, WrappingResponse<Vec<Person>>),
 
     // Events
     OnScroll(i32),
@@ -93,28 +93,44 @@ impl Component for AuthorListPage {
                 });
             }
 
-            Msg::PeopleListResults(mut resp) => {
+            Msg::PeopleListResults(resp) => {
                 self.is_fetching_authors = false;
-                self.total_media_count = resp.total;
 
-                if let Some(items) = self.media_items.as_mut() {
-                    items.append(&mut resp.items);
-                } else {
-                    self.media_items = Some(resp.items);
+                match resp.ok() {
+                    Ok(mut resp) => {
+                        self.total_media_count = resp.total;
+
+                        if let Some(items) = self.media_items.as_mut() {
+                            items.append(&mut resp.items);
+                        } else {
+                            self.media_items = Some(resp.items);
+                        }
+                    },
+                    Err(err) => crate::display_error(err),
                 }
             }
 
             Msg::PersonUpdateSearchResults(search_value, resp) => {
                 if let Some(DisplayOverlay::SearchForPerson { response, input_value, .. }) = self.media_popup.as_mut() {
-                    *response = Some(resp);
-                    *input_value = Some(search_value);
+                    match resp.ok() {
+                        Ok(resp) => {
+                            *response = Some(resp);
+                            *input_value = Some(search_value);
+                        },
+                        Err(err) => crate::display_error(err),
+                    }
                 }
             }
 
             Msg::PersonCombineSearchResults(search_value, resp) => {
                 if let Some(DisplayOverlay::CombinePersonWith { response, input_value, .. }) = self.media_popup.as_mut() {
-                    *response = Some(resp);
-                    *input_value = Some(search_value);
+                    match resp.ok() {
+                        Ok(resp) => {
+                            *response = Some(resp);
+                            *input_value = Some(search_value);
+                        },
+                        Err(err) => crate::display_error(err),
+                    }
                 }
             }
 
@@ -347,7 +363,7 @@ impl AuthorListPage {
 
                                                             let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
 
-                                                            Msg::PersonCombineSearchResults(input.value(), request::get_people(Some(&input.value()), None, None).await.items)
+                                                            Msg::PersonCombineSearchResults(input.value(), request::get_people(Some(&input.value()), None, None).await.map(|v| v.items))
                                                         })
                                                     }>{ "Search" }</button>
                                                 </form>

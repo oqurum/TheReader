@@ -1,7 +1,7 @@
 use std::sync::{Mutex, Arc};
 
 use common_local::api::{GetBookListResponse, self};
-use common::util::does_parent_contain_class;
+use common::{util::does_parent_contain_class, api::WrappingResponse};
 use gloo_utils::{document, body};
 use wasm_bindgen::{JsCast, prelude::Closure};
 use web_sys::HtmlInputElement;
@@ -13,7 +13,7 @@ use crate::{Route, request};
 pub enum Msg {
     Close,
     SearchFor(String),
-    SearchResults(GetBookListResponse),
+    SearchResults(WrappingResponse<GetBookListResponse>),
 }
 
 pub struct NavbarModule {
@@ -67,7 +67,12 @@ impl Component for NavbarModule {
                 });
             }
 
-            Msg::SearchResults(res) => self.search_results = Some(res),
+            Msg::SearchResults(resp) => {
+                match resp.ok() {
+                    Ok(res) => self.search_results = Some(res),
+                    Err(err) => crate::display_error(err),
+                }
+            }
         }
 
         true

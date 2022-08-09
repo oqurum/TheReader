@@ -1,5 +1,5 @@
 use common_local::{api, BasicLibrary, LibraryId};
-use common::component::popup::{Popup, PopupType};
+use common::{component::popup::{Popup, PopupType}, api::WrappingResponse};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_list;
@@ -8,7 +8,7 @@ use crate::request;
 
 pub enum Msg {
     // Request Results
-    OptionsResults(api::GetOptionsResponse),
+    OptionsResults(WrappingResponse<api::GetOptionsResponse>),
 
     // Events
     DisplayPopup(usize, LibraryId),
@@ -38,8 +38,13 @@ impl Component for OptionsPage {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::OptionsResults(resp) => {
-                self.resp = Some(resp);
-                self.visible_popup = None;
+                match resp.ok() {
+                    Ok(resp) => {
+                        self.resp = Some(resp);
+                        self.visible_popup = None;
+                    },
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::DisplayPopup(popup, index) => {

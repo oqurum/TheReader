@@ -1,4 +1,4 @@
-use common::{component::{multi_select::{MultiSelectItem, MultiSelectModule, MultiSelectEvent}, popup::{Popup, PopupType}}, PersonId, Either};
+use common::{component::{multi_select::{MultiSelectItem, MultiSelectModule, MultiSelectEvent}, popup::{Popup, PopupType}}, PersonId, Either, api::WrappingResponse};
 use common_local::{api::{GetBookResponse, GetPostersResponse, ApiGetPeopleResponse}, Person};
 use gloo_timers::callback::Timeout;
 use yew::prelude::*;
@@ -26,8 +26,8 @@ pub struct Property {
 
 
 pub enum Msg {
-    RetrievePostersResponse(GetPostersResponse),
-    RetrievePeopleResponse(ApiGetPeopleResponse),
+    RetrievePostersResponse(WrappingResponse<GetPostersResponse>),
+    RetrievePeopleResponse(WrappingResponse<ApiGetPeopleResponse>),
 
     // Events
     SwitchTab(TabDisplay),
@@ -85,11 +85,17 @@ impl Component for PopupEditMetadata {
             }
 
             Msg::RetrievePostersResponse(resp) => {
-                self.cached_posters = Some(resp);
+                match resp.ok() {
+                    Ok(resp) => self.cached_posters = Some(resp),
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::RetrievePeopleResponse(resp) => {
-                self.person_search_cache = resp.items;
+                match resp.ok() {
+                    Ok(resp) => self.person_search_cache = resp.items,
+                    Err(err) => crate::display_error(err),
+                }
             }
 
             Msg::UpdatedPoster => {
