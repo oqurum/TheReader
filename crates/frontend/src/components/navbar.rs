@@ -1,6 +1,6 @@
 use std::sync::{Mutex, Arc};
 
-use common_local::api::{GetBookListResponse, self};
+use common_local::{api::GetBookListResponse, filter::FilterContainer};
 use common::{util::does_parent_contain_class, api::WrappingResponse};
 use gloo_utils::{document, body};
 use wasm_bindgen::{JsCast, prelude::Closure};
@@ -58,11 +58,11 @@ impl Component for NavbarModule {
                         None,
                         Some(0),
                         Some(20),
-                        Some(api::SearchQuery {
-                            query: Some(value),
-                            source: None,
-                            person_id: None,
-                        })
+                        {
+                            let mut search = FilterContainer::default();
+                            search.add_query_filter(value);
+                            search
+                        }
                     ).await)
                 });
             }

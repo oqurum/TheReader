@@ -7,7 +7,7 @@ use wasm_bindgen::{JsValue, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
 
-use common_local::{api::*, Progression, SearchType, setup::SetupConfig, LibraryId, FileId};
+use common_local::{api::*, Progression, SearchType, setup::SetupConfig, LibraryId, FileId, filter::FilterContainer};
 
 
 // Setup
@@ -161,11 +161,11 @@ pub async fn get_books(
     library: Option<LibraryId>,
     offset: Option<usize>,
     limit: Option<usize>,
-    search: Option<SearchQuery>,
+    search: FilterContainer,
 ) -> WrappingResponse<ApiGetBookListResponse> {
     let url = format!(
         "/api/books?{}",
-        serde_urlencoded::to_string(BookListQuery::new(library, offset, limit, search).unwrap()).unwrap()
+        serde_qs::to_string(&BookListQuery::new(library, offset, limit, search).unwrap()).unwrap()
     );
 
     fetch(
@@ -196,7 +196,7 @@ pub fn compile_book_resource_path(book_id: FileId, location: &Path, query: LoadR
         "/api/file/{}/res/{}?{}",
         book_id,
         location.to_str().unwrap(),
-        serde_urlencoded::to_string(&query).unwrap_or_default()
+        serde_qs::to_string(&query).unwrap_or_default()
     )
 }
 

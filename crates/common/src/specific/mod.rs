@@ -9,6 +9,7 @@ mod edit;
 mod id;
 mod perms;
 pub mod setup;
+pub mod filter;
 
 pub use edit::*;
 pub use id::*;

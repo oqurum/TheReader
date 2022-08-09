@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common::{ImageId, PersonId, Either, Source, api::QueryListResponse};
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer};
 
 
 // API Routes
@@ -143,35 +143,24 @@ pub struct BookListQuery {
     pub offset: Option<usize>,
     pub limit: Option<usize>,
     /// `SearchQuery`
-    pub search: Option<String>,
+    #[serde(default)]
+    pub filters: FilterContainer,
 }
 
 impl BookListQuery {
-    pub fn new(library: Option<LibraryId>, offset: Option<usize>, limit: Option<usize>, search: Option<SearchQuery>) -> Result<Self> {
-        let search = search.map(serde_urlencoded::to_string)
-            .transpose()?;
-
+    pub fn new(library: Option<LibraryId>, offset: Option<usize>, limit: Option<usize>, filters: FilterContainer) -> Result<Self> {
         Ok(Self {
             library,
             offset,
             limit,
-            search,
+            filters,
         })
     }
 
-    pub fn search_query(&self) -> Option<Result<SearchQuery>> {
-        self.search.as_deref().map(|v| Ok(serde_urlencoded::from_str(v)?))
+    pub fn has_query(&self) -> bool {
+        !self.filters.filters.is_empty()
     }
 }
-
-
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct SearchQuery {
-    pub query: Option<String>,
-    pub source: Option<String>,
-    pub person_id: Option<PersonId>,
-}
-
 
 
 pub type GetChaptersResponse = QueryListResponse<Chapter>;

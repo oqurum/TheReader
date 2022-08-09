@@ -3,6 +3,7 @@ use std::{num::ParseIntError, sync::PoisonError};
 use thiserror::Error as ThisError;
 
 use serde_urlencoded::ser::Error as SerdeUrlEncodedError;
+use serde_json::Error as SerdeJsonError;
 use serde::de::value::Error as SerdeValueError;
 use std::io::Error as IoError;
 use std::time::SystemTimeError;
@@ -14,6 +15,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("Poison Error")]
     Poisoned,
+
+    #[error("Serde Json Error: {0}")]
+    SerdeJson(#[from] SerdeJsonError),
 
     #[error("Serde Value Error: {0}")]
     SerdeValue(#[from] SerdeValueError),

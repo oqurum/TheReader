@@ -1,5 +1,5 @@
 use common::{component::{upload::UploadModule, popup::{Popup, PopupClose, PopupType}}, Either, PersonId, ImageIdType, api::WrappingResponse};
-use common_local::api::{self, GetPostersResponse, GetPersonResponse, SearchQuery};
+use common_local::{api::{self, GetPostersResponse, GetPersonResponse}, filter::FilterContainer};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::{prelude::*, html::Scope};
@@ -59,10 +59,11 @@ impl Component for AuthorView {
                 None,
                 None,
                 None,
-                Some(SearchQuery {
-                    person_id: Some(person_id),
-                    .. Default::default()
-                }),
+                {
+                    let mut search = FilterContainer::default();
+                    search.add_person_filter(person_id);
+                    search
+                },
             ).await;
 
             Msg::BooksListResults(resp)

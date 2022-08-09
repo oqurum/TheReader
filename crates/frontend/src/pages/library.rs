@@ -1,13 +1,13 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, PersonId, api::WrappingResponse};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, api::WrappingResponse};
 use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::{HtmlElement, UrlSearchParams};
+use web_sys::HtmlElement;
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop}};
+use crate::{request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
 
 
 #[derive(Properties, PartialEq)]
@@ -168,7 +168,7 @@ impl Component for LibraryPage {
                         Some(library),
                         offset,
                         None,
-                        get_search_query()
+                        SearchQuery::load().filters
                     ).await)
                 });
             }
@@ -409,27 +409,5 @@ impl LibraryPage {
         let count = self.media_items.as_ref().map(|v| v.len()).unwrap_or_default();
 
         count != 0 && count != self.total_media_count as usize
-    }
-}
-
-
-
-fn get_search_query() -> Option<api::SearchQuery> {
-    let search_params = UrlSearchParams::new_with_str(
-        &gloo_utils::window().location().search().ok()?
-    ).ok()?;
-
-    let query = search_params.get("query");
-    let source = search_params.get("source");
-    let person_id = search_params.get("person_id");
-
-    if query.is_none() && source.is_none() {
-        None
-    } else {
-        Some(api::SearchQuery {
-            query,
-            source,
-            person_id: person_id.and_then(|v| Some(PersonId::from(v.parse::<usize>().ok()?)))
-        })
     }
 }

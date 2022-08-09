@@ -2,7 +2,7 @@ use chrono::{Utc, DateTime, TimeZone};
 use common::{BookId, Source, ThumbnailStore, PersonId};
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{LibraryId, BookItemCached, DisplayBookItem, util::{serialize_datetime, serialize_datetime_opt}, api};
+use common_local::{LibraryId, BookItemCached, DisplayBookItem, util::{serialize_datetime, serialize_datetime_opt}, filter::{FilterContainer, FilterTableType, FilterModifier}};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
@@ -264,73 +264,57 @@ impl BookModel {
 
 
 	// Search
-	fn gen_search_query(search: &api::SearchQuery, library: Option<LibraryId>) -> Option<String> {
-		let mut needs_and = false;
+	fn gen_search_query(filter: &FilterContainer, library: Option<LibraryId>) -> Option<String> {
 		let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
 		let orig_len = sql.len();
 
-		// Library ID
+		let mut f_comp = Vec::new();
 
+		// Library ID
 		if let Some(library) = library {
-			needs_and = true;
-			sql += &format!("library_id={} ", library);
+			f_comp.push(format!("library_id={} ", library));
 		}
 
 
-		// Query
+		for fil in &filter.filters {
+			match fil.type_of {
+				FilterTableType::Id => todo!(),
 
-		if let Some(query) = search.query.as_deref() {
-			if needs_and {
-				sql += "AND ";
-			}
+				FilterTableType::Source => for query in fil.value.values() {
+					f_comp.push(format!("source {} '{}%' ", get_modifier(fil.type_of, fil.modifier), query));
+				}
 
-			needs_and = true;
-
-			let mut escape_char = '\\';
-			// Change our escape character if it's in the query.
-			if query.contains(escape_char) {
-				for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
-					if !query.contains(car) {
-						escape_char = car;
-						break;
+				FilterTableType::Query => for query in fil.value.values() {
+					let mut escape_char = '\\';
+					// Change our escape character if it's in the query.
+					if query.contains(escape_char) {
+						for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
+							if !query.contains(car) {
+								escape_char = car;
+								break;
+							}
+						}
 					}
+
+					// TODO: Utilize title > original_title > description, and sort
+					f_comp.push(format!(
+						"title {} '%{}%' ESCAPE '{}' ",
+						get_modifier(fil.type_of, fil.modifier),
+						query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
+						escape_char
+					));
+				}
+
+				FilterTableType::Person => for pid in fil.value.values() {
+					f_comp.push(format!(
+						r#"id IN (SELECT metadata_id FROM metadata_person WHERE person_id = {}) "#,
+						pid
+					));
 				}
 			}
-
-			// TODO: Utilize title > original_title > description, and sort
-			sql += &format!(
-				"title LIKE '%{}%' ESCAPE '{}' ",
-				query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
-				escape_char
-			);
 		}
 
-
-		// Source
-
-		if let Some(source) = search.source.as_deref() {
-			if needs_and {
-				sql += "AND ";
-			}
-
-			needs_and = true;
-
-			sql += &format!("source LIKE '{}%' ", source);
-		}
-
-
-		// Person Id
-
-		if let Some(pid) = search.person_id {
-			if needs_and {
-				sql += "AND ";
-			}
-
-			sql += &format!(
-				r#"id IN (SELECT metadata_id FROM metadata_person WHERE person_id = {}) "#,
-				pid
-			);
-		}
+		sql += &f_comp.join(" AND ");
 
 		if sql.len() == orig_len {
 			// If sql is still unmodified
@@ -340,8 +324,8 @@ impl BookModel {
 		}
 	}
 
-	pub async fn search_by(search: &api::SearchQuery, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
-		let mut sql = match Self::gen_search_query(search, library) {
+	pub async fn search_by(filter: &FilterContainer, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+		let mut sql = match Self::gen_search_query(filter, library) {
 			Some(v) => v,
 			None => return Ok(Vec::new())
 		};
@@ -357,12 +341,31 @@ impl BookModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
-	pub async fn count_search_by(search: &api::SearchQuery, library: Option<LibraryId>, db: &Database) -> Result<usize> {
-		let sql = match Self::gen_search_query(search, library) {
+	pub async fn count_search_by(filter: &FilterContainer, library: Option<LibraryId>, db: &Database) -> Result<usize> {
+		let sql = match Self::gen_search_query(filter, library) {
 			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
 			None => return Ok(0)
 		};
 
 		Ok(db.read().await.query_row(&sql, [], |v| v.get(0))?)
+	}
+}
+
+
+
+
+fn get_modifier(type_of: FilterTableType, modi: FilterModifier) -> &'static str {
+	match (type_of, modi) {
+		(FilterTableType::Source, FilterModifier::Equal) |
+		(FilterTableType::Query, FilterModifier::Equal) => "LIKE",
+
+		(_, FilterModifier::IsNull) => "IS NULL",
+		(_, FilterModifier::IsNotNull) => "IS NOT NULL",
+		(_, FilterModifier::GreaterThan) => ">",
+		(_, FilterModifier::GreaterThanOrEqual) => ">=",
+		(_, FilterModifier::LessThan) => "<",
+		(_, FilterModifier::LessThanOrEqual) => "<=",
+		(_, FilterModifier::Equal) => "=",
+		(_, FilterModifier::DoesNotEqual) => "!=",
 	}
 }

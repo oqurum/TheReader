@@ -1,8 +1,9 @@
 use actix_web::{get, web, HttpResponse, post, delete};
 
-use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem};
+use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer};
 use chrono::Utc;
 use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
+use serde_qs::actix::QsQuery;
 
 use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, book::BookModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, book_person::BookPersonModel}, http::{MemberCookie, JsonResponse}};
 
@@ -11,19 +12,20 @@ use crate::{database::Database, task::{queue_task_priority, self}, queue_task, m
 
 #[get("/books")]
 pub async fn load_book_list(
-	query: web::Query<api::BookListQuery>,
+	query: QsQuery<api::BookListQuery>,
 	db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookListResponse>> {
-	let (items, count) = if let Some(search) = query.search_query() {
-		let search = search?;
 
-		let count = BookModel::count_search_by(&search, query.library, &db).await?;
+	let (items, count) = if query.has_query() {
+		let search = &query.filters;
+
+		let count = BookModel::count_search_by(search, query.library, &db).await?;
 
 		let items = if count == 0 {
 			Vec::new()
 		} else {
 			BookModel::search_by(
-				&search,
+				search,
 				query.library,
 				query.offset.unwrap_or(0),
 				query.limit.unwrap_or(50),
@@ -44,7 +46,7 @@ pub async fn load_book_list(
 		(items, count)
 	} else {
 		let count = BookModel::count_search_by(
-			&api::SearchQuery::default(),
+			&FilterContainer::default(),
 			query.library,
 			&db,
 		).await?;
