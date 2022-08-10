@@ -2,11 +2,11 @@ use chrono::{Utc, DateTime, TimeZone};
 use common::{BookId, Source, ThumbnailStore, PersonId};
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{LibraryId, BookItemCached, DisplayBookItem, util::{serialize_datetime, serialize_datetime_opt}, filter::{FilterContainer, FilterTableType, FilterModifier}};
+use common_local::{LibraryId, BookItemCached, DisplayBookItem, util::{serialize_datetime, serialize_datetime_opt}, filter::{FilterContainer, FilterTableType, FilterModifier}, BookEdit};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
+use super::{TableRow, AdvRow, book_person::BookPersonModel};
 
 
 
@@ -261,6 +261,79 @@ impl BookModel {
 		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
 	}
 
+	pub async fn edit_book_by_id(book_id: BookId, edit: BookEdit, db: &Database) -> Result<usize> {
+		let mut items = Vec::new();
+
+		let mut values = vec![
+            &book_id as &dyn rusqlite::ToSql
+        ];
+
+
+        if let Some(value) = edit.title.as_ref() {
+            items.push("title");
+            values.push(value as &dyn rusqlite::ToSql);
+        }
+
+        if let Some(value) = edit.original_title.as_ref() {
+            items.push("original_title");
+            values.push(value as &dyn rusqlite::ToSql);
+        }
+
+		if let Some(value) = edit.description.as_ref() {
+            items.push("description");
+            values.push(value as &dyn rusqlite::ToSql);
+        }
+
+		if let Some(value) = edit.rating.as_ref() {
+            items.push("rating");
+            values.push(value as &dyn rusqlite::ToSql);
+        }
+
+		if let Some(value) = edit.available_at.as_ref() {
+            items.push("available_at");
+            values.push(value as &dyn rusqlite::ToSql);
+        }
+
+		if let Some(value) = edit.year.as_ref() {
+            items.push("year");
+            values.push(value as &dyn rusqlite::ToSql);
+        }
+
+		if let Some(_value) = edit.publisher {
+            // TODO
+        }
+
+		if let Some(ids) = edit.added_people {
+            for person_id in ids {
+				BookPersonModel { book_id, person_id }.insert_or_ignore(db).await?;
+			}
+        }
+
+		if let Some(ids) = edit.removed_people {
+            for person_id in ids {
+				BookPersonModel { book_id, person_id }.delete(db).await?;
+			}
+        }
+
+
+        if items.is_empty() {
+            return Ok(0);
+        }
+
+
+        Ok(db.write().await
+        .execute(
+            &format!(
+                "UPDATE metadata_item SET {} WHERE id = ?1",
+                items.iter()
+                    .enumerate()
+                    .map(|(i, v)| format!("{v} = ?{}", 2 + i))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            rusqlite::params_from_iter(values.iter().map(|v| &*v))
+        )?)
+	}
 
 
 	// Search

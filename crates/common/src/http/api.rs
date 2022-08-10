@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common::{ImageId, PersonId, Either, Source, api::QueryListResponse};
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer, BookEdit};
 
 
 // API Routes
@@ -224,7 +224,9 @@ pub enum PostBookBody {
     AutoMatchBookIdBySource,
     AutoMatchBookIdByFiles,
 
-    UpdateBookBySource(Source)
+    UpdateBookBySource(Source),
+
+    Edit(BookEdit),
 }
 
 

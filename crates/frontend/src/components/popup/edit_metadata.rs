@@ -1,6 +1,7 @@
 use common::{component::{multi_select::{MultiSelectItem, MultiSelectModule, MultiSelectEvent}, popup::{Popup, PopupType}}, PersonId, Either, api::WrappingResponse};
-use common_local::{api::{GetBookResponse, GetPostersResponse, ApiGetPeopleResponse}, Person};
+use common_local::{api::{GetBookResponse, GetPostersResponse, ApiGetPeopleResponse, PostBookBody}, Person, BookEdit};
 use gloo_timers::callback::Timeout;
+use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::prelude::*;
 
 use crate::request;
@@ -37,6 +38,9 @@ pub enum Msg {
     SearchPerson(String),
     TogglePerson { toggle: bool, id: PersonId },
 
+    Edit(Box<dyn Fn(&mut BookEdit, String, &GetBookResponse)>, String),
+    Save,
+
     Ignore,
 }
 
@@ -50,6 +54,8 @@ pub struct PopupEditMetadata {
 
     selected_persons: Vec<Person>,
     person_search_cache: Vec<Person>,
+
+    edits: BookEdit,
 }
 
 impl Component for PopupEditMetadata {
@@ -64,11 +70,14 @@ impl Component for PopupEditMetadata {
 
             selected_persons: ctx.props().media_resp.people.clone(),
             person_search_cache: Vec::new(),
+
+            edits: BookEdit::default(),
         }
     }
 
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
         self.selected_persons = ctx.props().media_resp.people.clone();
+        self.edits = BookEdit::default();
 
         true
     }
@@ -77,6 +86,10 @@ impl Component for PopupEditMetadata {
         match msg {
             Msg::Ignore => {
                 return false;
+            }
+
+            Msg::Edit(func, value) => {
+                func(&mut self.edits, value, &ctx.props().media_resp);
             }
 
             Msg::SwitchTab(value) => {
@@ -119,8 +132,21 @@ impl Component for PopupEditMetadata {
             }
 
             Msg::TogglePerson { toggle, id } => {
-                let book_id = ctx.props().media_resp.book.id;
+                // Is person currently set for book
+                let is_current = ctx.props().media_resp.people.iter().any(|v| v.id == id);
 
+                match (is_current, toggle) {
+                    // Stored and added (again) - not possible
+                    (true, true) => self.edits.remove_person(id),
+                    // Stored and removed
+                    (true, false) => self.edits.insert_removed_person(id),
+                    // Not stored and added
+                    (false, true) => self.edits.insert_added_person(id),
+                    // Not stored and removed
+                    (false, false) => self.edits.remove_person(id),
+                }
+
+                // TODO: Remove self.selected_persons, utilize self.edits instead
                 if toggle {
                     if let Some(person) = self.person_search_cache.iter().find(|v| v.id == id) {
                         self.selected_persons.push(person.clone());
@@ -128,15 +154,22 @@ impl Component for PopupEditMetadata {
                 } else if let Some(index) = self.selected_persons.iter().position(|v| v.id == id) {
                     self.selected_persons.remove(index);
                 }
+            }
+
+            Msg::Save => {
+                let edit = self.edits.clone();
+                let id = ctx.props().media_resp.book.id;
+                let close = ctx.props().on_close.clone();
 
                 ctx.link()
                 .send_future(async move {
-                    // TODO: Check Response
-                    if toggle {
-                        request::add_person_to_book(book_id, id).await;
-                    } else {
-                        request::delete_person_from_book(book_id, id).await;
+                    let resp = request::update_book(id, &PostBookBody::Edit(edit)).await;
+
+                    if let Err(err) = resp.ok() {
+                        crate::display_error(err);
                     }
+
+                    close.emit(());
 
                     Msg::Ignore
                 });
@@ -147,10 +180,12 @@ impl Component for PopupEditMetadata {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let on_close = ctx.props().on_close.clone();
+
         html! {
             <Popup
                 type_of={ PopupType::FullOverlay }
-                on_close={ ctx.props().on_close.clone() }
+                on_close={ on_close.clone() }
                 classes={ classes!("popup-book-edit") }
             >
                 <div class="header">
@@ -166,8 +201,8 @@ impl Component for PopupEditMetadata {
                 { self.render_tab_contents(ctx) }
 
                 <div class="footer">
-                    <button class="red">{ "Cancel" }</button>
-                    <button class="green">{ "Save" }</button>
+                    <button class="red" onclick={ Callback::from(move |_| on_close.emit(())) }>{ "Cancel" }</button>
+                    <button class="green" onclick={ ctx.link().callback(|_| Msg::Save) }>{ "Save" }</button>
                 </div>
             </Popup>
         }
@@ -202,17 +237,44 @@ impl PopupEditMetadata {
             <div class="content">
                 <div class="form-container">
                     <label for="input-title">{ "Title" }</label>
-                    <input type="text" id="input-title" value={ resp.book.title.clone().unwrap_or_default() } />
+                    <input
+                        type="text" id="input-title"
+                        value={ self.edits.title.as_ref().map_or_else(|| resp.book.title.clone(), |v| v.clone()) }
+                        onchange={
+                            ctx.link().callback(move |e: Event| Msg::Edit(
+                                Box::new(|e, v, c| { e.title = Some(Some(v).filter(|v| !v.trim().is_empty())).filter(|v| v != &c.book.title); }),
+                                e.target_unchecked_into::<HtmlInputElement>().value(),
+                            ))
+                        }
+                    />
                 </div>
 
                 <div class="form-container">
                     <label for="input-orig-title">{ "Original Title" }</label>
-                    <input type="text" id="input-orig-title" value={ resp.book.original_title.clone().unwrap_or_default() } />
+                    <input
+                        type="text" id="input-orig-title"
+                        value={ self.edits.original_title.as_ref().map_or_else(|| resp.book.original_title.clone(), |v| v.clone()) }
+                        onchange={
+                            ctx.link().callback(move |e: Event| Msg::Edit(
+                                Box::new(|e, v, c| { e.original_title = Some(Some(v).filter(|v| !v.trim().is_empty())).filter(|v| v != &c.book.original_title); }),
+                                e.target_unchecked_into::<HtmlInputElement>().value(),
+                            ))
+                        }
+                    />
                 </div>
 
                 <div class="form-container">
                     <label for="input-descr">{ "Description" }</label>
-                    <textarea type="text" id="input-descr" rows="5" value={ resp.book.description.clone().unwrap_or_default() } />
+                    <textarea
+                        type="text" id="input-descr" rows="5"
+                        value={ self.edits.description.as_ref().map_or_else(|| resp.book.description.clone(), |v| v.clone()) }
+                        onchange={
+                            ctx.link().callback(move |e: Event| Msg::Edit(
+                                Box::new(|e, v, c| { e.description = Some(Some(v).filter(|v| !v.trim().is_empty())).filter(|v| v != &c.book.description); }),
+                                e.target_unchecked_into::<HtmlTextAreaElement>().value(),
+                            ))
+                        }
+                    />
                 </div>
 
                 <div class="form-container">

@@ -148,6 +148,10 @@ pub async fn update_book_info(
 		api::PostBookBody::UpdateBookBySource(source) => {
 			queue_task_priority(task::TaskUpdateInvalidBook::new(task::UpdatingBook::UpdateBookWithSource { book_id, source }));
 		}
+
+		api::PostBookBody::Edit(edit) => {
+			BookModel::edit_book_by_id(book_id, edit, &db).await?;
+		}
 	}
 
 	Ok(web::Json(WrappingResponse::okay("success")))
