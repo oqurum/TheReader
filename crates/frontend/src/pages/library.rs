@@ -7,7 +7,7 @@ use web_sys::HtmlElement;
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
+use crate::{request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar, Sidebar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
 
 
 #[derive(Properties, PartialEq)]
@@ -259,7 +259,7 @@ impl Component for LibraryPage {
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div class="outer-view-container">
-                <div class="sidebar-container"></div>
+                <Sidebar />
                 <div class="view-container">
                     { self.render_main(ctx) }
                 </div>

@@ -1,77 +1,29 @@
-use common::api::WrappingResponse;
-use common_local::{api, LibraryColl};
-use yew::{prelude::*, html::Scope};
-use yew_router::prelude::Link;
+use yew::prelude::*;
 
-use crate::{Route, request};
+use crate::components::Sidebar;
 
-pub enum Msg {
-    // Results
-    LibraryListResults(WrappingResponse<api::GetLibrariesResponse>)
-}
-
-pub struct HomePage {
-    library_items: Option<Vec<LibraryColl>>
-}
+pub struct HomePage;
 
 impl Component for HomePage {
-    type Message = Msg;
+    type Message = ();
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-            library_items: None
-        }
+        Self
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Msg::LibraryListResults(resp) => {
-                match resp.ok() {
-                    Ok(resp) => self.library_items = Some(resp.items),
-                    Err(err) => crate::display_error(err),
-                }
-            }
-        }
-
+    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
         true
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        if let Some(items) = self.library_items.as_deref() {
-            html! {
-                <div class="outer-view-container">
-                    <div class="sidebar-container">
-                        { for items.iter().map(|item| Self::render_sidebar_library_item(item, ctx.link())) }
-                    </div>
-                    <div class="view-container">
-                        //
-                    </div>
-                </div>
-            }
-        } else {
-            html! {
-                <h1>{ "Loading..." }</h1>
-            }
-        }
-    }
-
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if first_render {
-            ctx.link()
-            .send_future(async move {
-                Msg::LibraryListResults(request::get_libraries().await)
-            });
-        }
-    }
-}
-
-impl HomePage {
-    fn render_sidebar_library_item(item: &LibraryColl, _scope: &Scope<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <Link<Route> to={Route::ViewLibrary { library_id: item.id }} classes={ classes!("sidebar-item", "library") }>
-                { item.name.clone() }
-            </Link<Route>>
+            <div class="outer-view-container">
+                <Sidebar />
+                <div class="view-container">
+                    //
+                </div>
+            </div>
         }
     }
 }

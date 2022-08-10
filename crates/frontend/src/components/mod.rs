@@ -1,3 +1,4 @@
+mod sidebar;
 pub mod navbar;
 pub mod notes;
 pub mod popup;
@@ -13,3 +14,4 @@ pub use popup::{
 };
 pub use reader::Reader;
 pub use mass_selector_bar::MassSelectBar;
+pub use sidebar::Sidebar;
