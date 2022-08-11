@@ -66,17 +66,16 @@ impl Component for BookPosterItem {
             ..
         } = ctx.props();
 
-        let container_ref_clone = container_ref.clone();
-
         let book_id = item.id;
 
         let on_click_more = ctx.link().callback(move |e: MouseEvent| {
             e.prevent_default();
             e.stop_propagation();
 
-            let scroll = container_ref_clone.as_ref().unwrap().cast::<HtmlElement>().unwrap().scroll_top();
+            let target = e.target_unchecked_into::<HtmlElement>();
+            let bb = target.get_bounding_client_rect();
 
-            BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::More { book_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
+            BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::More { book_id, mouse_pos: ((bb.left() + bb.width()) as i32, (bb.top() + bb.height()) as i32) }))
         });
 
         html! {

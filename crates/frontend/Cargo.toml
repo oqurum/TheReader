@@ -55,6 +55,7 @@ wasm-logger = "0.2"
 version = "0.3"
 features = [
 	"DomTokenList",
+	"DomRect",
 	"FormData",
 	"Headers",
 	"Request",
