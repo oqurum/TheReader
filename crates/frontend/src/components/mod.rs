@@ -9,7 +9,7 @@ pub mod book_poster_item;
 pub use navbar::NavbarModule;
 pub use notes::Notes;
 pub use popup::{
-    edit_metadata::PopupEditMetadata,
+    edit_book::PopupEditBook,
     search_book::PopupSearchBook,
 };
 pub use reader::Reader;

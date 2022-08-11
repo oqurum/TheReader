@@ -4,7 +4,7 @@ use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::{prelude::*, html::Scope};
 
-use crate::{components::{PopupEditMetadata, book_poster_item::{BookPosterItem, BookPosterItemMsg, PosterItem, DisplayOverlayItem}}, request, util::{on_click_prevdef, on_click_prevdef_stopprop}};
+use crate::{components::{PopupEditBook, book_poster_item::{BookPosterItem, BookPosterItemMsg, PosterItem, DisplayOverlayItem}}, request, util::{on_click_prevdef, on_click_prevdef_stopprop}};
 
 
 
@@ -456,7 +456,7 @@ impl Component for AuthorView {
 
                                     DisplayOverlayItem::Edit(resp) => {
                                         html! {
-                                            <PopupEditMetadata
+                                            <PopupEditBook
                                                 on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
                                                 classes={ classes!("popup-book-edit") }
                                                 media_resp={ (&**resp).clone() }

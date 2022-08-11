@@ -7,7 +7,7 @@ use web_sys::HtmlElement;
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{request, components::{PopupSearchBook, PopupEditMetadata, MassSelectBar, Sidebar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
+use crate::{request, components::{PopupSearchBook, PopupEditBook, MassSelectBar, Sidebar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
 
 
 #[derive(Properties, PartialEq)]
@@ -347,7 +347,7 @@ impl LibraryPage {
 
                                     DisplayOverlayItem::Edit(resp) => {
                                         html! {
-                                            <PopupEditMetadata
+                                            <PopupEditBook
                                                 on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
                                                 classes={ classes!("popup-book-edit") }
                                                 media_resp={ (&**resp).clone() }

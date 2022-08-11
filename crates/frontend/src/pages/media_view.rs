@@ -3,7 +3,7 @@ use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, api::Wrap
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::{request, Route, components::{PopupSearchBook, PopupEditMetadata}, util::{on_click_prevdef, on_click_prevdef_stopprop}};
+use crate::{request, Route, components::{PopupSearchBook, PopupEditBook}, util::{on_click_prevdef, on_click_prevdef_stopprop}};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -234,7 +234,7 @@ impl MediaView {
 
                                 DisplayOverlay::Edit(resp) => {
                                     html! {
-                                        <PopupEditMetadata
+                                        <PopupEditBook
                                             on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
                                             classes={ classes!("popup-book-edit") }
                                             media_resp={ (&**resp).clone() }

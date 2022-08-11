@@ -45,7 +45,7 @@ pub enum Msg {
 }
 
 
-pub struct PopupEditMetadata {
+pub struct PopupEditBook {
     tab_display: TabDisplay,
 
     cached_posters: Option<GetPostersResponse>,
@@ -58,7 +58,7 @@ pub struct PopupEditMetadata {
     edits: BookEdit,
 }
 
-impl Component for PopupEditMetadata {
+impl Component for PopupEditBook {
     type Message = Msg;
     type Properties = Property;
 
@@ -209,7 +209,7 @@ impl Component for PopupEditMetadata {
     }
 }
 
-impl PopupEditMetadata {
+impl PopupEditBook {
     fn render_tab_contents(&self, ctx: &Context<Self>) -> Html {
         match self.tab_display {
             TabDisplay::General => self.render_tab_general(ctx),

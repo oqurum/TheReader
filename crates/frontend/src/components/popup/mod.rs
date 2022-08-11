@@ -1,2 +1,2 @@
-pub mod edit_metadata;
+pub mod edit_book;
 pub mod search_book;
