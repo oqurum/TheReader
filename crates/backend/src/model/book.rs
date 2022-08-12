@@ -378,11 +378,30 @@ impl BookModel {
 					));
 				}
 
-				FilterTableType::Person => for pid in fil.value.values() {
-					f_comp.push(format!(
-						r#"id IN (SELECT metadata_id FROM metadata_person WHERE person_id = {}) "#,
-						pid
-					));
+				FilterTableType::Person => {
+					for pid in fil.value.values() {
+						match fil.modifier {
+							FilterModifier::IsNull => {
+								f_comp.push(String::from(
+									"id NOT IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
+								));
+							}
+
+							FilterModifier::IsNotNull => {
+								f_comp.push(String::from(
+									"id IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
+								));
+							}
+
+							v => {
+								f_comp.push(format!(
+									"id IN (SELECT metadata_id FROM metadata_person WHERE person_id {} {})",
+									get_modifier(fil.type_of, v),
+									pid
+								));
+							}
+						}
+					}
 				}
 			}
 		}
