@@ -142,6 +142,7 @@ pub struct BookSearchItem {
 	pub isbn: Option<Vec<String>>,
 	pub last_modified_i: Option<i64>,
 	pub ia: Option<Vec<String>>,
+	pub ebook_access: Option<String>,
 	pub ebook_count_i: Option<i64>,
 	pub public_scan_b: Option<bool>,
 	pub lending_edition_s: Option<String>,
