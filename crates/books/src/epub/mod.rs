@@ -204,23 +204,13 @@ impl Book for EpubBook {
 	fn read_path_as_bytes(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
 		if prepend_to_urls.is_some() || add_css.is_some() {
 			let page_path = PathBuf::from(path);
+			let input = self.get_path_contents(path)?;
 
-			update_attributes_with(
-				&self.get_path_contents(path)?,
-				|element_name, mut attr| {
-					attr.value = match (element_name.local_name.as_str(), attr.name.local_name.as_str()) {
-						("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-						("img", "src") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-						("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-						_ => return attr
-					};
-					attr
-				},
-				if let Some(v) = add_css {
-					v
-				} else {
-					&[]
-				}
+			self.handle_update_attributes(
+				&input,
+				page_path,
+				prepend_to_urls,
+				add_css,
 			)
 		} else {
 			self.get_path_contents(path)
@@ -229,23 +219,13 @@ impl Book for EpubBook {
 
 	fn read_page_as_bytes(&mut self, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
 		let page_path = self.get_page_path();
+		let input = self.read_page_raw_as_bytes()?;
 
-		update_attributes_with(
-			&self.read_page_raw_as_bytes()?,
-			|element_name, mut attr| {
-				attr.value = match (element_name.local_name.as_str(), attr.name.local_name.as_str()) {
-					("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-					("img", "src") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-					("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-					_ => return attr
-				};
-				attr
-			},
-			if let Some(v) = add_css {
-				v
-			} else {
-				&[]
-			}
+		self.handle_update_attributes(
+			&input,
+			page_path,
+			prepend_to_urls,
+			add_css,
 		)
 	}
 
@@ -283,6 +263,62 @@ impl Book for EpubBook {
 
 	fn get_chapter(&self) -> usize {
 		self.chapter
+	}
+}
+
+impl EpubBook {
+	fn handle_update_attributes(
+		&mut self,
+		input: &[u8],
+		page_path: PathBuf,
+		prepend_to_urls: Option<&str>,
+		add_css: Option<&[&str]>
+	) -> Result<Vec<u8>> {
+		update_attributes_with(
+			input,
+			self,
+			|book, element_name, mut attr| {
+				attr.value = match (element_name.local_name.as_str(), attr.name.local_name.as_str()) {
+					("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+					("img", "src") => {
+						if let Ok(cont) = book.get_path_contents(&attr.value) {
+							let b64 = base64::encode(cont);
+
+							if let Some((_, type_of)) = attr.value.rsplit_once('.') {
+								format!("data:image/{};charset=utf-8;base64,{}", type_of, b64)
+							} else {
+								format!("data:image;charset=utf-8;base64,{}", b64)
+							}
+						} else {
+							update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls)
+						}
+					}
+					("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+					_ => return attr
+				};
+				attr
+			},
+			|book, name, attrs, writer| {
+				if name.local_name == "link" && attrs.iter().any(|v| v.name.local_name == "rel" && v.value == "stylesheet") {
+					if let Some(attr) = attrs.iter().find(|a| a.name.local_name == "href") {
+						if let Some(cont) = book.get_path_contents(&attr.value).ok().and_then(|v| String::from_utf8(v).ok()) {
+							writer.write(xml::writer::XmlEvent::start_element("style")).unwrap();
+							writer.write(xml::writer::XmlEvent::characters(&cont)).unwrap();
+							writer.write(xml::writer::XmlEvent::end_element()).unwrap();
+
+							return true;
+						}
+					}
+				}
+
+				false
+			},
+			if let Some(v) = add_css {
+				v
+			} else {
+				&[]
+			}
+		)
 	}
 }
 
