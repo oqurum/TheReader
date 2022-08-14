@@ -102,6 +102,16 @@ impl Component for MediaView {
             });
         }
     }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        let book_id = ctx.props().id;
+
+        ctx.link().send_future(async move {
+            Msg::RetrieveMediaView(Box::new(request::get_media_view(book_id).await))
+        });
+
+        true
+    }
 }
 
 impl MediaView {
