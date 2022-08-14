@@ -79,6 +79,65 @@ impl EpubBook {
 
 		Ok(buf)
 	}
+
+	fn handle_update_attributes(
+		&mut self,
+		input: &[u8],
+		page_path: PathBuf,
+		prepend_to_urls: Option<&str>,
+		add_css: Option<&[&str]>
+	) -> Result<Vec<u8>> {
+		update_attributes_with(
+			input,
+			self,
+			|book, element_name, mut attr| {
+				attr.value = match (element_name.local_name.as_str(), attr.name.local_name.as_str()) {
+					("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+					("img", "src") => {
+						let path = update_value_with_relative_internal_path(page_path.clone(), &attr.value, None);
+						let cont = book.get_path_contents(&path);
+
+						if let Ok(cont) = cont {
+							let b64 = base64::encode(cont);
+
+							if let Some((_, type_of)) = attr.value.rsplit_once('.') {
+								format!("data:image/{};charset=utf-8;base64,{}", type_of, b64)
+							} else {
+								format!("data:image;charset=utf-8;base64,{}", b64)
+							}
+						} else {
+							update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls)
+						}
+					}
+					("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+					_ => return attr
+				};
+				attr
+			},
+			|book, name, attrs, writer| {
+				if name.local_name == "link" && attrs.iter().any(|v| v.name.local_name == "rel" && v.value.to_lowercase() == "stylesheet") {
+					if let Some(attr) = attrs.iter().find(|a| a.name.local_name == "href") {
+						let path = update_value_with_relative_internal_path(page_path.clone(), &attr.value, None);
+
+						if let Some(cont) = book.get_path_contents(&path).ok().and_then(|v| String::from_utf8(v).ok()) {
+							writer.write(xml::writer::XmlEvent::start_element("style")).unwrap();
+							writer.write(xml::writer::XmlEvent::characters(&cont)).unwrap();
+							writer.write(xml::writer::XmlEvent::end_element()).unwrap();
+
+							return true;
+						}
+					}
+				}
+
+				false
+			},
+			if let Some(v) = add_css {
+				v
+			} else {
+				&[]
+			}
+		)
+	}
 }
 
 
@@ -265,63 +324,6 @@ impl Book for EpubBook {
 		self.chapter
 	}
 }
-
-impl EpubBook {
-	fn handle_update_attributes(
-		&mut self,
-		input: &[u8],
-		page_path: PathBuf,
-		prepend_to_urls: Option<&str>,
-		add_css: Option<&[&str]>
-	) -> Result<Vec<u8>> {
-		update_attributes_with(
-			input,
-			self,
-			|book, element_name, mut attr| {
-				attr.value = match (element_name.local_name.as_str(), attr.name.local_name.as_str()) {
-					("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-					("img", "src") => {
-						if let Ok(cont) = book.get_path_contents(&attr.value) {
-							let b64 = base64::encode(cont);
-
-							if let Some((_, type_of)) = attr.value.rsplit_once('.') {
-								format!("data:image/{};charset=utf-8;base64,{}", type_of, b64)
-							} else {
-								format!("data:image;charset=utf-8;base64,{}", b64)
-							}
-						} else {
-							update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls)
-						}
-					}
-					("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-					_ => return attr
-				};
-				attr
-			},
-			|book, name, attrs, writer| {
-				if name.local_name == "link" && attrs.iter().any(|v| v.name.local_name == "rel" && v.value == "stylesheet") {
-					if let Some(attr) = attrs.iter().find(|a| a.name.local_name == "href") {
-						if let Some(cont) = book.get_path_contents(&attr.value).ok().and_then(|v| String::from_utf8(v).ok()) {
-							writer.write(xml::writer::XmlEvent::start_element("style")).unwrap();
-							writer.write(xml::writer::XmlEvent::characters(&cont)).unwrap();
-							writer.write(xml::writer::XmlEvent::end_element()).unwrap();
-
-							return true;
-						}
-					}
-				}
-
-				false
-			},
-			if let Some(v) = add_css {
-				v
-			} else {
-				&[]
-			}
-		)
-	}
-}
-
 
 // TODO: General Conformance | https://www.w3.org/publishing/epub3/epub-packages.html#sec-conformance
 // TODO: Reading System Conformance | https://www.w3.org/publishing/epub3/epub-packages.html#sec-package-rs-conf
