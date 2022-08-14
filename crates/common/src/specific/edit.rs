@@ -1,3 +1,5 @@
+use num_enum::{IntoPrimitive, FromPrimitive};
+use serde::{Serialize, Deserialize};
 use std::ops::{Deref, DerefMut};
 
 
@@ -141,6 +143,22 @@ impl<D: Clone + Default> Default for EditManagerState<D> {
     }
 }
 
+
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, FromPrimitive, IntoPrimitive)]
+#[repr(u8)]
+pub enum ModifyValuesBy {
+    #[num_enum(default)]
+    Overwrite,
+    Append,
+    Remove,
+}
+
+impl Default for ModifyValuesBy {
+    fn default() -> Self {
+        Self::Overwrite
+    }
+}
 
 
 mod book_edit {

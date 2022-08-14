@@ -126,6 +126,14 @@ pub async fn delete_person_from_book(book_id: BookId, person_id: PersonId) -> Wr
 
 // Books
 
+pub async fn update_books(value: &MassEditBooks) -> WrappingResponse<String> {
+    fetch(
+        "POST",
+        "/api/book",
+        Some(value)
+    ).await.unwrap_or_else(def)
+}
+
 
 pub async fn update_book(id: BookId, value: &PostBookBody) -> WrappingResponse<String> {
     fetch(

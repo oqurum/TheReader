@@ -1,6 +1,6 @@
 use actix_web::{get, web, HttpResponse, post, delete};
 
-use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer};
+use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer, ModifyValuesBy};
 use chrono::Utc;
 use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
 use serde_qs::actix::QsQuery;
@@ -76,6 +76,76 @@ pub async fn load_book_list(
 		items,
 		count,
 	})))
+}
+
+
+#[post("/book")]
+pub async fn update_books(
+	body: web::Json<api::MassEditBooks>,
+	member: MemberCookie,
+	db: web::Data<Database>,
+) -> WebResult<JsonResponse<&'static str>> {
+	let edit = body.into_inner();
+
+	let member = member.fetch_or_error(&db).await?;
+
+	if !member.permissions.is_owner() {
+		return Err(ApiErrorResponse::new("Not owner").into());
+	}
+
+	// TODO: YES, I KNOW! I'm just lazy.
+	// People
+	match edit.people_list_mod {
+		ModifyValuesBy::Overwrite => {
+			for book_id in edit.book_ids {
+				BookPersonModel::delete_by_book_id(book_id, &db).await?;
+
+				for person_id in edit.people_list.iter().copied() {
+					BookPersonModel { book_id, person_id }.insert_or_ignore(&db).await?;
+				}
+
+				// Update the cached author name
+				if let Some(person_id) = edit.people_list.first().copied() {
+					let person = PersonModel::find_one_by_id(person_id, &db).await?;
+					let book = BookModel::find_one_by_id(book_id, &db).await?;
+
+					if let Some((person, mut book)) = person.zip(book) {
+						book.cached.author = Some(person.name);
+						book.update(&db).await?;
+					}
+				}
+			}
+		}
+
+		ModifyValuesBy::Append => {
+			for book_id in edit.book_ids {
+				for person_id in edit.people_list.iter().copied() {
+					BookPersonModel { book_id, person_id }.insert_or_ignore(&db).await?;
+				}
+			}
+		}
+
+		ModifyValuesBy::Remove => {
+			for book_id in edit.book_ids {
+				for person_id in edit.people_list.iter().copied() {
+					BookPersonModel { book_id, person_id }.delete(&db).await?;
+				}
+
+				// TODO: Check if we removed cached author
+				// If book has no other people referenced we'll update the cached author name.
+				if BookPersonModel::find_by(Either::Left(book_id), &db).await?.is_empty() {
+					let book = BookModel::find_one_by_id(book_id, &db).await?;
+
+					if let Some(mut book) = book {
+						book.cached.author = None;
+						book.update(&db).await?;
+					}
+				}
+			}
+		}
+	}
+
+	Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 

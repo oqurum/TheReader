@@ -14,17 +14,28 @@
 		padding: 0 10px;
 		justify-content: space-between;
 		align-items: center;
-		background-color: var(--surface1);
+		background-color: var(--surface-1);
 		border-radius: var(--radius-2);
 		border: 1px solid var(--brand);
 
 		> .left-content {
 			display: flex;
 			flex-direction: row;
+
+			> * {
+				margin: 0 5px;
+			}
 		}
 
 
 		> .center-content {
+			display: flex;
+			flex-direction: row;
+
+			> * {
+				margin: 0 5px;
+			}
+
 			.button-popup-group .menu-list {
 				display: block;
 				position: absolute;
@@ -38,6 +49,10 @@
 			display: flex;
 			flex-direction: row;
 			justify-content: flex-end;
+
+			> * {
+				margin: 0 5px;
+			}
 		}
 	}
 }

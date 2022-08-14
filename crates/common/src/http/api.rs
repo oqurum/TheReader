@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use common::{ImageId, PersonId, Either, Source, api::QueryListResponse};
+use common::{ImageId, PersonId, Either, Source, api::QueryListResponse, BookId};
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer, BookEdit};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer, BookEdit, ModifyValuesBy};
 
 
 // API Routes
@@ -118,6 +118,15 @@ pub struct GetLibrariesResponse {
 
 
 // Book
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct MassEditBooks {
+    pub book_ids: Vec<BookId>,
+
+    // People
+    pub people_list: Vec<PersonId>,
+    pub people_list_mod: ModifyValuesBy,
+}
+
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct LoadResourceQuery {
