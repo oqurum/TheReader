@@ -106,7 +106,12 @@ impl Component for PopupEditBook {
 
             Msg::RetrievePeopleResponse(resp) => {
                 match resp.ok() {
-                    Ok(resp) => self.person_search_cache = resp.items,
+                    Ok(resp) => {
+                        self.person_search_cache = resp.items;
+
+                        self.person_search_cache.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+                    }
+
                     Err(err) => crate::display_error(err),
                 }
             }
@@ -128,7 +133,9 @@ impl Component for PopupEditBook {
                     scope.send_future(async move {
                         Msg::RetrievePeopleResponse(request::get_people(Some(&text), None, None).await)
                     });
-                }))
+                }));
+
+                return false;
             }
 
             Msg::TogglePerson { toggle, id } => {
