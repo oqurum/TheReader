@@ -258,7 +258,7 @@ impl Component for Reader {
                 let loaded_count = self.loaded_sections.values().filter(|v| v.is_loaded()).count();
 
                 if self.are_all_sections_generated() {
-                    self.on_all_frames_generated();
+                    self.on_all_frames_generated(ctx);
                 } else if loaded_count != 0 && loaded_count % 3 == 0 {
                     self.update_cached_pages();
 
@@ -329,46 +329,24 @@ impl Component for Reader {
             self.update_cached_pages();
         }
 
+        // TODO: Move to Msg::GenerateIFrameLoaded so it's only in a single place.
+        self.use_progression(*props.progress.lock().unwrap());
 
-        if let Some(prog) = props.progress.lock().unwrap().filter(|_| self.are_all_sections_generated()) {
-            match prog {
-                Progression::Ebook { chapter, char_pos, .. } if self.viewing_chapter == 0 => {
-                    // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
-                    self.set_chapter(chapter as usize);
+        // Continue loading chapters
+        let chaps = props.chapters.lock().unwrap();
 
-                    if char_pos != -1 {
-                        let chapter = self.loaded_sections.get(&self.viewing_chapter).unwrap();
+        // Reverse iterator since for some reason chapter "generation" works from LIFO
+        for chap in chaps.chapters.iter().rev() {
+            if let Some(sec) = self.loaded_sections.get_mut(&chap.value) {
+                if sec.is_waiting() {
+                    log::info!("Generating Chapter {}", chap.value + 1);
 
-                        if let BookSection::Loaded(chapter) = chapter {
-                            let page = js_get_page_from_byte_position(&chapter.iframe, char_pos as usize);
-
-                            if let Some(page) = page {
-                                chapter.set_page(page);
-                            }
-                        }
-
-                    }
-                }
-
-                _ => ()
-            }
-        } else {
-            // Continue loading chapters
-            let chaps = props.chapters.lock().unwrap();
-
-            // Reverse iterator since for some reason chapter "generation" works from LIFO
-            for chap in chaps.chapters.iter().rev() {
-                if let Some(sec) = self.loaded_sections.get_mut(&chap.value) {
-                    if sec.is_waiting() {
-                        log::info!("Generating Chapter {}", chap.value + 1);
-
-                        *sec = BookSection::Loading(generate_pages(
-                            Some(props.dimensions),
-                            props.book.id,
-                            chap.clone(),
-                            ctx.link().clone()
-                        ));
-                    }
+                    *sec = BookSection::Loading(generate_pages(
+                        Some(props.dimensions),
+                        props.book.id,
+                        chap.clone(),
+                        ctx.link().clone()
+                    ));
                 }
             }
         }
@@ -420,6 +398,35 @@ impl Component for Reader {
 }
 
 impl Reader {
+    fn use_progression(&mut self, prog: Option<Progression>) {
+        if let Some(prog) = prog {
+            match prog {
+                Progression::Ebook { chapter, char_pos, .. } if self.viewing_chapter == 0 => {
+                    if self.loaded_sections.contains_key(&(chapter as usize)) {
+                        // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
+                        self.set_chapter(chapter as usize);
+
+                        if char_pos != -1 {
+                            let chapter = self.loaded_sections.get(&self.viewing_chapter).unwrap();
+
+                            if let BookSection::Loaded(chapter) = chapter {
+                                let page = js_get_page_from_byte_position(&chapter.iframe, char_pos as usize);
+
+                                if let Some(page) = page {
+                                    chapter.set_page(page);
+                                }
+                            }
+
+                        }
+                    }
+
+                }
+
+                _ => ()
+            }
+        }
+    }
+
     fn are_all_sections_generated(&self) -> bool {
         self.loaded_sections.values().all(|v| v.is_loaded())
     }
@@ -452,10 +459,13 @@ impl Reader {
         }
     }
 
-    fn on_all_frames_generated(&mut self) {
+    fn on_all_frames_generated(&mut self, ctx: &Context<Self>) {
         log::info!("All Frames Generated");
         // Double check page counts before proceeding.
         self.update_cached_pages();
+
+        // TODO: Move to Msg::GenerateIFrameLoaded so it's only in a single place.
+        self.use_progression(*ctx.props().progress.lock().unwrap());
     }
 
     fn set_page(&mut self, new_total_page: usize, ctx: &Context<Self>) -> bool {
