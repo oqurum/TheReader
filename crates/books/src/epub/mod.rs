@@ -23,6 +23,9 @@ use container::*;
 pub use package_document::*;
 pub use modifier::*;
 
+// TODO: Ignore specific file entries? Eg. "META-INF/calibre_bookmarks.txt"
+// Would allow for better file hashing to compare against. Eg. One zip may have it, the other may not even though they're the same.
+
 pub struct EpubBook {
     pub container: AbsContainer<File>,
     pub package: PackageDocument,

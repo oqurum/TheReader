@@ -128,11 +128,14 @@ pub async fn load_file_debug(web_path: web::Path<(FileId, String)>, db: web::Dat
         if web_path.1.is_empty() {
             let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
 
+            let mut files = book.container.file_names_in_archive().map(|v| v.to_string()).collect::<Vec<_>>();
+            files.sort_unstable();
+
             Ok(HttpResponse::Ok().body(
-                book.container.file_names_in_archive()
-                .map(|v| format!("<a href=\"{}\">{}</a>", v, v))
-                .collect::<Vec<_>>()
-                .join("<br/>")
+                files.into_iter()
+                    .map(|v| format!("<a href=\"{}\">{}</a>", v, v))
+                    .collect::<Vec<_>>()
+                    .join("<br/>")
             ))
         } else {
             // TODO: Make bookie::load_from_path(&file.path).unwrap();
