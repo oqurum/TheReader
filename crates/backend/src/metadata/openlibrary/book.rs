@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::Result;
+use common::parse_book_id;
 use serde::{Serialize, Deserialize};
 
 use super::{KeyItem, TypeValueItem, RecordDescription};
@@ -77,7 +78,7 @@ impl BookId {
 		match value {
 			v if v.starts_with("OL") && v.ends_with('W') => Some(Self::Work(v)),
 			v if v.starts_with("OL") && v.ends_with('M') => Some(Self::Edition(v)),
-			_ => bookie::parse_book_id(&value).into_possible_isbn_value().map(Self::Isbn)
+			_ => parse_book_id(&value).into_possible_isbn_value().map(Self::Isbn)
 		}
 	}
 }

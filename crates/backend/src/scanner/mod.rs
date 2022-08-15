@@ -3,6 +3,7 @@ use std::{path::PathBuf, collections::VecDeque, time::UNIX_EPOCH};
 use crate::{Result, database::Database, metadata::{get_metadata_from_files, MetadataReturned}, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::{NewFileModel, FileModel}, book_person::BookPersonModel}};
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
+use common::parse_book_id;
 use tokio::fs;
 
 
@@ -38,7 +39,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 							if let Some(book) = book {
 								let identifier = if let Some(found) = book.find(BookSearch::Identifier) {
 									let parsed = found.into_iter()
-										.map(|v| bookie::parse_book_id(&v))
+										.map(|v| parse_book_id(&v))
 										.collect::<Vec<_>>();
 
 									parsed.iter()
