@@ -2,7 +2,7 @@ use actix_web::{get, web, HttpResponse, post, delete};
 
 use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer, ModifyValuesBy};
 use chrono::Utc;
-use common::{MemberId, ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
+use common::{ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
 use serde_qs::actix::QsQuery;
 
 use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, book::BookModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, book_person::BookPersonModel}, http::{MemberCookie, JsonResponse}};
@@ -167,13 +167,13 @@ async fn load_book_thumbnail(path: web::Path<BookId>, db: web::Data<Database>) -
 
 // Book
 #[get("/book/{id}")]
-pub async fn load_book_info(book_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<JsonResponse<api::ApiGetBookByIdResponse>> {
+pub async fn load_book_info(member: MemberCookie, book_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<JsonResponse<api::ApiGetBookByIdResponse>> {
 	let book = BookModel::find_one_by_id(*book_id, &db).await?.unwrap();
 
 	let (mut media, mut progress) = (Vec::new(), Vec::new());
 
 	for file in FileModel::find_by_book_id(book.id, &db).await? {
-		let prog = FileProgressionModel::find_one(MemberId::none(), file.id, &db).await?;
+		let prog = FileProgressionModel::find_one(member.member_id(), file.id, &db).await?;
 
 		media.push(file.into());
 		progress.push(prog.map(|v| v.into()));
