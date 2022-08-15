@@ -260,8 +260,11 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 		document.getElementsByTagName('svg')
 	].forEach(tags => {
 		for (const element of tags) {
-			element.style.maxHeight = document.body.clientHeight + 'px';
 			element.style.width = 'auto';
+			// FIX for long vertical images going past document height
+			element.style.maxHeight = document.body.clientHeight + 'px';
+			// FIX for long horizontal images
+			element.style.maxWidth = '100%';
 		}
 	});
 }
