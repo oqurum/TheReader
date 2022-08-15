@@ -162,78 +162,78 @@ impl Default for ModifyValuesBy {
 
 
 mod book_edit {
-	use common::PersonId;
+    use common::PersonId;
     use serde::{Serialize, Deserialize};
 
-	#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-	pub struct BookEdit {
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub title: Option<Option<String>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub original_title: Option<Option<String>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub description: Option<Option<String>>,
+    #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+    pub struct BookEdit {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub original_title: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub description: Option<Option<String>>,
 
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub rating: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub rating: Option<f64>,
 
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub available_at: Option<Option<i64>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub year: Option<Option<i64>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub available_at: Option<Option<i64>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub year: Option<Option<i64>>,
 
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub publisher: Option<Option<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub publisher: Option<Option<String>>,
 
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub added_people: Option<Vec<PersonId>>,
-		#[serde(skip_serializing_if = "Option::is_none")]
-		pub removed_people: Option<Vec<PersonId>>,
-	}
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub added_people: Option<Vec<PersonId>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub removed_people: Option<Vec<PersonId>>,
+    }
 
-	impl BookEdit {
-		pub fn has_changes(&self) -> bool {
-			self.title.is_none() &&
-			self.original_title.is_none() &&
-			self.description.is_none() &&
-			self.rating.is_none() &&
-			self.available_at.is_none() &&
-			self.year.is_none() &&
-			self.publisher.is_none() &&
-			self.added_people.is_none() &&
-			self.removed_people.is_none()
-		}
+    impl BookEdit {
+        pub fn has_changes(&self) -> bool {
+            self.title.is_none() &&
+            self.original_title.is_none() &&
+            self.description.is_none() &&
+            self.rating.is_none() &&
+            self.available_at.is_none() &&
+            self.year.is_none() &&
+            self.publisher.is_none() &&
+            self.added_people.is_none() &&
+            self.removed_people.is_none()
+        }
 
         pub fn insert_added_person(&mut self, value: PersonId) {
-			self.added_people.get_or_insert_with(Default::default).push(value);
-		}
+            self.added_people.get_or_insert_with(Default::default).push(value);
+        }
 
-		pub fn insert_removed_person(&mut self, value: PersonId) {
-			self.removed_people.get_or_insert_with(Default::default).push(value);
-		}
+        pub fn insert_removed_person(&mut self, value: PersonId) {
+            self.removed_people.get_or_insert_with(Default::default).push(value);
+        }
 
-		pub fn remove_person(&mut self, value: PersonId) {
-			if let Some(list) = self.added_people.as_mut() {
-				if let Some(index) = list.iter().position(|&id| value == id) {
-					list.remove(index);
+        pub fn remove_person(&mut self, value: PersonId) {
+            if let Some(list) = self.added_people.as_mut() {
+                if let Some(index) = list.iter().position(|&id| value == id) {
+                    list.remove(index);
 
-					if list.is_empty() {
-						self.added_people = None;
-					}
+                    if list.is_empty() {
+                        self.added_people = None;
+                    }
 
-					return;
-				}
-			}
+                    return;
+                }
+            }
 
-			if let Some(list) = self.removed_people.as_mut() {
-				if let Some(index) = list.iter().position(|&id| value == id) {
-					list.remove(index);
+            if let Some(list) = self.removed_people.as_mut() {
+                if let Some(index) = list.iter().position(|&id| value == id) {
+                    list.remove(index);
 
-					if list.is_empty() {
-						self.removed_people = None;
-					}
-				}
-			}
-		}
-	}
+                    if list.is_empty() {
+                        self.removed_people = None;
+                    }
+                }
+            }
+        }
+    }
 }

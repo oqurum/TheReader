@@ -8,22 +8,22 @@ use crate::{queue_task, task, http::{MemberCookie, JsonResponse}, database::Data
 // TODO: Actually optimize.
 #[post("/task")]
 pub async fn run_task(
-	modify: web::Json<api::RunTaskBody>,
-	member: MemberCookie,
-	db: web::Data<Database>,
+    modify: web::Json<api::RunTaskBody>,
+    member: MemberCookie,
+    db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-	let modify = modify.into_inner();
+    let modify = modify.into_inner();
 
-	let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db).await?;
 
-	if !member.permissions.is_owner() {
-		return Err(ApiErrorResponse::new("Not owner").into());
-	}
+    if !member.permissions.is_owner() {
+        return Err(ApiErrorResponse::new("Not owner").into());
+    }
 
 
-	if modify.run_search {
-		queue_task(task::TaskLibraryScan);
-	}
+    if modify.run_search {
+        queue_task(task::TaskLibraryScan);
+    }
 
-	Ok(web::Json(WrappingResponse::okay("success")))
+    Ok(web::Json(WrappingResponse::okay("success")))
 }

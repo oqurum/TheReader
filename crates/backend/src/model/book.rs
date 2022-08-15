@@ -116,155 +116,155 @@ impl BookModel {
                     cached,
                     available_at, year,
                     refreshed_at, created_at, updated_at, deleted_at,
-            		hash
-				)
-				VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
-				params![
-					self.library_id, self.source.to_string(), &self.file_item_count,
-					&self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
-					&self.cached.as_string_optional(),
-					&self.available_at, &self.year,
-					&self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
-					self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
-					&self.hash
-				]
-			)?;
+                    hash
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
+                params![
+                    self.library_id, self.source.to_string(), &self.file_item_count,
+                    &self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
+                    &self.cached.as_string_optional(),
+                    &self.available_at, &self.year,
+                    &self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
+                    self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
+                    &self.hash
+                ]
+            )?;
 
-			return Ok(Self::find_one_by_source(&self.source, db).await?.unwrap());
-		} else if self.id != 0 {
-			db.write().await
-			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
-				params![self.id]
-			)?;
-		} else {
-			db.write().await
-			.execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
-				params![self.source.to_string()]
-			)?;
-		}
+            return Ok(Self::find_one_by_source(&self.source, db).await?.unwrap());
+        } else if self.id != 0 {
+            db.write().await
+            .execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
+                params![self.id]
+            )?;
+        } else {
+            db.write().await
+            .execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
+                params![self.source.to_string()]
+            )?;
+        }
 
-		Ok(table_book.unwrap())
-	}
+        Ok(table_book.unwrap())
+    }
 
-	pub async fn update(&self, db: &Database) -> Result<()> {
-		db.write().await
-		.execute(r#"
-			UPDATE metadata_item SET
-				library_id = ?2, source = ?3, file_item_count = ?4,
-				title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
-				cached = ?10,
-				available_at = ?11, year = ?12,
-				refreshed_at = ?13, created_at = ?14, updated_at = ?15, deleted_at = ?16,
-				hash = ?17
-			WHERE id = ?1"#,
-			params![
-				self.id,
-				self.library_id, self.source.to_string(), &self.file_item_count,
-				&self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
-				&self.cached.as_string_optional(),
-				&self.available_at, &self.year,
-				&self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
-				self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
-				&self.hash
-			]
-		)?;
+    pub async fn update(&self, db: &Database) -> Result<()> {
+        db.write().await
+        .execute(r#"
+            UPDATE metadata_item SET
+                library_id = ?2, source = ?3, file_item_count = ?4,
+                title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
+                cached = ?10,
+                available_at = ?11, year = ?12,
+                refreshed_at = ?13, created_at = ?14, updated_at = ?15, deleted_at = ?16,
+                hash = ?17
+            WHERE id = ?1"#,
+            params![
+                self.id,
+                self.library_id, self.source.to_string(), &self.file_item_count,
+                &self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
+                &self.cached.as_string_optional(),
+                &self.available_at, &self.year,
+                &self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
+                self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
+                &self.hash
+            ]
+        )?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	pub async fn delete_or_decrement(id: BookId, db: &Database) -> Result<()> {
-		if let Some(model) = Self::find_one_by_id(id, db).await? {
-			if model.file_item_count < 1 {
-				db.write().await
-				.execute(
-					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-					params![id]
-				)?;
-			} else {
-				db.write().await
-				.execute(
-					r#"DELETE FROM metadata_item WHERE id = ?1"#,
-					params![id]
-				)?;
-			}
-		}
+    pub async fn delete_or_decrement(id: BookId, db: &Database) -> Result<()> {
+        if let Some(model) = Self::find_one_by_id(id, db).await? {
+            if model.file_item_count < 1 {
+                db.write().await
+                .execute(
+                    r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
+                    params![id]
+                )?;
+            } else {
+                db.write().await
+                .execute(
+                    r#"DELETE FROM metadata_item WHERE id = ?1"#,
+                    params![id]
+                )?;
+            }
+        }
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	pub async fn decrement(id: BookId, db: &Database) -> Result<()> {
-		if let Some(model) = Self::find_one_by_id(id, db).await? {
-			if model.file_item_count > 0 {
-				db.write().await
-				.execute(
-					r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-					params![id]
-				)?;
-			}
-		}
+    pub async fn decrement(id: BookId, db: &Database) -> Result<()> {
+        if let Some(model) = Self::find_one_by_id(id, db).await? {
+            if model.file_item_count > 0 {
+                db.write().await
+                .execute(
+                    r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
+                    params![id]
+                )?;
+            }
+        }
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	pub async fn set_file_count(id: BookId, file_count: usize, db: &Database) -> Result<()> {
-		db.write().await
-		.execute(
-			r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
-			params![id, file_count]
-		)?;
+    pub async fn set_file_count(id: BookId, file_count: usize, db: &Database) -> Result<()> {
+        db.write().await
+        .execute(
+            r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
+            params![id, file_count]
+        )?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	// TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
-	pub async fn find_one_by_source(source: &Source, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read().await.query_row(
-			r#"SELECT * FROM metadata_item WHERE source = ?1"#,
-			params![source.to_string()],
-			|v| BookModel::from_row(v)
-		).optional()?)
-	}
+    // TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
+    pub async fn find_one_by_source(source: &Source, db: &Database) -> Result<Option<Self>> {
+        Ok(db.read().await.query_row(
+            r#"SELECT * FROM metadata_item WHERE source = ?1"#,
+            params![source.to_string()],
+            |v| BookModel::from_row(v)
+        ).optional()?)
+    }
 
-	pub async fn find_one_by_id(id: BookId, db: &Database) -> Result<Option<Self>> {
-		Ok(db.read().await.query_row(
-			r#"SELECT * FROM metadata_item WHERE id = ?1"#,
-			params![id],
-			|v| BookModel::from_row(v)
-		).optional()?)
-	}
+    pub async fn find_one_by_id(id: BookId, db: &Database) -> Result<Option<Self>> {
+        Ok(db.read().await.query_row(
+            r#"SELECT * FROM metadata_item WHERE id = ?1"#,
+            params![id],
+            |v| BookModel::from_row(v)
+        ).optional()?)
+    }
 
-	pub async fn delete_by_id(id: BookId, db: &Database) -> Result<usize> {
-		Ok(db.write().await.execute(
-			r#"DELETE FROM metadata_item WHERE id = ?1"#,
-			params![id]
-		)?)
-	}
+    pub async fn delete_by_id(id: BookId, db: &Database) -> Result<usize> {
+        Ok(db.write().await.execute(
+            r#"DELETE FROM metadata_item WHERE id = ?1"#,
+            params![id]
+        )?)
+    }
 
-	pub async fn find_by(library: Option<LibraryId>, offset: usize, limit: usize, person_id: Option<PersonId>, db: &Database) -> Result<Vec<Self>> {
-		let this = db.read().await;
+    pub async fn find_by(library: Option<LibraryId>, offset: usize, limit: usize, person_id: Option<PersonId>, db: &Database) -> Result<Vec<Self>> {
+        let this = db.read().await;
 
-		let insert_where = (library.is_some() || person_id.is_some()).then(|| "WHERE").unwrap_or_default();
-		let insert_and = (library.is_some() && person_id.is_some()).then(|| "AND").unwrap_or_default();
+        let insert_where = (library.is_some() || person_id.is_some()).then(|| "WHERE").unwrap_or_default();
+        let insert_and = (library.is_some() && person_id.is_some()).then(|| "AND").unwrap_or_default();
 
-		let lib_id = library
-			.map(|v| format!("library_id={v}"))
-			.unwrap_or_default();
+        let lib_id = library
+            .map(|v| format!("library_id={v}"))
+            .unwrap_or_default();
 
-		let inner_query = person_id
-			.map(|pid| format!(r#"id IN (SELECT book_id FROM book_person WHERE person_id = {pid})"#))
-			.unwrap_or_default();
+        let inner_query = person_id
+            .map(|pid| format!(r#"id IN (SELECT book_id FROM book_person WHERE person_id = {pid})"#))
+            .unwrap_or_default();
 
-		let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {insert_where} {lib_id} {insert_and} {inner_query} LIMIT ?1 OFFSET ?2"#))?;
+        let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {insert_where} {lib_id} {insert_and} {inner_query} LIMIT ?1 OFFSET ?2"#))?;
 
-		let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
+        let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
 
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
+        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
 
-	pub async fn edit_book_by_id(book_id: BookId, edit: BookEdit, db: &Database) -> Result<usize> {
-		let mut items = Vec::new();
+    pub async fn edit_book_by_id(book_id: BookId, edit: BookEdit, db: &Database) -> Result<usize> {
+        let mut items = Vec::new();
 
-		let mut values = vec![
+        let mut values = vec![
             &book_id as &dyn rusqlite::ToSql
         ];
 
@@ -279,40 +279,40 @@ impl BookModel {
             values.push(value as &dyn rusqlite::ToSql);
         }
 
-		if let Some(value) = edit.description.as_ref() {
+        if let Some(value) = edit.description.as_ref() {
             items.push("description");
             values.push(value as &dyn rusqlite::ToSql);
         }
 
-		if let Some(value) = edit.rating.as_ref() {
+        if let Some(value) = edit.rating.as_ref() {
             items.push("rating");
             values.push(value as &dyn rusqlite::ToSql);
         }
 
-		if let Some(value) = edit.available_at.as_ref() {
+        if let Some(value) = edit.available_at.as_ref() {
             items.push("available_at");
             values.push(value as &dyn rusqlite::ToSql);
         }
 
-		if let Some(value) = edit.year.as_ref() {
+        if let Some(value) = edit.year.as_ref() {
             items.push("year");
             values.push(value as &dyn rusqlite::ToSql);
         }
 
-		if let Some(_value) = edit.publisher {
+        if let Some(_value) = edit.publisher {
             // TODO
         }
 
-		if let Some(ids) = edit.added_people {
+        if let Some(ids) = edit.added_people {
             for person_id in ids {
-				BookPersonModel { book_id, person_id }.insert_or_ignore(db).await?;
-			}
+                BookPersonModel { book_id, person_id }.insert_or_ignore(db).await?;
+            }
         }
 
-		if let Some(ids) = edit.removed_people {
+        if let Some(ids) = edit.removed_people {
             for person_id in ids {
-				BookPersonModel { book_id, person_id }.delete(db).await?;
-			}
+                BookPersonModel { book_id, person_id }.delete(db).await?;
+            }
         }
 
 
@@ -333,131 +333,131 @@ impl BookModel {
             ),
             rusqlite::params_from_iter(values.iter().map(|v| &*v))
         )?)
-	}
+    }
 
 
-	// Search
-	fn gen_search_query(filter: &FilterContainer, library: Option<LibraryId>) -> Option<String> {
-		let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
-		let orig_len = sql.len();
+    // Search
+    fn gen_search_query(filter: &FilterContainer, library: Option<LibraryId>) -> Option<String> {
+        let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
+        let orig_len = sql.len();
 
-		let mut f_comp = Vec::new();
+        let mut f_comp = Vec::new();
 
-		// Library ID
-		if let Some(library) = library {
-			f_comp.push(format!("library_id={} ", library));
-		}
+        // Library ID
+        if let Some(library) = library {
+            f_comp.push(format!("library_id={} ", library));
+        }
 
 
-		for fil in &filter.filters {
-			match fil.type_of {
-				FilterTableType::Id => todo!(),
+        for fil in &filter.filters {
+            match fil.type_of {
+                FilterTableType::Id => todo!(),
 
-				FilterTableType::Source => for query in fil.value.values() {
-					f_comp.push(format!("source {} '{}%' ", get_modifier(fil.type_of, fil.modifier), query));
-				}
+                FilterTableType::Source => for query in fil.value.values() {
+                    f_comp.push(format!("source {} '{}%' ", get_modifier(fil.type_of, fil.modifier), query));
+                }
 
-				FilterTableType::Query => for query in fil.value.values() {
-					let mut escape_char = '\\';
-					// Change our escape character if it's in the query.
-					if query.contains(escape_char) {
-						for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
-							if !query.contains(car) {
-								escape_char = car;
-								break;
-							}
-						}
-					}
+                FilterTableType::Query => for query in fil.value.values() {
+                    let mut escape_char = '\\';
+                    // Change our escape character if it's in the query.
+                    if query.contains(escape_char) {
+                        for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
+                            if !query.contains(car) {
+                                escape_char = car;
+                                break;
+                            }
+                        }
+                    }
 
-					// TODO: Utilize title > original_title > description, and sort
-					f_comp.push(format!(
-						"title {} '%{}%' ESCAPE '{}' ",
-						get_modifier(fil.type_of, fil.modifier),
-						query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
-						escape_char
-					));
-				}
+                    // TODO: Utilize title > original_title > description, and sort
+                    f_comp.push(format!(
+                        "title {} '%{}%' ESCAPE '{}' ",
+                        get_modifier(fil.type_of, fil.modifier),
+                        query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
+                        escape_char
+                    ));
+                }
 
-				FilterTableType::Person => {
-					for pid in fil.value.values() {
-						match fil.modifier {
-							FilterModifier::IsNull => {
-								f_comp.push(String::from(
-									"id NOT IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
-								));
-							}
+                FilterTableType::Person => {
+                    for pid in fil.value.values() {
+                        match fil.modifier {
+                            FilterModifier::IsNull => {
+                                f_comp.push(String::from(
+                                    "id NOT IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
+                                ));
+                            }
 
-							FilterModifier::IsNotNull => {
-								f_comp.push(String::from(
-									"id IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
-								));
-							}
+                            FilterModifier::IsNotNull => {
+                                f_comp.push(String::from(
+                                    "id IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
+                                ));
+                            }
 
-							v => {
-								f_comp.push(format!(
-									"id IN (SELECT metadata_id FROM metadata_person WHERE person_id {} {})",
-									get_modifier(fil.type_of, v),
-									pid
-								));
-							}
-						}
-					}
-				}
-			}
-		}
+                            v => {
+                                f_comp.push(format!(
+                                    "id IN (SELECT metadata_id FROM metadata_person WHERE person_id {} {})",
+                                    get_modifier(fil.type_of, v),
+                                    pid
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-		sql += &f_comp.join(" AND ");
+        sql += &f_comp.join(" AND ");
 
-		if sql.len() == orig_len {
-			// If sql is still unmodified
-			None
-		} else {
-			Some(sql)
-		}
-	}
+        if sql.len() == orig_len {
+            // If sql is still unmodified
+            None
+        } else {
+            Some(sql)
+        }
+    }
 
-	pub async fn search_by(filter: &FilterContainer, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
-		let mut sql = match Self::gen_search_query(filter, library) {
-			Some(v) => v,
-			None => return Ok(Vec::new())
-		};
+    pub async fn search_by(filter: &FilterContainer, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+        let mut sql = match Self::gen_search_query(filter, library) {
+            Some(v) => v,
+            None => return Ok(Vec::new())
+        };
 
-		sql += "LIMIT ?1 OFFSET ?2";
+        sql += "LIMIT ?1 OFFSET ?2";
 
-		let this = db.read().await;
+        let this = db.read().await;
 
-		let mut conn = this.prepare(&sql)?;
+        let mut conn = this.prepare(&sql)?;
 
-		let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
+        let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
 
-		Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
-	}
+        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
 
-	pub async fn count_search_by(filter: &FilterContainer, library: Option<LibraryId>, db: &Database) -> Result<usize> {
-		let sql = match Self::gen_search_query(filter, library) {
-			Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
-			None => return Ok(0)
-		};
+    pub async fn count_search_by(filter: &FilterContainer, library: Option<LibraryId>, db: &Database) -> Result<usize> {
+        let sql = match Self::gen_search_query(filter, library) {
+            Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
+            None => return Ok(0)
+        };
 
-		Ok(db.read().await.query_row(&sql, [], |v| v.get(0))?)
-	}
+        Ok(db.read().await.query_row(&sql, [], |v| v.get(0))?)
+    }
 }
 
 
 
 
 fn get_modifier(type_of: FilterTableType, modi: FilterModifier) -> &'static str {
-	match (type_of, modi) {
-		(FilterTableType::Source, FilterModifier::Equal) |
-		(FilterTableType::Query, FilterModifier::Equal) => "LIKE",
+    match (type_of, modi) {
+        (FilterTableType::Source, FilterModifier::Equal) |
+        (FilterTableType::Query, FilterModifier::Equal) => "LIKE",
 
-		(_, FilterModifier::IsNull) => "IS NULL",
-		(_, FilterModifier::IsNotNull) => "IS NOT NULL",
-		(_, FilterModifier::GreaterThan) => ">",
-		(_, FilterModifier::GreaterThanOrEqual) => ">=",
-		(_, FilterModifier::LessThan) => "<",
-		(_, FilterModifier::LessThanOrEqual) => "<=",
-		(_, FilterModifier::Equal) => "=",
-		(_, FilterModifier::DoesNotEqual) => "!=",
-	}
+        (_, FilterModifier::IsNull) => "IS NULL",
+        (_, FilterModifier::IsNotNull) => "IS NOT NULL",
+        (_, FilterModifier::GreaterThan) => ">",
+        (_, FilterModifier::GreaterThanOrEqual) => ">=",
+        (_, FilterModifier::LessThan) => "<",
+        (_, FilterModifier::LessThanOrEqual) => "<=",
+        (_, FilterModifier::Equal) => "=",
+        (_, FilterModifier::DoesNotEqual) => "!=",
+    }
 }
