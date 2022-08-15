@@ -117,6 +117,9 @@ impl EpubBook {
 			|book, name, attrs, writer| {
 				if name.local_name == "link" && attrs.iter().any(|v| v.name.local_name == "rel" && v.value.to_lowercase() == "stylesheet") {
 					if let Some(attr) = attrs.iter().find(|a| a.name.local_name == "href") {
+						// TODO: handle background-image:url('imagename.png');
+						// Remember to account for directory of the css file when correcting the url. (eg. "/css/" instead of just "/")
+
 						let path = update_value_with_relative_internal_path(page_path.clone(), &attr.value, None);
 
 						if let Some(cont) = book.get_path_contents(&path).ok().and_then(|v| String::from_utf8(v).ok()) {
