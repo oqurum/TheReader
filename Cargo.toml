@@ -5,3 +5,4 @@ members = [
 	"crates/common",
 	"crates/books"
 ]
+exclude = [ "global_common" ]

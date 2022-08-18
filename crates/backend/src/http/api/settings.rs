@@ -1,7 +1,7 @@
 use actix_web::{web, get, post, HttpResponse, http::header, HttpRequest};
 use common_local::{setup::{SetupConfig, Config, LibraryConnection}, api};
 use chrono::Utc;
-use common::api::{ApiErrorResponse, WrappingResponse};
+use common::api::{ApiErrorResponse, WrappingResponse, librarian::{AuthFormLink, Scope, AuthQueryHandshake}, reader::VerifyAgentQuery};
 use rand::distributions::{DistString, Alphanumeric};
 use reqwest::Url;
 use serde::{Serialize, Deserialize};
@@ -124,12 +124,13 @@ pub async fn post_setup_agent(
 
     let mut location_uri = Url::parse(&config.libby.url).unwrap();
     location_uri.set_path("authorize");
-    location_uri.set_query(Some(&serde_qs::to_string(&RegisterAgentQuery {
+    location_uri.set_query(Some(&serde_qs::to_string(&AuthFormLink {
         server_owner_name: Some(member.name),
         server_name: Some(config.server.name),
+        server_id: None,
         redirect_uri,
         state,
-        scope: String::from("server_register"),
+        scope: Scope::ServerRegister,
     }).unwrap()));
 
     Ok(HttpResponse::SeeOther()
@@ -162,12 +163,12 @@ pub async fn get_setup_agent_verify(
     if AuthModel::remove_by_oauth_token(&query.state, &db).await? {
         let mut location_uri = Url::parse(&config.libby.url).unwrap();
         location_uri.set_path("auth/handshake");
-        location_uri.set_query(Some(&serde_qs::to_string(&serde_json::json!({
-            "public_id": query.public_id,
-            "server_id": query.server_id,
-            "state": query.state,
-            "scope": query.scope,
-        })).unwrap()));
+        location_uri.set_query(Some(&serde_qs::to_string(&AuthQueryHandshake {
+            public_id: query.public_id.clone(),
+            server_id: query.server_id.clone(),
+            state: Some(query.state),
+            scope: query.scope,
+        }).unwrap()));
 
         let resp = reqwest::get(location_uri).await
             .map_err(crate::Error::from)?;
@@ -204,22 +205,6 @@ pub struct RegisterAgentQuery {
     pub redirect_uri: String,
     /// Unqiue ID for continuity
     pub state: String,
-    pub scope: String,
-}
-
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct VerifyAgentQuery {
-    /// Metadata Agent Member ID used to link account with.
-    pub member_id: usize,
-    /// Private Server ID.
-    pub server_id: String,
-    /// Public Server ID.
-    pub public_id: String,
-
-    /// Unqiue ID for continuity
-    pub state: String,
-    /// What we were doing (server_register, member_link)
     pub scope: String,
 }
 
