@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use common::{ImageId, PersonId, Either, Source, api::QueryListResponse, BookId};
 use serde::{Serialize, Deserialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer, BookEdit, ModifyValuesBy};
+use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer, BookEdit, ModifyValuesBy, setup::Config};
 
 
 // API Routes
@@ -207,7 +207,8 @@ pub struct GetPersonResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetOptionsResponse {
-    pub libraries: Vec<LibraryColl>
+    pub libraries: Vec<LibraryColl>,
+    pub config: Option<Config>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

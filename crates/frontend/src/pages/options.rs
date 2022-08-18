@@ -4,7 +4,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_list;
 
-use crate::request;
+use crate::{request, get_member_self};
 
 pub enum Msg {
     // Request Results
@@ -74,16 +74,21 @@ impl Component for OptionsPage {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let member = get_member_self().unwrap();
+
         if let Some(resp) = self.resp.as_ref() {
             html! {
                 <div class="options-page">
                     <h2>{ "Tasks" }</h2>
+
+                    <br />
 
                     <button onclick={ ctx.link().callback_future(|_| async {
                         request::run_task().await;
                         Msg::Ignore
                     }) }>{ "Run Library Scan + Metadata Updater" }</button>
 
+                    <br />
 
                     <h2>{ "Libraries" }</h2>
                     {
@@ -134,6 +139,47 @@ impl Component for OptionsPage {
                             })
                     }
                     <button class="green" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, LibraryId::none()))}>{ "Add Library" }</button>
+
+                    {
+                        if member.permissions.is_owner() {
+                            let config = resp.config.as_ref().unwrap();
+
+                            html! {
+                                <>
+                                    <br />
+
+                                    <h2>{ "Admin" }</h2>
+
+                                    <h4>{ "External Metadata Server" }</h4>
+                                    {
+                                        if config.libby.token.is_some() {
+                                            html! {
+                                                <span class="label green">
+                                                    { "Metadata Server Link is Setup: " }
+                                                    <a href={ config.libby.url.clone() }>{ config.libby.url.clone() }</a>
+                                                </span>
+                                            }
+                                        } else {
+                                            html! {
+                                                <>
+                                                    <span class="label red">
+                                                        { "Click below to setup the Metadata Server Link for " }
+                                                        <b><a href={ config.libby.url.clone() }>{ config.libby.url.clone() }</a></b>
+                                                    </span>
+                                                    <br />
+                                                    <form action="/api/setup/agent" method="POST">
+                                                        <button class="green" type="submit">{ "Link" }</button>
+                                                    </form>
+                                                </>
+                                            }
+                                        }
+                                    }
+                                </>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
 
                     { self.render_popup(ctx) }
                 </div>

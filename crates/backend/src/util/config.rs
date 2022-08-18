@@ -1,8 +1,7 @@
 use std::sync::Mutex;
 
-use common_local::setup::{SetupConfig, Authenticators, ConfigEmail, ConfigServer};
+use common_local::setup::Config;
 use lazy_static::lazy_static;
-use serde::{Serialize, Deserialize};
 
 use crate::Result;
 
@@ -11,7 +10,7 @@ pub static CONFIG_PATH: &str = "./app/config.toml";
 
 
 lazy_static! {
-    static ref CONFIG_FILE: Mutex<Option<Config>> = {
+    pub static ref CONFIG_FILE: Mutex<Option<Config>> = {
         if let Ok(data) = std::fs::read(CONFIG_PATH) {
             #[allow(clippy::expect_used)]
             Mutex::new(toml_edit::de::from_slice(&data).expect("Loading Config File"))
@@ -29,14 +28,20 @@ pub fn get_config() -> Config {
     CONFIG_FILE.lock().unwrap().clone().unwrap()
 }
 
+pub fn update_config<F: FnOnce(&mut Config) -> Result<()>>(value: F) -> Result<()> {
+    let mut config = get_config();
 
-pub async fn save_config(value: SetupConfig) -> Result<()> {
-    let config = Config {
-        server: value.server,
-        libby: None,
-        email: value.email,
-        authenticators: value.authenticators,
-    };
+    value(&mut config)?;
+
+    *CONFIG_FILE.lock().unwrap() = Some(config);
+
+    Ok(())
+}
+
+
+
+pub async fn save_config() -> Result<()> {
+    let config = get_config();
 
     tokio::fs::write(
         CONFIG_PATH,
@@ -46,21 +51,4 @@ pub async fn save_config(value: SetupConfig) -> Result<()> {
     *CONFIG_FILE.lock().unwrap() = Some(config);
 
     Ok(())
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    pub server: ConfigServer,
-    pub libby: Option<LibraryConnection>,
-    pub email: Option<ConfigEmail>,
-    pub authenticators: Authenticators,
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LibraryConnection {
-    pub token: String,
-    pub username: String,
-    pub email: String,
 }

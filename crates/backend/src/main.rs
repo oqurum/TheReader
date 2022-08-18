@@ -31,8 +31,8 @@ pub use error::{Result, WebResult, WebError, Error, InternalError};
 async fn main() -> Result<()> {
     let cli_args = CliArgs::parse();
 
-    // Load Config - Otherwise it'll be lazily loaded whenever this fn is first called.
-    let _ = config::get_config();
+    // Save Config - Otherwise it'll be lazily loaded whenever this fn is first called.
+    config::save_config().await?;
 
     let db = database::init().await?;
 

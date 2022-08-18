@@ -3,11 +3,16 @@ use common_local::{api, LibraryColl, util::take_from_and_swap};
 use chrono::Utc;
 use common::api::{WrappingResponse, ApiErrorResponse};
 
-use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::{MemberCookie, JsonResponse}};
+use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::{MemberCookie, JsonResponse}, config::get_config};
 
 
 #[get("/options")]
-async fn load_options(db: web::Data<Database>) -> WebResult<JsonResponse<api::ApiGetOptionsResponse>> {
+async fn load_options(
+    member: MemberCookie,
+    db: web::Data<Database>
+) -> WebResult<JsonResponse<api::ApiGetOptionsResponse>> {
+    let member = member.fetch_or_error(&db).await?;
+
     let libraries = LibraryModel::get_all(&db).await?;
     let mut directories = DirectoryModel::get_all(&db).await?;
 
@@ -26,7 +31,17 @@ async fn load_options(db: web::Data<Database>) -> WebResult<JsonResponse<api::Ap
                         .collect()
                 }
             })
-            .collect()
+            .collect(),
+
+        config: member.permissions.is_owner()
+            .then(|| {
+                let mut config = get_config();
+
+                config.email = None;
+                config.libby.token = None;
+
+                config
+            })
     })))
 }
 

@@ -11,6 +11,7 @@ pub struct SetupConfig {
     #[validate]
     pub email: Option<ConfigEmail>,
     pub authenticators: Authenticators,
+    pub libby: Option<LibraryConnection>,
 }
 
 impl SetupConfig {
@@ -19,6 +20,19 @@ impl SetupConfig {
         self.email.get_or_insert_with(Default::default)
     }
 }
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    pub server: ConfigServer,
+    #[serde(default)]
+    pub libby: LibraryConnection,
+    pub email: Option<ConfigEmail>,
+    pub authenticators: Authenticators,
+}
+
+
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
 pub struct ConfigServer {
@@ -61,6 +75,24 @@ impl Default for Authenticators {
             email_pass: true,
             email_no_pass: false,
             main_server: true,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LibraryConnection {
+    pub pubid: Option<String>,
+    pub token: Option<String>,
+    pub url: String,
+}
+
+impl Default for LibraryConnection {
+    fn default() -> Self {
+        Self {
+            pubid: None,
+            token: None,
+            url: String::from("https://oqurum.io")
         }
     }
 }
