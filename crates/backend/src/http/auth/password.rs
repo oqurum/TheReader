@@ -33,7 +33,7 @@ pub struct PostPasswordCallback {
 }
 
 pub async fn post_password_oauth(
-    query: web::Form<PostPasswordCallback>,
+    query: web::Json<PostPasswordCallback>,
     identity: Identity,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<String>> {
