@@ -32,6 +32,8 @@ impl Component for LoginPage {
         match msg {
             Msg::LoginPasswordResponse(resp) => {
                 if resp.is_ok() {
+                    crate::request_member_self();
+
                     let history = ctx.link().history().unwrap();
                     history.push(Route::Dashboard);
                 }
@@ -41,6 +43,8 @@ impl Component for LoginPage {
 
             Msg::LoginPasswordlessResponse(resp) => {
                 if resp.is_ok() {
+                    crate::request_member_self();
+
                     let history = ctx.link().history().unwrap();
                     history.push(Route::Dashboard);
                 }

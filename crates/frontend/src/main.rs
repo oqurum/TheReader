@@ -35,6 +35,19 @@ pub fn is_signed_in() -> bool {
 }
 
 
+pub fn request_member_self() {
+    MAIN_MODEL.with(|v| unsafe {
+        let lock = v.lock().unwrap();
+
+        let scope = lock.assume_init_ref();
+
+        scope.send_future(async {
+            Msg::LoadMemberSelf(request::get_member_self().await)
+        });
+    });
+}
+
+
 pub fn display_error(value: ApiErrorResponse) {
     {
         *ERROR_POPUP.lock().unwrap() = Some(value);
