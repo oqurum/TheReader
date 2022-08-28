@@ -16,7 +16,7 @@ use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SidebarType {
     Notes,
     Settings
@@ -39,7 +39,7 @@ pub enum Msg {
     RetrievePages(WrappingResponse<GetChaptersResponse>),
 }
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Eq)]
 pub struct Property {
     pub id: FileId
 }

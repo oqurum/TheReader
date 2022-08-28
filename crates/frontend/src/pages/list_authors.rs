@@ -9,7 +9,7 @@ use yew_router::prelude::Link;
 use crate::{request, util::{on_click_prevdef_stopprop, on_click_prevdef}, Route};
 
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Eq)]
 pub struct Property {
 }
 

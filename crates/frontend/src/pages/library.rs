@@ -10,7 +10,7 @@ use yew_agent::{Bridge, Bridged};
 use crate::{request, components::{PopupSearchBook, PopupEditBook, MassSelectBar, Sidebar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
 
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Eq)]
 pub struct Property {
     pub library_id: LibraryId,
 }

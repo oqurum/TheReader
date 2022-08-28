@@ -28,7 +28,7 @@ pub enum Msg {
     Ignore
 }
 
-#[derive(Properties, PartialEq)]
+#[derive(Properties, PartialEq, Eq)]
 pub struct Property {
     pub id: PersonId,
 }

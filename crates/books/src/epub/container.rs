@@ -75,7 +75,7 @@ pub struct RootFile {
 }
 
 
-#[derive(PartialEq, Debug, Serialize)]
+#[derive(PartialEq, Eq, Debug, Serialize)]
 pub struct RootfilesVec<T>(Vec<T>);
 
 impl<'de, T: serde::de::Deserialize<'de>> serde::de::Deserialize<'de> for RootfilesVec<T> {

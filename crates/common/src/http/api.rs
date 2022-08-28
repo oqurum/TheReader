@@ -118,7 +118,7 @@ pub struct GetLibrariesResponse {
 
 
 // Book
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct MassEditBooks {
     pub book_ids: Vec<BookId>,
 

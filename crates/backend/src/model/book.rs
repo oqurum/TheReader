@@ -331,7 +331,7 @@ impl BookModel {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            rusqlite::params_from_iter(values.iter().map(|v| &*v))
+            rusqlite::params_from_iter(values.iter())
         )?)
     }
 

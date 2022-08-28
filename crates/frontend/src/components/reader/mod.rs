@@ -548,7 +548,7 @@ impl Reader {
 
 
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ChapterDisplay {
     SinglePage = 0,
     DoublePage,

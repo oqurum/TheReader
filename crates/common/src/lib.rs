@@ -215,7 +215,7 @@ impl PartialEq for MediaItem {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Progression {
     Ebook {
         chapter: i64,
@@ -267,7 +267,7 @@ pub struct BasicDirectory {
 
 
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BookItemCached {
     pub author: Option<String>,
     pub publisher: Option<String>,

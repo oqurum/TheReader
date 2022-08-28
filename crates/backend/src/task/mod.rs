@@ -50,7 +50,13 @@ pub fn start_task_manager(db: web::Data<Database>) {
             loop {
                 sleep(Duration::from_secs(1)).await;
 
-                if let Some(mut task) = TASKS_QUEUED.lock().unwrap().pop_front() {
+                // Used to prevent holding lock past await.
+                let task = {
+                    let mut v = TASKS_QUEUED.lock().unwrap();
+                    v.pop_front()
+                };
+
+                if let Some(mut task) = task {
                     let start_time = Instant::now();
 
                     let task_id = UniqueId::default();

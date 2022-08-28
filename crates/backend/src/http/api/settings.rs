@@ -198,7 +198,7 @@ pub async fn get_setup_agent_verify(
 
 
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegisterAgentQuery {
     pub server_owner_name: Option<String>,
     pub server_name: Option<String>,
