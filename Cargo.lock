@@ -682,10 +682,12 @@ version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
 dependencies = [
+ "js-sys",
  "libc",
  "num-integer",
  "num-traits",
  "time 0.1.44",
+ "wasm-bindgen",
  "winapi",
 ]
 
@@ -788,6 +790,7 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "futures",
  "gloo-file",
  "gloo-timers",
@@ -803,6 +806,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "yew",
+ "yew-hooks",
 ]
 
 [[package]]

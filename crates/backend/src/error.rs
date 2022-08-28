@@ -62,10 +62,7 @@ pub enum WebError {
 impl ResponseError for WebError {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
         let resp_value = match self {
-            Self::ApiResponse(r) => WrappingResponse::<()> {
-                resp: None,
-                error: Some(r.clone())
-            },
+            Self::ApiResponse(r) => WrappingResponse::<()>::Error(r.clone()),
 
             this => {
                 let mut description = String::new();

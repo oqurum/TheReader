@@ -372,17 +372,14 @@ async fn fetch_jsvalue(method: &str, url: &str, body: Option<&impl Serialize>) -
 }
 
 fn def<V>(e: JsValue) -> WrappingResponse<V> {
-    WrappingResponse {
-        resp: None,
-        error: Some(ApiErrorResponse {
-            description: {
-                use std::fmt::Write;
+    WrappingResponse::Error(ApiErrorResponse {
+        description: {
+            use std::fmt::Write;
 
-                let mut s = String::new();
-                let _ = write!(&mut s, "{:?}", e);
+            let mut s = String::new();
+            let _ = write!(&mut s, "{:?}", e);
 
-                s
-            }
-        })
-    }
+            s
+        }
+    })
 }
