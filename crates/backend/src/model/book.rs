@@ -337,7 +337,7 @@ impl BookModel {
 
 
     // Search
-    fn gen_search_query(filter: &FilterContainer, library: Option<LibraryId>) -> Option<String> {
+    fn gen_search_query(filter: &FilterContainer, library: Option<LibraryId>) -> String {
         let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
         let orig_len = sql.len();
 
@@ -409,18 +409,14 @@ impl BookModel {
         sql += &f_comp.join(" AND ");
 
         if sql.len() == orig_len {
-            // If sql is still unmodified
-            None
+            String::from("SELECT * FROM metadata_item ")
         } else {
-            Some(sql)
+            sql
         }
     }
 
     pub async fn search_by(filter: &FilterContainer, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
-        let mut sql = match Self::gen_search_query(filter, library) {
-            Some(v) => v,
-            None => return Ok(Vec::new())
-        };
+        let mut sql = Self::gen_search_query(filter, library);
 
         sql += "LIMIT ?1 OFFSET ?2";
 
@@ -434,10 +430,7 @@ impl BookModel {
     }
 
     pub async fn count_search_by(filter: &FilterContainer, library: Option<LibraryId>, db: &Database) -> Result<usize> {
-        let sql = match Self::gen_search_query(filter, library) {
-            Some(v) => v.replace("SELECT *", "SELECT COUNT(*)"),
-            None => return Ok(0)
-        };
+        let sql = Self::gen_search_query(filter, library).replace("SELECT *", "SELECT COUNT(*)");
 
         Ok(db.read().await.query_row(&sql, [], |v| v.get(0))?)
     }

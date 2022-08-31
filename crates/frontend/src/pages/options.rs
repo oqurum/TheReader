@@ -1,4 +1,4 @@
-use common_local::{api, BasicLibrary, LibraryId};
+use common_local::{api::{self, RunTaskBody}, BasicLibrary, LibraryId};
 use common::{component::popup::{Popup, PopupType}, api::WrappingResponse};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -84,9 +84,20 @@ impl Component for OptionsPage {
                     <br />
 
                     <button onclick={ ctx.link().callback_future(|_| async {
-                        request::run_task().await;
+                        request::run_task(RunTaskBody {
+                            run_search: true,
+                            run_metadata: false,
+                        }).await;
                         Msg::Ignore
-                    }) }>{ "Run Library Scan + Metadata Updater" }</button>
+                    }) }>{ "Run Library Scan" }</button>
+
+                    <button onclick={ ctx.link().callback_future(|_| async {
+                        request::run_task(RunTaskBody {
+                            run_search: false,
+                            run_metadata: true,
+                        }).await;
+                        Msg::Ignore
+                    }) }>{ "Update Metadata" }</button>
 
                     <br />
 

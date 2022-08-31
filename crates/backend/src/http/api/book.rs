@@ -343,7 +343,7 @@ pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<Json
     Ok(web::Json(WrappingResponse::okay(api::BookSearchResponse {
         items: search.0.into_iter()
             .map(|(a, b)| (
-                a,
+                a.into_owned(),
                 b.into_iter().map(|v| {
                     match v {
                         metadata::SearchItem::Book(book) => {

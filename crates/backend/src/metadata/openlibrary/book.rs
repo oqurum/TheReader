@@ -205,6 +205,7 @@ pub struct BookSearchItem {
     pub id_wikidata: Option<Vec<String>>,
     pub ia_loaded_id: Option<Vec<String>>,
     pub ia_box_id: Option<Vec<String>>,
+    pub ia_collection: Option<Vec<String>>,
     pub ia_collection_s: Option<String>,
     pub publisher_facet: Option<Vec<String>>,
     pub person_key: Option<Vec<String>>,

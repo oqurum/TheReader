@@ -305,14 +305,11 @@ pub async fn update_options_remove(options: ModifyOptionsBody) -> WrappingRespon
     ).await.unwrap_or_else(def)
 }
 
-pub async fn run_task() -> WrappingResponse<String> { // TODO: Use common::api::RunTaskBody
+pub async fn run_task(value: RunTaskBody) -> WrappingResponse<String> {
     fetch(
         "POST",
         "/api/task",
-        Some(&serde_json::json!({
-            "run_search": true,
-            "run_metadata": true
-        }))
+        Some(&value)
     ).await.unwrap_or_else(def)
 }
 

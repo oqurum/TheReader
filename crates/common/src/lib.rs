@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
-use common::{MemberId, PersonId, ImageId, ThumbnailStore, Source, BookId};
+use common::{MemberId, PersonId, ImageId, ThumbnailStore, Source, BookId, Agent};
 use serde::{Serialize, Deserialize};
 
 use util::*;
@@ -165,7 +165,7 @@ impl Default for DisplayBookItem {
         Self {
             id: Default::default(),
             library_id: Default::default(),
-            source: Default::default(),
+            source: Source { agent: Agent::new_owned(String::default()), value: String::default() },
             file_item_count: Default::default(),
             title: Default::default(),
             original_title: Default::default(),

@@ -25,5 +25,9 @@ pub async fn run_task(
         queue_task(task::TaskLibraryScan);
     }
 
+    if modify.run_metadata {
+        queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::UpdateAllWithAgent(String::new())));
+    }
+
     Ok(web::Json(WrappingResponse::okay("success")))
 }

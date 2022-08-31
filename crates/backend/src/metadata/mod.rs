@@ -4,17 +4,19 @@ use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonMod
 use async_trait::async_trait;
 use common_local::{SearchFor, BookItemCached, LibraryId};
 use chrono::Utc;
-use common::{BookId, PersonId, ThumbnailStore, Source};
+use common::{BookId, PersonId, ThumbnailStore, Source, Agent};
 
 use crate::database::Database;
 
 use self::{
     google_books::GoogleBooksMetadata,
+    libby::LibbyMetadata,
     local::LocalMetadata,
-    openlibrary::OpenLibraryMetadata
+    openlibrary::OpenLibraryMetadata,
 };
 
 pub mod google_books;
+pub mod libby;
 pub mod local;
 pub mod openlibrary;
 
@@ -32,13 +34,32 @@ macro_rules! return_if_found {
 }
 
 
+pub struct ActiveAgents {
+    pub google: bool,
+    pub libby: bool,
+    pub local: bool,
+    pub openlib: bool,
+}
+
+impl Default for ActiveAgents {
+    fn default() -> Self {
+        Self {
+            google: true,
+            libby: true,
+            local: true,
+            openlib: true,
+        }
+    }
+}
+
+
 #[async_trait]
 pub trait Metadata {
     fn prefix_text<V: AsRef<str>>(&self, value: V) -> String {
-        format!("{}:{}", self.get_prefix(), value.as_ref())
+        format!("{}:{}", self.get_agent(), value.as_ref())
     }
 
-    fn get_prefix(&self) -> &'static str;
+    fn get_agent(&self) -> Agent;
 
     // Metadata
     async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>>;
@@ -66,19 +87,33 @@ pub trait Metadata {
 /// Attempts to return the first valid Metadata from Files.
 ///
 /// Also checks local agent.
-pub async fn get_metadata_from_files(files: &[FileModel]) -> Result<Option<MetadataReturned>> {
-    return_if_found!(GoogleBooksMetadata.get_metadata_from_files(files).await);
-    return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
+pub async fn get_metadata_from_files(files: &[FileModel], agent: &ActiveAgents) -> Result<Option<MetadataReturned>> {
+    if agent.libby {
+        return_if_found!(LibbyMetadata.get_metadata_from_files(files).await);
+    }
 
-    // TODO: Don't re-scan file if we already have metadata from file.
-    LocalMetadata.get_metadata_from_files(files).await
+    if agent.google {
+        return_if_found!(GoogleBooksMetadata.get_metadata_from_files(files).await);
+    }
+
+    if agent.openlib {
+        return_if_found!(OpenLibraryMetadata.get_metadata_from_files(files).await);
+    }
+
+    if agent.local {
+        // TODO: Don't re-scan file if we already have metadata from file.
+        return_if_found!(LocalMetadata.get_metadata_from_files(files).await);
+    }
+
+    Ok(None)
 }
 
 /// Doesn't check local
 pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataReturned>> {
-    match source.agent.as_str() {
-        v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_metadata_by_source_id(&source.value).await,
-        v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_metadata_by_source_id(&source.value).await,
+    match &source.agent {
+        v if v == &LibbyMetadata.get_agent() => LibbyMetadata.get_metadata_by_source_id(&source.value).await,
+        v if v == &OpenLibraryMetadata.get_agent() => OpenLibraryMetadata.get_metadata_by_source_id(&source.value).await,
+        v if v == &GoogleBooksMetadata.get_agent() => GoogleBooksMetadata.get_metadata_by_source_id(&source.value).await,
 
         _ => Ok(None)
     }
@@ -104,16 +139,16 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Se
     }
 
     // Search all sources
-    let prefixes = [OpenLibraryMetadata.get_prefix(), GoogleBooksMetadata.get_prefix()];
+    let prefixes = [LibbyMetadata.get_agent(), OpenLibraryMetadata.get_agent(), GoogleBooksMetadata.get_agent()];
     let asdf = futures::future::join_all(
-        [OpenLibraryMetadata.search(search, search_for), GoogleBooksMetadata.search(search, search_for)]
+        [LibbyMetadata.search(search, search_for), OpenLibraryMetadata.search(search, search_for), GoogleBooksMetadata.search(search, search_for)]
     ).await;
 
     for (val, prefix) in asdf.into_iter().zip(prefixes) {
         match val {
             Ok(val) => {
                 map.insert(
-                    prefix.to_string(),
+                    prefix,
                     val,
                 );
             }
@@ -127,9 +162,10 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Se
 
 /// Searches all agents except for local.
 pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>> {
-    match source.agent.as_str() {
-        v if v == OpenLibraryMetadata.get_prefix() => OpenLibraryMetadata.get_person_by_source_id(&source.value).await,
-        v if v == GoogleBooksMetadata.get_prefix() => GoogleBooksMetadata.get_person_by_source_id(&source.value).await,
+    match &source.agent {
+        v if v == &LibbyMetadata.get_agent() => LibbyMetadata.get_person_by_source_id(&source.value).await,
+        v if v == &OpenLibraryMetadata.get_agent() => OpenLibraryMetadata.get_person_by_source_id(&source.value).await,
+        v if v == &GoogleBooksMetadata.get_agent() => GoogleBooksMetadata.get_person_by_source_id(&source.value).await,
 
         _ => Ok(None)
     }
@@ -137,7 +173,7 @@ pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>>
 
 
 
-pub struct SearchResults(pub HashMap<String, Vec<SearchItem>>);
+pub struct SearchResults(pub HashMap<Agent, Vec<SearchItem>>);
 
 impl SearchResults {
     pub fn sort_items_by_similarity(self, match_with: &str) -> Vec<(f64, SearchItem)> {
@@ -159,7 +195,7 @@ impl SearchResults {
 }
 
 impl Deref for SearchResults {
-    type Target = HashMap<String, Vec<SearchItem>>;
+    type Target = HashMap<Agent, Vec<SearchItem>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

@@ -2,6 +2,7 @@
 
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
+use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
 use serde::{Serialize, Deserialize};
 
@@ -18,8 +19,8 @@ pub struct OpenLibraryMetadata;
 
 #[async_trait]
 impl Metadata for OpenLibraryMetadata {
-    fn get_prefix(&self) -> &'static str {
-        "openlibrary"
+    fn get_agent(&self) -> Agent {
+        Agent::new_static("openlibrary")
     }
 
     async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {
@@ -114,7 +115,7 @@ impl Metadata for OpenLibraryMetadata {
 
                     for item in found.items {
                         books.push(SearchItem::Book(FoundItem { // TODO: Move .replace
-                            source: format!("{}:{}", self.get_prefix(), &item.key.replace("/works/", "").replace("/books/", "")).try_into()?,
+                            source: format!("{}:{}", self.get_agent(), &item.key.replace("/works/", "").replace("/books/", "")).try_into()?,
                             title: item.title.clone(),
                             description: None,
                             rating: 0.0,
@@ -207,7 +208,7 @@ impl OpenLibraryMetadata {
             publisher: book_info.publishers.and_then(|v| v.first().cloned()),
 
             meta: FoundItem {
-                source: format!("{}:{}", self.get_prefix(), source_id).try_into()?,
+                source: format!("{}:{}", self.get_agent(), source_id).try_into()?,
                 title: Some(book_info.title.clone()),
                 description: book_info.description.as_ref().map(|v| v.content().to_owned()),
                 rating: 0.0,

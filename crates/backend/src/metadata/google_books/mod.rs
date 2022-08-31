@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
+use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -22,8 +23,8 @@ pub struct GoogleBooksMetadata;
 
 #[async_trait]
 impl Metadata for GoogleBooksMetadata {
-    fn get_prefix(&self) -> &'static str {
-        "googlebooks"
+    fn get_agent(&self) -> Agent {
+        Agent::new_static("googlebooks")
     }
 
     async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {

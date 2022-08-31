@@ -1,6 +1,7 @@
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
 use bookie::BookSearch;
+use common::Agent;
 use common_local::BookItemCached;
 
 use super::{Metadata, MetadataReturned, AuthorInfo, FoundItem, FoundImageLocation};
@@ -11,8 +12,8 @@ pub struct LocalMetadata;
 
 #[async_trait]
 impl Metadata for LocalMetadata {
-    fn get_prefix(&self) ->  &'static str {
-        "local"
+    fn get_agent(&self) -> Agent {
+        Agent::new_static("local")
     }
 
     async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {

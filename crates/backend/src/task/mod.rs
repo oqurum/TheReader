@@ -2,7 +2,7 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 
 use actix_web::web;
 use async_trait::async_trait;
-use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}};
+use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, filter::FilterContainer};
 use chrono::Utc;
 use common::{BookId, PersonId, Source};
 use lazy_static::lazy_static;
@@ -11,7 +11,7 @@ use tokio::{runtime::Runtime, time::sleep};
 use crate::{
     Result,
     database::Database,
-    metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::FileModel, book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}
+    metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem, ActiveAgents}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::FileModel, book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}
 };
 
 
@@ -108,7 +108,8 @@ pub enum UpdatingBook {
     UpdateBookWithSource {
         book_id: BookId,
         source: Source,
-    }
+    },
+    UpdateAllWithAgent(String),
 }
 
 pub struct TaskUpdateInvalidBook {
@@ -134,7 +135,7 @@ impl Task for TaskUpdateInvalidBook {
                     if file.book_id.map(|v| v == 0).unwrap_or(true) {
                         let file_id = file.id;
 
-                        match get_metadata_from_files(&[file]).await {
+                        match get_metadata_from_files(&[file], &ActiveAgents::default()).await {
                             Ok(meta) => {
                                 if let Some(mut ret) = meta {
                                     let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
@@ -183,7 +184,7 @@ impl Task for TaskUpdateInvalidBook {
 
                 let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
-                Self::search_book_by_files(book_id, fm_book, db).await?;
+                Self::search_book_by_files(book_id, fm_book, &ActiveAgents::default(), db).await?;
             }
 
             // TODO: Check how long it has been since we've refreshed meta: new_meta if auto-ran.
@@ -253,7 +254,7 @@ impl Task for TaskUpdateInvalidBook {
 
                 println!("Updating by file check");
 
-                Self::search_book_by_files(book_id, fm_book, db).await?;
+                Self::search_book_by_files(book_id, fm_book, &ActiveAgents::default(), db).await?;
             }
 
             UpdatingBook::UpdateBookWithSource { book_id: old_book_id, source } => {
@@ -406,6 +407,36 @@ impl Task for TaskUpdateInvalidBook {
                     }
                 }
             }
+
+            UpdatingBook::UpdateAllWithAgent(_agent) => {
+                // TODO: Use agent
+                let active_agent = ActiveAgents {
+                    google: false,
+                    libby: true,
+                    local: false,
+                    openlib: false,
+                };
+
+                const LIMIT: usize = 100;
+
+                let amount = BookModel::count_search_by(&FilterContainer::default(), None, db).await?;
+                let mut offset = 0;
+
+                println!("{amount}");
+
+                while offset < amount {
+                    println!("Position: {offset}/{amount}");
+
+                    let books = BookModel::find_by(None, offset, LIMIT, None, db).await?;
+
+                    for book in books {
+                        send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book.id)));
+                        Self::search_book_by_files(book.id, book, &active_agent, db).await?;
+                    }
+
+                    offset += LIMIT;
+                }
+            }
         }
 
         Ok(())
@@ -417,11 +448,16 @@ impl Task for TaskUpdateInvalidBook {
 }
 
 impl TaskUpdateInvalidBook {
-    async fn search_book_by_files(book_id: BookId, mut fm_book: BookModel, db: &Database) -> Result<()> {
+    async fn search_book_by_files(
+        book_id: BookId,
+        mut fm_book: BookModel,
+        agent: &ActiveAgents,
+        db: &Database
+    ) -> Result<()> {
         // Check Files first.
         let files = FileModel::find_by_book_id(book_id, db).await?;
 
-        let found_meta = match get_metadata_from_files(&files).await? {
+        let found_meta = match get_metadata_from_files(&files, agent).await? {
             None => if let Some(title) = fm_book.title.as_deref() { // TODO: Place into own function
                 // Check by "title - author" secondly.
                 let search = format!(
@@ -431,7 +467,7 @@ impl TaskUpdateInvalidBook {
                 );
 
                 // Search for query.
-                let results = search_all_agents(search.as_str(), SearchFor::Book(SearchForBooksBy::Query)).await?;
+                let results = search_all_agents(search.trim(), SearchFor::Book(SearchForBooksBy::Query)).await?;
 
                 // Find the SearchedItem by similarity.
                 let found_item = results.sort_items_by_similarity(title)

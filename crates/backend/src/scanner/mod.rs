@@ -105,7 +105,7 @@ async fn file_match_or_create_book(file: FileModel, db: &Database) -> Result<()>
     if file.book_id.is_none() {
         let file_id = file.id;
 
-        let meta = get_metadata_from_files(&[file]).await?;
+        let meta = get_metadata_from_files(&[file], &Default::default()).await?;
 
         if let Some(mut ret) = meta {
             let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
