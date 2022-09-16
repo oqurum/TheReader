@@ -1,7 +1,7 @@
 use common::BookId;
 use common_local::{DisplayItem, api};
 use web_sys::{MouseEvent, HtmlElement, HtmlInputElement};
-use yew::{Component, Properties, Callback, NodeRef, Context, Html, html, TargetCast};
+use yew::{Component, Properties, Callback, Context, Html, html, TargetCast};
 use yew_router::prelude::Link;
 
 use crate::{Route, request};
@@ -13,7 +13,6 @@ use crate::{Route, request};
 pub struct BookPosterItemProps {
     pub item: DisplayItem,
     pub callback: Callback<BookPosterItemMsg>,
-    pub container_ref: Option<NodeRef>,
     #[prop_or_default]
     pub is_editing: bool,
     #[prop_or_default]
@@ -23,7 +22,6 @@ pub struct BookPosterItemProps {
 impl PartialEq for BookPosterItemProps {
     fn eq(&self, other: &Self) -> bool {
         self.item == other.item &&
-        self.container_ref == other.container_ref &&
         self.is_editing == other.is_editing &&
         self.is_updating == other.is_updating
     }
@@ -62,7 +60,6 @@ impl Component for BookPosterItem {
             is_editing,
             is_updating,
             ref item,
-            ref container_ref,
             ..
         } = ctx.props();
 
@@ -103,15 +100,7 @@ impl Component for BookPosterItem {
                         />
                     </div>
                     <div class="bottom-right">
-                        {
-                            if container_ref.is_some() {
-                                html! {
-                                    <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
-                                }
-                            } else {
-                                html! {}
-                            }
-                        }
+                        <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
                     </div>
                     <div class="bottom-left">
                         <span class="material-icons" onclick={ctx.link().callback_future(move |e: MouseEvent| {

@@ -1,17 +1,13 @@
 use common_local::{api, Person, SearchType};
-use common::{component::popup::{Popup, PopupClose, PopupType}, PersonId, util::truncate_on_indices, api::WrappingResponse};
+use common::{component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupClose, PopupType}, PersonId, util::truncate_on_indices, api::WrappingResponse};
 use gloo_utils::document;
-use wasm_bindgen::{prelude::Closure, JsCast};
+use wasm_bindgen::JsCast;
 use web_sys::{HtmlElement, HtmlInputElement};
 use yew::{prelude::*, html::Scope};
 use yew_router::prelude::Link;
 
 use crate::{request, util::{on_click_prevdef_stopprop, on_click_prevdef}, Route};
 
-
-#[derive(Properties, PartialEq, Eq)]
-pub struct Property {
-}
 
 #[derive(Clone)]
 pub enum Msg {
@@ -24,18 +20,14 @@ pub enum Msg {
     PersonCombineSearchResults(String, WrappingResponse<Vec<Person>>),
 
     // Events
-    OnScroll(i32),
+    OnScroll(InfiniteScrollEvent),
     PosterItem(PosterItem),
     ClosePopup,
-
-    InitEventListenerAfterMediaItems,
 
     Ignore
 }
 
 pub struct AuthorListPage {
-    on_scroll_fn: Option<Closure<dyn FnMut()>>,
-
     media_items: Option<Vec<Person>>,
     total_media_count: usize,
 
@@ -48,11 +40,10 @@ pub struct AuthorListPage {
 
 impl Component for AuthorListPage {
     type Message = Msg;
-    type Properties = Property;
+    type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            on_scroll_fn: None,
             media_items: None,
             total_media_count: 0,
             is_fetching_authors: false,
@@ -63,21 +54,6 @@ impl Component for AuthorListPage {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::InitEventListenerAfterMediaItems => {
-                let lib_list_ref = self.author_list_ref.clone();
-                let link = ctx.link().clone();
-
-                let func = Closure::wrap(Box::new(move || {
-                    let lib_list = lib_list_ref.cast::<HtmlElement>().unwrap();
-
-                    link.send_message(Msg::OnScroll(lib_list.client_height() + lib_list.scroll_top()));
-                }) as Box<dyn FnMut()>);
-
-                let _ = self.author_list_ref.cast::<HtmlElement>().unwrap().add_event_listener_with_callback("scroll", func.as_ref().unchecked_ref());
-
-                self.on_scroll_fn = Some(func);
-            }
-
             Msg::RequestPeople => {
                 if self.is_fetching_authors {
                     return false;
@@ -134,12 +110,12 @@ impl Component for AuthorListPage {
                 }
             }
 
-            Msg::OnScroll(scroll_y) => {
-                let scroll_height = self.author_list_ref.cast::<HtmlElement>().unwrap().scroll_height();
-
-                if scroll_height - scroll_y < 600 && self.can_req_more() {
+            Msg::OnScroll(event) => {
+                if event.scroll_height - event.scroll_pos < 600 && self.can_req_more() {
                     ctx.link().send_message(Msg::RequestPeople);
                 }
+
+                return false;
             }
 
             Msg::PosterItem(item) => match item {
@@ -187,17 +163,8 @@ impl Component for AuthorListPage {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if self.on_scroll_fn.is_none() && self.author_list_ref.get().is_some() {
-            ctx.link().send_message(Msg::InitEventListenerAfterMediaItems);
-        } else if first_render {
+        if first_render {
             ctx.link().send_message(Msg::RequestPeople);
-        }
-    }
-
-    fn destroy(&mut self, _ctx: &Context<Self>) {
-        // TODO: Determine if still needed.
-        if let Some(f) = self.on_scroll_fn.take() {
-            let _ = self.author_list_ref.cast::<HtmlElement>().unwrap().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
         }
     }
 }
@@ -209,222 +176,224 @@ impl AuthorListPage {
             // let remaining = (self.total_media_count as usize - items.len()).min(50);
 
             html! {
-                <>
-                    <div class="person-list" ref={ self.author_list_ref.clone() }>
-                        { for items.iter().map(|item| self.render_media_item(item, ctx.link())) }
-                        // { for (0..remaining).map(|_| Self::render_placeholder_item()) }
+                <InfiniteScroll
+                    ref={ self.author_list_ref.clone() }
+                    class="person-list"
+                    event={ ctx.link().callback(Msg::OnScroll) }
+                >
+                    { for items.iter().map(|item| self.render_media_item(item, ctx.link())) }
+                    // { for (0..remaining).map(|_| Self::render_placeholder_item()) }
 
-                        {
-                            if let Some(overlay_type) = self.media_popup.as_ref() {
-                                match overlay_type {
-                                    DisplayOverlay::Info { person_id: _ } => {
-                                        html! {
-                                            <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-                                                <h1>{"Info"}</h1>
-                                            </Popup>
-                                        }
-                                    }
-
-                                    &DisplayOverlay::More { person_id, mouse_pos } => {
-                                        html! {
-                                            <Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-                                                <div class="menu-list">
-                                                    <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
-                                                    }>{ "Refresh Person" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
-                                                    }>{ "Search For Person" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
-                                                    } title="Join Person into Another">{ "Join Into Person" }</PopupClose>
-                                                    <PopupClose class="menu-item">{ "Delete" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
-                                                    }>{ "Show Info" }</PopupClose>
-                                                </div>
-                                            </Popup>
-                                        }
-                                    }
-
-                                    &DisplayOverlay::SearchForPerson { person_id, ref input_value, ref response } => {
-                                        let input_id = "external-person-search-input";
-
-                                        let input_value = if let Some(v) = input_value {
-                                            v.to_string()
-                                        } else {
-                                            let items = self.media_items.as_ref().unwrap();
-                                            items.iter().find(|v| v.id == person_id).unwrap().name.clone()
-                                        };
-
-                                        html! {
-                                            <Popup
-                                                type_of={ PopupType::FullOverlay }
-                                                on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-                                                classes={ classes!("external-person-search-popup") }
-                                            >
-                                                <h1>{"Person Search"}</h1>
-
-                                                <form>
-                                                    <input id={input_id} name="person_search" placeholder="Search For Person" value={ input_value } />
-                                                    <button onclick={
-                                                        ctx.link().callback_future(move |e: MouseEvent| async move {
-                                                            e.prevent_default();
-
-                                                            let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
-
-                                                            Msg::PersonUpdateSearchResults(input.value(), request::search_for(&input.value(), SearchType::Person).await)
-                                                        })
-                                                    }>{ "Search" }</button>
-                                                </form>
-
-                                                <div class="external-person-search-container">
-                                                    {
-                                                        if let Some(resp) = response {
-                                                            html! {
-                                                                {
-                                                                    for resp.items.iter()
-                                                                        .map(|(site, items)| {
-                                                                            html! {
-                                                                                <>
-                                                                                    <h2>{ site.clone() }</h2>
-                                                                                    <div class="person-search-items">
-                                                                                        {
-                                                                                            for items.iter()
-                                                                                                .map(|item| {
-                                                                                                    let item = item.as_person();
-
-                                                                                                    let source = item.source.clone();
-
-                                                                                                    html! { // TODO: Place into own component.
-                                                                                                        <PopupClose
-                                                                                                            class="person-search-item"
-                                                                                                            onclick={
-                                                                                                                ctx.link()
-                                                                                                                .callback_future(move |_| {
-                                                                                                                    let source = source.clone();
-
-                                                                                                                    async move {
-                                                                                                                        request::update_person(person_id, &api::PostPersonBody::UpdateBySource(source)).await;
-
-                                                                                                                        Msg::Ignore
-                                                                                                                    }
-                                                                                                                })
-                                                                                                            }
-                                                                                                        >
-                                                                                                            <img src={ item.cover_image.clone().unwrap_or_default() } />
-                                                                                                            <div class="person-info">
-                                                                                                                <h4>{ item.name.clone() }</h4>
-                                                                                                                <p>{ item.description.clone().map(|mut v| { truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
-                                                                                                            </div>
-                                                                                                        </PopupClose>
-                                                                                                    }
-                                                                                                })
-                                                                                        }
-                                                                                    </div>
-                                                                                </>
-                                                                            }
-                                                                        })
-                                                                }
-                                                            }
-                                                        } else {
-                                                            html! {}
-                                                        }
-                                                    }
-                                                </div>
-                                            </Popup>
-                                        }
-                                    }
-
-                                    &DisplayOverlay::CombinePersonWith { person_id, ref input_value, ref response } => {
-                                        let input_id = "external-person-search-input";
-
-                                        let input_value = if let Some(v) = input_value {
-                                            v.to_string()
-                                        } else {
-                                            let items = self.media_items.as_ref().unwrap();
-                                            items.iter().find(|v| v.id == person_id).unwrap().name.clone()
-                                        };
-
-                                        html! {
-                                            <Popup
-                                                type_of={ PopupType::FullOverlay }
-                                                on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-                                                classes={ classes!("external-person-search-popup") }
-                                            >
-                                                <h1>{"Person Search"}</h1>
-
-                                                <form>
-                                                    <input id={input_id} name="person_search" placeholder="Search For Person" value={ input_value } />
-                                                    <button onclick={
-                                                        ctx.link().callback_future(move |e: MouseEvent| async move {
-                                                            e.prevent_default();
-
-                                                            let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
-
-                                                            Msg::PersonCombineSearchResults(input.value(), request::get_people(Some(&input.value()), None, None).await.map(|v| v.items))
-                                                        })
-                                                    }>{ "Search" }</button>
-                                                </form>
-
-                                                <div class="external-person-search-container">
-                                                    {
-                                                        if let Some(resp) = response {
-                                                            html! {
-                                                                <>
-                                                                    <h2>{ "Media Items" }</h2>
-                                                                    <div class="person-search-items">
-                                                                        {
-                                                                            for resp.iter().filter(|p| p.id != person_id).map(|item| {
-                                                                                let other_person = item.id;
-
-                                                                                html! { // TODO: Place into own component.
-                                                                                    <PopupClose
-                                                                                        class="person-search-item"
-                                                                                        onclick={
-                                                                                            ctx.link()
-                                                                                            .callback_future(move |_| {
-                                                                                                async move {
-                                                                                                    request::update_person(
-                                                                                                        person_id,
-                                                                                                        &api::PostPersonBody::CombinePersonWith(other_person)
-                                                                                                    ).await;
-
-                                                                                                    Msg::Ignore
-                                                                                                }
-                                                                                            })
-                                                                                        }
-                                                                                    >
-                                                                                        <img src={ item.get_thumb_url() } />
-                                                                                        <div class="person-info">
-                                                                                            <h4>{ item.name.clone() }</h4>
-                                                                                            <p>{ item.description.clone()
-                                                                                                    .map(|mut v| { truncate_on_indices(&mut v, 300); v })
-                                                                                                    .unwrap_or_default() }</p>
-                                                                                        </div>
-                                                                                    </PopupClose>
-                                                                                }
-                                                                            })
-                                                                        }
-                                                                    </div>
-                                                                </>
-                                                            }
-                                                        } else {
-                                                            html! {}
-                                                        }
-                                                    }
-                                                </div>
-                                            </Popup>
-                                        }
+                    {
+                        if let Some(overlay_type) = self.media_popup.as_ref() {
+                            match overlay_type {
+                                DisplayOverlay::Info { person_id: _ } => {
+                                    html! {
+                                        <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+                                            <h1>{"Info"}</h1>
+                                        </Popup>
                                     }
                                 }
-                            } else {
-                                html! {}
+
+                                &DisplayOverlay::More { person_id, mouse_pos } => {
+                                    html! {
+                                        <Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+                                            <div class="menu-list">
+                                                <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
+                                                <PopupClose class="menu-item" onclick={
+                                                    on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
+                                                }>{ "Refresh Person" }</PopupClose>
+                                                <PopupClose class="menu-item" onclick={
+                                                    on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
+                                                }>{ "Search For Person" }</PopupClose>
+                                                <PopupClose class="menu-item" onclick={
+                                                    on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
+                                                } title="Join Person into Another">{ "Join Into Person" }</PopupClose>
+                                                <PopupClose class="menu-item">{ "Delete" }</PopupClose>
+                                                <PopupClose class="menu-item" onclick={
+                                                    on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
+                                                }>{ "Show Info" }</PopupClose>
+                                            </div>
+                                        </Popup>
+                                    }
+                                }
+
+                                &DisplayOverlay::SearchForPerson { person_id, ref input_value, ref response } => {
+                                    let input_id = "external-person-search-input";
+
+                                    let input_value = if let Some(v) = input_value {
+                                        v.to_string()
+                                    } else {
+                                        let items = self.media_items.as_ref().unwrap();
+                                        items.iter().find(|v| v.id == person_id).unwrap().name.clone()
+                                    };
+
+                                    html! {
+                                        <Popup
+                                            type_of={ PopupType::FullOverlay }
+                                            on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
+                                            classes={ classes!("external-person-search-popup") }
+                                        >
+                                            <h1>{"Person Search"}</h1>
+
+                                            <form>
+                                                <input id={input_id} name="person_search" placeholder="Search For Person" value={ input_value } />
+                                                <button onclick={
+                                                    ctx.link().callback_future(move |e: MouseEvent| async move {
+                                                        e.prevent_default();
+
+                                                        let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
+
+                                                        Msg::PersonUpdateSearchResults(input.value(), request::search_for(&input.value(), SearchType::Person).await)
+                                                    })
+                                                }>{ "Search" }</button>
+                                            </form>
+
+                                            <div class="external-person-search-container">
+                                                {
+                                                    if let Some(resp) = response {
+                                                        html! {
+                                                            {
+                                                                for resp.items.iter()
+                                                                    .map(|(site, items)| {
+                                                                        html! {
+                                                                            <>
+                                                                                <h2>{ site.clone() }</h2>
+                                                                                <div class="person-search-items">
+                                                                                    {
+                                                                                        for items.iter()
+                                                                                            .map(|item| {
+                                                                                                let item = item.as_person();
+
+                                                                                                let source = item.source.clone();
+
+                                                                                                html! { // TODO: Place into own component.
+                                                                                                    <PopupClose
+                                                                                                        class="person-search-item"
+                                                                                                        onclick={
+                                                                                                            ctx.link()
+                                                                                                            .callback_future(move |_| {
+                                                                                                                let source = source.clone();
+
+                                                                                                                async move {
+                                                                                                                    request::update_person(person_id, &api::PostPersonBody::UpdateBySource(source)).await;
+
+                                                                                                                    Msg::Ignore
+                                                                                                                }
+                                                                                                            })
+                                                                                                        }
+                                                                                                    >
+                                                                                                        <img src={ item.cover_image.clone().unwrap_or_default() } />
+                                                                                                        <div class="person-info">
+                                                                                                            <h4>{ item.name.clone() }</h4>
+                                                                                                            <p>{ item.description.clone().map(|mut v| { truncate_on_indices(&mut v, 300); v }).unwrap_or_default() }</p>
+                                                                                                        </div>
+                                                                                                    </PopupClose>
+                                                                                                }
+                                                                                            })
+                                                                                    }
+                                                                                </div>
+                                                                            </>
+                                                                        }
+                                                                    })
+                                                            }
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }
+                                                }
+                                            </div>
+                                        </Popup>
+                                    }
+                                }
+
+                                &DisplayOverlay::CombinePersonWith { person_id, ref input_value, ref response } => {
+                                    let input_id = "external-person-search-input";
+
+                                    let input_value = if let Some(v) = input_value {
+                                        v.to_string()
+                                    } else {
+                                        let items = self.media_items.as_ref().unwrap();
+                                        items.iter().find(|v| v.id == person_id).unwrap().name.clone()
+                                    };
+
+                                    html! {
+                                        <Popup
+                                            type_of={ PopupType::FullOverlay }
+                                            on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
+                                            classes={ classes!("external-person-search-popup") }
+                                        >
+                                            <h1>{"Person Search"}</h1>
+
+                                            <form>
+                                                <input id={input_id} name="person_search" placeholder="Search For Person" value={ input_value } />
+                                                <button onclick={
+                                                    ctx.link().callback_future(move |e: MouseEvent| async move {
+                                                        e.prevent_default();
+
+                                                        let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
+
+                                                        Msg::PersonCombineSearchResults(input.value(), request::get_people(Some(&input.value()), None, None).await.map(|v| v.items))
+                                                    })
+                                                }>{ "Search" }</button>
+                                            </form>
+
+                                            <div class="external-person-search-container">
+                                                {
+                                                    if let Some(resp) = response {
+                                                        html! {
+                                                            <>
+                                                                <h2>{ "Media Items" }</h2>
+                                                                <div class="person-search-items">
+                                                                    {
+                                                                        for resp.iter().filter(|p| p.id != person_id).map(|item| {
+                                                                            let other_person = item.id;
+
+                                                                            html! { // TODO: Place into own component.
+                                                                                <PopupClose
+                                                                                    class="person-search-item"
+                                                                                    onclick={
+                                                                                        ctx.link()
+                                                                                        .callback_future(move |_| {
+                                                                                            async move {
+                                                                                                request::update_person(
+                                                                                                    person_id,
+                                                                                                    &api::PostPersonBody::CombinePersonWith(other_person)
+                                                                                                ).await;
+
+                                                                                                Msg::Ignore
+                                                                                            }
+                                                                                        })
+                                                                                    }
+                                                                                >
+                                                                                    <img src={ item.get_thumb_url() } />
+                                                                                    <div class="person-info">
+                                                                                        <h4>{ item.name.clone() }</h4>
+                                                                                        <p>{ item.description.clone()
+                                                                                                .map(|mut v| { truncate_on_indices(&mut v, 300); v })
+                                                                                                .unwrap_or_default() }</p>
+                                                                                    </div>
+                                                                                </PopupClose>
+                                                                            }
+                                                                        })
+                                                                    }
+                                                                </div>
+                                                            </>
+                                                        }
+                                                    } else {
+                                                        html! {}
+                                                    }
+                                                }
+                                            </div>
+                                        </Popup>
+                                    }
+                                }
                             }
+                        } else {
+                            html! {}
                         }
-                    </div>
-                </>
+                    }
+                </InfiniteScroll>
             }
         } else {
             html! {

@@ -42,8 +42,6 @@ pub struct AuthorView {
     editing_item: Option<GetPersonResponse>,
 
     media_popup: Option<DisplayOverlayItem>,
-
-    book_list_ref: NodeRef,
 }
 
 impl Component for AuthorView {
@@ -77,8 +75,6 @@ impl Component for AuthorView {
             editing_item: None,
 
             media_popup: None,
-
-            book_list_ref: NodeRef::default(),
         }
     }
 
@@ -246,7 +242,7 @@ impl Component for AuthorView {
                     }
                     </div>
 
-                    <div class="view-container item-view-container" ref={ self.book_list_ref.clone() }>
+                    <div class="view-container item-view-container">
                         <div class="info-container">
                             <div class="poster large">
                                 <img src={ person.get_thumb_url() } />
@@ -407,7 +403,6 @@ impl Component for AuthorView {
                                                         <BookPosterItem
                                                             item={item.clone()}
                                                             callback={ctx.link().callback(Msg::BookListItemEvent)}
-                                                            container_ref={self.book_list_ref.clone()}
                                                         />
                                                     }
                                                 })

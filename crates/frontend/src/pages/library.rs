@@ -1,9 +1,7 @@
 use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
 
 use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, api::WrappingResponse};
-use wasm_bindgen::{prelude::Closure, JsCast};
-use web_sys::HtmlElement;
+use common::{BookId, component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupClose, PopupType}, api::WrappingResponse};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
@@ -27,10 +25,8 @@ pub enum Msg {
     BookItemResults(UniqueId, WrappingResponse<DisplayItem>),
 
     // Events
-    OnScroll(i32),
+    OnScroll(InfiniteScrollEvent),
     ClosePopup,
-
-    InitEventListenerAfterMediaItems,
 
     DeselectAllEditing,
 
@@ -40,8 +36,6 @@ pub enum Msg {
 }
 
 pub struct LibraryPage {
-    on_scroll_fn: Option<Closure<dyn FnMut()>>,
-
     media_items: Option<Vec<DisplayItem>>,
     total_media_count: usize,
 
@@ -49,7 +43,7 @@ pub struct LibraryPage {
 
     media_popup: Option<DisplayOverlayItem>,
 
-    library_list_ref: NodeRef,
+    book_list_ref: NodeRef,
 
     // TODO: Make More Advanced
     editing_items: Rc<Mutex<Vec<BookId>>>,
@@ -68,8 +62,6 @@ impl Component for LibraryPage {
 
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            on_scroll_fn: None,
-
             media_items: None,
             total_media_count: 0,
 
@@ -77,7 +69,7 @@ impl Component for LibraryPage {
 
             media_popup: None,
 
-            library_list_ref: NodeRef::default(),
+            book_list_ref: NodeRef::default(),
 
             editing_items: Rc::new(Mutex::new(Vec::new())),
 
@@ -136,21 +128,6 @@ impl Component for LibraryPage {
                 self.editing_items.lock().unwrap().clear();
             }
 
-            Msg::InitEventListenerAfterMediaItems => {
-                let lib_list_ref = self.library_list_ref.clone();
-                let link = ctx.link().clone();
-
-                let func = Closure::wrap(Box::new(move || {
-                    let lib_list = lib_list_ref.cast::<HtmlElement>().unwrap();
-
-                    link.send_message(Msg::OnScroll(lib_list.client_height() + lib_list.scroll_top()));
-                }) as Box<dyn FnMut()>);
-
-                let _ = self.library_list_ref.cast::<HtmlElement>().unwrap().add_event_listener_with_callback("scroll", func.as_ref().unchecked_ref());
-
-                self.on_scroll_fn = Some(func);
-            }
-
             Msg::RequestMediaItems => {
                 if self.is_fetching_media_items {
                     return false;
@@ -192,12 +169,12 @@ impl Component for LibraryPage {
 
             }
 
-            Msg::OnScroll(scroll_y) => {
-                let scroll_height = self.library_list_ref.cast::<HtmlElement>().unwrap().scroll_height();
-
-                if scroll_height - scroll_y < 600 && self.can_req_more() {
+            Msg::OnScroll(event) => {
+                if event.scroll_height - event.scroll_pos < 600 && self.can_req_more() {
                     ctx.link().send_message(Msg::RequestMediaItems);
                 }
+
+                return false;
             }
 
             Msg::BookListItemEvent(event) => {
@@ -268,17 +245,8 @@ impl Component for LibraryPage {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if self.on_scroll_fn.is_none() && self.library_list_ref.get().is_some() {
-            ctx.link().send_message(Msg::InitEventListenerAfterMediaItems);
-        } else if first_render {
+        if first_render {
             ctx.link().send_message(Msg::RequestMediaItems);
-        }
-    }
-
-    fn destroy(&mut self, _ctx: &Context<Self>) {
-        // TODO: Determine if still needed.
-        if let Some(f) = self.on_scroll_fn.take() {
-            let _ = self.library_list_ref.cast::<HtmlElement>().unwrap().remove_event_listener_with_callback("scroll", f.as_ref().unchecked_ref());
         }
     }
 }
@@ -291,7 +259,11 @@ impl LibraryPage {
 
             html! {
                 <>
-                    <div class="book-list normal" ref={ self.library_list_ref.clone() }>
+                    <InfiniteScroll
+                        ref={ self.book_list_ref.clone() }
+                        class="book-list normal"
+                        event={ ctx.link().callback(Msg::OnScroll) }
+                    >
                         {
                             for items.iter().map(|item| {
                                 let is_editing = self.editing_items.lock().unwrap().contains(&item.id);
@@ -304,7 +276,6 @@ impl LibraryPage {
 
                                         item={item.clone()}
                                         callback={ctx.link().callback(Msg::BookListItemEvent)}
-                                        container_ref={self.library_list_ref.clone()}
                                     />
                                 }
                             })
@@ -376,11 +347,11 @@ impl LibraryPage {
                                 html! {}
                             }
                         }
-                    </div>
+                    </InfiniteScroll>
 
                     <MassSelectBar
                         on_deselect_all={ctx.link().callback(|_| Msg::DeselectAllEditing)}
-                        editing_container={self.library_list_ref.clone()}
+                        editing_container={self.book_list_ref.clone()}
                         editing_items={self.editing_items.clone()}
                     />
                 </>
