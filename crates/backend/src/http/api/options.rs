@@ -3,7 +3,7 @@ use common_local::{api, LibraryColl, util::take_from_and_swap};
 use chrono::Utc;
 use common::api::{WrappingResponse, ApiErrorResponse};
 
-use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::{MemberCookie, JsonResponse}, config::get_config};
+use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::{MemberCookie, JsonResponse}, config::{get_config, update_config, save_config}};
 
 
 #[get("/options")]
@@ -57,7 +57,7 @@ async fn update_options_add(
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let api::ModifyOptionsBody { library } = modify.into_inner();
+    let api::ModifyOptionsBody { library, libby_public_search } = modify.into_inner();
 
     if let Some(mut library) = library {
         if let Some(name) = library.name {
@@ -86,6 +86,16 @@ async fn update_options_add(
         }
     }
 
+    if let Some(libby_search) = libby_public_search {
+        update_config(move |config| {
+            config.libby.public_only = libby_search;
+
+            Ok(())
+        })?;
+
+        save_config().await?;
+    }
+
     Ok(web::Json(WrappingResponse::okay("success")))
 }
 
@@ -101,7 +111,7 @@ async fn update_options_remove(
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let api::ModifyOptionsBody { library } = modify.into_inner();
+    let api::ModifyOptionsBody { library, .. } = modify.into_inner();
 
     if let Some(library) = library {
         if let Some(id) = library.id {

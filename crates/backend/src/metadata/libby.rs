@@ -46,7 +46,13 @@ impl Metadata for LibbyMetadata {
             SearchFor::Book(_specifically) => {
                 let libby = get_config().libby;
 
-                let url = format!("{}/search?query={}&server_id={}", libby.url, urlencoding::encode(search), urlencoding::encode(&libby.token.unwrap()));
+                let url = format!(
+                    "{}/search?query={}&server_id={}&view_private={}",
+                    libby.url,
+                    urlencoding::encode(search),
+                    urlencoding::encode(&libby.token.unwrap()),
+                    !libby.public_only
+                );
 
                 println!("[METADATA][LIBBY]: Search URL: {}", url);
 
@@ -90,7 +96,13 @@ impl LibbyMetadata {
     pub async fn request_query(&self, value: String) -> Result<Option<MetadataReturned>> {
         let libby = get_config().libby;
 
-        let url = format!("{}/search?query={}&server_id={}", libby.url, urlencoding::encode(&value), urlencoding::encode(&libby.token.unwrap()));
+        let url = format!(
+            "{}/search?query={}&server_id={}&view_private={}",
+            libby.url,
+            urlencoding::encode(&value),
+            urlencoding::encode(&libby.token.unwrap()),
+            !libby.public_only
+        );
 
         println!("[METADATA][LIBBY]: Req Query: {}", url);
 
@@ -121,7 +133,13 @@ impl LibbyMetadata {
     pub async fn request_singular_id(&self, id: &str) -> Result<Option<MetadataReturned>> {
         let libby = get_config().libby;
 
-        let resp = reqwest::get(format!("{}/search?query=id:{}&server_id={}", libby.url, urlencoding::encode(id), urlencoding::encode(&libby.token.unwrap()))).await?;
+        let resp = reqwest::get(format!(
+            "{}/search?query=id:{}&server_id={}&view_private={}",
+            libby.url,
+            urlencoding::encode(id),
+            urlencoding::encode(&libby.token.unwrap()),
+            !libby.public_only
+        )).await?;
 
         if resp.status().is_success() {
             self.compile_book_volume_item(resp.json().await?).await

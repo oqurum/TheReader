@@ -211,9 +211,11 @@ pub struct GetOptionsResponse {
     pub config: Option<Config>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct ModifyOptionsBody {
     pub library: Option<BasicLibrary>,
+
+    pub libby_public_search: Option<bool>,
 }
 
 

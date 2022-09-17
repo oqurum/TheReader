@@ -1,6 +1,6 @@
 use common_local::{api::{self, RunTaskBody}, BasicLibrary, LibraryId};
 use common::{component::popup::{Popup, PopupType}, api::WrappingResponse};
-use web_sys::HtmlInputElement;
+use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 use yew_hooks::use_list;
 
@@ -119,6 +119,7 @@ impl Component for OptionsPage {
                                                         name: None,
                                                         directories: None,
                                                     }),
+                                                    .. Default::default()
                                                 }
                                             )
                                         }) }>{ "delete" }</button>
@@ -137,6 +138,7 @@ impl Component for OptionsPage {
                                                                         name: None,
                                                                         directories: Some(vec![path.clone()]),
                                                                     }),
+                                                                    .. Default::default()
                                                                 }
                                                             )
                                                         }) }>{ "X" }</button>{ v.clone() }</li>
@@ -165,10 +167,26 @@ impl Component for OptionsPage {
                                     {
                                         if config.libby.token.is_some() {
                                             html! {
-                                                <span class="label green">
-                                                    { "Metadata Server Link is Setup: " }
-                                                    <a href={ config.libby.url.clone() }>{ config.libby.url.clone() }</a>
-                                                </span>
+                                                <div class="form-container shrink-width-to-content">
+                                                    <span class="label green">
+                                                        { "Metadata Server Link is Setup: " }
+                                                        <a href={ config.libby.url.clone() }>{ config.libby.url.clone() }</a>
+                                                    </span>
+
+                                                    <label>{ "Search Return Type" }</label>
+                                                    <select onchange={ ctx.link().callback(|v: Event| {
+                                                        Msg::RequestUpdateOptions(
+                                                            true,
+                                                            api::ModifyOptionsBody {
+                                                                libby_public_search: Some(v.target_unchecked_into::<HtmlSelectElement>().selected_index() == 0),
+                                                                .. Default::default()
+                                                            }
+                                                        )
+                                                    }) }>
+                                                        <option selected={ config.libby.public_only }>{ "Public Only" }</option>
+                                                        <option selected={ !config.libby.public_only }>{ "All" }</option>
+                                                    </select>
+                                                </div>
                                             }
                                         } else {
                                             html! {
@@ -262,6 +280,7 @@ fn new_library(props: &NewLibraryProps) -> Html {
                         name: Some(name.to_string()),
                         directories: Some(dirs.current().to_vec()),
                     }),
+                    .. Default::default()
                 }
             )
         })
@@ -358,6 +377,7 @@ fn new_library_dir(props: &NewLibraryDirectoryProps) -> Html {
                         name: None,
                         directories: Some(vec![directory.to_string()]),
                     }),
+                    .. Default::default()
                 }
             )
         })

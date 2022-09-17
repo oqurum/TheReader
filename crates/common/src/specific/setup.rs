@@ -85,6 +85,8 @@ pub struct LibraryConnection {
     pub pubid: Option<String>,
     pub token: Option<String>,
     pub url: String,
+
+    pub public_only: bool,
 }
 
 impl Default for LibraryConnection {
@@ -92,7 +94,8 @@ impl Default for LibraryConnection {
         Self {
             pubid: None,
             token: None,
-            url: String::from("https://oqurum.io")
+            url: String::from("https://oqurum.io"),
+            public_only: true,
         }
     }
 }
