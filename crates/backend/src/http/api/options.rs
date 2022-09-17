@@ -38,7 +38,7 @@ async fn load_options(
                 let mut config = get_config();
 
                 config.email = None;
-                config.libby.token = None;
+                config.libby.token = config.libby.token.map(|_| String::new());
 
                 config
             })
