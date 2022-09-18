@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use common::{ImageId, PersonId, Either, Source, api::QueryListResponse, BookId};
+use chrono::NaiveDate;
+use common::{ImageId, PersonId, Either, Source, api::QueryListResponse, BookId, util::{serialize_naivedate_opt, deserialize_naivedate_opt}};
 use serde::{Serialize, Deserialize};
 
 use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer, BookEdit, ModifyValuesBy, setup::Config};
@@ -283,8 +284,10 @@ pub struct MetadataPersonSearchItem {
     pub other_names: Option<Vec<String>>,
     pub description: Option<String>,
 
-    pub birth_date: Option<String>,
-    pub death_date: Option<String>,
+    #[serde(serialize_with = "serialize_naivedate_opt", deserialize_with = "deserialize_naivedate_opt")]
+    pub birth_date: Option<NaiveDate>,
+    #[serde(serialize_with = "serialize_naivedate_opt", deserialize_with = "deserialize_naivedate_opt")]
+    pub death_date: Option<NaiveDate>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

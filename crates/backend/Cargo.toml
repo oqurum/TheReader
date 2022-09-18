@@ -49,4 +49,4 @@ validator = { version = "0.15", features = ["derive"] }
 
 lettre = "0.10.0-rc.5"
 
-rusqlite = { version = "0.27", features = [ "bundled", "trace", "blob", "serde_json" ] }
+rusqlite = { version = "0.27", features = [ "bundled", "trace", "blob", "serde_json", "chrono" ] }

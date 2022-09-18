@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::{Deref, DerefMut}};
 use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel}, util};
 use async_trait::async_trait;
 use common_local::{SearchFor, BookItemCached, LibraryId};
-use chrono::Utc;
+use chrono::{Utc, NaiveDate};
 use common::{BookId, PersonId, ThumbnailStore, Source, Agent};
 
 use crate::database::Database;
@@ -267,8 +267,8 @@ pub struct AuthorInfo {
     pub other_names: Option<Vec<String>>,
     pub description: Option<String>,
 
-    pub birth_date: Option<String>,
-    pub death_date: Option<String>,
+    pub birth_date: Option<NaiveDate>,
+    pub death_date: Option<NaiveDate>,
 }
 
 
@@ -276,7 +276,7 @@ pub struct AuthorInfo {
 pub struct MetadataReturned {
     // Person, Alt Names
     pub authors: Option<Vec<AuthorInfo>>,
-    pub publisher: Option<String>,
+    pub publisher: Option<String>, // TODO: Is this needed? We have BookItemCached in meta field
     // TODO: Add More.
 
     pub meta: FoundItem

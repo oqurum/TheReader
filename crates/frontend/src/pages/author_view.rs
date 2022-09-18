@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use chrono::NaiveDate;
 use common::{component::{upload::UploadModule, popup::{Popup, PopupClose, PopupType}}, Either, PersonId, ImageIdType, api::WrappingResponse};
 use common_local::{api::{self, GetPostersResponse, GetPersonResponse}, filter::FilterContainer};
 use wasm_bindgen::JsCast;
@@ -147,7 +150,7 @@ impl Component for AuthorView {
                 match type_of {
                     ChangingType::Name => updating.person.name = value.unwrap_or_default(),
                     ChangingType::Description => updating.person.description = value,
-                    ChangingType::BirthDate => updating.person.birth_date = value,
+                    ChangingType::BirthDate => updating.person.birth_date = value.and_then(|v| NaiveDate::from_str(&v).ok()),
                 }
             }
 
@@ -293,7 +296,7 @@ impl Component for AuthorView {
                                                 <input class="title" type="text"
                                                     placeholder="YYYY"
                                                     onchange={Self::on_change_input(ctx.link(), ChangingType::BirthDate)}
-                                                    value={ person.birth_date.clone().unwrap_or_default() }
+                                                    value={ person.birth_date.map(|v| v.to_string()).unwrap_or_default() }
                                                 />
                                             </div>
                                         }

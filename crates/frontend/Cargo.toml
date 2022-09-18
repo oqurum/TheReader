@@ -31,6 +31,7 @@ gloo-file = "0.2"
 gloo-timers = "0.2"
 js-sys = "0.3"
 
+chrono = { version = "0.4", features = ["wasmbind"] }
 base64 = "0.13"
 lazy_static = "1.4"
 urlencoding = "2.1"

@@ -2,6 +2,7 @@
 
 use crate::{Result, model::file::FileModel};
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
 use serde::{Serialize, Deserialize};
@@ -68,8 +69,8 @@ impl Metadata for OpenLibraryMetadata {
                     description: author.bio.map(|v| v.into_content()),
                     // Using value since it should always be value "OLXXXXXA" which is Olid
                     cover_image_url: Some(self::CoverId::Olid(value.to_string()).get_author_cover_url()),
-                    birth_date: author.birth_date,
-                    death_date: author.death_date,
+                    birth_date: author.birth_date.and_then(|v| v.parse::<NaiveDate>().ok()),
+                    death_date: author.death_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                 }))
             }
 
@@ -91,8 +92,8 @@ impl Metadata for OpenLibraryMetadata {
                             name: item.name.unwrap(),
                             other_names: item.alternate_names,
                             description: None,
-                            birth_date: item.birth_date,
-                            death_date: item.death_date,
+                            birth_date: item.birth_date.and_then(|v| v.parse::<NaiveDate>().ok()),
+                            death_date: item.death_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                         }));
                     }
 
@@ -184,8 +185,8 @@ impl OpenLibraryMetadata {
                         other_names: author.alternate_names,
                         description: author.bio.map(|v| v.into_content()),
                         cover_image_url: Some(self::CoverId::Olid(author.key).get_author_cover_url()),
-                        birth_date: author.birth_date,
-                        death_date: author.death_date,
+                        birth_date: author.birth_date.and_then(|v| v.parse::<NaiveDate>().ok()),
+                        death_date: author.death_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                     });
                 }
 

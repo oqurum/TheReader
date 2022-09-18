@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc, TimeZone};
-use common::{BookId, PersonId, ThumbnailStore, Source};
+use chrono::{DateTime, Utc, TimeZone, NaiveDate};
+use common::{BookId, PersonId, ThumbnailStore, Source, util::serialize_naivedate_opt};
 use rusqlite::{params, OptionalExtension};
 
 use common_local::{util::serialize_datetime, Person};
@@ -16,7 +16,7 @@ pub struct NewPersonModel {
 
     pub name: String,
     pub description: Option<String>,
-    pub birth_date: Option<String>,
+    pub birth_date: Option<NaiveDate>,
 
     pub thumb_url: ThumbnailStore,
 
@@ -32,7 +32,9 @@ pub struct PersonModel {
 
     pub name: String,
     pub description: Option<String>,
-    pub birth_date: Option<String>,
+
+    #[serde(serialize_with = "serialize_naivedate_opt")]
+    pub birth_date: Option<NaiveDate>,
 
     pub thumb_url: ThumbnailStore,
 

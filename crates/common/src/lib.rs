@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use chrono::{DateTime, Utc};
-use common::{MemberId, PersonId, ImageId, ThumbnailStore, Source, BookId, Agent};
+use chrono::{DateTime, Utc, NaiveDate};
+use common::{MemberId, PersonId, ImageId, ThumbnailStore, Source, BookId, Agent, util::{serialize_naivedate_opt, deserialize_naivedate_opt}};
 use serde::{Serialize, Deserialize};
 
 use util::*;
@@ -48,7 +48,8 @@ pub struct Person {
 
     pub name: String,
     pub description: Option<String>,
-    pub birth_date: Option<String>,
+    #[serde(serialize_with = "serialize_naivedate_opt", deserialize_with = "deserialize_naivedate_opt")]
+    pub birth_date: Option<NaiveDate>,
 
     pub thumb_url: ThumbnailStore,
 

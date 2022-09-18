@@ -1,4 +1,4 @@
-use crate::{Result, model::file::FileModel, config::get_config, metadata::SearchItem};
+use crate::{Result, model::file::FileModel, config::get_config, metadata::{SearchItem, AuthorInfo}};
 use async_trait::async_trait;
 use common::{api::{librarian::{PublicSearchResponse, PublicBook, PublicSearchType}, WrappingResponse}, Agent};
 use common_local::{BookItemCached, SearchFor};
@@ -39,13 +39,74 @@ impl Metadata for LibbyMetadata {
         }
     }
 
+    async fn get_person_by_source_id(&mut self, value: &str) -> Result<Option<AuthorInfo>> {
+        match request_authors(value).await? {
+            WrappingResponse::Resp(resp) => {
+                if let PublicSearchType::AuthorItem(Some(item)) = resp {
+                    return Ok(Some(AuthorInfo {
+                        source: self.prefix_text(item.id.to_string()).try_into()?,
+                        name: item.name,
+                        other_names: None,
+                        description: item.description,
+                        cover_image_url: Some(item.thumb_url),
+                        birth_date: item.birth_date,
+                        death_date: None,
+                    }));
+                }
+            }
+
+            WrappingResponse::Error(err) => {
+                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+            }
+        }
+
+        Ok(None)
+    }
+
     async fn search(&mut self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
+        let libby = get_config().libby;
+
         match search_for {
-            SearchFor::Person => Ok(Vec::new()),
+            SearchFor::Person => {
+                let url = format!(
+                    "{}/search/book?query={}&server_id={}&view_private={}",
+                    libby.url,
+                    urlencoding::encode(search),
+                    urlencoding::encode(&libby.token.unwrap()),
+                    !libby.public_only
+                );
+
+                println!("[METADATA][LIBBY]: Search URL: {}", url);
+
+                match request_authors(&url).await? {
+                    WrappingResponse::Resp(resp) => {
+                        let mut books = Vec::new();
+
+                        if let PublicSearchType::AuthorList(resp) = resp {
+                            for item in resp.items {
+                                books.push(SearchItem::Author(AuthorInfo {
+                                    source: self.prefix_text(item.id.to_string()).try_into()?,
+                                    name: item.name,
+                                    other_names: None,
+                                    description: item.description,
+                                    cover_image_url: Some(item.thumb_url),
+                                    birth_date: item.birth_date,
+                                    death_date: None,
+                                }));
+                            }
+                        }
+
+                        Ok(books)
+                    }
+
+                    WrappingResponse::Error(err) => {
+                        eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                        Ok(Vec::new())
+                    }
+                }
+            }
 
             SearchFor::Book(_specifically) => {
-                let libby = get_config().libby;
-
                 let url = format!(
                     "{}/search/book?query={}&server_id={}&view_private={}",
                     libby.url,
@@ -155,7 +216,7 @@ impl LibbyMetadata {
     async fn compile_book_volume_item(&self, value: PublicBook) -> Result<Option<MetadataReturned>> {
         Ok(Some(MetadataReturned {
             authors: None,
-            publisher: None,
+            publisher: value.publisher.clone(),
             meta: FoundItem {
                 source: self.prefix_text(value.id.to_string()).try_into()?,
                 title: value.title,
