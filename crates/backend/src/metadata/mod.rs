@@ -447,8 +447,13 @@ impl FoundImageLocation {
 
     pub async fn download(&mut self, db: &Database) -> Result<()> {
         match self {
-            FoundImageLocation::Url(ref url) => {
-                let resp = reqwest::get(url)
+            FoundImageLocation::Url(url) => {
+                // Fix URL
+                if url.starts_with("//") {
+                    url.insert_str(0, "https:");
+                }
+
+                let resp = reqwest::get(&*url)
                     .await?
                     .bytes()
                     .await?;

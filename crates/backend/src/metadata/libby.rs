@@ -1,6 +1,6 @@
 use crate::{Result, model::file::FileModel, config::get_config, metadata::SearchItem};
 use async_trait::async_trait;
-use common::{api::{librarian::{BookSearchResponse, PublicBook}, WrappingResponse}, Agent};
+use common::{api::{librarian::{BookSearchResponse, PublicBook}, WrappingResponse}, Agent, Either};
 use common_local::{BookItemCached, SearchFor};
 
 use super::{Metadata, MetadataReturned, FoundItem, FoundImageLocation};
@@ -60,20 +60,39 @@ impl Metadata for LibbyMetadata {
 
                 if resp.status().is_success() {
                     match resp.json::<BookSearchResponse>().await? {
-                        WrappingResponse::Resp(books_cont) => {
+                        WrappingResponse::Resp(resp) => {
                             let mut books = Vec::new();
 
-                            for item in books_cont.items {
-                                books.push(SearchItem::Book(FoundItem {
-                                    source: self.prefix_text(item.id.to_string()).try_into()?,
-                                    title: item.title,
-                                    description: item.description,
-                                    rating: item.rating,
-                                    thumb_locations: vec![FoundImageLocation::Url(item.thumb_url)],
-                                    cached: BookItemCached::default(),
-                                    available_at: item.available_at.and_then(|v| v.parse().ok()),
-                                    year: None,
-                                }));
+                            match resp {
+                                Either::Left(books_cont) => {
+                                    for item in books_cont.items {
+                                        books.push(SearchItem::Book(FoundItem {
+                                            source: self.prefix_text(item.id.to_string()).try_into()?,
+                                            title: item.title,
+                                            description: item.description,
+                                            rating: item.rating,
+                                            thumb_locations: vec![FoundImageLocation::Url(item.thumb_url)],
+                                            cached: BookItemCached::default().publisher_optional(item.publisher),
+                                            available_at: item.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
+                                            year: None,
+                                        }));
+                                    }
+                                }
+
+                                Either::Right(Some(item)) => {
+                                    books.push(SearchItem::Book(FoundItem {
+                                        source: self.prefix_text(item.id.to_string()).try_into()?,
+                                        title: item.title,
+                                        description: item.description,
+                                        rating: item.rating,
+                                        thumb_locations: vec![FoundImageLocation::Url(item.thumb_url)],
+                                        cached: BookItemCached::default().publisher_optional(item.publisher),
+                                        available_at: item.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
+                                        year: None,
+                                    }));
+                                },
+
+                                Either::Right(None) => (),
                             }
 
                             Ok(books)
@@ -110,11 +129,18 @@ impl LibbyMetadata {
 
         let book = if resp.status().is_success() {
             match resp.json::<BookSearchResponse>().await? {
-                WrappingResponse::Resp(mut books) => {
-                    if books.total == 1 {
-                        books.items.remove(0)
-                    } else {
-                        return Ok(None);
+                WrappingResponse::Resp(resp) => {
+                    match resp {
+                        Either::Left(mut books) => {
+                            if books.total == 1 {
+                                books.items.remove(0)
+                            } else {
+                                return Ok(None);
+                            }
+                        }
+
+                        Either::Right(Some(book)) => book,
+                        Either::Right(None) => return Ok(None),
                     }
                 }
 
@@ -134,15 +160,27 @@ impl LibbyMetadata {
         let libby = get_config().libby;
 
         let resp = reqwest::get(format!(
-            "{}/search?query=id:{}&server_id={}&view_private={}",
+            "{}/search?query=id:{}&server_id={}",
             libby.url,
             urlencoding::encode(id),
             urlencoding::encode(&libby.token.unwrap()),
-            !libby.public_only
         )).await?;
 
         if resp.status().is_success() {
-            self.compile_book_volume_item(resp.json().await?).await
+            match resp.json::<BookSearchResponse>().await? {
+                WrappingResponse::Resp(resp) => {
+                    match resp {
+                        Either::Right(Some(book)) => self.compile_book_volume_item(book).await,
+                        Either::Right(None) => Ok(None),
+                        Either::Left(_) => Ok(None),
+                    }
+                }
+
+                WrappingResponse::Error(err) => {
+                    eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                    Ok(None)
+                }
+            }
         } else {
             Ok(None)
         }
@@ -159,8 +197,8 @@ impl LibbyMetadata {
                 description: value.description,
                 rating: value.rating,
                 thumb_locations: vec![FoundImageLocation::Url(value.thumb_url)],
-                cached: BookItemCached::default(),
-                available_at: value.available_at.and_then(|v| v.parse().ok()),
+                cached: BookItemCached::default().publisher_optional(value.publisher),
+                available_at: value.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
                 year: None,
             }
         }))
