@@ -1,6 +1,6 @@
 use crate::{Result, model::file::FileModel, config::get_config, metadata::SearchItem};
 use async_trait::async_trait;
-use common::{api::{librarian::{BookSearchResponse, PublicBook}, WrappingResponse}, Agent, Either};
+use common::{api::{librarian::{PublicSearchResponse, PublicBook, PublicSearchType}, WrappingResponse}, Agent};
 use common_local::{BookItemCached, SearchFor};
 
 use super::{Metadata, MetadataReturned, FoundItem, FoundImageLocation};
@@ -18,7 +18,7 @@ impl Metadata for LibbyMetadata {
     async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {
         for file in files {
             if let Some(isbn) = file.identifier.clone() {
-                match self.request_query(isbn).await {
+                match self.request_book_query(isbn).await {
                     Ok(Some(v)) => return Ok(Some(v)),
                     a => eprintln!("LibbyMetadata::get_metadata_from_files {:?}", a)
                 }
@@ -29,7 +29,7 @@ impl Metadata for LibbyMetadata {
     }
 
     async fn get_metadata_by_source_id(&mut self, value: &str) -> Result<Option<MetadataReturned>> {
-        match self.request_singular_id(value).await {
+        match self.request_singular_book_id(value).await {
             Ok(Some(v)) => Ok(Some(v)),
             a => {
                 eprintln!("LibbyMetadata::get_metadata_by_source_id {:?}", a);
@@ -47,7 +47,7 @@ impl Metadata for LibbyMetadata {
                 let libby = get_config().libby;
 
                 let url = format!(
-                    "{}/search?query={}&server_id={}&view_private={}",
+                    "{}/search/book?query={}&server_id={}&view_private={}",
                     libby.url,
                     urlencoding::encode(search),
                     urlencoding::encode(&libby.token.unwrap()),
@@ -56,55 +56,32 @@ impl Metadata for LibbyMetadata {
 
                 println!("[METADATA][LIBBY]: Search URL: {}", url);
 
-                let resp = reqwest::get(url).await?;
+                match request_books(&url).await? {
+                    WrappingResponse::Resp(resp) => {
+                        let mut books = Vec::new();
 
-                if resp.status().is_success() {
-                    match resp.json::<BookSearchResponse>().await? {
-                        WrappingResponse::Resp(resp) => {
-                            let mut books = Vec::new();
-
-                            match resp {
-                                Either::Left(books_cont) => {
-                                    for item in books_cont.items {
-                                        books.push(SearchItem::Book(FoundItem {
-                                            source: self.prefix_text(item.id.to_string()).try_into()?,
-                                            title: item.title,
-                                            description: item.description,
-                                            rating: item.rating,
-                                            thumb_locations: vec![FoundImageLocation::Url(item.thumb_url)],
-                                            cached: BookItemCached::default().publisher_optional(item.publisher),
-                                            available_at: item.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
-                                            year: None,
-                                        }));
-                                    }
-                                }
-
-                                Either::Right(Some(item)) => {
-                                    books.push(SearchItem::Book(FoundItem {
-                                        source: self.prefix_text(item.id.to_string()).try_into()?,
-                                        title: item.title,
-                                        description: item.description,
-                                        rating: item.rating,
-                                        thumb_locations: vec![FoundImageLocation::Url(item.thumb_url)],
-                                        cached: BookItemCached::default().publisher_optional(item.publisher),
-                                        available_at: item.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
-                                        year: None,
-                                    }));
-                                },
-
-                                Either::Right(None) => (),
+                        if let PublicSearchType::BookList(books_cont) = resp {
+                            for item in books_cont.items {
+                                books.push(SearchItem::Book(FoundItem {
+                                    source: self.prefix_text(item.id.to_string()).try_into()?,
+                                    title: item.title,
+                                    description: item.description,
+                                    rating: item.rating,
+                                    thumb_locations: vec![FoundImageLocation::Url(item.thumb_url)],
+                                    cached: BookItemCached::default(),
+                                    available_at: item.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
+                                    year: None,
+                                }));
                             }
-
-                            Ok(books)
                         }
 
-                        WrappingResponse::Error(err) => {
-                            eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
-                            Ok(Vec::new())
-                        }
+                        Ok(books)
                     }
-                } else {
-                    return Ok(Vec::new());
+
+                    WrappingResponse::Error(err) => {
+                        eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                        Ok(Vec::new())
+                    }
                 }
             }
         }
@@ -112,11 +89,11 @@ impl Metadata for LibbyMetadata {
 }
 
 impl LibbyMetadata {
-    pub async fn request_query(&self, value: String) -> Result<Option<MetadataReturned>> {
+    pub async fn request_book_query(&self, value: String) -> Result<Option<MetadataReturned>> {
         let libby = get_config().libby;
 
         let url = format!(
-            "{}/search?query={}&server_id={}&view_private={}",
+            "{}/search/book?query={}&server_id={}&view_private={}",
             libby.url,
             urlencoding::encode(&value),
             urlencoding::encode(&libby.token.unwrap()),
@@ -125,64 +102,52 @@ impl LibbyMetadata {
 
         println!("[METADATA][LIBBY]: Req Query: {}", url);
 
-        let resp = reqwest::get(url).await?;
-
-        let book = if resp.status().is_success() {
-            match resp.json::<BookSearchResponse>().await? {
-                WrappingResponse::Resp(resp) => {
-                    match resp {
-                        Either::Left(mut books) => {
-                            if books.total == 1 {
-                                books.items.remove(0)
-                            } else {
-                                return Ok(None);
-                            }
+        let book = match request_books(&url).await? {
+            WrappingResponse::Resp(resp) => {
+                match resp {
+                    PublicSearchType::BookList(mut books) => {
+                        if books.total == 1 {
+                            books.items.remove(0)
+                        } else {
+                            return Ok(None);
                         }
-
-                        Either::Right(Some(book)) => book,
-                        Either::Right(None) => return Ok(None),
                     }
-                }
 
-                WrappingResponse::Error(err) => {
-                    eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
-                    return Ok(None);
+                    _ => return Ok(None),
                 }
             }
-        } else {
-            return Ok(None);
+
+            WrappingResponse::Error(err) => {
+                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                return Ok(None);
+            }
         };
 
-        self.compile_book_volume_item(book).await
+        self.request_singular_book_id(&book.id.to_string()).await
     }
 
-    pub async fn request_singular_id(&self, id: &str) -> Result<Option<MetadataReturned>> {
+    pub async fn request_singular_book_id(&self, id: &str) -> Result<Option<MetadataReturned>> {
         let libby = get_config().libby;
 
-        let resp = reqwest::get(format!(
-            "{}/search?query=id:{}&server_id={}",
+        let url = format!(
+            "{}/search/book?query=id:{}&server_id={}",
             libby.url,
             urlencoding::encode(id),
             urlencoding::encode(&libby.token.unwrap()),
-        )).await?;
+        );
 
-        if resp.status().is_success() {
-            match resp.json::<BookSearchResponse>().await? {
-                WrappingResponse::Resp(resp) => {
-                    match resp {
-                        Either::Right(Some(book)) => self.compile_book_volume_item(book).await,
-                        Either::Right(None) => Ok(None),
-                        Either::Left(_) => Ok(None),
-                    }
-                }
-
-                WrappingResponse::Error(err) => {
-                    eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
-                    Ok(None)
+        match request_books(&url).await? {
+            WrappingResponse::Resp(resp) => {
+                match resp {
+                    PublicSearchType::BookItem(Some(book)) => self.compile_book_volume_item(book).await,
+                    _ => Ok(None),
                 }
             }
-        } else {
-            Ok(None)
+
+            WrappingResponse::Error(err) => {
+                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                Ok(None)
+            }
         }
     }
 
@@ -203,4 +168,13 @@ impl LibbyMetadata {
             }
         }))
     }
+}
+
+
+async fn request_books(value: &str) -> Result<PublicSearchResponse> {
+    Ok(reqwest::get(value).await?.json().await?)
+}
+
+async fn request_authors(value: &str) -> Result<PublicSearchResponse> {
+    Ok(reqwest::get(value).await?.json().await?)
 }
