@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
-use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel}};
+use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel}, util};
 use async_trait::async_trait;
 use common_local::{SearchFor, BookItemCached, LibraryId};
 use chrono::Utc;
@@ -28,6 +28,16 @@ macro_rules! return_if_found {
         match $v {
             Ok(Some(v)) => return Ok(Some(v)),
             Ok(None) => (),
+            Err(e) => eprintln!("metadata::get_metadata: {}", e)
+        }
+    };
+}
+
+macro_rules! return_if_found_vec {
+    ($v: expr) => {
+        match $v {
+            Ok(v) if v.is_empty() => (),
+            Ok(v) => return Ok(v),
             Err(e) => eprintln!("metadata::get_metadata: {}", e)
         }
     };
@@ -121,6 +131,24 @@ pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataRe
 
 
 
+/// Attempts to return the first valid Metadata from Query.
+pub async fn search_and_return_first_valid_agent(query: &str, search_for: SearchFor, agent: &ActiveAgents) -> Result<Vec<SearchItem>> {
+    if agent.libby {
+        return_if_found_vec!(LibbyMetadata.search(query, search_for).await);
+    }
+
+    if agent.google {
+        return_if_found_vec!(GoogleBooksMetadata.search(query, search_for).await);
+    }
+
+    if agent.openlib {
+        return_if_found_vec!(OpenLibraryMetadata.search(query, search_for).await);
+    }
+
+    Ok(Vec::new())
+}
+
+
 /// Searches all agents except for local.
 pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<SearchResults> {
     let mut map = HashMap::new();
@@ -177,20 +205,16 @@ pub struct SearchResults(pub HashMap<Agent, Vec<SearchItem>>);
 
 impl SearchResults {
     pub fn sort_items_by_similarity(self, match_with: &str) -> Vec<(f64, SearchItem)> {
-        let mut items = Vec::new();
-
-        for item in self.0.into_values().flatten() {
-            let score = match &item {
-                SearchItem::Book(v) => v.title.as_deref().map(|v| strsim::jaro_winkler(match_with, v)).unwrap_or_default(),
-                SearchItem::Author(v) => strsim::jaro_winkler(match_with, &v.name),
-            };
-
-            items.push((score, item));
-        }
-
-        items.sort_unstable_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
-
-        items
+        util::sort_by_similarity(
+            match_with,
+            self.0.into_values().flatten(),
+            |v| {
+                match v {
+                    SearchItem::Book(v) => v.title.as_deref(),
+                    SearchItem::Author(v) => Some(&v.name),
+                }
+            }
+        )
     }
 }
 

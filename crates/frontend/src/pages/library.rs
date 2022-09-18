@@ -207,7 +207,7 @@ impl Component for LibraryPage {
                         PosterItem::UpdateBookBySource(book_id) => {
                             ctx.link()
                             .send_future(async move {
-                                request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdBySource).await;
+                                request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
 
                                 Msg::Ignore
                             });

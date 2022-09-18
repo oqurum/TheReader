@@ -211,8 +211,8 @@ pub async fn update_book_info(
             queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::AutoUpdateBookIdByFiles(book_id)));
         }
 
-        api::PostBookBody::AutoMatchBookIdBySource => {
-            queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::AutoUpdateBookIdBySource(book_id)));
+        api::PostBookBody::AutoMatchBookId => {
+            queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::AutoUpdateBookId(book_id)));
         }
 
         api::PostBookBody::UpdateBookBySource(source) => {
