@@ -1,4 +1,4 @@
-use actix_web::{get, web, HttpResponse, post, delete};
+use actix_web::{get, web, post, delete};
 
 use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer, ModifyValuesBy};
 use chrono::Utc;
@@ -15,7 +15,6 @@ pub async fn load_book_list(
     query: QsQuery<api::BookListQuery>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookListResponse>> {
-
     let (items, count) = if query.has_query() {
         let search = &query.filters;
 
@@ -37,7 +36,7 @@ pub async fn load_book_list(
                         id: book.id,
                         title: book.title.or(book.original_title).unwrap_or_default(),
                         cached: book.cached,
-                        has_thumbnail: book.thumb_path.is_some()
+                        thumb_path: book.thumb_path,
                     }
                 })
                 .collect()
@@ -64,7 +63,7 @@ pub async fn load_book_list(
                     id: book.id,
                     title: book.title.or(book.original_title).unwrap_or_default(),
                     cached: book.cached,
-                    has_thumbnail: book.thumb_path.is_some()
+                    thumb_path: book.thumb_path,
                 }
             })
             .collect();
@@ -148,21 +147,6 @@ pub async fn update_books(
     Ok(web::Json(WrappingResponse::okay("success")))
 }
 
-
-#[get("/book/{id}/thumbnail")]
-async fn load_book_thumbnail(path: web::Path<BookId>, db: web::Data<Database>) -> WebResult<HttpResponse> {
-    let book_id = path.into_inner();
-
-    let book = BookModel::find_one_by_id(book_id, &db).await?;
-
-    if let Some(loc) = book.and_then(|v| v.thumb_path.into_value()) {
-        let path = crate::image::prefixhash_to_path(&loc);
-
-        Ok(HttpResponse::Ok().body(std::fs::read(path).map_err(Error::from)?))
-    } else {
-        Ok(HttpResponse::NotFound().finish())
-    }
-}
 
 
 // Book

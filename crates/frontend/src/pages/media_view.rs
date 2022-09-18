@@ -1,4 +1,4 @@
-use common_local::{api::{GetBookResponse, self}, util::file_size_bytes_to_readable_string};
+use common_local::{api::{GetBookResponse, self}, util::file_size_bytes_to_readable_string, ThumbnailStoreExt};
 use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, api::WrappingResponse};
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -154,7 +154,7 @@ impl MediaView {
                                 })} title="More Options">{ "edit" }</span>
                             </div>
 
-                            <img src={ book.get_thumb_url() } />
+                            <img src={ book.thumb_path.get_book_http_path().into_owned() } />
                         </div>
                         <div class="metadata-container">
                             <div class="metadata">

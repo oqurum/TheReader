@@ -47,9 +47,6 @@ pub type ApiGetBookListResponse = self::GetBookListResponse;
 pub type ApiGetPosterByBookIdResponse = self::GetPostersResponse;
 /// POST    /book/{id}/posters
 pub type ApiPostPosterByBookIdResponse = String;
-// TODO: Remove? Use /image/{type}/{id}?
-/// GET     /book/{id}/thumbnail
-pub type ApiGetBookThumbnailResponse = Vec<u8>;
 /// GET     /book/{id}
 pub type ApiGetBookByIdResponse = self::GetBookResponse;
 /// POST    /book/{id}

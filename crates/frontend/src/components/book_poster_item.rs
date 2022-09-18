@@ -1,5 +1,5 @@
 use common::BookId;
-use common_local::{DisplayItem, api};
+use common_local::{DisplayItem, api, ThumbnailStoreExt};
 use web_sys::{MouseEvent, HtmlElement, HtmlInputElement};
 use yew::{Component, Properties, Callback, Context, Html, html, TargetCast};
 use yew_router::prelude::Link;
@@ -121,7 +121,7 @@ impl Component for BookPosterItem {
                             }
                         })} title="More Options">{ "edit" }</span>
                     </div>
-                    <img src={ item.get_thumb_url() } />
+                    <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                     {
                         if is_updating {
                             html! {

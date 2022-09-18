@@ -1,6 +1,6 @@
 use std::sync::{Mutex, Arc};
 
-use common_local::{api::GetBookListResponse, filter::FilterContainer};
+use common_local::{api::GetBookListResponse, filter::FilterContainer, ThumbnailStoreExt};
 use common::{util::does_parent_contain_class, api::WrappingResponse};
 use gloo_utils::{document, body};
 use wasm_bindgen::{JsCast, prelude::Closure};
@@ -165,7 +165,7 @@ impl NavbarModule {
                             html_nested! {
                                 <Link<Route> to={Route::ViewBook { book_id: item.id }} classes={ classes!("search-item") }>
                                     <div class="poster max-vertical">
-                                        <img src={ item.get_thumb_url() } />
+                                        <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                                     </div>
                                     <div class="info">
                                         <h5 class="book-name" title={ item.title.clone() }>{ item.title.clone() }</h5>

@@ -7,10 +7,12 @@ use serde::{Serialize, Deserialize};
 use util::*;
 
 mod http;
+mod ext;
 pub mod util;
 pub mod error;
 pub mod specific;
 
+pub use ext::*;
 pub use http::*;
 pub use specific::*;
 pub use error::{Result, Error};
@@ -81,17 +83,7 @@ pub struct DisplayItem {
 
     pub title: String,
     pub cached: BookItemCached,
-    pub has_thumbnail: bool,
-}
-
-impl DisplayItem {
-    pub fn get_thumb_url(&self) -> String {
-        if self.has_thumbnail {
-            format!("/api/book/{}/thumbnail", self.id)
-        } else {
-            String::from("/images/missingthumbnail.jpg")
-        }
-    }
+    pub thumb_path: ThumbnailStore,
 }
 
 impl PartialEq for DisplayItem {
@@ -106,7 +98,7 @@ impl From<DisplayBookItem> for DisplayItem {
             id: val.id,
             title: val.title.or(val.original_title).unwrap_or_default(),
             cached: val.cached,
-            has_thumbnail: val.thumb_path.is_some()
+            thumb_path: val.thumb_path,
         }
     }
 }
@@ -147,14 +139,6 @@ pub struct DisplayBookItem {
 }
 
 impl DisplayBookItem {
-    pub fn get_thumb_url(&self) -> String {
-        if self.thumb_path != ThumbnailStore::None {
-            format!("/api/book/{}/thumbnail", self.id)
-        } else {
-            String::from("/images/missingthumbnail.jpg")
-        }
-    }
-
     pub fn get_title(&self) -> String {
         self.title.as_ref().or(self.original_title.as_ref()).cloned().unwrap_or_else(|| String::from("No Title"))
     }
