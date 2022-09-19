@@ -292,19 +292,30 @@ impl MetadataReturned {
             for author_info in authors_with_alts {
                 // Check if we already have a person by that name anywhere in the two database tables.
                 if let Some(person) = PersonModel::find_one_by_name(&author_info.name, db).await? {
-                    person_ids.push(person.id);
+                    // Check if it's from the same source.
+                    // If not, we remove the old one and replace it with the new one.
+                    if author_info.source != person.source {
+                        PersonAltModel::delete_by_id(person.id, db).await?;
+                        PersonModel::delete_by_id(person.id, db).await?;
+                    } else {
+                        person_ids.push(person.id);
 
-                    if main_author.is_none() {
-                        main_author = Some(person.name);
+                        if main_author.is_none() {
+                            main_author = Some(person.name);
+                        }
+
+                        continue;
                     }
-
-                    continue;
                 }
 
                 let mut thumb_url = ThumbnailStore::None;
 
                 // Download thumb url and store it.
-                if let Some(url) = author_info.cover_image_url {
+                if let Some(mut url) = author_info.cover_image_url {
+                    if url.starts_with("//") {
+                        url.insert_str(0, "https:");
+                    }
+
                     let resp = reqwest::get(url).await?;
 
                     if resp.status().is_success() {

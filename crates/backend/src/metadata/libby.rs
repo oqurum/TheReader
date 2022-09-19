@@ -1,6 +1,8 @@
+use std::convert::TryFrom;
+
 use crate::{Result, model::file::FileModel, config::get_config, metadata::{SearchItem, AuthorInfo}};
 use async_trait::async_trait;
-use common::{api::{librarian::{PublicSearchResponse, PublicBook, PublicSearchType}, WrappingResponse}, Agent};
+use common::{api::{librarian::{PublicSearchResponse, PublicBook, PublicSearchType}, WrappingResponse}, Agent, Source};
 use common_local::{BookItemCached, SearchFor};
 
 use super::{Metadata, MetadataReturned, FoundItem, FoundImageLocation};
@@ -187,6 +189,41 @@ impl LibbyMetadata {
         self.request_singular_book_id(&book.id.to_string()).await
     }
 
+    pub async fn request_singular_author_id(&self, id: &str) -> Result<Option<AuthorInfo>> {
+        let libby = get_config().libby;
+
+        let url = format!(
+            "{}/search/author?query=id:{}&server_id={}",
+            libby.url,
+            urlencoding::encode(id),
+            urlencoding::encode(&libby.token.unwrap()),
+        );
+
+        match request_authors(&url).await? {
+            WrappingResponse::Resp(resp) => {
+                match resp {
+                    PublicSearchType::AuthorItem(Some(author)) => {
+                        Ok(Some(AuthorInfo {
+                            source: Source::try_from(self.prefix_text(author.id.to_string())).unwrap(),
+                            cover_image_url: Some(author.thumb_url),
+                            name: author.name,
+                            other_names: Some(author.other_names).filter(|v| !v.is_empty()),
+                            description: author.description,
+                            birth_date: author.birth_date,
+                            death_date: None,
+                        }))
+                    }
+                    _ => Ok(None),
+                }
+            }
+
+            WrappingResponse::Error(err) => {
+                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                Ok(None)
+            }
+        }
+    }
+
     pub async fn request_singular_book_id(&self, id: &str) -> Result<Option<MetadataReturned>> {
         let libby = get_config().libby;
 
@@ -214,8 +251,21 @@ impl LibbyMetadata {
 
 
     async fn compile_book_volume_item(&self, value: PublicBook) -> Result<Option<MetadataReturned>> {
+        let mut authors = Vec::new();
+        let mut author_name = None;
+
+        for author_id in value.author_ids {
+            if let Some(author) = self.request_singular_author_id(&author_id.to_string()).await? {
+                if Some(author_id) == value.display_author_id {
+                    author_name = Some(author.name.clone());
+                }
+
+                authors.push(author);
+            }
+        }
+
         Ok(Some(MetadataReturned {
-            authors: None,
+            authors: Some(authors).filter(|v| !v.is_empty()),
             publisher: value.publisher.clone(),
             meta: FoundItem {
                 source: self.prefix_text(value.id.to_string()).try_into()?,
@@ -223,7 +273,7 @@ impl LibbyMetadata {
                 description: value.description,
                 rating: value.rating,
                 thumb_locations: vec![FoundImageLocation::Url(value.thumb_url)],
-                cached: BookItemCached::default().publisher_optional(value.publisher),
+                cached: BookItemCached::default().publisher_optional(value.publisher).author_optional(author_name),
                 available_at: value.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
                 year: None,
             }
