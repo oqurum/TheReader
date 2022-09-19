@@ -347,7 +347,7 @@ pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<Json
                             api::SearchItem::Person(api::MetadataPersonSearchItem {
                                 source: author.source,
 
-                                cover_image: author.cover_image_url,
+                                cover_image: author.cover_image_url.and_then(|v| v.into_url_value()),
 
                                 name: author.name,
                                 other_names: author.other_names,

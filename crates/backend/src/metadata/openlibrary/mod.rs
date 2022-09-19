@@ -68,7 +68,7 @@ impl Metadata for OpenLibraryMetadata {
                     other_names: author.alternate_names,
                     description: author.bio.map(|v| v.into_content()),
                     // Using value since it should always be value "OLXXXXXA" which is Olid
-                    cover_image_url: Some(self::CoverId::Olid(value.to_string()).get_author_cover_url()),
+                    cover_image_url: Some(FoundImageLocation::Url(self::CoverId::Olid(value.to_string()).get_author_cover_url())),
                     birth_date: author.birth_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                     death_date: author.death_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                 }))
@@ -88,7 +88,7 @@ impl Metadata for OpenLibraryMetadata {
                     for item in found.items {
                         authors.push(SearchItem::Author(AuthorInfo {
                             source: self.prefix_text(item.key.as_deref().unwrap()).try_into()?,
-                            cover_image_url: Some(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url()),
+                            cover_image_url: Some(FoundImageLocation::Url(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url())),
                             name: item.name.unwrap(),
                             other_names: item.alternate_names,
                             description: None,
@@ -184,7 +184,7 @@ impl OpenLibraryMetadata {
                         name: author.name.clone(),
                         other_names: author.alternate_names,
                         description: author.bio.map(|v| v.into_content()),
-                        cover_image_url: Some(self::CoverId::Olid(author.key).get_author_cover_url()),
+                        cover_image_url: Some(FoundImageLocation::Url(self::CoverId::Olid(author.key).get_author_cover_url())),
                         birth_date: author.birth_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                         death_date: author.death_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                     });

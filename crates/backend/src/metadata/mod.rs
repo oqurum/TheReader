@@ -1,10 +1,10 @@
 use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
-use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel}, util};
+use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel, book_person::BookPersonModel}, util};
 use async_trait::async_trait;
 use common_local::{SearchFor, BookItemCached, LibraryId};
 use chrono::{Utc, NaiveDate};
-use common::{BookId, PersonId, ThumbnailStore, Source, Agent};
+use common::{BookId, PersonId, ThumbnailStore, Source, Agent, Either};
 
 use crate::database::Database;
 
@@ -261,7 +261,7 @@ impl SearchItem {
 pub struct AuthorInfo {
     pub source: Source,
 
-    pub cover_image_url: Option<String>,
+    pub cover_image_url: Option<FoundImageLocation>,
 
     pub name: String,
     pub other_names: Option<Vec<String>>,
@@ -290,6 +290,8 @@ impl MetadataReturned {
 
         if let Some(authors_with_alts) = self.authors.take() {
             for author_info in authors_with_alts {
+                let mut relink_books = Vec::new();
+
                 // Check if we already have a person by that name anywhere in the two database tables.
                 if let Some(person) = PersonModel::find_one_by_name(&author_info.name, db).await? {
                     // Check if it's from the same source.
@@ -297,6 +299,9 @@ impl MetadataReturned {
                     if author_info.source != person.source {
                         PersonAltModel::delete_by_id(person.id, db).await?;
                         PersonModel::delete_by_id(person.id, db).await?;
+
+                        relink_books = BookPersonModel::find_by(Either::Right(person.id), db).await?;
+                        BookPersonModel::delete_by_person_id(person.id, db).await?;
                     } else {
                         person_ids.push(person.id);
 
@@ -312,24 +317,10 @@ impl MetadataReturned {
 
                 // Download thumb url and store it.
                 if let Some(mut url) = author_info.cover_image_url {
-                    if url.starts_with("//") {
-                        url.insert_str(0, "https:");
-                    }
+                    url.download(db).await?;
 
-                    let resp = reqwest::get(url).await?;
-
-                    if resp.status().is_success() {
-                        let bytes = resp.bytes().await?;
-
-                        match crate::store_image(bytes.to_vec(), db).await {
-                            Ok(model) => thumb_url = model.path,
-                            Err(e) => {
-                                eprintln!("add_or_ignore_authors_into_database Error: {}", e);
-                            }
-                        }
-                    } else {
-                        let text = resp.text().await;
-                        eprintln!("add_or_ignore_authors_into_database Error: {:?}", text);
+                    if let FoundImageLocation::Local(path) = url {
+                        thumb_url = path;
                     }
                 }
 
@@ -356,6 +347,13 @@ impl MetadataReturned {
                             eprintln!("[OL]: Add Alt Name Error: {e}");
                         }
                     }
+                }
+
+                for model in relink_books {
+                    BookPersonModel {
+                        person_id: person.id,
+                        book_id: model.book_id,
+                    }.insert_or_ignore(db).await?;
                 }
 
                 person_ids.push(person.id);

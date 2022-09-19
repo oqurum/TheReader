@@ -50,7 +50,7 @@ impl Metadata for LibbyMetadata {
                         name: item.name,
                         other_names: None,
                         description: item.description,
-                        cover_image_url: Some(item.thumb_url),
+                        cover_image_url: Some(FoundImageLocation::Url(item.thumb_url)),
                         birth_date: item.birth_date,
                         death_date: None,
                     }));
@@ -91,7 +91,7 @@ impl Metadata for LibbyMetadata {
                                     name: item.name,
                                     other_names: None,
                                     description: item.description,
-                                    cover_image_url: Some(item.thumb_url),
+                                    cover_image_url: Some(FoundImageLocation::Url(item.thumb_url)),
                                     birth_date: item.birth_date,
                                     death_date: None,
                                 }));
@@ -205,7 +205,7 @@ impl LibbyMetadata {
                     PublicSearchType::AuthorItem(Some(author)) => {
                         Ok(Some(AuthorInfo {
                             source: Source::try_from(self.prefix_text(author.id.to_string())).unwrap(),
-                            cover_image_url: Some(author.thumb_url),
+                            cover_image_url: Some(FoundImageLocation::Url(author.thumb_url)),
                             name: author.name,
                             other_names: Some(author.other_names).filter(|v| !v.is_empty()),
                             description: author.description,

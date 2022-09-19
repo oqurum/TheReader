@@ -11,7 +11,7 @@ use tokio::{runtime::Runtime, time::sleep};
 use crate::{
     Result,
     database::Database,
-    metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem, ActiveAgents, search_and_return_first_valid_agent}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::FileModel, book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}, sort_by_similarity
+    metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem, ActiveAgents, search_and_return_first_valid_agent, FoundImageLocation}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::FileModel, book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}, sort_by_similarity
 };
 
 
@@ -207,7 +207,7 @@ impl Task for TaskUpdateInvalidBook {
 
                 let book_model = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
-                println!("Updating by file check");
+                println!("Updating by title");
 
                 // Step 1
                 let search_query = book_model.title.as_deref()
@@ -641,26 +641,11 @@ impl TaskUpdatePeople {
             }
 
             // Download thumb url and store it.
-            if let Some(url) = new_person.cover_image_url {
-                let resp = reqwest::get(&url).await?;
+            if let Some(mut url) = new_person.cover_image_url {
+                url.download(db).await?;
 
-                if resp.status().is_success() {
-                    let bytes = resp.bytes().await?;
-
-                    // TODO: Used for Open Library. We don't check to see if we actually have an image yet.
-                    if bytes.len() > 1000 {
-                        println!("Cover URL: {}", url);
-
-                        match crate::store_image(bytes.to_vec(), db).await {
-                            Ok(model) => old_person.thumb_url = model.path,
-                            Err(e) => {
-                                eprintln!("UpdatingPeople::AutoUpdateById (store_image) Error: {}", e);
-                            }
-                        }
-                    }
-                } else {
-                    let text = resp.text().await;
-                    eprintln!("UpdatingPeople::AutoUpdateById (image request) Error: {:?}", text);
+                if let FoundImageLocation::Local(path) = url {
+                    old_person.thumb_url = path;
                 }
             }
 
