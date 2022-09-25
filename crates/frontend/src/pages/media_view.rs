@@ -182,26 +182,12 @@ impl MediaView {
                     </section>
 
                     <section>
-                        <h2>{ "Characters" }</h2>
-                        <div class="characters-container">
-                            <div class="person-item">
-                                <div class="photo"><img src="/images/missingperson.jpg" /></div>
-                                <span class="title">{ "Character #1" }</span>
-                            </div>
-                            <div class="person-item">
-                                <div class="photo"><img src="/images/missingperson.jpg" /></div>
-                                <span class="title">{ "Character #2" }</span>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section>
                         <h2>{ "People" }</h2>
                         <div class="authors-container">
                             {
                                 for people.iter().map(|person| {
                                     html! {
-                                        <div class="person-item">
+                                        <div class="person-container">
                                             <div class="photo"><img src={ person.get_thumb_url() } /></div>
                                             <span class="title">{ person.name.clone() }</span>
                                         </div>

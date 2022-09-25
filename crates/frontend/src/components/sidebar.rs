@@ -1,12 +1,15 @@
-use common::api::WrappingResponse;
-use common_local::{api, LibraryColl};
+use common::{component::popup::{PopupClose, button::ButtonWithPopup}, api::WrappingResponse};
+use common_local::{api, LibraryColl, LibraryId};
 use yew::{prelude::*, html::Scope};
 use yew_router::{prelude::Link, scope_ext::RouterScopeExt};
 
 use crate::{Route, request};
 
 pub enum Msg {
-    LibraryListResults(WrappingResponse<api::GetLibrariesResponse>)
+    LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
+
+    // Events
+    RefreshAllMetadata(LibraryId),
 }
 
 pub struct Sidebar {
@@ -36,6 +39,10 @@ impl Component for Sidebar {
                     Err(err) => crate::display_error(err),
                 }
             }
+
+            Msg::RefreshAllMetadata(lib_id) => {
+                //
+            }
         }
 
         true
@@ -60,12 +67,25 @@ impl Component for Sidebar {
 
 impl Sidebar {
     fn render_sidebar_library_item(item: &LibraryColl, scope: &Scope<Self>) -> Html {
-        let to = Route::ViewLibrary { library_id: item.id };
+        let library_id = item.id;
+
+        let to = Route::ViewLibrary { library_id };
         let cr = scope.route::<Route>().unwrap();
+
 
         html! {
             <Link<Route> {to} classes={ classes!("sidebar-item", "library", (cr == to).then(|| "active")) }>
-                { item.name.clone() }
+                <span class="title">{ item.name.clone() }</span>
+                <div class="options">
+                    <ButtonWithPopup class="menu-list">
+                        <PopupClose class="menu-item" onclick={ scope.callback(move |e: MouseEvent| {
+                            e.prevent_default();
+                            Msg::RefreshAllMetadata(library_id)
+                        }) }>
+                            { "Refresh All Metadata" }
+                        </PopupClose>
+                    </ButtonWithPopup>
+                </div>
             </Link<Route>>
         }
     }
