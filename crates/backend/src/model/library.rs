@@ -97,4 +97,12 @@ impl LibraryModel {
             |v| LibraryModel::from_row(v)
         ).optional()?)
     }
+
+    pub async fn find_one_by_id(value: LibraryId, db: &Database) -> Result<Option<LibraryModel>> {
+        Ok(db.read().await.query_row(
+            r#"SELECT * FROM library WHERE id = ?1"#,
+            [ value ],
+            |v| LibraryModel::from_row(v)
+        ).optional()?)
+    }
 }

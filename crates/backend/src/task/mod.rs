@@ -2,7 +2,7 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 
 use actix_web::web;
 use async_trait::async_trait;
-use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, filter::FilterContainer};
+use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, filter::FilterContainer, LibraryId};
 use chrono::Utc;
 use common::{BookId, PersonId, Source};
 use lazy_static::lazy_static;
@@ -75,18 +75,18 @@ pub fn start_task_manager(db: web::Data<Database>) {
 
 
 
-// TODO: Better name.
-
-pub struct TaskLibraryScan;
+pub struct TaskLibraryScan {
+    pub library_id: LibraryId
+}
 
 #[async_trait]
 impl Task for TaskLibraryScan {
     async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
-        for library in LibraryModel::get_all(db).await? {
-            let directories = DirectoryModel::find_directories_by_library_id(library.id, db).await?;
+        let library = LibraryModel::find_one_by_id(self.library_id, db).await?.unwrap();
 
-            crate::scanner::library_scan(&library, directories, db).await?;
-        }
+        let directories = DirectoryModel::find_directories_by_library_id(self.library_id, db).await?;
+
+        crate::scanner::library_scan(&library, directories, db).await?;
 
         Ok(())
     }
@@ -123,7 +123,10 @@ pub enum UpdatingBook {
         source: Source,
     },
     /// Updates all books with specified agent by files.
-    UpdateAllWithAgent(String),
+    UpdateAllWithAgent {
+        library_id: LibraryId,
+        agent: String
+    },
 }
 
 pub struct TaskUpdateInvalidBook {
@@ -410,7 +413,7 @@ impl Task for TaskUpdateInvalidBook {
                 }
             }
 
-            UpdatingBook::UpdateAllWithAgent(_agent) => {
+            UpdatingBook::UpdateAllWithAgent{ library_id, agent: _a } => {
                 // TODO: Use agent
                 let active_agent = ActiveAgents {
                     google: false,
@@ -421,9 +424,7 @@ impl Task for TaskUpdateInvalidBook {
 
                 const LIMIT: usize = 100;
 
-                // TODO: Specify Library.
-
-                let amount = BookModel::count_search_by(&FilterContainer::default(), None, db).await?;
+                let amount = BookModel::count_search_by(&FilterContainer::default(), Some(library_id), db).await?;
                 let mut offset = 0;
 
                 println!("{amount}");
@@ -431,7 +432,7 @@ impl Task for TaskUpdateInvalidBook {
                 while offset < amount {
                     println!("Position: {offset}/{amount}");
 
-                    let books = BookModel::find_by(None, offset, LIMIT, None, db).await?;
+                    let books = BookModel::find_by(Some(library_id), offset, LIMIT, None, db).await?;
 
                     for book in books {
                         send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book.id)));

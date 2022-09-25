@@ -301,12 +301,10 @@ pub struct MetadataBookSearchItem {
 
 // Task
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct RunTaskBody {
-    #[serde(default)]
-    pub run_search: bool,
-    #[serde(default)]
-    pub run_metadata: bool
+    pub run_search: Option<LibraryId>,
+    pub run_metadata: Option<LibraryId>,
 }
 
 

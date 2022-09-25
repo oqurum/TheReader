@@ -21,12 +21,15 @@ pub async fn run_task(
     }
 
 
-    if modify.run_search {
-        queue_task(task::TaskLibraryScan);
+    if let Some(library_id) = modify.run_search {
+        queue_task(task::TaskLibraryScan { library_id });
     }
 
-    if modify.run_metadata {
-        queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::UpdateAllWithAgent(String::new())));
+    if let Some(library_id) = modify.run_metadata {
+        queue_task(task::TaskUpdateInvalidBook::new(task::UpdatingBook::UpdateAllWithAgent {
+            library_id,
+            agent: String::new()
+        }));
     }
 
     Ok(web::Json(WrappingResponse::okay("success")))

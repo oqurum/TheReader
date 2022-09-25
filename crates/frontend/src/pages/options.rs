@@ -1,4 +1,4 @@
-use common_local::{api::{self, RunTaskBody}, BasicLibrary, LibraryId};
+use common_local::{api, BasicLibrary, LibraryId};
 use common::{component::popup::{Popup, PopupType}, api::WrappingResponse};
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
@@ -15,8 +15,6 @@ pub enum Msg {
     ClosePopup,
 
     RequestUpdateOptions(bool, api::ModifyOptionsBody),
-
-    Ignore
 }
 
 pub struct OptionsPage {
@@ -66,8 +64,6 @@ impl Component for OptionsPage {
                     Msg::OptionsResults(request::get_options().await)
                 });
             }
-
-            Msg::Ignore => ()
         }
 
         true
@@ -83,21 +79,7 @@ impl Component for OptionsPage {
 
                     <br />
 
-                    <button onclick={ ctx.link().callback_future(|_| async {
-                        request::run_task(RunTaskBody {
-                            run_search: true,
-                            run_metadata: false,
-                        }).await;
-                        Msg::Ignore
-                    }) }>{ "Run Library Scan" }</button>
-
-                    <button onclick={ ctx.link().callback_future(|_| async {
-                        request::run_task(RunTaskBody {
-                            run_search: false,
-                            run_metadata: true,
-                        }).await;
-                        Msg::Ignore
-                    }) }>{ "Update Metadata" }</button>
+                    <h4>{ "None for now" }</h4>
 
                     <br />
 

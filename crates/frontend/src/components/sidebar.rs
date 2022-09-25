@@ -1,5 +1,5 @@
 use common::{component::popup::{PopupClose, button::ButtonWithPopup}, api::WrappingResponse};
-use common_local::{api, LibraryColl, LibraryId};
+use common_local::{api, LibraryColl};
 use yew::{prelude::*, html::Scope};
 use yew_router::{prelude::Link, scope_ext::RouterScopeExt};
 
@@ -8,8 +8,7 @@ use crate::{Route, request};
 pub enum Msg {
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
 
-    // Events
-    RefreshAllMetadata(LibraryId),
+    Ignore,
 }
 
 pub struct Sidebar {
@@ -33,15 +32,13 @@ impl Component for Sidebar {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::Ignore => return false,
+
             Msg::LibraryListResults(resp) => {
                 match resp.ok() {
                     Ok(resp) => self.library_items = Some(resp.items),
                     Err(err) => crate::display_error(err),
                 }
-            }
-
-            Msg::RefreshAllMetadata(lib_id) => {
-                //
             }
         }
 
@@ -78,11 +75,36 @@ impl Sidebar {
                 <span class="title">{ item.name.clone() }</span>
                 <div class="options">
                     <ButtonWithPopup class="menu-list">
-                        <PopupClose class="menu-item" onclick={ scope.callback(move |e: MouseEvent| {
+                        <PopupClose class="menu-item" onclick={ scope.callback_future(move |e: MouseEvent| {
                             e.prevent_default();
-                            Msg::RefreshAllMetadata(library_id)
+
+                            async move {
+                                request::run_task(api::RunTaskBody {
+                                    run_metadata: Some(library_id),
+
+                                    .. Default::default()
+                                }).await;
+
+                                Msg::Ignore
+                            }
                         }) }>
                             { "Refresh All Metadata" }
+                        </PopupClose>
+
+                        <PopupClose class="menu-item" onclick={ scope.callback_future(move |e: MouseEvent| {
+                            e.prevent_default();
+
+                            async move {
+                                request::run_task(api::RunTaskBody {
+                                    run_search: Some(library_id),
+
+                                    .. Default::default()
+                                }).await;
+
+                                Msg::Ignore
+                            }
+                        }) }>
+                            { "Library Scan" }
                         </PopupClose>
                     </ButtonWithPopup>
                 </div>
