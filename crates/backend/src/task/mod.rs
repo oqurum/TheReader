@@ -435,8 +435,10 @@ impl Task for TaskUpdateInvalidBook {
                     let books = BookModel::find_by(Some(library_id), offset, LIMIT, None, db).await?;
 
                     for book in books {
-                        send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book.id)));
-                        Self::update_book_by_files(book, &active_agent, db).await?;
+                        if Utc::now().signed_duration_since(book.refreshed_at).num_days() > 7 {
+                            send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book.id)));
+                            Self::update_book_by_files(book, &active_agent, db).await?;
+                        }
                     }
 
                     offset += LIMIT;
@@ -534,8 +536,12 @@ async fn overwrite_book_with_new_metadata(
 
     let mut new_book_model: BookModel = meta.into();
 
+    println!("{:?}", new_book_model.cached);
+
     // TODO: Store Publisher inside Database
     new_book_model.cached = new_book_model.cached.publisher_optional(publisher).author_optional(main_author);
+
+    println!("{:?}", new_book_model.cached);
 
     // Update New Book with old one
     new_book_model.id = curr_book_model.id;
@@ -547,6 +553,8 @@ async fn overwrite_book_with_new_metadata(
     // Overwrite prev with new and replace new with prev.
     curr_book_model.cached.overwrite_with(new_book_model.cached);
     new_book_model.cached = curr_book_model.cached;
+
+    println!("{:?}", new_book_model.cached);
 
     if curr_book_model.title != curr_book_model.original_title {
         new_book_model.title = curr_book_model.title;
@@ -569,6 +577,8 @@ async fn overwrite_book_with_new_metadata(
             ImageLinkModel::new_book(image.id, new_book_model.id).insert(db).await?;
         }
     }
+
+    new_book_model.refreshed_at = Utc::now();
 
     new_book_model.update(db).await?;
 

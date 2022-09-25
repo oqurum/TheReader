@@ -146,7 +146,9 @@ impl BookModel {
         Ok(table_book.unwrap())
     }
 
-    pub async fn update(&self, db: &Database) -> Result<()> {
+    pub async fn update(&mut self, db: &Database) -> Result<()> {
+        self.updated_at = Utc::now();
+
         db.write().await
         .execute(r#"
             UPDATE metadata_item SET
