@@ -33,7 +33,7 @@ pub enum Msg {
     Ignore,
     // TogglePopup,
 
-    UpdateBookByFiles,
+    UpdateMultiple(api::PostBookBody),
 
     EditPopupMsg(MsgEditPopup),
     ShowEditPopup(LocalPopupType),
@@ -74,7 +74,7 @@ impl Component for MassSelectBar {
                 }
             }
 
-            Msg::UpdateBookByFiles => {
+            Msg::UpdateMultiple(type_of) => {
                 let book_ids = {
                     let items = ctx.props().editing_items.lock().unwrap();
                     items.clone()
@@ -83,7 +83,7 @@ impl Component for MassSelectBar {
                 ctx.link()
                 .send_future(async move {
                     for book_id in book_ids {
-                        request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdByFiles).await;
+                        request::update_book(book_id, &type_of).await;
                     }
 
                     Msg::Ignore
@@ -178,10 +178,15 @@ impl Component for MassSelectBar {
                         </div>
                         <div class="center-content">
                             <ButtonWithPopup class="menu-list">
-                                <PopupClose class="menu-item">{ "Refresh Book Metadata" }</PopupClose>
                                 <PopupClose class="menu-item" onclick={ ctx.link().callback(move |e: MouseEvent| {
                                     e.prevent_default();
-                                    Msg::UpdateBookByFiles
+                                    Msg::UpdateMultiple(api::PostBookBody::AutoMatchBookId)
+                                }) }>
+                                    { "Refresh Metadata" }
+                                </PopupClose>
+                                <PopupClose class="menu-item" onclick={ ctx.link().callback(move |e: MouseEvent| {
+                                    e.prevent_default();
+                                    Msg::UpdateMultiple(api::PostBookBody::AutoMatchBookIdByFiles)
                                 }) }>
                                     { "Quick Search By Files" }
                                 </PopupClose>
