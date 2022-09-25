@@ -184,6 +184,7 @@ pub struct BookSearchItem {
     pub id_depósito_legal: Option<Vec<String>>,
     pub id_goodreads: Option<Vec<String>>,
     pub id_google: Option<Vec<String>>,
+    pub id_isbn: Option<Vec<String>>,
     pub id_hathi_trust: Option<Vec<String>>,
     pub id_librarything: Option<Vec<String>>,
     pub id_isfdb: Option<Vec<String>>,
@@ -248,6 +249,7 @@ pub struct BookInfo {
     pub subject_places: Option<Vec<String>>,
     pub translated_from: Option<Vec<KeyItem>>,
     pub other_titles: Option<Vec<String>>,
+    pub links: Option<Vec<Link>>,
     pub dewey_decimal_class: Option<Vec<String>>,
     pub local_id: Option<Vec<String>>,
     pub physical_format: Option<String>,
@@ -286,6 +288,14 @@ pub struct BookInfo {
     pub table_of_contents: Option<Vec<TableOfContent>>,
     pub created: TypeValueItem,
     pub last_modified: TypeValueItem,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Link {
+    pub title: String,
+    pub url: String,
+    #[serde(rename = "type")]
+    type_of: KeyItem,
 }
 
 
