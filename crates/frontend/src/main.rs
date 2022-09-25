@@ -98,8 +98,6 @@ impl Component for Model {
 
         ctx.link()
         .send_future(async {
-            open_websocket_conn();
-
             Msg::LoadMemberSelf(request::get_member_self().await)
         });
 
@@ -111,12 +109,12 @@ impl Component for Model {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::LoadMemberSelf(resp) => {
-                match resp.ok() {
-                    Ok(resp) => {
-                        *MEMBER_SELF.lock().unwrap() = resp.member;
+                if let WrappingResponse::Resp(resp) = resp {
+                    if resp.member.is_some() {
+                        open_websocket_conn();
                     }
 
-                    Err(err) => display_error(err),
+                    *MEMBER_SELF.lock().unwrap() = resp.member;
                 }
 
                 self.has_loaded_member = true;
