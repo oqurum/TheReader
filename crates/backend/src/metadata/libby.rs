@@ -50,7 +50,7 @@ impl Metadata for LibbyMetadata {
                         name: item.name,
                         other_names: None,
                         description: item.description,
-                        cover_image_url: Some(FoundImageLocation::Url(item.thumb_url)),
+                        cover_image_url: item.thumb_url.map(FoundImageLocation::Url),
                         birth_date: item.birth_date,
                         death_date: None,
                     }));
@@ -91,7 +91,7 @@ impl Metadata for LibbyMetadata {
                                     name: item.name,
                                     other_names: None,
                                     description: item.description,
-                                    cover_image_url: Some(FoundImageLocation::Url(item.thumb_url)),
+                                    cover_image_url: item.thumb_url.map(FoundImageLocation::Url),
                                     birth_date: item.birth_date,
                                     death_date: None,
                                 }));
@@ -130,7 +130,7 @@ impl Metadata for LibbyMetadata {
                                     title: item.title,
                                     description: item.description,
                                     rating: item.rating,
-                                    thumb_locations: vec![FoundImageLocation::Url(item.thumb_url)],
+                                    thumb_locations: item.thumb_url.map(|v| vec![FoundImageLocation::Url(v)]).unwrap_or_default(),
                                     cached: BookItemCached::default(),
                                     available_at: item.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
                                     year: None,
@@ -199,13 +199,15 @@ impl LibbyMetadata {
             urlencoding::encode(&libby.token.unwrap()),
         );
 
+        println!("[METADATA][LIBBY]: Get Single Author URL: {url}");
+
         match request_authors(&url).await? {
             WrappingResponse::Resp(resp) => {
                 match resp {
                     PublicSearchType::AuthorItem(Some(author)) => {
                         Ok(Some(AuthorInfo {
                             source: Source::try_from(self.prefix_text(author.id.to_string())).unwrap(),
-                            cover_image_url: Some(FoundImageLocation::Url(author.thumb_url)),
+                            cover_image_url: author.thumb_url.map(FoundImageLocation::Url),
                             name: author.name,
                             other_names: Some(author.other_names).filter(|v| !v.is_empty()),
                             description: author.description,
@@ -233,6 +235,8 @@ impl LibbyMetadata {
             urlencoding::encode(id),
             urlencoding::encode(&libby.token.unwrap()),
         );
+
+        println!("[METADATA][LIBBY]: Get Single Book URL: {url}");
 
         match request_books(&url).await? {
             WrappingResponse::Resp(resp) => {
@@ -272,7 +276,7 @@ impl LibbyMetadata {
                 title: value.title,
                 description: value.description,
                 rating: value.rating,
-                thumb_locations: vec![FoundImageLocation::Url(value.thumb_url)],
+                thumb_locations: value.thumb_url.map(|v| vec![FoundImageLocation::Url(v)]).unwrap_or_default(),
                 cached: BookItemCached::default().publisher_optional(value.publisher).author_optional(author_name),
                 available_at: value.available_at.map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
                 year: None,
