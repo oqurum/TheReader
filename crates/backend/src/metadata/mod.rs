@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use common_local::{SearchFor, BookItemCached, LibraryId};
 use chrono::{Utc, NaiveDate};
 use common::{BookId, PersonId, ThumbnailStore, Source, Agent, Either};
+use futures::Future;
 
 use crate::database::Database;
 
@@ -150,7 +151,7 @@ pub async fn search_and_return_first_valid_agent(query: &str, search_for: Search
 
 
 /// Searches all agents except for local.
-pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<SearchResults> {
+pub async fn search_all_agents(search: &str, search_for: SearchFor, agent: &ActiveAgents) -> Result<SearchResults> {
     let mut map = HashMap::new();
 
     // Checks to see if we can use get_metadata_by_source (source:id)
@@ -166,15 +167,26 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor) -> Result<Se
         }
     }
 
+
+    async fn search_or_ignore(enabled: bool, value: impl Future<Output = Result<Vec<SearchItem>>>) -> Result<Vec<SearchItem>> {
+        if enabled {
+            value.await
+        } else {
+            Ok(Vec::new())
+        }
+    }
+
     // Search all sources
     let prefixes = [LibbyMetadata.get_agent(), OpenLibraryMetadata.get_agent(), GoogleBooksMetadata.get_agent()];
-    let asdf = futures::future::join_all(
-        [LibbyMetadata.search(search, search_for), OpenLibraryMetadata.search(search, search_for), GoogleBooksMetadata.search(search, search_for)]
-    ).await;
+    let asdf = futures::future::join_all([
+        search_or_ignore(agent.libby, LibbyMetadata.search(search, search_for)),
+        search_or_ignore(agent.openlib, OpenLibraryMetadata.search(search, search_for)),
+        search_or_ignore(agent.google, GoogleBooksMetadata.search(search, search_for)),
+    ]).await;
 
     for (val, prefix) in asdf.into_iter().zip(prefixes) {
         match val {
-            Ok(val) => {
+            Ok(val) => if !val.is_empty() {
                 map.insert(
                     prefix,
                     val,

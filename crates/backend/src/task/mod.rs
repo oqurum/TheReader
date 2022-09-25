@@ -472,7 +472,7 @@ impl TaskUpdateInvalidBook {
                 );
 
                 // Search for query.
-                let results = search_all_agents(search.trim(), SearchFor::Book(SearchForBooksBy::Query)).await?;
+                let results = search_all_agents(search.trim(), SearchFor::Book(SearchForBooksBy::Query), agent).await?;
 
                 // Find the SearchedItem by similarity.
                 let found_item = results.sort_items_by_similarity(title)

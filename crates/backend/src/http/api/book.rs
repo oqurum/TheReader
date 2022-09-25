@@ -5,7 +5,7 @@ use chrono::Utc;
 use common::{ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
 use serde_qs::actix::QsQuery;
 
-use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, book::BookModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, book_person::BookPersonModel}, http::{MemberCookie, JsonResponse}};
+use crate::{database::Database, task::{queue_task_priority, self}, queue_task, metadata::{self, ActiveAgents}, WebResult, Error, store_image, model::{image::{ImageLinkModel, UploadedImageModel}, book::BookModel, file::FileModel, progress::FileProgressionModel, person::PersonModel, book_person::BookPersonModel}, http::{MemberCookie, JsonResponse}};
 
 
 
@@ -244,7 +244,8 @@ async fn get_book_posters(
             book.title.as_deref().or(book.title.as_deref()).unwrap_or_default(),
             book.cached.author.as_deref().unwrap_or_default(),
         ),
-        common_local::SearchFor::Book(common_local::SearchForBooksBy::Query)
+        common_local::SearchFor::Book(common_local::SearchForBooksBy::Query),
+        &ActiveAgents::default(),
     ).await?;
 
     for item in search.0.into_values().flatten() {
@@ -321,7 +322,8 @@ pub async fn book_search(body: web::Query<api::GetBookSearch>) -> WebResult<Json
             // TODO: Allow for use in Query.
             SearchType::Book => SearchFor::Book(SearchForBooksBy::Query),
             SearchType::Person => SearchFor::Person
-        }
+        },
+        &ActiveAgents::default()
     ).await?;
 
     Ok(web::Json(WrappingResponse::okay(api::BookSearchResponse {
