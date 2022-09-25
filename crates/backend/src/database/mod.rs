@@ -20,7 +20,7 @@ pub async fn init() -> Result<Database> {
         r#"CREATE TABLE IF NOT EXISTS "library" (
             "id"                 INTEGER NOT NULL UNIQUE,
 
-            "name"                 TEXT UNIQUE,
+            "name"               TEXT UNIQUE,
 
             "scanned_at"         DATETIME NOT NULL,
             "created_at"         DATETIME NOT NULL,
@@ -35,7 +35,9 @@ pub async fn init() -> Result<Database> {
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "directory" (
             "library_id"    INTEGER NOT NULL,
-            "path"            TEXT NOT NULL UNIQUE
+            "path"          TEXT NOT NULL UNIQUE,
+
+            FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
         );"#,
         []
     )?;
@@ -43,24 +45,26 @@ pub async fn init() -> Result<Database> {
     // File
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "file" (
-            "id"                 INTEGER NOT NULL UNIQUE,
+            "id"               INTEGER NOT NULL UNIQUE,
 
-            "path"                 TEXT NOT NULL UNIQUE,
-            "file_name"         TEXT NOT NULL,
-            "file_type"         TEXT,
-            "file_size"         INTEGER NOT NULL,
+            "path"             TEXT NOT NULL UNIQUE,
+            "file_name"        TEXT NOT NULL,
+            "file_type"        TEXT,
+            "file_size"        INTEGER NOT NULL,
 
-            "library_id"         INTEGER,
-            "metadata_id"         INTEGER,
-            "chapter_count"     INTEGER,
+            "library_id"       INTEGER,
+            "metadata_id"      INTEGER,
+            "chapter_count"    INTEGER,
 
-            "identifier"         TEXT,
+            "identifier"       TEXT,
 
-            "modified_at"         DATETIME NOT NULL,
-            "accessed_at"         DATETIME NOT NULL,
-            "created_at"         DATETIME NOT NULL,
+            "modified_at"      DATETIME NOT NULL,
+            "accessed_at"      DATETIME NOT NULL,
+            "created_at"       DATETIME NOT NULL,
 
-            PRIMARY KEY("id" AUTOINCREMENT)
+            PRIMARY KEY("id" AUTOINCREMENT),
+
+            FOREIGN KEY("metadata_id") REFERENCES metadata_item("id") ON DELETE CASCADE
         );"#,
         []
     )?;
@@ -68,36 +72,38 @@ pub async fn init() -> Result<Database> {
     // Metadata Item
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "metadata_item" (
-            "id"                    INTEGER NOT NULL,
+            "id"                  INTEGER NOT NULL,
 
-            "library_id"             INTEGER,
+            "library_id"          INTEGER,
 
-            "source"                TEXT,
-            "file_item_count"        INTEGER,
-            "title"                    TEXT,
-            "original_title"        TEXT,
-            "description"            TEXT,
-            "rating"                FLOAT,
-            "thumb_url"                TEXT,
+            "source"              TEXT,
+            "file_item_count"     INTEGER,
+            "title"               TEXT,
+            "original_title"      TEXT,
+            "description"         TEXT,
+            "rating"              FLOAT,
+            "thumb_url"           TEXT,
 
-            "cached"                TEXT,
+            "cached"              TEXT,
 
-            "tags_genre"            TEXT,
-            "tags_collection"        TEXT,
-            "tags_author"            TEXT,
-            "tags_country"            TEXT,
+            "tags_genre"          TEXT,
+            "tags_collection"     TEXT,
+            "tags_author"         TEXT,
+            "tags_country"        TEXT,
 
-            "available_at"            DATETIME,
-            "year"                    INTEGER,
+            "available_at"        DATETIME,
+            "year"                INTEGER,
 
-            "refreshed_at"            DATETIME,
-            "created_at"            DATETIME,
-            "updated_at"            DATETIME,
-            "deleted_at"            DATETIME,
+            "refreshed_at"        DATETIME,
+            "created_at"          DATETIME,
+            "updated_at"          DATETIME,
+            "deleted_at"          DATETIME,
 
-            "hash"                    TEXT,
+            "hash"                TEXT,
 
-            PRIMARY KEY("id" AUTOINCREMENT)
+            PRIMARY KEY("id" AUTOINCREMENT),
+
+            FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
         );"#,
         []
     )?;
@@ -106,7 +112,10 @@ pub async fn init() -> Result<Database> {
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "metadata_person" (
             "metadata_id"    INTEGER NOT NULL,
-            "person_id"        INTEGER NOT NULL,
+            "person_id"      INTEGER NOT NULL,
+
+            FOREIGN KEY("metadata_id") REFERENCES metadata_item("id") ON DELETE CASCADE,
+        	FOREIGN KEY("person_id") REFERENCES tag_person("id") ON DELETE CASCADE,
 
             UNIQUE(metadata_id, person_id)
         );"#,
@@ -118,14 +127,17 @@ pub async fn init() -> Result<Database> {
     // File Note
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "file_note" (
-            "file_id"         INTEGER NOT NULL,
-            "user_id"         INTEGER NOT NULL,
+            "file_id"       INTEGER NOT NULL,
+            "user_id"       INTEGER NOT NULL,
 
-            "data"             TEXT NOT NULL,
+            "data"          TEXT NOT NULL,
             "data_size"     INTEGER NOT NULL,
 
-            "updated_at"     DATETIME NOT NULL,
-            "created_at"     DATETIME NOT NULL,
+            "updated_at"    DATETIME NOT NULL,
+            "created_at"    DATETIME NOT NULL,
+
+            FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
+        	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
 
             UNIQUE(file_id, user_id)
         );"#,
@@ -135,18 +147,21 @@ pub async fn init() -> Result<Database> {
     // File Progression
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "file_progression" (
-            "file_id" INTEGER NOT NULL,
-            "user_id" INTEGER NOT NULL,
+            "file_id"       INTEGER NOT NULL,
+            "user_id"       INTEGER NOT NULL,
 
-            "type_of" INTEGER NOT NULL,
+            "type_of"       INTEGER NOT NULL,
 
-            "chapter" INTEGER,
-            "page" INTEGER,
-            "char_pos" INTEGER,
-            "seek_pos" INTEGER,
+            "chapter"       INTEGER,
+            "page"          INTEGER,
+            "char_pos"      INTEGER,
+            "seek_pos"      INTEGER,
 
-            "updated_at" DATETIME NOT NULL,
-            "created_at" DATETIME NOT NULL,
+            "updated_at"    DATETIME NOT NULL,
+            "created_at"    DATETIME NOT NULL,
+
+            FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
+        	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
 
             UNIQUE(file_id, user_id)
         );"#,
@@ -156,14 +171,17 @@ pub async fn init() -> Result<Database> {
     // File Notation
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "file_notation" (
-            "file_id"         INTEGER NOT NULL,
-            "user_id"         INTEGER NOT NULL,
+            "file_id"       INTEGER NOT NULL,
+            "user_id"       INTEGER NOT NULL,
 
-            "data"             TEXT NOT NULL,
+            "data"          TEXT NOT NULL,
             "data_size"     INTEGER NOT NULL,
 
-            "updated_at"     DATETIME NOT NULL,
-            "created_at"     DATETIME NOT NULL,
+            "updated_at"    DATETIME NOT NULL,
+            "created_at"    DATETIME NOT NULL,
+
+            FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
+        	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
 
             UNIQUE(file_id, user_id)
         );"#,
@@ -173,15 +191,15 @@ pub async fn init() -> Result<Database> {
     // Tags People
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "tag_person" (
-            "id"            INTEGER NOT NULL,
+            "id"             INTEGER NOT NULL,
 
             "source"         TEXT NOT NULL,
 
-            "name"            TEXT NOT NULL COLLATE NOCASE,
+            "name"           TEXT NOT NULL COLLATE NOCASE,
             "description"    TEXT,
-            "birth_date"    TEXT,
+            "birth_date"     TEXT,
 
-            "thumb_url"        TEXT,
+            "thumb_url"      TEXT,
 
             "updated_at"     DATETIME NOT NULL,
             "created_at"     DATETIME NOT NULL,
@@ -194,9 +212,11 @@ pub async fn init() -> Result<Database> {
     // People Alt names
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "tag_person_alt" (
-            "person_id"        INTEGER NOT NULL,
+            "person_id"    INTEGER NOT NULL,
 
-            "name"            TEXT NOT NULL COLLATE NOCASE,
+            "name"         TEXT NOT NULL COLLATE NOCASE,
+
+            FOREIGN KEY("person_id") REFERENCES tag_person("id") ON DELETE CASCADE,
 
             UNIQUE(person_id, name)
         );"#,
@@ -206,11 +226,11 @@ pub async fn init() -> Result<Database> {
     // Members
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "members" (
-            "id"            INTEGER NOT NULL,
+            "id"             INTEGER NOT NULL,
 
-            "name"            TEXT NOT NULL COLLATE NOCASE,
-            "email"            TEXT COLLATE NOCASE,
-            "password"        TEXT,
+            "name"           TEXT NOT NULL COLLATE NOCASE,
+            "email"          TEXT COLLATE NOCASE,
+            "password"       TEXT,
 
             "type_of"        INTEGER NOT NULL,
 
@@ -228,7 +248,7 @@ pub async fn init() -> Result<Database> {
     // Auths
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "auths" (
-            "oauth_token"            TEXT NOT NULL,
+            "oauth_token"           TEXT NOT NULL,
             "oauth_token_secret"    TEXT NOT NULL,
 
             "created_at"            DATETIME NOT NULL,
@@ -244,7 +264,7 @@ pub async fn init() -> Result<Database> {
         r#"CREATE TABLE IF NOT EXISTS "uploaded_images" (
             "id"            INTEGER NOT NULL,
 
-            "path"            TEXT NOT NULL,
+            "path"          TEXT NOT NULL,
 
             "created_at"    DATETIME NOT NULL,
 
@@ -257,10 +277,12 @@ pub async fn init() -> Result<Database> {
     // Image Link
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "image_link" (
-            "image_id"        INTEGER NOT NULL,
+            "image_id"    INTEGER NOT NULL,
 
-            "link_id"        INTEGER NOT NULL,
-            "type_of"        INTEGER NOT NULL,
+            "link_id"     INTEGER NOT NULL,
+            "type_of"     INTEGER NOT NULL,
+
+            FOREIGN KEY("image_id") REFERENCES uploaded_images("id") ON DELETE CASCADE,
 
             UNIQUE(image_id, link_id, type_of)
         );"#,
@@ -282,10 +304,10 @@ pub struct Database {
     read_conns: Vec<Arc<Connection>>,
 
     // Max concurrent read connections
-    max_read_aquires: Semaphore,
+    max_read_acquires: Semaphore,
 
     // Single-acquire lock to prevent race conditions
-    conn_aquire_lock: Semaphore,
+    conn_acquire_lock: Semaphore,
 }
 
 unsafe impl Send for Database {}
@@ -304,9 +326,9 @@ impl Database {
 
             read_conns,
 
-            max_read_aquires: Semaphore::new(count),
+            max_read_acquires: Semaphore::new(count),
 
-            conn_aquire_lock: Semaphore::new(1),
+            conn_acquire_lock: Semaphore::new(1),
         })
     }
 
@@ -315,11 +337,11 @@ impl Database {
         let _guard = self.lock.read().await;
 
         // Now we ensure we can acquire another connection
-        let _permit = self.max_read_aquires.acquire().await.unwrap();
+        let _permit = self.max_read_acquires.acquire().await.unwrap();
 
         let conn = {
             // FIX: A single-acquire quick lock to ensure we don't have race conditions.
-            let _temp_lock = self.conn_aquire_lock.acquire().await.unwrap();
+            let _temp_lock = self.conn_acquire_lock.acquire().await.unwrap();
 
             let mut value = None;
 
