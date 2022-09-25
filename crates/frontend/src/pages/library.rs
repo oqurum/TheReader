@@ -91,8 +91,23 @@ impl Component for LibraryPage {
                         }
                     }
 
+                    WebsocketNotification::TaskTypeEnd { id, type_of } => {
+                        if let TaskType::UpdatingBook(book_id) = type_of {
+                            self.task_items_updating.remove(&book_id);
+                            self.task_items.remove(&id); // TODO: I shouldn't remove this.
+
+                            ctx.link()
+                            .send_future(async move {
+                                Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
+                            });
+                        }
+                    }
+
                     WebsocketNotification::TaskEnd(id) => {
                         if let Some(book_id) = self.task_items.get(&id).copied() {
+                            self.task_items_updating.remove(&book_id);
+                            self.task_items.remove(&id);
+
                             ctx.link()
                             .send_future(async move {
                                 Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))

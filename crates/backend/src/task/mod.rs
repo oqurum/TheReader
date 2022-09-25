@@ -427,17 +427,18 @@ impl Task for TaskUpdateInvalidBook {
                 let amount = BookModel::count_search_by(&FilterContainer::default(), Some(library_id), db).await?;
                 let mut offset = 0;
 
-                println!("{amount}");
-
                 while offset < amount {
-                    println!("Position: {offset}/{amount}");
-
                     let books = BookModel::find_by(Some(library_id), offset, LIMIT, None, db).await?;
 
                     for book in books {
                         if Utc::now().signed_duration_since(book.refreshed_at).num_days() > 7 {
-                            send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book.id)));
+                            let book_id = book.id;
+
+                            send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book_id)));
+
                             Self::update_book_by_files(book, &active_agent, db).await?;
+
+                            send_message_to_clients(WebsocketNotification::update_task(task_id, TaskType::UpdatingBook(book_id)));
                         }
                     }
 
@@ -536,12 +537,8 @@ async fn overwrite_book_with_new_metadata(
 
     let mut new_book_model: BookModel = meta.into();
 
-    println!("{:?}", new_book_model.cached);
-
     // TODO: Store Publisher inside Database
     new_book_model.cached = new_book_model.cached.publisher_optional(publisher).author_optional(main_author);
-
-    println!("{:?}", new_book_model.cached);
 
     // Update New Book with old one
     new_book_model.id = curr_book_model.id;
@@ -553,8 +550,6 @@ async fn overwrite_book_with_new_metadata(
     // Overwrite prev with new and replace new with prev.
     curr_book_model.cached.overwrite_with(new_book_model.cached);
     new_book_model.cached = curr_book_model.cached;
-
-    println!("{:?}", new_book_model.cached);
 
     if curr_book_model.title != curr_book_model.original_title {
         new_book_model.title = curr_book_model.title;

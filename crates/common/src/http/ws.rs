@@ -48,12 +48,22 @@ pub enum WebsocketNotification {
         id: UniqueId,
         type_of: TaskType
     },
+
+    TaskTypeEnd {
+        id: UniqueId,
+        type_of: TaskType
+    },
+
     TaskEnd(UniqueId),
 }
 
 impl WebsocketNotification {
     pub fn new_task(id: UniqueId, type_of: TaskType) -> Self {
         Self::TaskStart { id, type_of }
+    }
+
+    pub fn update_task(id: UniqueId, type_of: TaskType) -> Self {
+        Self::TaskTypeEnd { id, type_of }
     }
 }
 
