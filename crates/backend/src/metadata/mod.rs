@@ -479,9 +479,11 @@ impl FoundImageLocation {
                     .bytes()
                     .await?;
 
-                let model = crate::store_image(resp.to_vec(), db).await?;
+                match crate::store_image(resp.to_vec(), db).await {
+                    Ok(model) => *self = Self::Local(model.path),
+                    Err(e) => eprintln!("FoundImageLocation::download: {}", e),
+                }
 
-                *self = Self::Local(model.path);
             }
 
             FoundImageLocation::FileData(image) => {
