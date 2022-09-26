@@ -255,29 +255,39 @@ impl Component for ReadingBook {
                                     LocalPopupType::Settings => html! {
                                         <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
                                             <div class="settings">
-                                                <select>
-                                                    <option selected={ !is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(false)) }>{ "Specified" }</option>
-                                                    <option selected={ is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(true)) }>{ "Fullscreen" }</option>
-                                                </select>
+                                                <div class="form-container shrink-width-to-content">
+                                                    <label for="screen-size-select">{ "Screen Size Selection" }</label>
+
+                                                    <select id="screen-size-select">
+                                                        <option selected={ !is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(false)) }>{ "Specified" }</option>
+                                                        <option selected={ is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(true)) }>{ "Full screen" }</option>
+                                                    </select>
+                                                </div>
 
                                                 {
                                                     if is_fullscreen {
                                                         html! {}
                                                     } else {
                                                         html! {
-                                                            <div>
-                                                                <input style="width: 100px;" value={ width.to_string() } ref={ self.ref_width_input.clone() } type="number" />
-                                                                <span>{ "x" }</span>
-                                                                <input style="width: 100px;" value={ height.to_string() } ref={ self.ref_height_input.clone() } type="number" />
+                                                            <div class="form-container shrink-width-to-content">
+                                                                <label>{ "Screen Width and Height" }</label>
+
+                                                                <div>
+                                                                    <input style="width: 100px;" value={ width.to_string() } ref={ self.ref_width_input.clone() } type="number" />
+                                                                    <span>{ "x" }</span>
+                                                                    <input style="width: 100px;" value={ height.to_string() } ref={ self.ref_height_input.clone() } type="number" />
+                                                                </div>
+
                                                                 <button onclick={ ctx.link().callback(|_| Msg::UpdateDimensions) }>{ "Update Dimensions" }</button>
                                                             </div>
                                                         }
                                                     }
                                                 }
 
-                                                <div>
+                                                <div class="form-container shrink-width-to-content">
+                                                    <label for="page-type-select">{ "Screen Size Selection" }</label>
                                                     // TODO: Specify based on book type. Epub/Mobi (Single, Double) - PDF (Scroll)
-                                                    <select onchange={
+                                                    <select id="page-type-select" onchange={
                                                         ctx.link()
                                                         .callback(|e: Event| Msg::OnChangeSelection(
                                                             e.target().unwrap()
