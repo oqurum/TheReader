@@ -3,7 +3,7 @@
 
 use std::{rc::Rc, sync::{Mutex, Arc}};
 
-use common::api::WrappingResponse;
+use common::{api::WrappingResponse, component::{PopupType, Popup}};
 use common_local::{MediaItem, api::{GetChaptersResponse, self}, Progression, FileId};
 use gloo_utils::window;
 use js_sys::Array;
@@ -17,7 +17,7 @@ use crate::components::notes::Notes;
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum SidebarType {
+pub enum LocalPopupType {
     Notes,
     Settings
 }
@@ -26,7 +26,9 @@ pub enum Msg {
     // Event
     Update,
 
-    ToggleSidebar(SidebarType),
+    ClosePopup,
+    ShowPopup(LocalPopupType),
+
     OnChangeSelection(ChapterDisplay),
     UpdateDimensions,
     ChangeReaderSize(bool),
@@ -56,7 +58,7 @@ pub struct ReadingBook {
     is_fullscreen: bool,
     auto_resize_cb: Option<Closure<dyn FnMut()>>,
 
-    sidebar_visible: Option<SidebarType>,
+    sidebar_visible: Option<LocalPopupType>,
 
     // Refs
     ref_width_input: NodeRef,
@@ -161,7 +163,11 @@ impl Component for ReadingBook {
                 self.book_display = change;
             }
 
-            Msg::ToggleSidebar(type_of) => {
+            Msg::ClosePopup => {
+                self.sidebar_visible = None;
+            }
+
+            Msg::ShowPopup(type_of) => {
                 match self.sidebar_visible {
                     Some(v) if v == type_of => { self.sidebar_visible = None; },
                     _ => self.sidebar_visible = Some(type_of),
@@ -240,57 +246,65 @@ impl Component for ReadingBook {
                         {
                             if let Some(visible) = self.sidebar_visible {
                                 match visible {
-                                    SidebarType::Notes => html! { <Notes book={Rc::clone(book)} /> },
-                                    SidebarType::Settings => html! {
-                                        <div class="settings">
-                                            <select>
-                                                <option selected={!is_fullscreen} onclick={ctx.link().callback(|_| Msg::ChangeReaderSize(false))}>{ "Specified" }</option>
-                                                <option selected={is_fullscreen} onclick={ctx.link().callback(|_| Msg::ChangeReaderSize(true))}>{ "Fullscreen" }</option>
-                                            </select>
-                                            {
-                                                if is_fullscreen {
-                                                    html! {
-                                                        <>
-                                                        </>
-                                                    }
-                                                } else {
-                                                    html! {
-                                                        <div>
-                                                            <input style="width: 100px;" value={width.to_string()} ref={self.ref_width_input.clone()} type="number" />
-                                                            <span>{ "x" }</span>
-                                                            <input style="width: 100px;" value={height.to_string()} ref={self.ref_height_input.clone()} type="number" />
-                                                            <button onclick={ctx.link().callback(|_| Msg::UpdateDimensions)}>{"Update Dimensions"}</button>
-                                                        </div>
+                                    LocalPopupType::Notes => html! {
+                                        <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
+                                            <Notes book={ Rc::clone(book) } />
+                                        </Popup>
+                                    },
+
+                                    LocalPopupType::Settings => html! {
+                                        <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
+                                            <div class="settings">
+                                                <select>
+                                                    <option selected={ !is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(false)) }>{ "Specified" }</option>
+                                                    <option selected={ is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(true)) }>{ "Fullscreen" }</option>
+                                                </select>
+
+                                                {
+                                                    if is_fullscreen {
+                                                        html! {}
+                                                    } else {
+                                                        html! {
+                                                            <div>
+                                                                <input style="width: 100px;" value={ width.to_string() } ref={ self.ref_width_input.clone() } type="number" />
+                                                                <span>{ "x" }</span>
+                                                                <input style="width: 100px;" value={ height.to_string() } ref={ self.ref_height_input.clone() } type="number" />
+                                                                <button onclick={ ctx.link().callback(|_| Msg::UpdateDimensions) }>{ "Update Dimensions" }</button>
+                                                            </div>
+                                                        }
                                                     }
                                                 }
-                                            }
-                                            <div>
-                                                // TODO: Specify based on book type. Epub/Mobi (Single, Double) - PDF (Scroll)
-                                                <select onchange={
-                                                    ctx.link()
-                                                    .callback(|e: Event| Msg::OnChangeSelection(
-                                                        e.target().unwrap()
-                                                        .unchecked_into::<web_sys::HtmlSelectElement>()
-                                                        .value()
-                                                        .parse::<u8>().unwrap()
-                                                        .into()
-                                                    ))
-                                                }>
-                                                    <option value="0" selected={self.book_display == ChapterDisplay::SinglePage}>{ "Single Page" }</option>
-                                                    <option value="1" selected={self.book_display == ChapterDisplay::DoublePage}>{ "Double Page" }</option>
-                                                </select>
+
+                                                <div>
+                                                    // TODO: Specify based on book type. Epub/Mobi (Single, Double) - PDF (Scroll)
+                                                    <select onchange={
+                                                        ctx.link()
+                                                        .callback(|e: Event| Msg::OnChangeSelection(
+                                                            e.target().unwrap()
+                                                                .unchecked_into::<web_sys::HtmlSelectElement>()
+                                                                .value()
+                                                                .parse::<u8>().unwrap()
+                                                                .into()
+                                                        ))
+                                                    }>
+                                                        <option value="0" selected={ self.book_display == ChapterDisplay::SinglePage }>{ "Single Page" }</option>
+                                                        <option value="1" selected={ self.book_display == ChapterDisplay::DoublePage }>{ "Double Page" }</option>
+                                                    </select>
+                                                </div>
                                             </div>
-                                        </div>
+                                        </Popup>
                                     },
                                 }
                             } else {
                                 html! {}
                             }
                         }
+
                         <div class="tools">
-                            <div class="tool-item" title="Open/Close the Notebook" onclick={ctx.link().callback(|_| Msg::ToggleSidebar(SidebarType::Notes))}>{ "📝" }</div>
-                            <div class="tool-item" title="Open/Close the Settings" onclick={ctx.link().callback(|_| Msg::ToggleSidebar(SidebarType::Settings))}>{ "⚙️" }</div>
+                            <button class="tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
+                            <button class="tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                         </div>
+
                         <Reader
                             display={self.book_display}
                             progress={Rc::clone(&self.progress)}

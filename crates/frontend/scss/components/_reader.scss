@@ -10,8 +10,17 @@
 		height: 100%;
 
 		> .tools {
+			position: absolute;
+			display: flex;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			background-color: var(--surface-1);
+			padding: 5px;
+			z-index: 999;
+
 			> .tool-item {
-				cursor: pointer;
+				margin-right: 5px;
 			}
 		}
 
