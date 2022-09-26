@@ -96,10 +96,14 @@ impl Component for LibraryPage {
                             self.task_items_updating.remove(&book_id);
                             self.task_items.remove(&id); // TODO: I shouldn't remove this.
 
-                            ctx.link()
-                            .send_future(async move {
-                                Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
-                            });
+                            if let Some(items) = self.media_items.as_ref() {
+                                if items.iter().any(|v| v.id == book_id) {
+                                    ctx.link()
+                                    .send_future(async move {
+                                        Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
+                                    });
+                                }
+                            }
                         }
                     }
 
@@ -108,10 +112,14 @@ impl Component for LibraryPage {
                             self.task_items_updating.remove(&book_id);
                             self.task_items.remove(&id);
 
-                            ctx.link()
-                            .send_future(async move {
-                                Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
-                            });
+                            if let Some(items) = self.media_items.as_ref() {
+                                if items.iter().any(|v| v.id == book_id) {
+                                    ctx.link()
+                                    .send_future(async move {
+                                        Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
+                                    });
+                                }
+                            }
                         }
                     }
                 }
