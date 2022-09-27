@@ -31,6 +31,11 @@ body.double-page {
 	column-count: 2 !important;
 }
 
+body.scrolling-page {
+	column-count: unset !important;
+	overflow: auto !important;
+}
+
 /* Ensure's it's an href <a> element */
 a[href], a[href]:hover, a[href]:visited, a[href]:active {
 	color: #7f79e0 !important;

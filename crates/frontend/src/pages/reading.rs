@@ -72,7 +72,7 @@ impl Component for ReadingBook {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            book_display: ChapterDisplay::DoublePage,
+            book_display: ChapterDisplay::Double,
             chapters: Rc::new(Mutex::new(LoadedChapters::new())),
             last_grabbed_count: 0,
             progress: Rc::new(Mutex::new(None)),
@@ -151,15 +151,6 @@ impl Component for ReadingBook {
             }
 
             Msg::OnChangeSelection(change) => {
-                if let Some(dim_x) = self.book_dimensions.0.as_mut() {
-                    if self.book_display != change {
-                        match change {
-                            ChapterDisplay::SinglePage => *dim_x /= 2,
-                            ChapterDisplay::DoublePage => *dim_x *= 2,
-                        }
-                    }
-                }
-
                 self.book_display = change;
             }
 
@@ -297,8 +288,9 @@ impl Component for ReadingBook {
                                                                 .into()
                                                         ))
                                                     }>
-                                                        <option value="0" selected={ self.book_display == ChapterDisplay::SinglePage }>{ "Single Page" }</option>
-                                                        <option value="1" selected={ self.book_display == ChapterDisplay::DoublePage }>{ "Double Page" }</option>
+                                                        <option value="0" selected={ self.book_display == ChapterDisplay::Single }>{ "Single Page" }</option>
+                                                        <option value="1" selected={ self.book_display == ChapterDisplay::Double }>{ "Double Page" }</option>
+                                                        <option value="2" selected={ self.book_display == ChapterDisplay::Scroll }>{ "Scrolling Page" }</option>
                                                     </select>
                                                 </div>
                                             </div>

@@ -140,7 +140,7 @@ impl Component for Reader {
         }) as Box<dyn FnMut(usize, String)>);
 
         Self {
-            cached_display: ChapterDisplay::DoublePage,
+            cached_display: ctx.props().display,
             cached_dimensions: None,
             loaded_sections: {
                 let mut map = HashMap::new();
@@ -550,16 +550,17 @@ impl Reader {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ChapterDisplay {
-    SinglePage = 0,
-    DoublePage,
-    // VerticalPage,
+    Single = 0,
+    Double = 1,
+    Scroll = 2,
 }
 
 impl From<u8> for ChapterDisplay {
     fn from(value: u8) -> Self {
         match value {
-            0 => Self::SinglePage,
-            1 => Self::DoublePage,
+            0 => Self::Single,
+            1 => Self::Double,
+            2 => Self::Scroll,
             _ => unimplemented!()
         }
     }
