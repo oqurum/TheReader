@@ -11,7 +11,7 @@ use wasm_bindgen::{JsCast, prelude::Closure};
 use web_sys::{HtmlInputElement, Element};
 use yew::prelude::*;
 
-use crate::{request, components::reader::{LoadedChapters, ChapterDisplay}};
+use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, PageLoadSettings}};
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
@@ -32,11 +32,12 @@ pub enum Msg {
     OnChangeSelection(ChapterDisplay),
     UpdateDimensions,
     ChangeReaderSize(bool),
+    ChangePageLoadType(PageLoadType),
 
     // Send
-    SendGetChapters(usize, usize),
+    SendGetChapters,
 
-    // Retrive
+    // Retrieve
     RetrieveBook(WrappingResponse<api::ApiGetFileByIdResponse>),
     RetrievePages(WrappingResponse<GetChaptersResponse>),
 }
@@ -47,6 +48,7 @@ pub struct Property {
 }
 
 pub struct ReadingBook {
+    page_load_settings: PageLoadSettings,
     book_display: ChapterDisplay,
     progress: Rc<Mutex<Option<Progression>>>,
     book: Option<Rc<MediaItem>>,
@@ -72,6 +74,10 @@ impl Component for ReadingBook {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
+            page_load_settings: PageLoadSettings {
+                speed: 1000,
+                type_of: PageLoadType::Select,
+            },
             book_display: ChapterDisplay::Double,
             chapters: Rc::new(Mutex::new(LoadedChapters::new())),
             last_grabbed_count: 0,
@@ -93,6 +99,11 @@ impl Component for ReadingBook {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::Update => (),
+
+            Msg::ChangePageLoadType(type_of) => {
+                // TODO: This isn't needed. We'll have to cache it in our db instead.
+                self.page_load_settings.type_of = type_of;
+            }
 
             Msg::ChangeReaderSize(value) => {
                 self.is_fullscreen = value;
@@ -186,7 +197,7 @@ impl Component for ReadingBook {
                         self.book = Some(Rc::new(resp.media));
                         *self.progress.lock().unwrap() = resp.progress;
                         // TODO: Check to see if we have progress. If so, generate those pages first.
-                        ctx.link().send_message(Msg::SendGetChapters(0, 3));
+                        ctx.link().send_message(Msg::SendGetChapters);
                     },
 
                     Ok(None) => (),
@@ -195,13 +206,17 @@ impl Component for ReadingBook {
                 }
             }
 
-            Msg::SendGetChapters(start, end) => {
+            Msg::SendGetChapters => {
                 let book_id = self.book.as_ref().unwrap().id;
 
-                ctx.link()
-                .send_future(async move {
-                    Msg::RetrievePages(request::get_book_pages(book_id, start, end).await)
-                });
+                let (start, end) = self.get_next_pages_to_load();
+
+                if end != 0 {
+                    ctx.link()
+                    .send_future(async move {
+                        Msg::RetrievePages(request::get_book_pages(book_id, start, end).await)
+                    });
+                }
 
                 return false;
             }
@@ -246,6 +261,21 @@ impl Component for ReadingBook {
                                     LocalPopupType::Settings => html! {
                                         <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
                                             <div class="settings">
+                                                <div class="form-container shrink-width-to-content">
+                                                    <label for="page-load-select">{ "Page Load Type" }</label>
+
+                                                    <select id="page-load-select">
+                                                        <option
+                                                            selected={ self.page_load_settings.type_of == PageLoadType::All }
+                                                            onclick={ ctx.link().callback(|_| Msg::ChangePageLoadType(PageLoadType::All)) }
+                                                        >{ "Load All" }</option>
+                                                        <option
+                                                            selected={ self.page_load_settings.type_of == PageLoadType::Select }
+                                                            onclick={ ctx.link().callback(|_| Msg::ChangePageLoadType(PageLoadType::Select)) }
+                                                        >{ "Load When Needed" }</option>
+                                                    </select>
+                                                </div>
+
                                                 <div class="form-container shrink-width-to-content">
                                                     <label for="screen-size-select">{ "Screen Size Selection" }</label>
 
@@ -308,12 +338,13 @@ impl Component for ReadingBook {
                         </div>
 
                         <Reader
-                            display={self.book_display}
-                            progress={Rc::clone(&self.progress)}
-                            book={Rc::clone(book)}
-                            chapters={Rc::clone(&self.chapters)}
-                            dimensions={(width, height)}
-                            on_chapter_request={ctx.link().callback(|(s, e)| Msg::SendGetChapters(s, e))}
+                            settings={ self.page_load_settings.clone() }
+                            display={ self.book_display }
+                            progress={ Rc::clone(&self.progress) }
+                            book={ Rc::clone(book) }
+                            chapters={ Rc::clone(&self.chapters) }
+                            dimensions={ (width, height) }
+                            request_chapters={ ctx.link().callback(|_| Msg::SendGetChapters) }
                         />
                     </div>
                 </div>
@@ -337,4 +368,76 @@ impl Component for ReadingBook {
 }
 
 impl ReadingBook {
+    fn get_next_pages_to_load(&self) -> (usize, usize) {
+        let progress = self.progress.lock().unwrap();
+        let chap_cont = self.chapters.lock().unwrap();
+
+        let total_sections = self.book.as_ref().map(|v| v.chapter_count).unwrap_or_default();
+
+        // Starting index
+        let curr_section = if let Some(&Progression::Ebook{ chapter, .. }) = progress.as_ref() {
+            chapter as usize
+        } else {
+            0
+        };
+
+
+        let mut chapters = chap_cont.chapters.iter().map(|v| v.value).collect::<Vec<_>>();
+        chapters.sort_unstable();
+
+        match self.page_load_settings.type_of {
+            PageLoadType::All => {
+                if chap_cont.chapters.is_empty() {
+                    (curr_section.saturating_sub(1), curr_section + 2)
+                } else {
+                    let mut start_pos = 0;
+                    let mut end_pos = 0;
+
+                    for section in chapters {
+                        // If end_pos == 0 that means we haven't found a valid section to load.
+                        if end_pos == 0 {
+                            // We already loaded this section
+                            if start_pos == section {
+                                start_pos += 1;
+
+                                if start_pos == total_sections {
+                                    return (0, 0);
+                                }
+                            } else {
+                                end_pos = start_pos + 1;
+                            }
+                        } else if end_pos == section || end_pos - start_pos == 4 {
+                            break;
+                        } else {
+                            end_pos += 1;
+                        }
+                    }
+
+                    // If end_pos is still 0 then we've reached the end of the array.
+                    if start_pos != 0 && end_pos == 0 {
+                        end_pos = start_pos + 3;
+                    }
+
+                    (start_pos, end_pos)
+                }
+            }
+
+            PageLoadType::Select => {
+                if chap_cont.chapters.is_empty() {
+                    (curr_section.saturating_sub(1), curr_section + 2)
+                } else {
+                    let found_previous = curr_section != 0 && chapters.iter().any(|v| *v == curr_section - 1);
+                    let found_next = curr_section + 1 != total_sections && chapters.iter().any(|v| *v == curr_section + 1);
+
+                    if !found_previous {
+                        (curr_section.saturating_sub(1), curr_section)
+                    } else if !found_next {
+                        (curr_section + 1, curr_section + 2)
+                    } else {
+                        (0, 0)
+                    }
+                }
+            }
+        }
+    }
 }

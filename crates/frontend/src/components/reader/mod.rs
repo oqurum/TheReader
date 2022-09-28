@@ -23,6 +23,22 @@ extern "C" {
 
 
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PageLoadType {
+    All,
+    Select,
+}
+
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct PageLoadSettings {
+    pub speed: usize,
+    pub type_of: PageLoadType,
+}
+
+
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct CachedPage {
     chapter: usize,
     chapter_local_page: usize,
@@ -54,8 +70,10 @@ impl LoadedChapters {
 
 #[derive(Properties)]
 pub struct Property {
+    pub settings: PageLoadSettings,
+
     // Callbacks
-    pub on_chapter_request: Callback<(usize, usize)>,
+    pub request_chapters: Callback<()>,
 
     pub book: Rc<MediaItem>,
     pub chapters: Rc<Mutex<LoadedChapters>>,
@@ -107,7 +125,7 @@ pub struct Reader {
     /// All pages which we've registered.
     cached_pages: Vec<CachedPage>,
     /// Position of the chapter based off the page index.
-    cached_chapter_pos: Vec<CachedChapter>,
+    cached_chapter_pos: HashMap<usize, CachedChapter>,
 
     /// The Total page we're currently on
     total_page_position: usize,
@@ -153,7 +171,7 @@ impl Component for Reader {
             },
 
             cached_pages: Vec::new(),
-            cached_chapter_pos: Vec::new(),
+            cached_chapter_pos: HashMap::new(),
 
             total_page_position: 0,
             viewing_chapter: 0,
@@ -255,14 +273,18 @@ impl Component for Reader {
                     self.loaded_sections.insert(page.chapter.value, gen.convert_to_loaded());
                 }
 
-                let loaded_count = self.loaded_sections.values().filter(|v| v.is_loaded()).count();
+                let loading_count = self.loaded_sections.values().filter(|v| v.is_loading()).count();
 
                 if self.are_all_sections_generated() {
                     self.on_all_frames_generated(ctx);
-                } else if loaded_count != 0 && loaded_count % 3 == 0 {
-                    self.update_cached_pages();
+                }
 
-                    ctx.props().on_chapter_request.emit((loaded_count, loaded_count + 3));
+                self.update_cached_pages();
+
+                self.use_progression(*ctx.props().progress.lock().unwrap());
+
+                if loading_count == 0 {
+                    ctx.props().request_chapters.emit(());
                 }
             }
         }
@@ -271,7 +293,6 @@ impl Component for Reader {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        // let node = self.view_page(ctx);
         let page_count = self.page_count();
 
         let pages_style = format!("width: {}px; height: {}px;", ctx.props().dimensions.0, ctx.props().dimensions.1);
@@ -283,9 +304,25 @@ impl Component for Reader {
                 <div class="navbar">
                     <a onclick={ctx.link().callback(|_| Msg::SetPage(0))}>{"First Page"}</a>
                     <a onclick={ctx.link().callback(|_| Msg::PreviousPage)}>{"Previous Page"}</a>
-                    <span>{self.total_page_position + 1} {"/"} {page_count} {" pages"}</span>
-                    <a onclick={ctx.link().callback(|_| Msg::NextPage)}>{"Next Page"}</a>
-                    <a onclick={ctx.link().callback(move |_| Msg::SetPage(page_count - 1))}>{"Last Page"}</a>
+
+                    {
+                        match ctx.props().settings.type_of {
+                            PageLoadType::All => html! {
+                                <>
+                                    <span>{ "Page " } { self.total_page_position + 1 } { "/" } { page_count }</span>
+                                    <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Page" }</a>
+                                    <a onclick={ ctx.link().callback(move |_| Msg::SetPage(page_count - 1)) }>{ "Last Page" }</a>
+                                </>
+                            },
+
+                            PageLoadType::Select => html! {
+                                <>
+                                    <span>{ "Section " } { self.viewing_chapter + 1 } { "/" } { ctx.props().book.chapter_count }</span>
+                                    <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Page" }</a>
+                                </>
+                            }
+                        }
+                    }
                 </div>
 
                 <div class="pages" style={pages_style.clone()}>
@@ -299,7 +336,7 @@ impl Component for Reader {
                                     } else {
                                         html! {
                                             <div style={ pages_style.clone() }>
-                                                <h2>{ "Loading Page" }</h2>
+                                                <h2>{ format!("Loading Section #{i}") }</h2>
                                             </div>
                                         }
                                     }
@@ -432,7 +469,8 @@ impl Reader {
     }
 
     fn update_cached_pages(&mut self) {
-        self.cached_chapter_pos.clear();
+        let current_section_page = self.cached_pages.get(self.total_page_position).cloned();
+
         self.cached_pages.clear();
 
         let mut total_page_pos = 0;
@@ -442,19 +480,31 @@ impl Reader {
             if let Some(BookSection::Loaded(ele)) = self.loaded_sections.get_mut(&chap) {
                 let page_count = get_iframe_page_count(&ele.iframe).max(1);
 
-                self.cached_chapter_pos.push(CachedChapter {
-                    index: total_page_pos,
-                    pages: page_count,
-                });
+                if let Some(cached_chap) = self.cached_chapter_pos.get_mut(&chap) {
+                    cached_chap.index = total_page_pos;
+                    cached_chap.pages = page_count;
+                } else {
+                    self.cached_chapter_pos.insert(chap, CachedChapter {
+                        index: total_page_pos,
+                        pages: page_count,
+                    });
+                }
 
                 total_page_pos += page_count;
 
-                for i in 0..page_count {
+                for local_page in 0..page_count {
                     self.cached_pages.push(CachedPage {
                         chapter: ele.chapter,
-                        chapter_local_page: i
+                        chapter_local_page: local_page
                     });
                 }
+            }
+        }
+
+        // We have to reset our global page position
+        if let Some(current_page) = current_section_page {
+            if let Some(idx) = self.cached_pages.iter().skip(self.total_page_position.saturating_sub(1)).position(|v| *v == current_page) {
+                self.total_page_position = idx;
             }
         }
     }
@@ -473,9 +523,13 @@ impl Reader {
             self.total_page_position = new_total_page;
             self.viewing_chapter = page.chapter;
 
+            log::debug!("set_page chapter: {} {}", self.viewing_chapter, page.chapter_local_page);
+
             if let BookSection::Loaded(chap) = self.loaded_sections.get(&self.viewing_chapter).unwrap() {
                 chap.set_page(page.chapter_local_page);
                 self.upload_progress(&chap.iframe, ctx);
+
+                ctx.props().request_chapters.emit(());
             }
 
             true
@@ -485,7 +539,7 @@ impl Reader {
     }
 
     fn set_chapter(&mut self, new_chapter: usize) -> bool {
-        if let Some(chap) = self.cached_chapter_pos.get(new_chapter) {
+        if let Some(chap) = self.cached_chapter_pos.get(&new_chapter) {
             self.total_page_position = chap.index;
             self.viewing_chapter = new_chapter;
 
@@ -511,19 +565,32 @@ impl Reader {
 
         let stored_prog = Rc::clone(&ctx.props().progress);
 
+        match page {
+            0 if chapter == 0 => *stored_prog.lock().unwrap() = None,
+
+            // TODO: Figure out what the last page of each book actually is.
+            v if v as usize == last_page => *stored_prog.lock().unwrap() = Some(Progression::Complete),
+
+            _ => {
+                let progression = Progression::Ebook {
+                    char_pos,
+                    chapter,
+                    page
+                };
+
+                *stored_prog.lock().unwrap() = Some(progression);
+            }
+        }
+
         ctx.link()
         .send_future(async move {
             match page {
-                0 => {
-                    *stored_prog.lock().unwrap() = None;
-
+                0 if chapter == 0 => {
                     request::remove_book_progress(book_id).await;
                 }
 
                 // TODO: Figure out what the last page of each book actually is.
                 v if v as usize == last_page => {
-                    *stored_prog.lock().unwrap() = Some(Progression::Complete);
-
                     request::update_book_progress(book_id, &Progression::Complete).await;
                 }
 
@@ -533,8 +600,6 @@ impl Reader {
                         chapter,
                         page
                     };
-
-                    *stored_prog.lock().unwrap() = Some(progression);
 
                     request::update_book_progress(book_id, &progression).await;
                 }
