@@ -38,17 +38,10 @@ pub struct PageLoadSettings {
 
 
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct CachedPage {
     chapter: usize,
     chapter_local_page: usize,
-}
-
-struct CachedChapter {
-    /// Page index that this chapter starts at.
-    index: usize,
-    /// Total Pages inside chapter
-    pages: usize,
 }
 
 
@@ -112,7 +105,6 @@ pub enum Msg {
     NextPage,
     PreviousPage,
     SetPage(usize),
-    SetSection(usize),
 
     Ignore
 }
@@ -206,33 +198,68 @@ impl Component for Reader {
                 }
             }
 
-            Msg::SetSection(new_chapter) => {
-                if self.set_section(new_chapter.min(ctx.props().book.chapter_count.saturating_sub(1)), ctx) {
-                    return true;
-                } else {
-                    // We couldn't set the chapter which means we have to load it.
-                    // TODO
-                }
-            }
-
             Msg::SetPage(new_page) => {
-                return self.set_page(new_page.min(self.page_count().saturating_sub(1)), ctx);
+                match self.cached_display {
+                    ChapterDisplay::Single | ChapterDisplay::Double => {
+                        return self.set_page(new_page.min(self.page_count().saturating_sub(1)), ctx);
+                    }
+
+                    ChapterDisplay::Scroll => {
+                        if self.set_section(new_page.min(ctx.props().book.chapter_count.saturating_sub(1)), ctx) {
+                            self.upload_progress_and_emit(ctx);
+
+                            return true;
+                        } else {
+                            // We couldn't set the chapter which means we have to load it.
+                            // TODO: Should we do anything here? Chapter should be requested and starting to load at this point.
+                        }
+                    }
+                }
             }
 
             Msg::NextPage => {
-                if self.total_page_position + 1 == self.page_count() {
-                    return false;
-                }
+                match self.cached_display {
+                    ChapterDisplay::Single | ChapterDisplay::Double => {
+                        if self.total_page_position + 1 == self.page_count() {
+                            return false;
+                        }
 
-                self.next_page(ctx);
+                        self.next_page(ctx);
+                    }
+
+                    ChapterDisplay::Scroll => {
+                        if self.viewing_chapter + 1 == self.sections.len() {
+                            return false;
+                        }
+
+                        self.set_section(self.viewing_chapter + 1, ctx);
+
+                        self.upload_progress_and_emit(ctx);
+                    }
+                }
             }
 
             Msg::PreviousPage => {
-                if self.total_page_position == 0 {
-                    return false;
+                match self.cached_display {
+                    ChapterDisplay::Single | ChapterDisplay::Double => {
+                        if self.total_page_position == 0 {
+                            return false;
+                        }
+
+                        self.previous_page(ctx);
+                    }
+
+                    ChapterDisplay::Scroll => {
+                        if self.viewing_chapter == 0 {
+                            return false;
+                        }
+
+                        self.set_section(self.viewing_chapter - 1, ctx);
+
+                        self.upload_progress_and_emit(ctx);
+                    }
                 }
 
-                self.previous_page(ctx);
             }
 
             Msg::Touch(msg) => match msg {
@@ -283,6 +310,13 @@ impl Component for Reader {
                     self.sections.insert(page.chapter.value, gen.convert_to_loaded());
                 }
 
+                // Update newly iframe with styling and size.
+                if let Some(BookSection::Loaded(sec)) = self.sections.get(&page.chapter.value) {
+                    js_set_page_display_style(&sec.iframe, self.cached_display.into());
+                    update_iframe_size(Some(ctx.props().dimensions), &sec.iframe);
+                }
+
+
                 let loading_count = self.sections.values().filter(|v| v.is_loading()).count();
 
                 if self.are_all_sections_generated() {
@@ -314,7 +348,7 @@ impl Component for Reader {
             <div class="reader">
                 <div class="navbar">
                     {
-                        match ctx.props().display {
+                        match self.cached_display {
                             ChapterDisplay::Double | ChapterDisplay::Single => html! {
                                 <>
                                     <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Page" }</a>
@@ -334,13 +368,13 @@ impl Component for Reader {
 
                                 html! {
                                     <>
-                                        <a onclick={ ctx.link().callback(|_| Msg::SetSection(0)) }>{ "First Section" }</a>
+                                        <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Section" }</a>
                                         <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Section" }</a>
                                         <span><b>{ "Section " } { self.viewing_chapter + 1 } { "/" } { chapter_count }</b></span>
                                         <span>{ "Pg. " } { page.0 + 1 } { "/" } { page.1 }</span>
                                         <span>{ self.total_page_position }</span>
                                         <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Section" }</a>
-                                        <a onclick={ ctx.link().callback(move |_| Msg::SetSection(chapter_count - 1)) }>{ "Last Section" }</a>
+                                        <a onclick={ ctx.link().callback(move |_| Msg::SetPage(chapter_count - 1)) }>{ "Last Section" }</a>
                                     </>
                                 }
                             }
@@ -379,9 +413,10 @@ impl Component for Reader {
             self.cached_display = props.display;
             self.cached_dimensions = Some(props.dimensions);
 
+            // Refresh all page styles and sizes.
             for chap in self.sections.values() {
                 if let BookSection::Loaded(chap) = chap {
-                    js_set_page_display_style(&chap.iframe, props.display.into());
+                    js_set_page_display_style(&chap.iframe, self.cached_display.into());
                     update_iframe_size(Some(props.dimensions), &chap.iframe);
                 }
             }
@@ -473,7 +508,7 @@ impl Reader {
                                 let page = js_get_page_from_byte_position(&section.iframe, char_pos as usize);
 
                                 if let Some(page) = page {
-                                    section.set_page(page);
+                                    section.set_page(page, self.cached_display);
                                     self.total_page_position = section.gpi + section.viewing_page;
                                 }
                             }
@@ -536,8 +571,9 @@ impl Reader {
 
 
     fn next_page(&mut self, ctx: &Context<Self>) -> bool {
+        let display = self.cached_display;
         if let Some(sect) = self.get_current_section_mut() {
-            if sect.next_page() {
+            if sect.next_page(display) {
                 self.total_page_position = sect.gpi + sect.viewing_page;
 
                 self.upload_progress_and_emit(ctx);
@@ -566,8 +602,9 @@ impl Reader {
     }
 
     fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
+        let display = self.cached_display;
         if let Some(sect) = self.get_current_section_mut() {
-            if sect.previous_page() {
+            if sect.previous_page(display) {
                 self.total_page_position = sect.gpi + sect.viewing_page;
 
                 self.upload_progress_and_emit(ctx);
@@ -599,8 +636,10 @@ impl Reader {
             self.total_page_position = new_total_page;
             self.viewing_chapter = page.chapter;
 
+            let display = self.cached_display;
+
             if let Some(chap) = self.get_current_section_mut() {
-                chap.set_page(page.chapter_local_page);
+                chap.set_page(page.chapter_local_page, display);
             }
 
             self.upload_progress_and_emit(ctx);
@@ -858,16 +897,21 @@ pub struct ChapterContents {
 }
 
 impl ChapterContents {
-    pub fn set_page(&mut self, page_number: usize) {
-        self.viewing_page = page_number;
+    pub fn set_page(&mut self, page_number: usize, display: ChapterDisplay) {
+        if display != ChapterDisplay::Scroll {
+            self.viewing_page = page_number;
 
-        let body = self.iframe.content_document().unwrap().body().unwrap();
-        body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * self.viewing_page, self.viewing_page * 10)).unwrap();
+            let body = self.iframe.content_document().unwrap().body().unwrap();
+            body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * self.viewing_page, self.viewing_page * 10)).unwrap();
+        }
+
+        // TODO: Update Scroll position.
+        // TODO: Utilize viewing_page vertically.
     }
 
-    pub fn next_page(&mut self) -> bool {
+    pub fn next_page(&mut self, display: ChapterDisplay) -> bool {
         if self.viewing_page + 1 < self.total_pages {
-            self.set_page(self.viewing_page + 1);
+            self.set_page(self.viewing_page + 1, display);
 
             true
         } else {
@@ -875,9 +919,9 @@ impl ChapterContents {
         }
     }
 
-    pub fn previous_page(&mut self) -> bool {
+    pub fn previous_page(&mut self, display: ChapterDisplay) -> bool {
         if self.viewing_page != 0 {
-            self.set_page(self.viewing_page - 1);
+            self.set_page(self.viewing_page - 1, display);
 
             true
         } else {
