@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, sync::Mutex, path::PathBuf};
 
 use common_local::{MediaItem, Progression, Chapter, api, FileId};
 use wasm_bindgen::{JsCast, prelude::{wasm_bindgen, Closure}};
-use web_sys::HtmlIFrameElement;
+use web_sys::{HtmlIFrameElement, HtmlElement};
 use yew::{prelude::*, html::Scope};
 
 use crate::request;
@@ -16,6 +16,7 @@ extern "C" {
 
     fn js_get_current_byte_pos(iframe: &HtmlIFrameElement) -> Option<usize>;
     fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize) -> Option<usize>;
+    fn js_get_element_from_byte_position(iframe: &HtmlIFrameElement, position: usize) -> Option<HtmlElement>;
 
     fn js_update_iframe_after_load(iframe: &HtmlIFrameElement, chapter: usize, handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>);
     fn js_set_page_display_style(iframe: &HtmlIFrameElement, display: u8);
@@ -329,11 +330,14 @@ impl Component for Reader {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let page_count = self.page_count(ctx);
-        let chapter_count = ctx.props().book.chapter_count;
+        let section_count = ctx.props().book.chapter_count;
 
         let pages_style = format!("width: {}px; height: {}px;", ctx.props().dimensions.0, ctx.props().dimensions.1);
 
-        let progress_precentage = format!("width: {}%;", (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0);
+        let progress_percentage = match self.cached_display {
+            ChapterDisplay::Double | ChapterDisplay::Single => format!("width: {}%;", (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0),
+            ChapterDisplay::Scroll => format!("width: {}%;", (self.viewing_chapter + 1) as f64 / section_count as f64 * 100.0),
+        };
 
         html! {
             <div class="reader">
@@ -350,33 +354,23 @@ impl Component for Reader {
                                 </>
                             },
 
-                            ChapterDisplay::Scroll => {
-                                let page = if let Some(sel) = self.get_current_section() {
-                                    (sel.viewing_page, sel.page_count())
-                                } else {
-                                    (0, 0)
-                                };
-
-                                html! {
-                                    <>
-                                        <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Section" }</a>
-                                        <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Section" }</a>
-                                        <span><b>{ "Section " } { self.viewing_chapter + 1 } { "/" } { chapter_count }</b></span>
-                                        <span>{ "Pg. " } { page.0 + 1 } { "/" } { page.1 }</span>
-                                        <span>{ self.current_page_pos() }</span>
-                                        <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Section" }</a>
-                                        <a onclick={ ctx.link().callback(move |_| Msg::SetPage(chapter_count - 1)) }>{ "Last Section" }</a>
-                                    </>
-                                }
+                            ChapterDisplay::Scroll => html! {
+                                <>
+                                    <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Section" }</a>
+                                    <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Section" }</a>
+                                    <span><b>{ "Section " } { self.viewing_chapter + 1 } { "/" } { section_count }</b></span>
+                                    <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Section" }</a>
+                                    <a onclick={ ctx.link().callback(move |_| Msg::SetPage(section_count - 1)) }>{ "Last Section" }</a>
+                                </>
                             }
                         }
                     }
                 </div>
 
-                <div class="pages" style={pages_style.clone()}>
-                    <div class="frames" style={format!("top: -{}%;", self.viewing_chapter * 100)}>
+                <div class="pages" style={ pages_style.clone() }>
+                    <div class="frames" style={ format!("top: -{}%;", self.viewing_chapter * 100) }>
                         {
-                            for (0..ctx.props().book.chapter_count)
+                            for (0..section_count)
                                 .into_iter()
                                 .map(|i| {
                                     if let Some(v) = self.sections.get(&i).unwrap().as_chapter() {
@@ -392,7 +386,10 @@ impl Component for Reader {
                         }
                     </div>
                 </div>
-                <div class="progress"><div class="prog-bar" style={progress_precentage}></div></div>
+
+                <div class="progress">
+                    <div class="prog-bar" style={ progress_percentage }></div>
+                </div>
             </div>
         }
     }
@@ -496,10 +493,17 @@ impl Reader {
                             let book_section = self.sections.get_mut(&(chapter as usize)).unwrap();
 
                             if let BookSection::Loaded(section) = book_section {
-                                let page = js_get_page_from_byte_position(&section.iframe, char_pos as usize);
+                                if self.cached_display == ChapterDisplay::Scroll {
+                                    if let Some(_element) = js_get_element_from_byte_position(&section.iframe, char_pos as usize) {
+                                        // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
+                                        // element.scroll_into_view();
+                                    }
+                                } else {
+                                    let page = js_get_page_from_byte_position(&section.iframe, char_pos as usize);
 
-                                if let Some(page) = page {
-                                    section.set_page(page, self.cached_display);
+                                    if let Some(page) = page {
+                                        section.set_page(page, self.cached_display);
+                                    }
                                 }
                             }
 

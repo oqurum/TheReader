@@ -242,9 +242,7 @@ impl Component for ReadingBook {
                 self.book_dimensions.1.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)),
             );
 
-            // TODO: Loading screen until all chapters have done initial generation.
-
-            let is_fullscreen = self.is_fullscreen;
+            // TODO: Loading screen until sections have done initial generation.
 
             html! {
                 <div class="reading-container">
@@ -280,13 +278,13 @@ impl Component for ReadingBook {
                                                     <label for="screen-size-select">{ "Screen Size Selection" }</label>
 
                                                     <select id="screen-size-select">
-                                                        <option selected={ !is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(false)) }>{ "Specified" }</option>
-                                                        <option selected={ is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(true)) }>{ "Full screen" }</option>
+                                                        <option selected={ !self.is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(false)) }>{ "Specified" }</option>
+                                                        <option selected={ self.is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(true)) }>{ "Full screen" }</option>
                                                     </select>
                                                 </div>
 
                                                 {
-                                                    if is_fullscreen {
+                                                    if self.is_fullscreen {
                                                         html! {}
                                                     } else {
                                                         html! {
@@ -332,11 +330,6 @@ impl Component for ReadingBook {
                             }
                         }
 
-                        <div class="tools">
-                            <button class="tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
-                            <button class="tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
-                        </div>
-
                         <Reader
                             settings={ self.page_load_settings.clone() }
                             display={ self.book_display }
@@ -346,6 +339,11 @@ impl Component for ReadingBook {
                             dimensions={ (width, height) }
                             request_chapters={ ctx.link().callback(|_| Msg::SendGetChapters) }
                         />
+                    </div>
+
+                    <div class="tools">
+                        <button class="tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
+                        <button class="tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>
                 </div>
             }

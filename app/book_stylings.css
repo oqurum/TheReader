@@ -34,6 +34,7 @@ body.double-page {
 body.scrolling-page {
 	column-count: unset !important;
 	overflow: auto !important;
+	height: auto !important;
 }
 
 /* Ensure's it's an href <a> element */

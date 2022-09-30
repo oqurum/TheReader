@@ -367,6 +367,43 @@ export function js_get_page_from_byte_position(iframe, position) {
 	return page;
 }
 
+/**
+ * @param {HTMLIFrameElement} iframe
+ * @param {number} position
+ * @returns {HTMLElement | null}
+**/
+export function js_get_element_from_byte_position(iframe, position) {
+	let document = iframe.contentDocument;
+
+	let byte_count = 0;
+
+	/**
+	 * @param {Node} cont
+	 * @returns {HTMLElement | null}
+	 */
+	function findTextPos(cont) {
+		if (cont.nodeType == Element.TEXT_NODE && cont.nodeValue.trim().length != 0) {
+			byte_count += cont.nodeValue.length;
+
+			// TODO: Will probably mess up if element takes up a full page.
+			if (byte_count > position) {
+				return cont.parentElement;
+			}
+		}
+
+		for (let node of cont.childNodes) {
+			let resp = findTextPos(node);
+			if (resp) {
+				return resp;
+			}
+		}
+
+		return null;
+	}
+
+	return findTextPos(document.body);
+}
+
 
 const PAGE_DISPLAY = [
 	'single-page',
