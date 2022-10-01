@@ -103,9 +103,10 @@ impl Component for ReadingBook {
                 // Replace old settings with new settings.
                 let old_settings = std::mem::replace(&mut self.reader_settings, new_settings);
 
-                if old_settings.is_fullscreen != self.reader_settings.is_fullscreen {
+                if self.reader_settings.is_fullscreen && old_settings.is_fullscreen != self.reader_settings.is_fullscreen {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
 
+                    // TODO: client_height is incorrect since the tools is set to absolute after this update.
                     self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
 
                     let link = ctx.link().clone();
@@ -144,6 +145,13 @@ impl Component for ReadingBook {
 
                     self.auto_resize_cb = Some(handle_resize);
                 } else if !old_settings.is_fullscreen {
+                    if let Some(cb) = self.auto_resize_cb.take() {
+                        window().remove_event_listener_with_callback(
+                            "resize",
+                            cb.as_ref().unchecked_ref()
+                        ).unwrap();
+                    }
+
                     self.reader_settings.dimensions = (
                         Some(self.reader_settings.dimensions.0).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)) / 2,
                         Some(self.reader_settings.dimensions.1).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)) / 2,
@@ -257,7 +265,7 @@ impl Component for ReadingBook {
                         />
                     </div>
 
-                    <div class="tools">
+                    <div class={ classes!("tools", self.reader_settings.is_fullscreen.then_some("overlay")) }>
                         <button class="tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
                         <button class="tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>
