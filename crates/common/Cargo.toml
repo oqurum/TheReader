@@ -7,7 +7,7 @@ edition = "2021"
 
 [features]
 backend = ["common/backend", "rusqlite"]
-frontend = ["common/frontend"]
+frontend = ["common/frontend", "getrandom"]
 
 [dependencies]
 serde = { workspace = true }
@@ -21,6 +21,7 @@ num_enum = "0.5"
 thiserror = { workspace = true }
 validator = { workspace = true }
 rand = { workspace = true }
+getrandom = { version = "0.2", features = ["js"], optional = true }
 
 common = { path = "../../global_common" }
 

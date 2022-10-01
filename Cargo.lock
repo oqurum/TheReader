@@ -875,6 +875,7 @@ dependencies = [
  "bitflags",
  "chrono",
  "common",
+ "getrandom",
  "num_enum",
  "rand",
  "rusqlite",
