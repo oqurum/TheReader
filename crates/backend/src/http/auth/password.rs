@@ -49,13 +49,13 @@ pub async fn post_password_oauth(
     // Create or Update User.
     let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
         if value.type_of != MemberAuthType::Password {
-            panic!("Invalid Member. Member does not have a local password associated with it.");
+            return Err(ApiErrorResponse::new("Invalid Member. Member does not have a local password associated with it.").into());
         }
 
         if bcrypt::verify(&password, value.password.as_ref().unwrap()).map_err(Error::from)? {
             value
         } else {
-            panic!("Unable to very password hash for account");
+            return Err(ApiErrorResponse::new("Unable to very password hash for account").into());
         }
     } else {
         let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
