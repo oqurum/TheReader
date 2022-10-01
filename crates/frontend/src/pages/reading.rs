@@ -9,9 +9,9 @@ use gloo_utils::window;
 use js_sys::Array;
 use wasm_bindgen::{JsCast, prelude::Closure};
 use web_sys::{HtmlInputElement, Element};
-use yew::prelude::*;
+use yew::{prelude::*, html::Scope};
 
-use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, PageLoadSettings}};
+use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, ReaderSettings}};
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
@@ -24,15 +24,12 @@ pub enum LocalPopupType {
 
 pub enum Msg {
     // Event
-    Update,
+    WindowResize,
 
     ClosePopup,
     ShowPopup(LocalPopupType),
 
-    OnChangeSelection(ChapterDisplay),
-    UpdateDimensions,
-    ChangeReaderSize(bool),
-    ChangePageLoadType(PageLoadType),
+    ChangeReaderSettings(ReaderSettings),
 
     // Send
     SendGetChapters,
@@ -48,16 +45,13 @@ pub struct Property {
 }
 
 pub struct ReadingBook {
-    page_load_settings: PageLoadSettings,
-    book_display: ChapterDisplay,
+    reader_settings: ReaderSettings,
     progress: Rc<Mutex<Option<Progression>>>,
     book: Option<Rc<MediaItem>>,
     chapters: Rc<Mutex<LoadedChapters>>,
     last_grabbed_count: usize,
     // TODO: Cache pages
 
-    book_dimensions: (Option<i32>, Option<i32>),
-    is_fullscreen: bool,
     auto_resize_cb: Option<Closure<dyn FnMut()>>,
 
     sidebar_visible: Option<LocalPopupType>,
@@ -74,18 +68,18 @@ impl Component for ReadingBook {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            page_load_settings: PageLoadSettings {
-                speed: 1000,
+            reader_settings: ReaderSettings {
+                load_speed: 1000,
                 type_of: PageLoadType::Select,
+                is_fullscreen: false,
+                display: ChapterDisplay::Double,
+                dimensions: (1040, 548),
             },
-            book_display: ChapterDisplay::Double,
             chapters: Rc::new(Mutex::new(LoadedChapters::new())),
             last_grabbed_count: 0,
             progress: Rc::new(Mutex::new(None)),
             book: None,
 
-            book_dimensions: (Some(1040), Some(548)),
-            is_fullscreen: false,
             auto_resize_cb: None,
 
             sidebar_visible: None,
@@ -98,18 +92,21 @@ impl Component for ReadingBook {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::Update => (),
-
-            Msg::ChangePageLoadType(type_of) => {
-                // TODO: This isn't needed. We'll have to cache it in our db instead.
-                self.page_load_settings.type_of = type_of;
+            Msg::WindowResize => {
+                if self.reader_settings.is_fullscreen {
+                    let cont = self.ref_book_container.cast::<Element>().unwrap();
+                    self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+                }
             }
 
-            Msg::ChangeReaderSize(value) => {
-                self.is_fullscreen = value;
+            Msg::ChangeReaderSettings(new_settings) => {
+                // Replace old settings with new settings.
+                let old_settings = std::mem::replace(&mut self.reader_settings, new_settings);
 
-                if value {
-                    self.book_dimensions = (None, None);
+                if old_settings.is_fullscreen != self.reader_settings.is_fullscreen {
+                    let cont = self.ref_book_container.cast::<Element>().unwrap();
+
+                    self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
 
                     let link = ctx.link().clone();
                     let timeout: Arc<Mutex<(Option<_>, i32)>> = Arc::new(Mutex::new((None, 0)));
@@ -128,7 +125,7 @@ impl Component for ReadingBook {
                         }
 
                         let handle_timeout = Closure::wrap(Box::new(move || {
-                            link.send_message(Msg::Update);
+                            link.send_message(Msg::WindowResize);
                         }) as Box<dyn FnMut()>);
 
                         let to = window().set_timeout_with_callback_and_timeout_and_arguments(
@@ -146,23 +143,12 @@ impl Component for ReadingBook {
                     ).unwrap();
 
                     self.auto_resize_cb = Some(handle_resize);
-                } else {
-                    self.book_dimensions = (
-                        Some(self.book_dimensions.0.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)) / 2),
-                        Some(self.book_dimensions.1.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)) / 2),
+                } else if !old_settings.is_fullscreen {
+                    self.reader_settings.dimensions = (
+                        Some(self.reader_settings.dimensions.0).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)) / 2,
+                        Some(self.reader_settings.dimensions.1).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)) / 2,
                     );
                 }
-            }
-
-            Msg::UpdateDimensions => {
-                let width = self.ref_width_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
-                let height = self.ref_height_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
-
-                self.book_dimensions = (Some(width).filter(|v| *v > 0), Some(height).filter(|v| *v > 0));
-            }
-
-            Msg::OnChangeSelection(change) => {
-                self.book_display = change;
             }
 
             Msg::ClosePopup => {
@@ -229,24 +215,15 @@ impl Component for ReadingBook {
         if let Some(book) = self.book.as_ref() {
             let mut book_class = String::from("book");
 
-            if self.book_dimensions.0.is_none() {
-                book_class += " overlay-x";
+            if self.reader_settings.is_fullscreen {
+                book_class += " overlay-x overlay-y";
             }
-
-            if self.book_dimensions.1.is_none() {
-                book_class += " overlay-y";
-            }
-
-            let (width, height) = (
-                self.book_dimensions.0.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)),
-                self.book_dimensions.1.unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)),
-            );
 
             // TODO: Loading screen until sections have done initial generation.
 
             html! {
                 <div class="reading-container">
-                    <div class={book_class} ref={self.ref_book_container.clone()}>
+                    <div class={ book_class } ref={self.ref_book_container.clone()}>
                         {
                             if let Some(visible) = self.sidebar_visible {
                                 match visible {
@@ -257,72 +234,13 @@ impl Component for ReadingBook {
                                     },
 
                                     LocalPopupType::Settings => html! {
-                                        <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
-                                            <div class="settings">
-                                                <div class="form-container shrink-width-to-content">
-                                                    <label for="page-load-select">{ "Page Load Type" }</label>
-
-                                                    <select id="page-load-select">
-                                                        <option
-                                                            selected={ self.page_load_settings.type_of == PageLoadType::All }
-                                                            onclick={ ctx.link().callback(|_| Msg::ChangePageLoadType(PageLoadType::All)) }
-                                                        >{ "Load All" }</option>
-                                                        <option
-                                                            selected={ self.page_load_settings.type_of == PageLoadType::Select }
-                                                            onclick={ ctx.link().callback(|_| Msg::ChangePageLoadType(PageLoadType::Select)) }
-                                                        >{ "Load When Needed" }</option>
-                                                    </select>
-                                                </div>
-
-                                                <div class="form-container shrink-width-to-content">
-                                                    <label for="screen-size-select">{ "Screen Size Selection" }</label>
-
-                                                    <select id="screen-size-select">
-                                                        <option selected={ !self.is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(false)) }>{ "Specified" }</option>
-                                                        <option selected={ self.is_fullscreen } onclick={ ctx.link().callback(|_| Msg::ChangeReaderSize(true)) }>{ "Full screen" }</option>
-                                                    </select>
-                                                </div>
-
-                                                {
-                                                    if self.is_fullscreen {
-                                                        html! {}
-                                                    } else {
-                                                        html! {
-                                                            <div class="form-container shrink-width-to-content">
-                                                                <label>{ "Screen Width and Height" }</label>
-
-                                                                <div>
-                                                                    <input style="width: 100px;" value={ width.to_string() } ref={ self.ref_width_input.clone() } type="number" />
-                                                                    <span>{ "x" }</span>
-                                                                    <input style="width: 100px;" value={ height.to_string() } ref={ self.ref_height_input.clone() } type="number" />
-                                                                </div>
-
-                                                                <button onclick={ ctx.link().callback(|_| Msg::UpdateDimensions) }>{ "Update Dimensions" }</button>
-                                                            </div>
-                                                        }
-                                                    }
-                                                }
-
-                                                <div class="form-container shrink-width-to-content">
-                                                    <label for="page-type-select">{ "Screen Size Selection" }</label>
-                                                    // TODO: Specify based on book type. Epub/Mobi (Single, Double) - PDF (Scroll)
-                                                    <select id="page-type-select" onchange={
-                                                        ctx.link()
-                                                        .callback(|e: Event| Msg::OnChangeSelection(
-                                                            e.target().unwrap()
-                                                                .unchecked_into::<web_sys::HtmlSelectElement>()
-                                                                .value()
-                                                                .parse::<u8>().unwrap()
-                                                                .into()
-                                                        ))
-                                                    }>
-                                                        <option value="0" selected={ self.book_display == ChapterDisplay::Single }>{ "Single Page" }</option>
-                                                        <option value="1" selected={ self.book_display == ChapterDisplay::Double }>{ "Double Page" }</option>
-                                                        <option value="2" selected={ self.book_display == ChapterDisplay::Scroll }>{ "Scrolling Page" }</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </Popup>
+                                        <SettingsContainer
+                                            scope={ ctx.link().clone() }
+                                            ref_width_input={ self.ref_width_input.clone() }
+                                            ref_height_input={ self.ref_height_input.clone() }
+                                            reader_dimensions={ self.reader_settings.dimensions }
+                                            reader_settings={ self.reader_settings.clone() }
+                                        />
                                     },
                                 }
                             } else {
@@ -331,12 +249,10 @@ impl Component for ReadingBook {
                         }
 
                         <Reader
-                            settings={ self.page_load_settings.clone() }
-                            display={ self.book_display }
+                            settings={ self.reader_settings.clone() }
                             progress={ Rc::clone(&self.progress) }
                             book={ Rc::clone(book) }
                             chapters={ Rc::clone(&self.chapters) }
-                            dimensions={ (width, height) }
                             request_chapters={ ctx.link().callback(|_| Msg::SendGetChapters) }
                         />
                     </div>
@@ -366,6 +282,7 @@ impl Component for ReadingBook {
 }
 
 impl ReadingBook {
+    // TODO: Use Option instead of returning (0, 0)
     fn get_next_pages_to_load(&self) -> (usize, usize) {
         let progress = self.progress.lock().unwrap();
         let chap_cont = self.chapters.lock().unwrap();
@@ -383,7 +300,7 @@ impl ReadingBook {
         let mut chapters = chap_cont.chapters.iter().map(|v| v.value).collect::<Vec<_>>();
         chapters.sort_unstable();
 
-        match self.page_load_settings.type_of {
+        match self.reader_settings.type_of {
             PageLoadType::All => {
                 if chap_cont.chapters.is_empty() {
                     (curr_section.saturating_sub(1), curr_section + 2)
@@ -437,5 +354,176 @@ impl ReadingBook {
                 }
             }
         }
+    }
+}
+
+
+
+#[derive(Properties)]
+struct SettingsContainerProps {
+    scope: Scope<ReadingBook>,
+
+    ref_width_input: NodeRef,
+    ref_height_input: NodeRef,
+
+    reader_dimensions: (i32, i32),
+
+    reader_settings: ReaderSettings,
+}
+
+impl PartialEq for SettingsContainerProps {
+    fn eq(&self, other: &Self) -> bool {
+        self.ref_width_input == other.ref_width_input &&
+        self.ref_height_input == other.ref_height_input &&
+        self.reader_dimensions == other.reader_dimensions &&
+        self.reader_settings == other.reader_settings
+    }
+}
+
+
+#[function_component(SettingsContainer)]
+fn _settings_cont(props: &SettingsContainerProps) -> Html {
+    let settings = props.reader_settings.clone();
+    let settings = use_mut_ref(move || settings);
+
+    let page_load_type_section = {
+        let settings_inner = settings.clone();
+
+        html! {
+            <div class="form-container shrink-width-to-content">
+                <label for="page-load-select">{ "Page Load Type" }</label>
+
+                <select id="page-load-select"
+                    onchange={ Callback::from(move |e: Event| {
+                        let idx = e.target().unwrap()
+                            .unchecked_into::<web_sys::HtmlSelectElement>()
+                            .selected_index();
+
+                        match idx {
+                            0 => settings_inner.borrow_mut().type_of = PageLoadType::All,
+                            1 => settings_inner.borrow_mut().type_of = PageLoadType::Select,
+
+                            _ => ()
+                        }
+                    })
+                }>
+                    <option selected={ settings.borrow().type_of == PageLoadType::All }>{ "Load All" }</option>
+                    <option selected={ settings.borrow().type_of == PageLoadType::Select }>{ "Load When Needed" }</option>
+                </select>
+            </div>
+        }
+    };
+
+    let screen_size_type_section = {
+        let settings_inner = settings.clone();
+
+        html! {
+            <div class="form-container shrink-width-to-content">
+                <label for="screen-size-select">{ "Screen Size Selection" }</label>
+
+                <select id="screen-size-select"
+                    onchange={ Callback::from(move |e: Event| {
+                        let idx = e.target().unwrap()
+                            .unchecked_into::<web_sys::HtmlSelectElement>()
+                            .selected_index();
+
+                        settings_inner.borrow_mut().is_fullscreen = idx != 0;
+                    })
+                }>
+                    <option selected={ !settings.borrow().is_fullscreen }>{ "Specified" }</option>
+                    <option selected={ settings.borrow().is_fullscreen }>{ "Full screen" }</option>
+                </select>
+            </div>
+        }
+    };
+
+    let screen_size_section = {
+        if settings.borrow().is_fullscreen {
+            html! {}
+        } else {
+            let settings = settings.clone();
+
+            let ref_width_input = props.ref_width_input.clone();
+            let ref_height_input = props.ref_height_input.clone();
+
+            html! {
+                <div class="form-container shrink-width-to-content">
+                    <label>{ "Screen Width and Height" }</label>
+
+                    <div>
+                        <input
+                            style="width: 100px;"
+                            value={ props.reader_dimensions.0.to_string() }
+                            ref={ props.ref_width_input.clone() }
+                            type="number"
+                        />
+
+                        <span>{ "x" }</span>
+
+                        <input
+                            style="width: 100px;"
+                            value={ props.reader_dimensions.1.to_string() }
+                            ref={ props.ref_height_input.clone() }
+                            type="number"
+                        />
+                    </div>
+
+                    <button onclick={ Callback::from(move |_| {
+                        let width = ref_width_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
+                        let height = ref_height_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
+
+                        settings.borrow_mut().dimensions = (width, height);
+                    }) }>{ "Update Dimensions" }</button>
+                </div>
+            }
+        }
+    };
+
+    let reader_view_type_section = {
+        let settings_inner = settings.clone();
+
+        html! {
+            <div class="form-container shrink-width-to-content">
+                <label for="page-type-select">{ "Reader View Type" }</label>
+                <select id="page-type-select" onchange={
+                    Callback::from(move |e: Event| {
+                        let display = e.target().unwrap()
+                            .unchecked_into::<web_sys::HtmlSelectElement>()
+                            .value()
+                            .parse::<u8>().unwrap()
+                            .into();
+
+                        settings_inner.borrow_mut().display = display;
+                    })
+                }>
+                    <option value="0" selected={ settings.borrow().display == ChapterDisplay::Single }>{ "Single Page" }</option>
+                    <option value="1" selected={ settings.borrow().display == ChapterDisplay::Double }>{ "Double Page" }</option>
+                    <option value="2" selected={ settings.borrow().display == ChapterDisplay::Scroll }>{ "Scrolling Page" }</option>
+                </select>
+            </div>
+        }
+    };
+
+    html! {
+        <Popup type_of={ PopupType::FullOverlay } on_close={ props.scope.callback(|_| Msg::ClosePopup) }>
+            <div class="settings">
+                { page_load_type_section }
+
+                { screen_size_type_section }
+
+                { screen_size_section }
+
+                { reader_view_type_section }
+
+                <hr />
+
+                <div>
+                    <button
+                        class="green"
+                        onclick={ props.scope.callback(move |_| Msg::ChangeReaderSettings(settings.take())) }
+                    >{ "Submit" }</button>
+                </div>
+            </div>
+        </Popup>
     }
 }

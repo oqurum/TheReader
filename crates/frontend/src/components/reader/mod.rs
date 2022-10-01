@@ -24,17 +24,23 @@ extern "C" {
 
 
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PageLoadType {
     All,
+    #[default]
     Select,
 }
 
 
-#[derive(Clone, PartialEq, Eq)]
-pub struct PageLoadSettings {
-    pub speed: usize,
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ReaderSettings {
+    pub load_speed: usize,
     pub type_of: PageLoadType,
+
+    pub is_fullscreen: bool,
+    pub display: ChapterDisplay,
+
+    pub dimensions: (i32, i32),
 }
 
 
@@ -64,7 +70,7 @@ impl LoadedChapters {
 
 #[derive(Properties)]
 pub struct Property {
-    pub settings: PageLoadSettings,
+    pub settings: ReaderSettings,
 
     // Callbacks
     pub request_chapters: Callback<()>,
@@ -73,10 +79,6 @@ pub struct Property {
     pub chapters: Rc<Mutex<LoadedChapters>>,
 
     pub progress: Rc<Mutex<Option<Progression>>>,
-    pub display: ChapterDisplay,
-
-    pub dimensions: (i32, i32),
-    // pub ratio: (usize, usize)
 }
 
 
@@ -147,7 +149,7 @@ impl Component for Reader {
         }) as Box<dyn FnMut(usize, String)>);
 
         Self {
-            cached_display: ctx.props().display,
+            cached_display: ctx.props().settings.display,
             cached_dimensions: None,
             sections: {
                 let mut map = HashMap::new();
@@ -305,7 +307,7 @@ impl Component for Reader {
                 // Update newly iframe with styling and size.
                 if let Some(BookSection::Loaded(sec)) = self.sections.get(&page.chapter.value) {
                     js_set_page_display_style(&sec.iframe, self.cached_display.into());
-                    update_iframe_size(Some(ctx.props().dimensions), &sec.iframe);
+                    update_iframe_size(Some(ctx.props().settings.dimensions), &sec.iframe);
                 }
 
 
@@ -332,7 +334,7 @@ impl Component for Reader {
         let page_count = self.page_count(ctx);
         let section_count = ctx.props().book.chapter_count;
 
-        let pages_style = format!("width: {}px; height: {}px;", ctx.props().dimensions.0, ctx.props().dimensions.1);
+        let pages_style = format!("width: {}px; height: {}px;", ctx.props().settings.dimensions.0, ctx.props().settings.dimensions.1);
 
         let progress_percentage = match self.cached_display {
             ChapterDisplay::Double | ChapterDisplay::Single => format!("width: {}%;", (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0),
@@ -397,15 +399,15 @@ impl Component for Reader {
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
         let props = ctx.props();
 
-        if self.cached_display != props.display || self.cached_dimensions != Some(props.dimensions) {
-            self.cached_display = props.display;
-            self.cached_dimensions = Some(props.dimensions);
+        if self.cached_display != props.settings.display || self.cached_dimensions != Some(props.settings.dimensions) {
+            self.cached_display = props.settings.display;
+            self.cached_dimensions = Some(props.settings.dimensions);
 
             // Refresh all page styles and sizes.
             for chap in self.sections.values() {
                 if let BookSection::Loaded(chap) = chap {
                     js_set_page_display_style(&chap.iframe, self.cached_display.into());
-                    update_iframe_size(Some(props.dimensions), &chap.iframe);
+                    update_iframe_size(Some(props.settings.dimensions), &chap.iframe);
                 }
             }
 
@@ -425,7 +427,7 @@ impl Component for Reader {
                     log::info!("Generating Chapter {}", chap.value + 1);
 
                     *sec = BookSection::Loading(generate_pages(
-                        Some(props.dimensions),
+                        Some(props.settings.dimensions),
                         props.book.id,
                         chap.clone(),
                         ctx.link().clone()
@@ -741,9 +743,10 @@ impl Reader {
 
 
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ChapterDisplay {
     Single = 0,
+    #[default]
     Double = 1,
     Scroll = 2,
 }
