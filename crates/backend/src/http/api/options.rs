@@ -39,6 +39,7 @@ async fn load_options(
 
                 config.email = None;
                 config.libby.token = config.libby.token.map(|_| String::new());
+                config.server.auth_key.clear();
 
                 config
             })

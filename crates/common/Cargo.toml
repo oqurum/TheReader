@@ -20,6 +20,7 @@ chrono = { workspace = true }
 num_enum = "0.5"
 thiserror = { workspace = true }
 validator = { workspace = true }
+rand = { workspace = true }
 
 common = { path = "../../global_common" }
 

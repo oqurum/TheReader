@@ -10,6 +10,7 @@ use actix_web::{web, App, HttpServer, cookie::SameSite};
 use common::api::WrappingResponse;
 
 use crate::CliArgs;
+use crate::config::get_config;
 use crate::database::Database;
 
 mod api;
@@ -45,7 +46,7 @@ async fn logout(ident: Identity) -> HttpResponse {
 
 
 pub async fn register_http_service(cli_args: &CliArgs, db_data: web::Data<Database>) -> std::io::Result<()> {
-    let secret_key = Key::from(&[0; 64]);
+    let secret_key = Key::from(&get_config().server.auth_key);
 
     HttpServer::new(move || {
         App::new()

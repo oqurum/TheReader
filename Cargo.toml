@@ -20,6 +20,7 @@ anyhow = "1.0"
 serde_qs = "0.10"
 tokio = "1.17"
 serde-xml-rs = "0.6"
+rand = "0.8"
 
 # Backend Specific
 rusqlite = "0.28"

@@ -876,6 +876,7 @@ dependencies = [
  "chrono",
  "common",
  "num_enum",
+ "rand",
  "rusqlite",
  "serde",
  "serde_json",
