@@ -15,14 +15,12 @@ common-local = { path = "../common", features = ["frontend"] }
 
 common = { path = "../../global_common", features = ["frontend"] }
 
+tokio = { workspace = true, features = ["time"] }
 
-# reqwest = { version = "0.11", features = ["multipart"] }
-tokio = { version = "1.15", features = ["time"] }
-
-serde = { version = "1.0", features = ["derive"] }
-serde_urlencoded = "0.7"
-serde_json = "1.0"
-serde_qs = "0.10"
+serde = { workspace = true }
+serde_urlencoded = { workspace = true }
+serde_json = { workspace = true }
+serde_qs = { workspace = true }
 
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
@@ -31,23 +29,23 @@ gloo-file = "0.2"
 gloo-timers = "0.2"
 js-sys = "0.3"
 
-chrono = { version = "0.4", features = ["wasmbind"] }
+chrono = { workspace = true, features = ["wasmbind"] }
 base64 = "0.13"
 lazy_static = "1.4"
-urlencoding = "2.1"
+urlencoding = { workspace = true }
 futures = "0.3"
 reqwasm = "0.5"
 
 
-anyhow = "1.0"
-log = "0.4"
+anyhow = { workspace = true }
+log = { workspace = true }
 
 yew = "0.19"
 yew-agent = "0.1"
 yew-router = "0.16"
 yew-hooks = "0.1"
 
-validator = { version = "0.15", features = ["derive"] }
+validator = { workspace = true }
 wasm-logger = "0.2"
 
 

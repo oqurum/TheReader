@@ -3,7 +3,7 @@ use std::{io::{Read, Seek}, ops::{Deref, DerefMut}};
 
 use serde::{Serialize, Deserialize};
 
-use zip::ZipArchive;
+use binstall_zip::ZipArchive;
 
 use crate::Result;
 

@@ -1,7 +1,7 @@
 use std::{io, string::FromUtf8Error};
 
 use thiserror::Error as ThisError;
-use zip::result::ZipError;
+use binstall_zip::result::ZipError;
 use serde_xml_rs::Error as SerdeXmlError;
 use xml::reader::Error as XmlReaderError;
 use mobi::MobiError;

@@ -1,5 +1,10 @@
-use actix_identity::{CookieIdentityPolicy, IdentityService, Identity};
+use std::time::Duration;
+
+use actix_identity::{IdentityMiddleware, Identity};
+use actix_session::SessionMiddleware;
+use actix_session::storage::CookieSessionStore;
 use actix_web::HttpResponse;
+use actix_web::cookie::Key;
 use actix_web::http::header;
 use actix_web::{web, App, HttpServer, cookie::SameSite};
 use common::api::WrappingResponse;
@@ -31,7 +36,7 @@ async fn default_handler(req: actix_web::HttpRequest) -> std::io::Result<HttpRes
 
 
 async fn logout(ident: Identity) -> HttpResponse {
-    ident.forget();
+    ident.logout();
 
     HttpResponse::TemporaryRedirect()
         .insert_header((header::LOCATION, "/logout"))
@@ -40,16 +45,21 @@ async fn logout(ident: Identity) -> HttpResponse {
 
 
 pub async fn register_http_service(cli_args: &CliArgs, db_data: web::Data<Database>) -> std::io::Result<()> {
+    let secret_key = Key::from(&[0; 64]);
+
     HttpServer::new(move || {
         App::new()
             .app_data(db_data.clone())
-            .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&[0; 32])
-                    .name("bookie-auth")
-                    .secure(false)
-                    .max_age_secs(60 * 60 * 24 * 365)
-                    .same_site(SameSite::Strict)
-            ))
+            .wrap(IdentityMiddleware::builder()
+                .login_deadline(Some(Duration::from_secs(60 * 60 * 24 * 365)))
+                .build()
+            )
+            .wrap(SessionMiddleware::builder(CookieSessionStore::default(), secret_key.clone())
+                    .cookie_name(String::from("bookie-auth"))
+                    .cookie_secure(false)
+                    .cookie_same_site(SameSite::Strict)
+                    .build()
+            )
 
             // API
             .service(api_route())

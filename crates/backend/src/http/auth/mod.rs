@@ -1,7 +1,7 @@
 use std::{pin::Pin, future::{Ready, ready}, task::{Poll, Context}, rc::Rc};
 
 use actix_identity::Identity;
-use actix_web::{FromRequest, HttpRequest, dev::{Payload, Transform, Service, ServiceRequest, ServiceResponse}, body::MessageBody};
+use actix_web::{FromRequest, HttpRequest, dev::{Payload, Transform, Service, ServiceRequest, ServiceResponse, Extensions}, body::MessageBody};
 use chrono::Utc;
 use common::{MemberId, api::ApiErrorResponse};
 use futures::{future::LocalBoxFuture, FutureExt};
@@ -21,7 +21,7 @@ pub struct CookieAuth {
 
 
 pub fn get_auth_value(identity: &Identity) -> Option<CookieAuth> {
-    let ident = identity.identity()?;
+    let ident = identity.id().ok()?;
     serde_json::from_str(&ident).ok()
 }
 
@@ -30,13 +30,13 @@ pub async fn get_auth_member(identity: &Identity, db: &Database) -> Option<Membe
     MemberModel::find_one_by_id(store.member_id, db).await.ok().flatten()
 }
 
-pub fn remember_member_auth(member_id: MemberId, identity: &Identity) -> Result<()> {
+pub fn remember_member_auth(ext: &Extensions, member_id: MemberId) -> Result<()> {
     let value = serde_json::to_string(&CookieAuth {
         member_id,
         stored_since: Utc::now().timestamp_millis(),
     })?;
 
-    identity.remember(value);
+    Identity::login(ext, value).expect("Ident Login Error");
 
     Ok(())
 }

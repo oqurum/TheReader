@@ -8,7 +8,7 @@
 
 use std::{io::Read, fs::File, path::{PathBuf, Path}, borrow::Cow};
 
-use zip::{ZipArchive};
+use binstall_zip::ZipArchive;
 
 
 mod modifier;

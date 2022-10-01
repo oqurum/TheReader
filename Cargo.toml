@@ -6,3 +6,20 @@ members = [
 	"crates/books"
 ]
 exclude = [ "global_common" ]
+
+[workspace.dependencies]
+validator = { version = "0.16", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_urlencoded = "0.7"
+chrono = "0.4"
+log = "0.4"
+thiserror = "1.0"
+urlencoding = "2.1"
+anyhow = "1.0"
+serde_qs = "0.10"
+tokio = "1.17"
+serde-xml-rs = "0.6"
+
+# Backend Specific
+rusqlite = "0.28"

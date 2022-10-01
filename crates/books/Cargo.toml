@@ -8,21 +8,21 @@ edition = "2021"
 [features]
 default = ["filesystem"]
 # TODO: Use so we could use this lib in another non-filesystem crate
-filesystem = ["zip"]
+filesystem = ["binstall-zip"]
 
 
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde-xml-rs = "0.5.1"
+serde = { workspace = true }
+serde-xml-rs = { workspace = true }
 
 mobi = "0.7"
 
 xml-rs = "0.8"
-# serde_json = "1.0"
-log = "0.4"
-thiserror = "1.0"
+# serde_json = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
 
-zip = { version = "0.5.13", optional = true }
+binstall-zip = { version = "0.6", optional = true }
 
-urlencoding = "2.1"
+urlencoding = { workspace = true }
 base64 = "0.13"

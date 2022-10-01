@@ -2,6 +2,8 @@
 
 
 use actix_identity::Identity;
+use actix_web::HttpMessage;
+use actix_web::HttpRequest;
 use actix_web::web;
 
 use common_local::MemberAuthType;
@@ -33,11 +35,12 @@ pub struct PostPasswordCallback {
 }
 
 pub async fn post_password_oauth(
+    request: HttpRequest,
     query: web::Json<PostPasswordCallback>,
-    identity: Identity,
+    identity: Option<Identity>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<String>> {
-    if identity.identity().is_some() {
+    if identity.is_some() {
         return Err(ApiErrorResponse::new("Already logged in").into());
     }
 
@@ -78,7 +81,7 @@ pub async fn post_password_oauth(
         new_member.insert(&db).await?
     };
 
-    super::remember_member_auth(member.id, &identity)?;
+    super::remember_member_auth(&request.extensions(), member.id)?;
 
     Ok(web::Json(WrappingResponse::okay(String::from("success"))))
 }
