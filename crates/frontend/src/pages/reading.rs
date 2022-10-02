@@ -1,12 +1,11 @@
 // TODO: Handle resizing.
-// TODO: Allow custom sizes.
 
 use std::{rc::Rc, sync::{Mutex, Arc}};
 
 use common::{api::WrappingResponse, component::{PopupType, Popup}};
 use common_local::{MediaItem, api::{GetChaptersResponse, self}, Progression, FileId};
+use gloo_timers::callback::Timeout;
 use gloo_utils::window;
-use js_sys::Array;
 use wasm_bindgen::{JsCast, prelude::Closure};
 use web_sys::{HtmlInputElement, Element};
 use yew::{prelude::*, html::Scope};
@@ -96,6 +95,8 @@ impl Component for ReadingBook {
                 if self.reader_settings.is_fullscreen {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
                     self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+                } else {
+                    return false;
                 }
             }
 
@@ -108,50 +109,7 @@ impl Component for ReadingBook {
 
                     // TODO: client_height is incorrect since the tools is set to absolute after this update.
                     self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
-
-                    let link = ctx.link().clone();
-                    let timeout: Arc<Mutex<(Option<_>, i32)>> = Arc::new(Mutex::new((None, 0)));
-
-                    let handle_resize = Closure::wrap(Box::new(move || {
-                        let link = link.clone();
-                        let timeoout = timeout.clone();
-
-                        let clear = {
-                            let mut lock = timeoout.lock().unwrap();
-                            lock.0.take().map(|v| (v, lock.1))
-                        };
-
-                        if let Some((_, v)) = clear {
-                            window().clear_timeout_with_handle(v);
-                        }
-
-                        let handle_timeout = Closure::wrap(Box::new(move || {
-                            link.send_message(Msg::WindowResize);
-                        }) as Box<dyn FnMut()>);
-
-                        let to = window().set_timeout_with_callback_and_timeout_and_arguments(
-                            handle_timeout.as_ref().unchecked_ref(),
-                            250,
-                            &Array::default()
-                        ).unwrap();
-
-                        *timeoout.lock().unwrap() = (Some(handle_timeout), to);
-                    }) as Box<dyn FnMut()>);
-
-                    window().add_event_listener_with_callback(
-                        "resize",
-                        handle_resize.as_ref().unchecked_ref()
-                    ).unwrap();
-
-                    self.auto_resize_cb = Some(handle_resize);
                 } else if !old_settings.is_fullscreen {
-                    if let Some(cb) = self.auto_resize_cb.take() {
-                        window().remove_event_listener_with_callback(
-                            "resize",
-                            cb.as_ref().unchecked_ref()
-                        ).unwrap();
-                    }
-
                     self.reader_settings.dimensions = (
                         Some(self.reader_settings.dimensions.0).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)) / 2,
                         Some(self.reader_settings.dimensions.1).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)) / 2,
@@ -280,6 +238,8 @@ impl Component for ReadingBook {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
+            self.init_resize_cb(ctx);
+
             let id = ctx.props().id;
 
             ctx.link().send_future(async move {
@@ -287,9 +247,44 @@ impl Component for ReadingBook {
             });
         }
     }
+
+    fn destroy(&mut self, _ctx: &Context<Self>) {
+        if let Some(cb) = self.auto_resize_cb.take() {
+            window().remove_event_listener_with_callback(
+                "resize",
+                cb.as_ref().unchecked_ref()
+            ).unwrap();
+        }
+    }
 }
 
 impl ReadingBook {
+    fn init_resize_cb(&mut self, ctx: &Context<Self>) {
+        let link = ctx.link().clone();
+        let timeout: Arc<Mutex<Option<Timeout>>> = Arc::new(Mutex::new(None));
+
+        let handle_resize = Closure::wrap(Box::new(move || {
+            let link = link.clone();
+
+            let timeout_cloned = timeout.clone();
+
+            drop(timeout_cloned.lock().unwrap().take());
+
+            let to = Timeout::new(250, move || {
+                link.send_message(Msg::WindowResize);
+            });
+
+            *timeout_cloned.lock().unwrap() = Some(to);
+        }) as Box<dyn FnMut()>);
+
+        window().add_event_listener_with_callback(
+            "resize",
+            handle_resize.as_ref().unchecked_ref()
+        ).unwrap();
+
+        self.auto_resize_cb = Some(handle_resize);
+    }
+
     // TODO: Use Option instead of returning (0, 0)
     fn get_next_pages_to_load(&self) -> (usize, usize) {
         let progress = self.progress.lock().unwrap();
