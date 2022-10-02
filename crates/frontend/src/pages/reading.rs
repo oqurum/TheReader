@@ -56,8 +56,6 @@ pub struct ReadingBook {
     sidebar_visible: Option<LocalPopupType>,
 
     // Refs
-    ref_width_input: NodeRef,
-    ref_height_input: NodeRef,
     ref_book_container: NodeRef,
 }
 
@@ -83,8 +81,6 @@ impl Component for ReadingBook {
 
             sidebar_visible: None,
 
-            ref_width_input: NodeRef::default(),
-            ref_height_input: NodeRef::default(),
             ref_book_container: NodeRef::default(),
         }
     }
@@ -202,8 +198,6 @@ impl Component for ReadingBook {
                                     LocalPopupType::Settings => html! {
                                         <SettingsContainer
                                             scope={ ctx.link().clone() }
-                                            ref_width_input={ self.ref_width_input.clone() }
-                                            ref_height_input={ self.ref_height_input.clone() }
                                             reader_dimensions={ self.reader_settings.dimensions }
                                             reader_settings={ self.reader_settings.clone() }
                                         />
@@ -366,9 +360,6 @@ impl ReadingBook {
 struct SettingsContainerProps {
     scope: Scope<ReadingBook>,
 
-    ref_width_input: NodeRef,
-    ref_height_input: NodeRef,
-
     reader_dimensions: (i32, i32),
 
     reader_settings: ReaderSettings,
@@ -376,8 +367,6 @@ struct SettingsContainerProps {
 
 impl PartialEq for SettingsContainerProps {
     fn eq(&self, other: &Self) -> bool {
-        self.ref_width_input == other.ref_width_input &&
-        self.ref_height_input == other.ref_height_input &&
         self.reader_dimensions == other.reader_dimensions &&
         self.reader_settings == other.reader_settings
     }
@@ -446,8 +435,8 @@ fn _settings_cont(props: &SettingsContainerProps) -> Html {
         } else {
             let settings = settings.clone();
 
-            let ref_width_input = props.ref_width_input.clone();
-            let ref_height_input = props.ref_height_input.clone();
+            let ref_width_input = use_node_ref();
+            let ref_height_input = use_node_ref();
 
             html! {
                 <div class="form-container shrink-width-to-content">
@@ -457,7 +446,7 @@ fn _settings_cont(props: &SettingsContainerProps) -> Html {
                         <input
                             style="width: 100px;"
                             value={ props.reader_dimensions.0.to_string() }
-                            ref={ props.ref_width_input.clone() }
+                            ref={ ref_width_input.clone() }
                             type="number"
                         />
 
@@ -466,7 +455,7 @@ fn _settings_cont(props: &SettingsContainerProps) -> Html {
                         <input
                             style="width: 100px;"
                             value={ props.reader_dimensions.1.to_string() }
-                            ref={ props.ref_height_input.clone() }
+                            ref={ ref_height_input.clone() }
                             type="number"
                         />
                     </div>
