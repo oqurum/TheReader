@@ -916,6 +916,7 @@ impl ChapterContents {
             self.viewing_page = page_number;
 
             let body = self.iframe.content_document().unwrap().body().unwrap();
+            body.style().set_property("transition", "left 0.5s ease 0s").unwrap();
             body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * self.viewing_page, self.viewing_page * 10)).unwrap();
         }
 
