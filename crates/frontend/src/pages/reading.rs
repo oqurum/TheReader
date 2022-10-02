@@ -6,7 +6,7 @@ use common::{api::WrappingResponse, component::{PopupType, Popup}};
 use common_local::{MediaItem, api::{GetChaptersResponse, self}, Progression, FileId};
 use gloo_timers::callback::Timeout;
 use gloo_utils::window;
-use wasm_bindgen::{JsCast, prelude::Closure};
+use wasm_bindgen::{JsCast, prelude::Closure, UnwrapThrowExt};
 use web_sys::{HtmlInputElement, Element};
 use yew::{prelude::*, html::Scope};
 
@@ -64,13 +64,25 @@ impl Component for ReadingBook {
     type Properties = Property;
 
     fn create(_ctx: &Context<Self>) -> Self {
+        let (win_width, win_height) = (
+                window().inner_width().unwrap_throw().as_f64().unwrap(),
+                window().inner_height().unwrap_throw().as_f64().unwrap()
+        );
+
+        let (is_fullscreen, dimensions) = if win_width < 1100.0 || win_height < 720.0 {
+            (true, (0, 0))
+        } else {
+            (false, (1040, 548))
+        };
+
         Self {
             reader_settings: ReaderSettings {
                 load_speed: 1000,
                 type_of: PageLoadType::Select,
-                is_fullscreen: false,
+                is_fullscreen,
                 display: ChapterDisplay::Double,
-                dimensions: (1040, 548),
+                show_progress: false,
+                dimensions,
             },
             chapters: Rc::new(Mutex::new(LoadedChapters::new())),
             last_grabbed_count: 0,
@@ -239,6 +251,12 @@ impl Component for ReadingBook {
             ctx.link().send_future(async move {
                 Msg::RetrieveBook(request::get_book_info(id).await)
             });
+        }
+
+        if self.reader_settings.is_fullscreen {
+            if let Some(cont) = self.ref_book_container.cast::<Element>() {
+                self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+            }
         }
     }
 

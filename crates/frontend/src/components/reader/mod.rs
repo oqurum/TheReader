@@ -39,6 +39,7 @@ pub struct ReaderSettings {
 
     pub is_fullscreen: bool,
     pub display: ChapterDisplay,
+    pub show_progress: bool,
 
     pub dimensions: (i32, i32),
 }
@@ -389,9 +390,17 @@ impl Component for Reader {
                     </div>
                 </div>
 
-                <div class="progress">
-                    <div class="prog-bar" style={ progress_percentage }></div>
-                </div>
+                {
+                    if ctx.props().settings.show_progress {
+                        html! {
+                            <div class="progress">
+                                <div class="prog-bar" style={ progress_percentage }></div>
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
             </div>
         }
     }
