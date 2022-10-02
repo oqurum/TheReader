@@ -12,6 +12,7 @@ pub struct OverlayEvent {
     pub dragging: bool,
 }
 
+#[derive(Debug)]
 pub enum DragType {
     Up(usize),
     Right(usize),
@@ -102,7 +103,7 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
 // Based off Swipe
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct UseMouseHandle {
     pub dragging: UseStateHandle<bool>,
     pub moving: UseStateHandle<bool>,
@@ -110,7 +111,7 @@ pub struct UseMouseHandle {
     pub direction: UseStateHandle<UseSwipeDirection>,
 
     pub coords_start: UseStateHandle<(i32, i32)>,
-    pub coords_end: UseStateHandle<(i32, i32)>,
+    pub coords_end: UseStateHandle<Option<(i32, i32)>>,
 
     pub length_x: UseStateHandle<i32>,
     pub length_y: UseStateHandle<i32>,
@@ -135,24 +136,36 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
     let moving = use_state_eq(|| false);
     let direction = use_state_eq(|| UseSwipeDirection::None);
     let coords_start = use_state(|| (0, 0));
-    let coords_end = use_state(|| (0, 0));
+    let coords_end = use_state(|| Option::<(i32, i32)>::None);
     let length_x = use_state(|| 0);
     let length_y = use_state(|| 0);
 
-    let threshold = 50;
+    let threshold = 5;
 
     let diff_x = {
         let coords_start = coords_start.clone();
         let coords_end = coords_end.clone();
 
-        Rc::new(move || ((*coords_start).0 - (*coords_end).0) as i32)
+        Rc::new(move || {
+            if let Some(coords_end) = *coords_end {
+                ((*coords_start).0 - coords_end.0) as i32
+            } else {
+                0
+            }
+        })
     };
 
     let diff_y = {
         let coords_start = coords_start.clone();
         let coords_end = coords_end.clone();
 
-        Rc::new(move || ((*coords_start).1 - (*coords_end).1) as i32)
+        Rc::new(move || {
+            if let Some(coords_end) = *coords_end {
+                ((*coords_start).1 - coords_end.1) as i32
+            } else {
+                0
+            }
+        })
     };
 
     let threshold_exceeded = {
@@ -172,7 +185,7 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
             let y = e.y();
 
             coords_start.set((x, y));
-            coords_end.set((x, y));
+            coords_end.set(None);
             dragging.set(true);
         });
     }
@@ -183,12 +196,19 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
         let length_x = length_x.clone();
         let length_y = length_y.clone();
         let direction = direction.clone();
+        let dragging = dragging.clone();
 
         use_event(node.clone(), "mousemove", move |e: MouseEvent| {
+            // TODO: Should I keep. This prevents one-time clicks from changing the page.
+            if !*dragging {
+                return;
+            }
+
             let x = e.x();
             let y = e.y();
 
-            coords_end.set((x, y));
+            coords_end.set(Some((x, y)));
+
             length_x.set(diff_x());
             length_y.set(diff_y());
 

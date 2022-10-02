@@ -15,6 +15,9 @@ use view_overlay::ViewOverlay;
 use self::view_overlay::{OverlayEvent, DragType};
 
 
+const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
+
+
 #[wasm_bindgen(module = "/js_generate_pages.js")]
 extern "C" {
     // TODO: Sometimes will be 0. Example: if cover image is larger than body height. (Need to auto-resize.)
@@ -104,12 +107,13 @@ pub enum Msg {
     HandleJsRedirect(usize, String, Option<String>),
 
     HandleViewOverlay(OverlayEvent),
+    UploadProgress,
 
     NextPage,
     PreviousPage,
     SetPage(usize),
 
-    Ignore
+    Ignore,
 }
 
 
@@ -123,7 +127,6 @@ pub struct Reader {
 
     /// The Chapter we're in
     viewing_chapter: usize,
-    // TODO: Decide if we want to keep. Not really needed since we can acquire it based off of self.cached_pages[self.total_page_position].chapter
 
     handle_js_redirect_clicks: Closure<dyn FnMut(usize, String)>,
 }
@@ -187,17 +190,27 @@ impl Component for Reader {
 
                     // Previous Page
                     DragType::Right(distance) => {
-                        if !event.dragging && distance > 100 {
-                            log::info!("Previous Page");
-                            ctx.link().send_message(Msg::PreviousPage);
+                        if event.dragging {
+                            if let Some(section) = self.get_current_section() {
+                                section.transitioning_page(distance as isize);
+                            }
+                        } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
+                            return self.update(ctx, Msg::PreviousPage);
+                        } else if let Some(section) = self.get_current_section() {
+                            section.transitioning_page(0);
                         }
                     }
 
                     // Next Page
                     DragType::Left(distance) => {
-                        if !event.dragging && distance > 100 {
-                            log::info!("Next Page");
-                            ctx.link().send_message(Msg::NextPage);
+                        if event.dragging {
+                            if let Some(section) = self.get_current_section() {
+                                section.transitioning_page(-(distance as isize));
+                            }
+                        } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
+                            return self.update(ctx, Msg::NextPage);
+                        } else if let Some(section) = self.get_current_section() {
+                            section.transitioning_page(0);
                         }
                     }
 
@@ -231,7 +244,7 @@ impl Component for Reader {
                             return false;
                         }
 
-                        self.next_page(ctx);
+                        self.next_page();
                     }
 
                     ChapterDisplay::Scroll => {
@@ -253,7 +266,7 @@ impl Component for Reader {
                             return false;
                         }
 
-                        self.previous_page(ctx);
+                        self.previous_page();
                     }
 
                     ChapterDisplay::Scroll => {
@@ -269,9 +282,21 @@ impl Component for Reader {
 
             }
 
+            Msg::UploadProgress => self.upload_progress_and_emit(ctx),
+
             // Called after iframe is loaded.
             Msg::GenerateIFrameLoaded(page) => {
                 js_update_iframe_after_load(&page.iframe, page.chapter.value, &self.handle_js_redirect_clicks);
+
+                { // Page changes use a transition. After the transition ends we'll upload the progress. Fixes the issue of js_get_current_by_pos being incorrect.
+                    let link = ctx.link().clone();
+                    let f = Closure::wrap(Box::new(move || link.send_message(Msg::UploadProgress)) as Box<dyn FnMut()>);
+
+                    let body = page.iframe.content_document().unwrap().body().unwrap();
+                    body.set_ontransitionend(Some(f.as_ref().unchecked_ref()));
+
+                    f.forget();
+                }
 
                 {
                     let gen = self.sections.remove(&page.chapter.value).unwrap();
@@ -497,12 +522,10 @@ impl Reader {
     }
 
 
-    fn next_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn next_page(&mut self) -> bool {
         let display = self.cached_display;
         if let Some(sect) = self.get_current_section_mut() {
             if sect.next_page(display) {
-                self.upload_progress_and_emit(ctx);
-
                 return true;
             } else {
                 sect.viewing_page = 0;
@@ -516,8 +539,6 @@ impl Reader {
                     next_sect.viewing_page = 0;
                 }
 
-                self.upload_progress_and_emit(ctx);
-
                 return true;
             }
         }
@@ -525,12 +546,10 @@ impl Reader {
         false
     }
 
-    fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn previous_page(&mut self) -> bool {
         let display = self.cached_display;
         if let Some(sect) = self.get_current_section_mut() {
             if sect.previous_page(display) {
-                self.upload_progress_and_emit(ctx);
-
                 return true;
             }
 
@@ -541,8 +560,6 @@ impl Reader {
                 if let Some(next_sect) = self.get_current_section_mut() {
                     next_sect.viewing_page = next_sect.page_count().saturating_sub(1);
                 }
-
-                self.upload_progress_and_emit(ctx);
 
                 return true;
             }
@@ -566,8 +583,6 @@ impl Reader {
                     self.viewing_chapter = section.chapter;
 
                     section.set_page(local_page, self.cached_display);
-
-                    self.upload_progress_and_emit(ctx);
 
                     return true;
                 }
@@ -852,10 +867,30 @@ impl ChapterContents {
         self.gpi + self.page_count()
     }
 
+    pub fn transitioning_page(&self, amount: isize) {
+        let body = self.iframe.content_document().unwrap().body().unwrap();
+
+        if amount == 0 {
+            body.style().set_property("transition", "left 0.5s ease 0s").unwrap();
+        } else {
+            body.style().remove_property("transition").unwrap();
+        }
+
+        body.style().set_property(
+            "left",
+            &format!(
+                "calc(-{}% - {}px)",
+                100 * self.viewing_page,
+                self.viewing_page as isize * 10 - amount
+            )
+        ).unwrap();
+    }
+
     pub fn set_page(&mut self, page_number: usize, display: ChapterDisplay) {
         if display != ChapterDisplay::Scroll {
             self.viewing_page = page_number;
 
+            // TODO: transition is resulting in incorrect byte_pos
             let body = self.iframe.content_document().unwrap().body().unwrap();
             body.style().set_property("transition", "left 0.5s ease 0s").unwrap();
             body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * self.viewing_page, self.viewing_page * 10)).unwrap();
