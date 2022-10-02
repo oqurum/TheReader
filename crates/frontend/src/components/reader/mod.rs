@@ -8,6 +8,12 @@ use yew::{prelude::*, html::Scope};
 use crate::request;
 
 
+mod view_overlay;
+
+use view_overlay::ViewOverlay;
+
+use self::view_overlay::{OverlayEvent, DragType};
+
 
 #[wasm_bindgen(module = "/js_generate_pages.js")]
 extern "C" {
@@ -91,20 +97,13 @@ impl PartialEq for Property {
 }
 
 
-pub enum TouchMsg {
-    Start(i32, i32),
-    End(i32, i32),
-    Cancel
-}
-
-
 pub enum Msg {
     GenerateIFrameLoaded(GenerateChapter),
 
     // Event
     HandleJsRedirect(usize, String, Option<String>),
 
-    Touch(TouchMsg),
+    HandleViewOverlay(OverlayEvent),
 
     NextPage,
     PreviousPage,
@@ -127,12 +126,6 @@ pub struct Reader {
     // TODO: Decide if we want to keep. Not really needed since we can acquire it based off of self.cached_pages[self.total_page_position].chapter
 
     handle_js_redirect_clicks: Closure<dyn FnMut(usize, String)>,
-
-    handle_touch_start: Option<Closure<dyn FnMut(TouchEvent)>>,
-    handle_touch_end: Option<Closure<dyn FnMut(TouchEvent)>>,
-    handle_touch_cancel: Option<Closure<dyn FnMut(TouchEvent)>>,
-
-    touch_start: Option<(i32, i32)>
 }
 
 impl Component for Reader {
@@ -165,12 +158,6 @@ impl Component for Reader {
             viewing_chapter: 0,
 
             handle_js_redirect_clicks,
-
-            handle_touch_cancel: None,
-            handle_touch_end: None,
-            handle_touch_start: None,
-
-            touch_start: None,
         }
     }
 
@@ -190,6 +177,31 @@ impl Component for Reader {
                 if let Some(chap) = chaps.chapters.iter().find(|v| v.file_path.ends_with(&file_path)) {
                     self.set_section(chap.value, ctx);
                     // TODO: Handle id_name
+                }
+            }
+
+            Msg::HandleViewOverlay(event) => {
+                match event.type_of {
+                    DragType::Up(_distance) => (),
+                    DragType::Down(_distance) => (),
+
+                    // Previous Page
+                    DragType::Right(distance) => {
+                        if !event.dragging && distance > 100 {
+                            log::info!("Previous Page");
+                            ctx.link().send_message(Msg::PreviousPage);
+                        }
+                    }
+
+                    // Next Page
+                    DragType::Left(distance) => {
+                        if !event.dragging && distance > 100 {
+                            log::info!("Next Page");
+                            ctx.link().send_message(Msg::NextPage);
+                        }
+                    }
+
+                    DragType::None => (),
                 }
             }
 
@@ -255,45 +267,6 @@ impl Component for Reader {
                     }
                 }
 
-            }
-
-            Msg::Touch(msg) => match msg {
-                TouchMsg::Start(point_x, point_y) => {
-                    self.touch_start = Some((point_x, point_y));
-                    return false;
-                }
-
-                TouchMsg::End(end_x, end_y) => {
-                    if let Some((start_x, start_y)) = self.touch_start {
-                        let (dist_x, dist_y) = (start_x - end_x, start_y - end_y);
-
-                        // Are we dragging vertically or horizontally?
-                        if dist_x.abs() > dist_y.abs() {
-                            if dist_x.abs() > 100 {
-                                log::info!("Changing Page");
-
-                                if dist_x.is_positive() {
-                                    log::info!("Next Page");
-                                    ctx.link().send_message(Msg::NextPage);
-                                } else {
-                                    log::info!("Previous Page");
-                                    ctx.link().send_message(Msg::PreviousPage);
-                                }
-                            }
-                        } else {
-                            // TODO: Vertical
-                        }
-
-                        self.touch_start = None;
-                    }
-
-                    return false;
-                }
-
-                TouchMsg::Cancel => {
-                    self.touch_start = None;
-                    return false;
-                }
             }
 
             // Called after iframe is loaded.
@@ -371,6 +344,7 @@ impl Component for Reader {
                 </div>
 
                 <div class="pages" style={ pages_style.clone() }>
+                    <ViewOverlay event={ ctx.link().callback(Msg::HandleViewOverlay) } />
                     <div class="frames" style={ format!("top: -{}%;", self.viewing_chapter * 100) }>
                         {
                             for (0..section_count)
@@ -446,48 +420,6 @@ impl Component for Reader {
         }
 
         true
-    }
-
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if first_render {
-            let window = gloo_utils::window();
-
-            // TODO: Touch Start is being called 24 times at once.
-            // TODO: Not working for my Samsung Tablet with Firefox.
-
-            let link = ctx.link().clone();
-            let handle_touch_start = Closure::wrap(Box::new(move |event: TouchEvent| {
-                let touches = event.touches();
-
-                if touches.length() == 1 {
-                    let touch = touches.get(0).unwrap();
-                    link.send_message(Msg::Touch(TouchMsg::Start(touch.client_x(), touch.client_y())));
-                }
-            }) as Box<dyn FnMut(TouchEvent)>);
-
-            let link = ctx.link().clone();
-            let handle_touch_end = Closure::wrap(Box::new(move |event: TouchEvent| {
-                let touches = event.touches();
-
-                if touches.length() == 1 {
-                    let touch = touches.get(0).unwrap();
-                    link.send_message(Msg::Touch(TouchMsg::End(touch.client_x(), touch.client_y())));
-                }
-            }) as Box<dyn FnMut(TouchEvent)>);
-
-            let link = ctx.link().clone();
-            let handle_touch_cancel = Closure::wrap(Box::new(move |_: TouchEvent| {
-                link.send_message(Msg::Touch(TouchMsg::Cancel));
-            }) as Box<dyn FnMut(TouchEvent)>);
-
-            window.add_event_listener_with_callback("touchstart", handle_touch_start.as_ref().unchecked_ref()).unwrap();
-            window.add_event_listener_with_callback("touchend", handle_touch_end.as_ref().unchecked_ref()).unwrap();
-            window.add_event_listener_with_callback("touchcancel", handle_touch_cancel.as_ref().unchecked_ref()).unwrap();
-
-            self.handle_touch_cancel = Some(handle_touch_cancel);
-            self.handle_touch_end = Some(handle_touch_end);
-            self.handle_touch_start = Some(handle_touch_start);
-        }
     }
 }
 
