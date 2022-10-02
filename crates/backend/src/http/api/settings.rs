@@ -102,7 +102,7 @@ pub async fn post_setup_agent(
 
     let redirect_uri = {
         let host = match req.headers().get("host").and_then(|v| v.to_str().ok()) {
-            Some(v) => format!("{}://{v}", config.server.is_secure.then(|| "https").unwrap_or("http")),
+            Some(v) => format!("{}://{v}", if config.server.is_secure { "https" } else { "http" }),
             None => return Ok(HttpResponse::NotAcceptable().body("Missing host")),
         };
 

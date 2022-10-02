@@ -56,7 +56,7 @@ pub async fn post_passwordless_oauth(
         _ => return Err(ApiErrorResponse::new("Missing email from config OR unable to get host").into()),
     };
 
-    let proto = config.server.is_secure.then(|| "https").unwrap_or("http");
+    let proto = if config.server.is_secure { "https" } else { "http" };
 
 
     let oauth_token = gen_sample_alphanumeric(32, &mut rand::thread_rng());

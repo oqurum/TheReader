@@ -344,7 +344,7 @@ impl LibraryPage {
                                             <PopupEditBook
                                                 on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
                                                 classes={ classes!("popup-book-edit") }
-                                                media_resp={ (&**resp).clone() }
+                                                media_resp={ (**resp).clone() }
                                             />
                                         }
                                     }

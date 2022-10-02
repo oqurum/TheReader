@@ -245,8 +245,8 @@ impl BookModel {
     pub async fn find_by(library: Option<LibraryId>, offset: usize, limit: usize, person_id: Option<PersonId>, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
-        let insert_where = (library.is_some() || person_id.is_some()).then(|| "WHERE").unwrap_or_default();
-        let insert_and = (library.is_some() && person_id.is_some()).then(|| "AND").unwrap_or_default();
+        let insert_where = (library.is_some() || person_id.is_some()).then_some("WHERE").unwrap_or_default();
+        let insert_and = (library.is_some() && person_id.is_some()).then_some("AND").unwrap_or_default();
 
         let lib_id = library
             .map(|v| format!("library_id={v}"))

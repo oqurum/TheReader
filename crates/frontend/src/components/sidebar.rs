@@ -71,7 +71,7 @@ impl Sidebar {
 
 
         html! {
-            <Link<Route> {to} classes={ classes!("sidebar-item", "library", (cr == to).then(|| "active")) }>
+            <Link<Route> {to} classes={ classes!("sidebar-item", "library", (cr == to).then_some("active")) }>
                 <span class="title">{ item.name.clone() }</span>
                 <div class="options">
                     <ButtonWithPopup class="menu-list">

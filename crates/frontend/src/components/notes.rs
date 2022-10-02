@@ -3,6 +3,7 @@ use std::rc::Rc;
 use common::api::WrappingResponse;
 use common_local::MediaItem;
 use gloo_timers::callback::Timeout;
+use gloo_utils::format::JsValueSerdeExt;
 use serde_json::json;
 use wasm_bindgen::{prelude::{wasm_bindgen, Closure}, JsValue, JsCast};
 use yew::prelude::*;
@@ -52,7 +53,7 @@ impl Component for Notes {
 
         Self {
             is_initiated: false,
-            contents: JsValue::from_serde(&json!([])).unwrap(),
+            contents: <JsValue as JsValueSerdeExt>::from_serde(&json!([])).unwrap(),
             quill: None,
             timeout: None,
         }
@@ -119,7 +120,7 @@ impl Component for Notes {
         if !self.is_initiated {
             let quill = Quill::new(
                 "#notary",
-                &JsValue::from_serde(&serde_json::json!({
+                &<JsValue as JsValueSerdeExt>::from_serde(&serde_json::json!({
                     "modules": {
                         "toolbar": [
                             [ "bold", "italic", "underline", "strike" ],

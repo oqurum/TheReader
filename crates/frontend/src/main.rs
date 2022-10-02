@@ -1,3 +1,5 @@
+#![allow(clippy::let_unit_value)]
+
 use std::{sync::{Arc, Mutex}, mem::MaybeUninit};
 
 use common::{BookId, PersonId, api::{WrappingResponse, ApiErrorResponse}, component::popup::{Popup, PopupType}};
