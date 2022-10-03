@@ -35,24 +35,51 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
     let state = use_swipe(node.clone());
     let state2 = use_mouse(node.clone());
 
-    { // Swipe
-        use_effect_with_deps(move |direction| {
-            log::info!("Swipe: {:?}", **direction);
 
-            match **direction {
-                UseSwipeDirection::Left => (),
-                UseSwipeDirection::Right => (),
-                UseSwipeDirection::Up => (),
-                UseSwipeDirection::Down => (),
-                _ => (),
+    let curr_event_state = use_state_eq(|| false);
+
+    { // Swipe
+        let event = props.event.clone();
+        let curr_event_state = curr_event_state.clone();
+
+        use_effect_with_deps(move |(swiping, direction, length_x, length_y)| {
+            let distance = match **direction {
+                UseSwipeDirection::Left => length_x.abs(),
+                UseSwipeDirection::Right => length_x.abs(),
+                UseSwipeDirection::Up => length_y.abs(),
+                UseSwipeDirection::Down => length_y.abs(),
+                UseSwipeDirection::None => 0,
+            } as usize;
+
+            let direction = match **direction {
+                UseSwipeDirection::Left => DragType::Left(distance),
+                UseSwipeDirection::Right => DragType::Right(distance),
+                UseSwipeDirection::Up => DragType::Up(distance),
+                UseSwipeDirection::Down => DragType::Down(distance),
+                UseSwipeDirection::None => DragType::None,
+            };
+
+            if **swiping {
+                curr_event_state.set(true);
+
+                event.emit(OverlayEvent {
+                    type_of: direction,
+                    dragging: true,
+                });
+            } else if *curr_event_state {
+                curr_event_state.set(false);
+
+                event.emit(OverlayEvent {
+                    type_of: direction,
+                    dragging: false,
+                });
             }
             || ()
-        }, state.direction);
+        }, (state.swiping, state.direction, state.length_x, state.length_y));
     }
 
     { // Mouse
         let event = props.event.clone();
-        let curr_event_state = use_state_eq(|| false);
 
         use_effect_with_deps(move |handle| {
             let distance = match *handle.direction {
