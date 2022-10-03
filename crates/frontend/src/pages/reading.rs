@@ -224,7 +224,7 @@ impl Component for ReadingBook {
                                 DragType::Up(amount) => {
                                     if !o_event.dragging && amount > 100 {
                                         match self.display_toolbar {
-                                            DisplayToolBar::Bottom => (),
+                                            DisplayToolBar::Bottom => self.display_toolbar = DisplayToolBar::None,
                                             DisplayToolBar::None => self.display_toolbar = DisplayToolBar::Bottom,
                                             DisplayToolBar::Top => {
                                                 self.display_toolbar = DisplayToolBar::None;
@@ -239,7 +239,7 @@ impl Component for ReadingBook {
                                 DragType::Down(amount) => {
                                     if !o_event.dragging && amount > 100 {
                                         match self.display_toolbar {
-                                            DisplayToolBar::Top => (),
+                                            DisplayToolBar::Top => self.display_toolbar = DisplayToolBar::None,
                                             DisplayToolBar::None => {
                                                 self.display_toolbar = DisplayToolBar::Top;
                                                 self.state.update_nav_visibility.emit(true);
