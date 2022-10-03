@@ -44,14 +44,14 @@
 		z-index: 999;
 
 		&.overlay {
+			display: none;
 			position: absolute;
-			height: 10px;
 			opacity: 0;
-			padding: 0;
+
 			transition: all 250ms ease;
 
-			&:hover {
-				height: unset;
+			&.displaying {
+				display: flex;
 				opacity: 100%;
 				padding: 5px;
 			}

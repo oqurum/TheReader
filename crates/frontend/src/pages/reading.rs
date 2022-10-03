@@ -10,7 +10,7 @@ use wasm_bindgen::{JsCast, prelude::Closure, UnwrapThrowExt};
 use web_sys::{HtmlInputElement, Element};
 use yew::{prelude::*, html::Scope};
 
-use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, ReaderSettings}};
+use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, ReaderSettings, ReaderEvent, DragType}};
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
@@ -20,6 +20,24 @@ pub enum LocalPopupType {
     Notes,
     Settings
 }
+
+#[derive(Debug, Clone, Copy)]
+enum DisplayToolBar {
+    None,
+    Bottom,
+    Top,
+}
+
+impl DisplayToolBar {
+    pub fn is_bottom(self) -> bool {
+        matches!(self, Self::Bottom)
+    }
+
+    pub fn is_top(self) -> bool {
+        matches!(self, Self::Top)
+    }
+}
+
 
 pub enum Msg {
     // Event
@@ -31,7 +49,7 @@ pub enum Msg {
     ChangeReaderSettings(ReaderSettings),
 
     // Send
-    SendGetChapters,
+    ReaderEvent(ReaderEvent),
 
     // Retrieve
     RetrieveBook(WrappingResponse<api::ApiGetFileByIdResponse>),
@@ -54,6 +72,8 @@ pub struct ReadingBook {
     auto_resize_cb: Option<Closure<dyn FnMut()>>,
 
     sidebar_visible: Option<LocalPopupType>,
+
+    display_toolbar: DisplayToolBar,
 
     // Refs
     ref_book_container: NodeRef,
@@ -92,6 +112,7 @@ impl Component for ReadingBook {
             auto_resize_cb: None,
 
             sidebar_visible: None,
+            display_toolbar: DisplayToolBar::None,
 
             ref_book_container: NodeRef::default(),
         }
@@ -156,8 +177,7 @@ impl Component for ReadingBook {
                     Ok(Some(resp)) => {
                         self.book = Some(Rc::new(resp.media));
                         *self.progress.lock().unwrap() = resp.progress;
-                        // TODO: Check to see if we have progress. If so, generate those pages first.
-                        ctx.link().send_message(Msg::SendGetChapters);
+                        ctx.link().send_message(Msg::ReaderEvent(ReaderEvent::LoadChapters));
                     },
 
                     Ok(None) => (),
@@ -166,16 +186,54 @@ impl Component for ReadingBook {
                 }
             }
 
-            Msg::SendGetChapters => {
-                let book_id = self.book.as_ref().unwrap().id;
+            Msg::ReaderEvent(event) => {
+                match event {
+                    ReaderEvent::LoadChapters => {
+                        let book_id = self.book.as_ref().unwrap().id;
 
-                let (start, end) = self.get_next_pages_to_load();
+                        let (start, end) = self.get_next_pages_to_load();
 
-                if end != 0 {
-                    ctx.link()
-                    .send_future(async move {
-                        Msg::RetrievePages(request::get_book_pages(book_id, start, end).await)
-                    });
+                        if end != 0 {
+                            ctx.link()
+                            .send_future(async move {
+                                Msg::RetrievePages(request::get_book_pages(book_id, start, end).await)
+                            });
+                        }
+                    }
+
+                    ReaderEvent::ViewOverlay(o_event) => {
+                        if self.reader_settings.is_fullscreen {
+                            log::info!("{:?} {:?}", o_event.dragging, o_event.type_of);
+                            match o_event.type_of {
+                                // Show Lower Tool Bar
+                                DragType::Up(amount) => {
+                                    if !o_event.dragging && amount > 100 {
+                                        match self.display_toolbar {
+                                            DisplayToolBar::Bottom => (),
+                                            DisplayToolBar::None => self.display_toolbar = DisplayToolBar::Bottom,
+                                            DisplayToolBar::Top => self.display_toolbar = DisplayToolBar::None,
+                                        }
+
+                                        return true;
+                                    }
+                                }
+
+                                DragType::Down(amount) => {
+                                    if !o_event.dragging && amount > 100 {
+                                        match self.display_toolbar {
+                                            DisplayToolBar::Top => (),
+                                            DisplayToolBar::None => self.display_toolbar = DisplayToolBar::Top,
+                                            DisplayToolBar::Bottom => self.display_toolbar = DisplayToolBar::None,
+                                        }
+
+                                        return true;
+                                    }
+                                }
+
+                                _ => ()
+                            }
+                        }
+                    }
                 }
 
                 return false;
@@ -225,11 +283,11 @@ impl Component for ReadingBook {
                             progress={ Rc::clone(&self.progress) }
                             book={ Rc::clone(book) }
                             chapters={ Rc::clone(&self.chapters) }
-                            request_chapters={ ctx.link().callback(|_| Msg::SendGetChapters) }
+                            event={ ctx.link().callback(Msg::ReaderEvent) }
                         />
                     </div>
 
-                    <div class={ classes!("tools", self.reader_settings.is_fullscreen.then_some("overlay")) }>
+                    <div class={ classes!("tools", self.reader_settings.is_fullscreen.then_some("overlay"), self.display_toolbar.is_bottom().then_some("displaying")) }>
                         <button class="tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
                         <button class="tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>

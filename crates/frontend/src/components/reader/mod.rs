@@ -10,9 +10,7 @@ use crate::request;
 
 mod view_overlay;
 
-use view_overlay::ViewOverlay;
-
-use self::view_overlay::{OverlayEvent, DragType};
+pub use self::view_overlay::{ViewOverlay, OverlayEvent, DragType};
 
 
 const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
@@ -78,12 +76,18 @@ impl LoadedChapters {
 }
 
 
+pub enum ReaderEvent {
+    LoadChapters,
+    ViewOverlay(OverlayEvent),
+}
+
+
 #[derive(Properties)]
 pub struct Property {
     pub settings: ReaderSettings,
 
     // Callbacks
-    pub request_chapters: Callback<()>,
+    pub event: Callback<ReaderEvent>,
 
     pub book: Rc<MediaItem>,
     pub chapters: Rc<Mutex<LoadedChapters>>,
@@ -216,6 +220,8 @@ impl Component for Reader {
 
                     DragType::None => (),
                 }
+
+                ctx.props().event.emit(ReaderEvent::ViewOverlay(event));
             }
 
             Msg::SetPage(new_page) => {
@@ -321,7 +327,7 @@ impl Component for Reader {
                 self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
 
                 if loading_count == 0 {
-                    ctx.props().request_chapters.emit(());
+                    ctx.props().event.emit(ReaderEvent::LoadChapters);
                 }
             }
         }
@@ -639,7 +645,7 @@ impl Reader {
         if let Some(chap) = self.get_current_section() {
             self.upload_progress(&chap.iframe, ctx);
 
-            ctx.props().request_chapters.emit(());
+            ctx.props().event.emit(ReaderEvent::LoadChapters);
         }
     }
 
