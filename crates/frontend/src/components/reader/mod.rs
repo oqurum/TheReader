@@ -535,6 +535,7 @@ impl Reader {
                 return true;
             } else {
                 sect.viewing_page = 0;
+                sect.transitioning_page(0);
             }
 
             if self.viewing_chapter + 1 != self.sections.len() {
@@ -557,6 +558,8 @@ impl Reader {
         if let Some(sect) = self.get_current_section_mut() {
             if sect.previous_page(display) {
                 return true;
+            } else {
+                sect.transitioning_page(0);
             }
 
             if self.viewing_chapter != 0 {
