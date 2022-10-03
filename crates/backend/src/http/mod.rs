@@ -45,6 +45,15 @@ async fn logout(ident: Identity) -> HttpResponse {
 }
 
 
+async fn manifest() -> web::Json<serde_json::Value> {
+    web::Json(serde_json::json!({
+        "short_name": "Oqurum",
+        "name": "Oqurum Reader App",
+        "display": "fullscreen",
+    }))
+}
+
+
 pub async fn register_http_service(cli_args: &CliArgs, db_data: web::Data<Database>) -> std::io::Result<()> {
     let secret_key = Key::from(&get_config().server.auth_key);
 
@@ -71,6 +80,11 @@ pub async fn register_http_service(cli_args: &CliArgs, db_data: web::Data<Databa
             .route(
                 "/auth/logout",
                 web::get().to(logout)
+            )
+
+            .route(
+                "/manifest.json",
+                web::get().to(manifest)
             )
 
             // Password

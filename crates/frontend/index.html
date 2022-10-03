@@ -4,6 +4,10 @@
 		<meta charset="utf-8" />
 		<title>The Bookie</title>
 
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<link rel="manifest" href="/manifest.json" />
+
 		<script src="/js/quill.js"></script>
 		<link href="/css/quill.snow.css" rel="stylesheet" />
 		<link href="/css/open-props.min.css" rel="stylesheet" />
@@ -13,5 +17,19 @@
 		<link href="/css/gcommon.css" type="text/css" rel="stylesheet" />
 
 		<link href="scss/main.scss" rel="scss" data-trunk />
+		<script>
+			window.addEventListener("load", () => window.scrollTo(0, 1));
+
+			let is_mobile = false;
+			if ("maxTouchPoints" in window.navigator) {
+				is_mobile = window.navigator.maxTouchPoints != 0;
+			}
+			// TODO: Check user agent instead.
+
+			if (is_mobile) {
+				let asdfsdf = false;
+				window.addEventListener('click', () => asdfsdf ? true : (asdfsdf = true) && document.body.requestFullscreen());
+			}
+		</script>
 	</head>
 </html>
