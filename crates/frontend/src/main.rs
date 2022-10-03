@@ -1,6 +1,6 @@
 #![allow(clippy::let_unit_value)]
 
-use std::{sync::{Arc, Mutex}, mem::MaybeUninit};
+use std::{sync::{Arc, Mutex}, mem::MaybeUninit, rc::Rc};
 
 use common::{BookId, PersonId, api::{WrappingResponse, ApiErrorResponse}, component::popup::{Popup, PopupType}};
 use common_local::{api, Member, FileId, LibraryId};
@@ -16,6 +16,14 @@ mod pages;
 mod request;
 mod services;
 mod components;
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AppState {
+    pub is_navbar_visible: bool,
+    pub update_nav_visibility: Callback<bool>,
+}
+
 
 
 lazy_static! {
@@ -83,10 +91,14 @@ fn remove_error() {
 enum Msg {
     LoadMemberSelf(WrappingResponse<api::GetMemberSelfResponse>),
 
+    UpdateNavVis(bool),
+
     Update
 }
 
 struct Model {
+    state: Rc<AppState>,
+
     has_loaded_member: bool
 }
 
@@ -104,6 +116,10 @@ impl Component for Model {
         });
 
         Self {
+            state: Rc::new(AppState {
+                is_navbar_visible: true,
+                update_nav_visibility: ctx.link().callback(Msg::UpdateNavVis),
+            }),
             has_loaded_member: false,
         }
     }
@@ -122,7 +138,11 @@ impl Component for Model {
                 self.has_loaded_member = true;
             }
 
-            Msg::Update => {}
+            Msg::UpdateNavVis(value) => {
+                Rc::make_mut(&mut self.state).is_navbar_visible = value;
+            }
+
+            Msg::Update => (),
         }
 
         true
@@ -132,20 +152,22 @@ impl Component for Model {
         html! {
             <>
                 <BrowserRouter>
-                    <NavbarModule />
-                    {
-                        if self.has_loaded_member {
-                            html! {
-                                <Switch<Route> render={ Switch::render(switch) } />
-                            }
-                        } else {
-                            html! {
-                                <div>
-                                    <h1>{ "Loading..." }</h1>
-                                </div>
+                    <ContextProvider<Rc<AppState>> context={ self.state.clone() }>
+                        <NavbarModule visible={ self.state.is_navbar_visible } />
+                        {
+                            if self.has_loaded_member {
+                                html! {
+                                    <Switch<Route> render={ Switch::render(switch) } />
+                                }
+                            } else {
+                                html! {
+                                    <div>
+                                        <h1>{ "Loading..." }</h1>
+                                    </div>
+                                }
                             }
                         }
-                    }
+                    </ContextProvider<Rc<AppState>>>
                 </BrowserRouter>
 
                 {

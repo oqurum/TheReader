@@ -8,9 +8,9 @@ use gloo_timers::callback::Timeout;
 use gloo_utils::window;
 use wasm_bindgen::{JsCast, prelude::Closure, UnwrapThrowExt};
 use web_sys::{HtmlInputElement, Element};
-use yew::{prelude::*, html::Scope};
+use yew::{prelude::*, html::Scope, context::ContextHandle};
 
-use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, ReaderSettings, ReaderEvent, DragType}};
+use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, ReaderSettings, ReaderEvent, DragType}, AppState};
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
@@ -32,10 +32,6 @@ impl DisplayToolBar {
     pub fn is_bottom(self) -> bool {
         matches!(self, Self::Bottom)
     }
-
-    pub fn is_top(self) -> bool {
-        matches!(self, Self::Top)
-    }
 }
 
 
@@ -54,6 +50,8 @@ pub enum Msg {
     // Retrieve
     RetrieveBook(WrappingResponse<api::ApiGetFileByIdResponse>),
     RetrievePages(WrappingResponse<GetChaptersResponse>),
+
+    ContextChanged(Rc<AppState>),
 }
 
 #[derive(Properties, PartialEq, Eq)]
@@ -62,6 +60,9 @@ pub struct Property {
 }
 
 pub struct ReadingBook {
+    state: Rc<AppState>,
+    _listener: ContextHandle<Rc<AppState>>,
+
     reader_settings: ReaderSettings,
     progress: Rc<Mutex<Option<Progression>>>,
     book: Option<Rc<MediaItem>>,
@@ -83,19 +84,27 @@ impl Component for ReadingBook {
     type Message = Msg;
     type Properties = Property;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (state, _listener) = ctx
+            .link()
+            .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
+            .expect("context to be set");
+
         let (win_width, win_height) = (
                 window().inner_width().unwrap_throw().as_f64().unwrap(),
                 window().inner_height().unwrap_throw().as_f64().unwrap()
         );
 
         let (is_fullscreen, dimensions) = if win_width < 1100.0 || win_height < 720.0 {
+            state.update_nav_visibility.emit(false);
             (true, (0, 0))
         } else {
             (false, (1040, 548))
         };
 
         Self {
+            state, _listener,
+
             reader_settings: ReaderSettings {
                 load_speed: 1000,
                 type_of: PageLoadType::Select,
@@ -120,6 +129,11 @@ impl Component for ReadingBook {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::ContextChanged(state) => {
+                log::info!("nav reader");
+                self.state = state;
+            }
+
             Msg::WindowResize => {
                 if self.reader_settings.is_fullscreen {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
@@ -138,6 +152,8 @@ impl Component for ReadingBook {
 
                     // TODO: client_height is incorrect since the tools is set to absolute after this update.
                     self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+
+                    self.state.update_nav_visibility.emit(false);
                 } else if !old_settings.is_fullscreen {
                     self.reader_settings.dimensions = (
                         Some(self.reader_settings.dimensions.0).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)) / 2,
@@ -203,7 +219,6 @@ impl Component for ReadingBook {
 
                     ReaderEvent::ViewOverlay(o_event) => {
                         if self.reader_settings.is_fullscreen {
-                            log::info!("{:?} {:?}", o_event.dragging, o_event.type_of);
                             match o_event.type_of {
                                 // Show Lower Tool Bar
                                 DragType::Up(amount) => {
@@ -211,7 +226,10 @@ impl Component for ReadingBook {
                                         match self.display_toolbar {
                                             DisplayToolBar::Bottom => (),
                                             DisplayToolBar::None => self.display_toolbar = DisplayToolBar::Bottom,
-                                            DisplayToolBar::Top => self.display_toolbar = DisplayToolBar::None,
+                                            DisplayToolBar::Top => {
+                                                self.display_toolbar = DisplayToolBar::None;
+                                                self.state.update_nav_visibility.emit(false);
+                                            }
                                         }
 
                                         return true;
@@ -222,7 +240,10 @@ impl Component for ReadingBook {
                                     if !o_event.dragging && amount > 100 {
                                         match self.display_toolbar {
                                             DisplayToolBar::Top => (),
-                                            DisplayToolBar::None => self.display_toolbar = DisplayToolBar::Top,
+                                            DisplayToolBar::None => {
+                                                self.display_toolbar = DisplayToolBar::Top;
+                                                self.state.update_nav_visibility.emit(true);
+                                            }
                                             DisplayToolBar::Bottom => self.display_toolbar = DisplayToolBar::None,
                                         }
 

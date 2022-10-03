@@ -10,6 +10,13 @@ use yew_router::components::Link;
 
 use crate::{Route, request};
 
+
+#[derive(PartialEq, Eq, Properties)]
+pub struct Property {
+    pub visible: bool,
+}
+
+
 pub enum Msg {
     Close,
     SearchFor(String),
@@ -27,7 +34,7 @@ pub struct NavbarModule {
 
 impl Component for NavbarModule {
     type Message = Msg;
-    type Properties = ();
+    type Properties = Property;
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
@@ -79,6 +86,10 @@ impl Component for NavbarModule {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        if !ctx.props().visible {
+            return html! {};
+        }
+
         let input_id = "book-search-input";
 
         html! {
