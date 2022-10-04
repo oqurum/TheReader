@@ -86,14 +86,10 @@ impl Component for NavbarModule {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if !ctx.props().visible {
-            return html! {};
-        }
-
         let input_id = "book-search-input";
 
         html! {
-            <div class="navbar-module">
+            <div class={ classes!("navbar-module", (!ctx.props().visible).then_some("hidden")) }>
                 <div class="left-content">
                 {
                     for self.left_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1))
