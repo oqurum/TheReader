@@ -453,7 +453,15 @@ impl Component for Reader {
                 </div>
 
                 <div class="pages" style={ pages_style.clone() }>
-                    <ViewOverlay event={ ctx.link().callback(Msg::HandleViewOverlay) } />
+                    {
+                        if ctx.props().settings.display != ChapterDisplay::Scroll {
+                            html! {
+                                <ViewOverlay event={ ctx.link().callback(Msg::HandleViewOverlay) } />
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
                     <div
                         class={ frame_class }
                         style={ frame_style }

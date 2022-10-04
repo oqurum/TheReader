@@ -259,7 +259,7 @@ impl Component for ReadingBook {
 
             html! {
                 <div class="reading-container">
-                    <div class={ book_class } style={ self.display_toolbar.is_expanded().then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
+                    <div class={ book_class } style={ (self.display_toolbar.is_expanded() && self.reader_settings.is_fullscreen).then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
                         {
                             if let Some(visible) = self.sidebar_visible {
                                 match visible {
