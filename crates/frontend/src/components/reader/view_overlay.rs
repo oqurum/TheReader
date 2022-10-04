@@ -1,18 +1,21 @@
 use std::rc::Rc;
 
+use chrono::{Duration, Utc};
 use web_sys::MouseEvent;
-use yew::{function_component, Properties, html, use_node_ref, use_effect_with_deps, Callback, use_state_eq, use_state, NodeRef, UseStateHandle};
+use yew::{function_component, Properties, html, use_node_ref, use_effect_with_deps, Callback, use_state_eq, NodeRef, UseStateHandle};
 use yew_hooks::{use_swipe, UseSwipeDirection, use_event};
 
 
 
 
+#[derive(Debug)]
 pub struct OverlayEvent {
     pub type_of: DragType,
     pub dragging: bool,
+    pub instant: Option<Duration>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DragType {
     Up(usize),
     Right(usize),
@@ -35,12 +38,14 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
     let state = use_swipe(node.clone());
     let state2 = use_mouse(node.clone());
 
+    let time_down = use_state_eq(Utc::now);
 
     let curr_event_state = use_state_eq(|| false);
 
     { // Swipe
         let event = props.event.clone();
         let curr_event_state = curr_event_state.clone();
+        let time_down = time_down.clone();
 
         use_effect_with_deps(move |(swiping, direction, length_x, length_y)| {
             let distance = match **direction {
@@ -60,11 +65,16 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
             };
 
             if **swiping {
+                if !*curr_event_state {
+                    time_down.set(Utc::now());
+                }
+
                 curr_event_state.set(true);
 
                 event.emit(OverlayEvent {
                     type_of: direction,
                     dragging: true,
+                    instant: None,
                 });
             } else if *curr_event_state {
                 curr_event_state.set(false);
@@ -72,6 +82,7 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                 event.emit(OverlayEvent {
                     type_of: direction,
                     dragging: false,
+                    instant: Some(Utc::now().signed_duration_since(*time_down)),
                 });
             }
             || ()
@@ -99,12 +110,17 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
             };
 
             // If we're dragging the mouse down and it's registered as moving.
-            if *handle.dragging && *handle.moving {
+            if *handle.dragging {
+                if !*curr_event_state {
+                    time_down.set(Utc::now());
+                }
+
                 curr_event_state.set(true);
 
                 event.emit(OverlayEvent {
                     type_of: direction,
                     dragging: true,
+                    instant: None,
                 });
             } else if !*handle.dragging && *curr_event_state {
                 curr_event_state.set(false);
@@ -112,6 +128,7 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                 event.emit(OverlayEvent {
                     type_of: direction,
                     dragging: false,
+                    instant: Some(Utc::now().signed_duration_since(*time_down)),
                 });
             }
 
@@ -162,10 +179,10 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
     let dragging = use_state_eq(|| false);
     let moving = use_state_eq(|| false);
     let direction = use_state_eq(|| UseSwipeDirection::None);
-    let coords_start = use_state(|| (0, 0));
-    let coords_end = use_state(|| Option::<(i32, i32)>::None);
-    let length_x = use_state(|| 0);
-    let length_y = use_state(|| 0);
+    let coords_start = use_state_eq(|| (0, 0));
+    let coords_end = use_state_eq(|| Option::<(i32, i32)>::None);
+    let length_x = use_state_eq(|| 0);
+    let length_y = use_state_eq(|| 0);
 
     let threshold = 5;
 

@@ -22,15 +22,14 @@ pub enum LocalPopupType {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum DisplayToolBar {
-    None,
-    Bottom,
-    Top,
+enum DisplayToolBars {
+    Hidden,
+    Expanded,
 }
 
-impl DisplayToolBar {
-    pub fn is_bottom(self) -> bool {
-        matches!(self, Self::Bottom)
+impl DisplayToolBars {
+    pub fn is_expanded(self) -> bool {
+        matches!(self, Self::Expanded)
     }
 }
 
@@ -74,7 +73,8 @@ pub struct ReadingBook {
 
     sidebar_visible: Option<LocalPopupType>,
 
-    display_toolbar: DisplayToolBar,
+    display_toolbar: DisplayToolBars,
+    timeout: Option<Timeout>,
 
     // Refs
     ref_book_container: NodeRef,
@@ -95,11 +95,11 @@ impl Component for ReadingBook {
                 window().inner_height().unwrap_throw().as_f64().unwrap()
         );
 
-        let (is_fullscreen, dimensions) = if win_width < 1100.0 || win_height < 720.0 {
+        let (is_fullscreen, dimensions, display_toolbar) = if win_width < 1100.0 || win_height < 720.0 {
             state.update_nav_visibility.emit(false);
-            (true, (0, 0))
+            (true, (0, 0), DisplayToolBars::Hidden)
         } else {
-            (false, (1040, 548))
+            (false, (1040, 548), DisplayToolBars::Expanded)
         };
 
         Self {
@@ -121,7 +121,8 @@ impl Component for ReadingBook {
             auto_resize_cb: None,
 
             sidebar_visible: None,
-            display_toolbar: DisplayToolBar::None,
+            display_toolbar,
+            timeout: None,
 
             ref_book_container: NodeRef::default(),
         }
@@ -130,12 +131,19 @@ impl Component for ReadingBook {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ContextChanged(state) => {
-                log::info!("nav reader");
                 self.state = state;
+
+                // This can be called before everything is rendered.
+                if self.ref_book_container.get().is_some() {
+                    let link = ctx.link().clone();
+                    self.timeout = Some(Timeout::new(100, move || {
+                        link.send_message(Msg::WindowResize);
+                    }));
+                }
             }
 
             Msg::WindowResize => {
-                if self.reader_settings.is_fullscreen {
+                if self.reader_settings.is_fullscreen && !self.display_toolbar.is_expanded() {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
                     self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
                 } else {
@@ -218,40 +226,15 @@ impl Component for ReadingBook {
                     }
 
                     ReaderEvent::ViewOverlay(o_event) => {
-                        if self.reader_settings.is_fullscreen {
-                            match o_event.type_of {
-                                // Show Lower Tool Bar
-                                DragType::Up(amount) => {
-                                    if !o_event.dragging && amount > 100 {
-                                        match self.display_toolbar {
-                                            DisplayToolBar::Bottom => self.display_toolbar = DisplayToolBar::None,
-                                            DisplayToolBar::None => self.display_toolbar = DisplayToolBar::Bottom,
-                                            DisplayToolBar::Top => {
-                                                self.display_toolbar = DisplayToolBar::None;
-                                                self.state.update_nav_visibility.emit(false);
-                                            }
-                                        }
-
-                                        return true;
-                                    }
+                        if self.reader_settings.is_fullscreen && o_event.type_of == DragType::None {
+                            if let Some(dur) = o_event.instant {
+                                if dur.num_milliseconds() < 500 && self.display_toolbar.is_expanded() {
+                                    self.display_toolbar = DisplayToolBars::Hidden;
+                                    self.state.update_nav_visibility.emit(false);
+                                } else {
+                                    self.display_toolbar = DisplayToolBars::Expanded;
+                                    self.state.update_nav_visibility.emit(true);
                                 }
-
-                                DragType::Down(amount) => {
-                                    if !o_event.dragging && amount > 100 {
-                                        match self.display_toolbar {
-                                            DisplayToolBar::Top => self.display_toolbar = DisplayToolBar::None,
-                                            DisplayToolBar::None => {
-                                                self.display_toolbar = DisplayToolBar::Top;
-                                                self.state.update_nav_visibility.emit(true);
-                                            }
-                                            DisplayToolBar::Bottom => self.display_toolbar = DisplayToolBar::None,
-                                        }
-
-                                        return true;
-                                    }
-                                }
-
-                                _ => ()
                             }
                         }
                     }
@@ -276,7 +259,7 @@ impl Component for ReadingBook {
 
             html! {
                 <div class="reading-container">
-                    <div class={ book_class } ref={self.ref_book_container.clone()}>
+                    <div class={ book_class } style={ self.display_toolbar.is_expanded().then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
                         {
                             if let Some(visible) = self.sidebar_visible {
                                 match visible {
@@ -308,7 +291,7 @@ impl Component for ReadingBook {
                         />
                     </div>
 
-                    <div class={ classes!("tools", self.reader_settings.is_fullscreen.then_some("overlay"), self.display_toolbar.is_bottom().then_some("displaying")) }>
+                    <div class={ classes!("tools", (self.reader_settings.is_fullscreen && !self.display_toolbar.is_expanded()).then_some("hidden")) }>
                         <button class="tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
                         <button class="tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>

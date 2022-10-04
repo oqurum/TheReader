@@ -6,6 +6,7 @@
 	overflow: hidden;
 
 	> .book {
+		max-height: 100%;
 		display: flex;
 		flex-grow: 1;
 
@@ -42,19 +43,14 @@
 		background-color: var(--surface-1);
 		padding: 5px;
 		z-index: 999;
+		opacity: 100;
 
-		&.overlay {
+		transition: opacity 250ms ease;
+
+		&.hidden {
 			display: none;
 			position: absolute;
 			opacity: 0;
-
-			transition: all 250ms ease;
-
-			&.displaying {
-				display: flex;
-				opacity: 100%;
-				padding: 5px;
-			}
 		}
 
 		> .tool-item {
