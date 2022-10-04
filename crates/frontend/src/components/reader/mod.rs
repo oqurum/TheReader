@@ -133,6 +133,8 @@ pub struct Reader {
     viewing_chapter: usize,
 
     handle_js_redirect_clicks: Closure<dyn FnMut(usize, String)>,
+
+    drag_distance: isize,
 }
 
 impl Component for Reader {
@@ -163,6 +165,7 @@ impl Component for Reader {
             },
 
             viewing_chapter: 0,
+            drag_distance: 0,
 
             handle_js_redirect_clicks,
         }
@@ -195,26 +198,32 @@ impl Component for Reader {
                     // Previous Page
                     DragType::Right(distance) => {
                         if event.dragging {
+                            self.drag_distance = distance as isize;
+
                             if let Some(section) = self.get_current_section() {
-                                section.transitioning_page(distance as isize);
+                                section.transitioning_page(self.drag_distance);
                             }
                         } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
                             return self.update(ctx, Msg::PreviousPage);
                         } else if let Some(section) = self.get_current_section() {
                             section.transitioning_page(0);
+                            self.drag_distance = 0;
                         }
                     }
 
                     // Next Page
                     DragType::Left(distance) => {
                         if event.dragging {
+                            self.drag_distance = -(distance as isize);
+
                             if let Some(section) = self.get_current_section() {
-                                section.transitioning_page(-(distance as isize));
+                                section.transitioning_page(self.drag_distance);
                             }
                         } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
                             return self.update(ctx, Msg::NextPage);
                         } else if let Some(section) = self.get_current_section() {
                             section.transitioning_page(0);
+                            self.drag_distance = 0;
                         }
                     }
 
@@ -263,6 +272,8 @@ impl Component for Reader {
                         self.upload_progress_and_emit(ctx);
                     }
                 }
+
+                self.drag_distance = 0;
             }
 
             Msg::PreviousPage => {
@@ -286,6 +297,7 @@ impl Component for Reader {
                     }
                 }
 
+                self.drag_distance = 0;
             }
 
             Msg::UploadProgress => self.upload_progress_and_emit(ctx),
@@ -326,6 +338,13 @@ impl Component for Reader {
 
                 self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
 
+                let display = self.cached_display;
+
+                // Make sure the previous section is on the last page for better page turning on initial load.
+                if let Some(prev_sect) = self.get_previous_section_mut() {
+                    prev_sect.set_page(prev_sect.page_count().saturating_sub(1), display);
+                }
+
                 if loading_count == 0 {
                     ctx.props().event.emit(ReaderEvent::LoadChapters);
                 }
@@ -345,6 +364,65 @@ impl Component for Reader {
             ChapterDisplay::Double | ChapterDisplay::Single => format!("width: {}%;", (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0),
             ChapterDisplay::Scroll => format!("width: {}%;", (self.viewing_chapter + 1) as f64 / section_count as f64 * 100.0),
         };
+
+
+        let (frame_class, frame_style) = if ctx.props().settings.display == ChapterDisplay::Scroll {
+            let transition = Some("transition: top 0.5s ease 0s;");
+
+            let amount = 0;
+
+            // Prevent empty pages when on the first or last page of a section.
+            // let amount = if self.drag_distance.is_positive() {
+            //     if self.get_current_section().map(|v| v.viewing_page == 0).unwrap_or_default() {
+            //         transition = None;
+            //         self.drag_distance
+            //     } else {
+            //         0
+            //     }
+            // } else if self.drag_distance.is_negative() {
+            //     if self.get_current_section().map(|v| v.viewing_page == v.page_count().saturating_sub(1)).unwrap_or_default() {
+            //         transition = None;
+            //         self.drag_distance
+            //     } else {
+            //         0
+            //     }
+            // } else {
+            //     0
+            // };
+
+            (
+                "frames",
+                format!("top: calc(-{}% + {}px); {}", self.viewing_chapter * 100, amount, transition.unwrap_or_default())
+            )
+        } else {
+            let mut transition = Some("transition: left 0.5s ease 0s;");
+
+            // Prevent empty pages when on the first or last page of a section.
+            let amount = if self.drag_distance.is_positive() {
+                if self.get_current_section().map(|v| v.viewing_page == 0).unwrap_or_default() {
+                    transition = None;
+                    self.drag_distance
+                } else {
+                    0
+                }
+            } else if self.drag_distance.is_negative() {
+                if self.get_current_section().map(|v| v.viewing_page == v.page_count().saturating_sub(1)).unwrap_or_default() {
+                    transition = None;
+                    self.drag_distance
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+
+            (
+                "frames horizontal",
+                format!("left: calc(-{}% + {}px); {}", self.viewing_chapter * 100, amount, transition.unwrap_or_default())
+            )
+        };
+
+        let link = ctx.link().clone();
 
         html! {
             <div class="reader">
@@ -376,7 +454,12 @@ impl Component for Reader {
 
                 <div class="pages" style={ pages_style.clone() }>
                     <ViewOverlay event={ ctx.link().callback(Msg::HandleViewOverlay) } />
-                    <div class="frames" style={ format!("top: -{}%;", self.viewing_chapter * 100) }>
+                    <div
+                        class={ frame_class }
+                        style={ frame_style }
+                        // Frame changes use a transition. After the transition ends we'll upload the progress.
+                        ontransitionend={ Callback::from(move|_| link.send_message(Msg::UploadProgress)) }
+                    >
                         {
                             for (0..section_count)
                                 .into_iter()
@@ -534,7 +617,6 @@ impl Reader {
             if sect.next_page(display) {
                 return true;
             } else {
-                sect.viewing_page = 0;
                 sect.transitioning_page(0);
             }
 
@@ -543,7 +625,7 @@ impl Reader {
 
                 // Make sure the next sections viewing page is zero.
                 if let Some(next_sect) = self.get_current_section_mut() {
-                    next_sect.viewing_page = 0;
+                    next_sect.set_page(0, display);
                 }
 
                 return true;
@@ -567,7 +649,7 @@ impl Reader {
 
                 // Make sure the next sections viewing page is maxed.
                 if let Some(next_sect) = self.get_current_section_mut() {
-                    next_sect.viewing_page = next_sect.page_count().saturating_sub(1);
+                    next_sect.set_page(next_sect.page_count().saturating_sub(1), display);
                 }
 
                 return true;
@@ -633,6 +715,14 @@ impl Reader {
         self.get_current_section()
             .map(|s| s.gpi + s.viewing_page)
             .unwrap_or_default()
+    }
+
+    fn get_previous_section_mut(&mut self) -> Option<&mut ChapterContents> {
+        if let Some(chapter) = self.viewing_chapter.checked_sub(1) {
+            self.sections.get_mut(&chapter).and_then(|v| v.as_chapter_mut())
+        } else {
+            None
+        }
     }
 
     fn get_current_section(&self) -> Option<&ChapterContents> {
@@ -878,6 +968,15 @@ impl ChapterContents {
 
     pub fn transitioning_page(&self, amount: isize) {
         let body = self.iframe.content_document().unwrap().body().unwrap();
+
+        // Prevent empty pages when on the first or last page of a section.
+        let amount = if (amount.is_positive() && self.viewing_page == 0) ||
+            (amount.is_negative() && self.viewing_page == self.page_count().saturating_sub(1))
+        {
+            0
+        } else {
+            amount
+        };
 
         if amount == 0 {
             body.style().set_property("transition", "left 0.5s ease 0s").unwrap();

@@ -110,6 +110,14 @@
 
 		> .frames {
 			position: relative;
+
+			&.horizontal {
+				display: flex;
+
+				> * {
+					flex-shrink: 0;
+				}
+			}
 		}
 
 		iframe {
