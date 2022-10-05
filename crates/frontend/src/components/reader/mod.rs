@@ -245,7 +245,7 @@ impl Component for Reader {
             Msg::HandleScrollChangePage(type_of) => {
                 match type_of {
                     // Scrolling up
-                    DragType::Up(_) => {
+                    DragType::Up(_) => if self.viewing_chapter != 0 {
                         // TODO?: Ensure we've been stopped at the edge for at least 1 second before performing page change steps.
                         // Scrolling is split into 5 sections. You need to scroll up or down at least 3 time to change page to next after timeout.
                         // At 5 we switch automatically. It should also take 5 MAX to fill the current reader window.
@@ -267,7 +267,7 @@ impl Component for Reader {
                     }
 
                     // Scrolling down
-                    DragType::Down(_) => {
+                    DragType::Down(_) => if self.viewing_chapter + 1 != self.sections.len() {
                         let height = ctx.props().settings.dimensions.1 as isize / 5;
 
                         self.drag_distance -= height;
@@ -406,6 +406,7 @@ impl Component for Reader {
                         }
                     }) as Box<dyn FnMut(WheelEvent)>);
 
+                    // TODO: Having the event here prevents simple section changes
                     let body = page.iframe.content_document().unwrap();
                     body.set_onwheel(Some(f.as_ref().unchecked_ref()));
 
@@ -466,7 +467,7 @@ impl Component for Reader {
 
                 // Make sure the previous section is on the last page for better page turning on initial load.
                 if let Some(prev_sect) = self.get_previous_section_mut() {
-                    prev_sect.set_page(prev_sect.page_count().saturating_sub(1), display);
+                    prev_sect.set_last_page(display);
                 }
 
                 if loading_count == 0 {
@@ -490,7 +491,7 @@ impl Component for Reader {
         };
 
 
-        let (frame_class, frame_style) = if ctx.props().settings.display == ChapterDisplay::Scroll {
+        let (frame_class, frame_style) = if self.cached_display == ChapterDisplay::Scroll {
             (
                 "frames",
                 format!(
@@ -560,7 +561,7 @@ impl Component for Reader {
 
                 <div class="pages" style={ pages_style.clone() }>
                     {
-                        if ctx.props().settings.display != ChapterDisplay::Scroll {
+                        if self.cached_display != ChapterDisplay::Scroll {
                             html! {
                                 <ViewOverlay event={ ctx.link().callback(Msg::HandleViewOverlay) } />
                             }
@@ -773,7 +774,7 @@ impl Reader {
 
                 // Make sure the next sections viewing page is maxed.
                 if let Some(next_sect) = self.get_current_section_mut() {
-                    next_sect.set_page(next_sect.page_count().saturating_sub(1), display);
+                    next_sect.set_last_page(display);
                     next_sect.on_start_viewing(display);
                 }
 
@@ -1126,8 +1127,26 @@ impl ChapterContents {
         ).unwrap();
     }
 
+    pub fn set_last_page(&mut self, display: ChapterDisplay) {
+        if display == ChapterDisplay::Scroll {
+            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
+                .scrolling_element().unwrap_throw()
+                .unchecked_into();
+
+            el.scroll_with_x_and_y(0.0, el.scroll_height() as f64);
+        } else {
+            self.set_page(self.page_count().saturating_sub(1), display);
+        }
+    }
+
     pub fn set_page(&mut self, page_number: usize, display: ChapterDisplay) {
-        if display != ChapterDisplay::Scroll {
+        if display == ChapterDisplay::Scroll {
+            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
+                .scrolling_element().unwrap_throw()
+                .unchecked_into();
+
+            el.scroll_with_x_and_y(0.0, 0.0);
+        } else {
             self.viewing_page = page_number;
 
             let body = self.iframe.content_document().unwrap().body().unwrap();

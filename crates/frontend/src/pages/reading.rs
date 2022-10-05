@@ -15,6 +15,8 @@ use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
 
+const DEFAULT_DIMENSIONS: (i32, i32) = (1040, 548);
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LocalPopupType {
     Notes,
@@ -99,7 +101,7 @@ impl Component for ReadingBook {
             state.update_nav_visibility.emit(false);
             (true, (0, 0), DisplayToolBars::Hidden)
         } else {
-            (false, (1040, 548), DisplayToolBars::Expanded)
+            (false, DEFAULT_DIMENSIONS, DisplayToolBars::Expanded)
         };
 
         Self {
@@ -499,7 +501,14 @@ fn _settings_cont(props: &SettingsContainerProps) -> Html {
                             .unchecked_into::<web_sys::HtmlSelectElement>()
                             .selected_index();
 
-                        settings_inner.borrow_mut().is_fullscreen = idx != 0;
+                        let is_fullscreen = idx != 0;
+
+                        if !is_fullscreen {
+                            let mut inner = settings_inner.borrow_mut();
+                            inner.is_fullscreen = is_fullscreen;
+                            inner.dimensions = DEFAULT_DIMENSIONS;
+                        }
+
                     })
                 }>
                     <option selected={ !settings.borrow().is_fullscreen }>{ "Specified" }</option>
