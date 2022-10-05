@@ -10,7 +10,7 @@ use wasm_bindgen::{JsCast, prelude::Closure, UnwrapThrowExt};
 use web_sys::{HtmlInputElement, Element};
 use yew::{prelude::*, html::Scope, context::ContextHandle};
 
-use crate::{request, components::reader::{LoadedChapters, ChapterDisplay, PageLoadType, ReaderSettings, ReaderEvent, DragType}, AppState};
+use crate::{request, components::reader::{LoadedChapters, SectionDisplay, PageLoadType, ReaderSettings, ReaderEvent, DragType}, AppState};
 use crate::components::reader::Reader;
 use crate::components::notes::Notes;
 
@@ -111,7 +111,7 @@ impl Component for ReadingBook {
                 load_speed: 1000,
                 type_of: PageLoadType::Select,
                 is_fullscreen,
-                display: ChapterDisplay::Double,
+                display: SectionDisplay::Double,
                 show_progress: false,
                 dimensions,
             },
@@ -577,9 +577,9 @@ fn _settings_cont(props: &SettingsContainerProps) -> Html {
                         settings_inner.borrow_mut().display = display;
                     })
                 }>
-                    <option value="0" selected={ settings.borrow().display == ChapterDisplay::Single }>{ "Single Page" }</option>
-                    <option value="1" selected={ settings.borrow().display == ChapterDisplay::Double }>{ "Double Page" }</option>
-                    <option value="2" selected={ settings.borrow().display == ChapterDisplay::Scroll }>{ "Scrolling Page" }</option>
+                    <option value="0" selected={ settings.borrow().display == SectionDisplay::Single }>{ "Single Page" }</option>
+                    <option value="1" selected={ settings.borrow().display == SectionDisplay::Double }>{ "Double Page" }</option>
+                    <option value="2" selected={ settings.borrow().display == SectionDisplay::Scroll }>{ "Scrolling Page" }</option>
                 </select>
             </div>
         }

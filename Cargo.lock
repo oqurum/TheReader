@@ -623,6 +623,7 @@ dependencies = [
  "js-sys",
  "lazy_static",
  "log",
+ "num_enum",
  "reqwasm",
  "serde",
  "serde_json",

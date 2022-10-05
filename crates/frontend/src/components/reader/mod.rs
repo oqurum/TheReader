@@ -10,8 +10,10 @@ use yew::{prelude::*, html::Scope};
 use crate::request;
 
 
+mod layout;
 mod view_overlay;
 
+pub use self::layout::SectionDisplay;
 pub use self::view_overlay::{ViewOverlay, OverlayEvent, DragType};
 
 
@@ -47,7 +49,7 @@ pub struct ReaderSettings {
     pub type_of: PageLoadType,
 
     pub is_fullscreen: bool,
-    pub display: ChapterDisplay,
+    pub display: SectionDisplay,
     pub show_progress: bool,
 
     pub dimensions: (i32, i32),
@@ -128,7 +130,7 @@ pub enum Msg {
 
 pub struct Reader {
     // Cached from External Source
-    cached_display: ChapterDisplay,
+    cached_display: SectionDisplay,
     cached_dimensions: Option<(i32, i32)>,
 
     // All the sections the books has and the current cached info
@@ -307,11 +309,11 @@ impl Component for Reader {
 
             Msg::SetPage(new_page) => {
                 match self.cached_display {
-                    ChapterDisplay::Single | ChapterDisplay::Double => {
+                    SectionDisplay::Single | SectionDisplay::Double => {
                         return self.set_page(new_page.min(self.page_count(ctx).saturating_sub(1)), ctx);
                     }
 
-                    ChapterDisplay::Scroll => {
+                    SectionDisplay::Scroll => {
                         if self.set_section(new_page.min(ctx.props().book.chapter_count.saturating_sub(1)), ctx) {
                             self.upload_progress_and_emit(ctx);
 
@@ -326,7 +328,7 @@ impl Component for Reader {
 
             Msg::NextPage => {
                 match self.cached_display {
-                    ChapterDisplay::Single | ChapterDisplay::Double => {
+                    SectionDisplay::Single | SectionDisplay::Double => {
                         if self.current_page_pos() + 1 == self.page_count(ctx) {
                             return false;
                         }
@@ -334,7 +336,7 @@ impl Component for Reader {
                         self.next_page();
                     }
 
-                    ChapterDisplay::Scroll => {
+                    SectionDisplay::Scroll => {
                         if self.viewing_chapter + 1 == self.sections.len() {
                             return false;
                         }
@@ -350,7 +352,7 @@ impl Component for Reader {
 
             Msg::PreviousPage => {
                 match self.cached_display {
-                    ChapterDisplay::Single | ChapterDisplay::Double => {
+                    SectionDisplay::Single | SectionDisplay::Double => {
                         if self.current_page_pos() == 0 {
                             return false;
                         }
@@ -358,7 +360,7 @@ impl Component for Reader {
                         self.previous_page();
                     }
 
-                    ChapterDisplay::Scroll => {
+                    SectionDisplay::Scroll => {
                         if self.viewing_chapter == 0 {
                             return false;
                         }
@@ -486,12 +488,12 @@ impl Component for Reader {
         let pages_style = format!("width: {}px; height: {}px;", ctx.props().settings.dimensions.0, ctx.props().settings.dimensions.1);
 
         let progress_percentage = match self.cached_display {
-            ChapterDisplay::Double | ChapterDisplay::Single => format!("width: {}%;", (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0),
-            ChapterDisplay::Scroll => format!("width: {}%;", (self.viewing_chapter + 1) as f64 / section_count as f64 * 100.0),
+            SectionDisplay::Double | SectionDisplay::Single => format!("width: {}%;", (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0),
+            SectionDisplay::Scroll => format!("width: {}%;", (self.viewing_chapter + 1) as f64 / section_count as f64 * 100.0),
         };
 
 
-        let (frame_class, frame_style) = if self.cached_display == ChapterDisplay::Scroll {
+        let (frame_class, frame_style) = if self.cached_display == SectionDisplay::Scroll {
             (
                 "frames",
                 format!(
@@ -536,7 +538,7 @@ impl Component for Reader {
                 <div class="navbar">
                     {
                         match self.cached_display {
-                            ChapterDisplay::Double | ChapterDisplay::Single => html! {
+                            SectionDisplay::Double | SectionDisplay::Single => html! {
                                 <>
                                     <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Page" }</a>
                                     <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Page" }</a>
@@ -546,7 +548,7 @@ impl Component for Reader {
                                 </>
                             },
 
-                            ChapterDisplay::Scroll => html! {
+                            SectionDisplay::Scroll => html! {
                                 <>
                                     <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Section" }</a>
                                     <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Section" }</a>
@@ -561,7 +563,7 @@ impl Component for Reader {
 
                 <div class="pages" style={ pages_style.clone() }>
                     {
-                        if self.cached_display != ChapterDisplay::Scroll {
+                        if self.cached_display != SectionDisplay::Scroll {
                             html! {
                                 <ViewOverlay event={ ctx.link().callback(Msg::HandleViewOverlay) } />
                             }
@@ -665,7 +667,7 @@ impl Reader {
                             let book_section = self.sections.get_mut(&(chapter as usize)).unwrap();
 
                             if let BookSection::Loaded(section) = book_section {
-                                if self.cached_display == ChapterDisplay::Scroll {
+                                if self.cached_display == SectionDisplay::Scroll {
                                     if let Some(_element) = js_get_element_from_byte_position(&section.iframe, char_pos as usize) {
                                         // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
                                         // element.scroll_into_view();
@@ -930,34 +932,6 @@ impl Reader {
 
 
 
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum ChapterDisplay {
-    Single = 0,
-    #[default]
-    Double = 1,
-    Scroll = 2,
-}
-
-impl From<u8> for ChapterDisplay {
-    fn from(value: u8) -> Self {
-        match value {
-            0 => Self::Single,
-            1 => Self::Double,
-            2 => Self::Scroll,
-            _ => unimplemented!()
-        }
-    }
-}
-
-
-impl From<ChapterDisplay> for u8 {
-    fn from(val: ChapterDisplay) -> Self {
-        val as u8
-    }
-}
-
-
 fn create_iframe() -> HtmlIFrameElement {
     gloo_utils::document()
         .create_element("iframe")
@@ -1127,8 +1101,8 @@ impl ChapterContents {
         ).unwrap();
     }
 
-    pub fn set_last_page(&mut self, display: ChapterDisplay) {
-        if display == ChapterDisplay::Scroll {
+    pub fn set_last_page(&mut self, display: SectionDisplay) {
+        if display == SectionDisplay::Scroll {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
@@ -1139,8 +1113,8 @@ impl ChapterContents {
         }
     }
 
-    pub fn set_page(&mut self, page_number: usize, display: ChapterDisplay) {
-        if display == ChapterDisplay::Scroll {
+    pub fn set_page(&mut self, page_number: usize, display: SectionDisplay) {
+        if display == SectionDisplay::Scroll {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
@@ -1158,7 +1132,7 @@ impl ChapterContents {
         // TODO: Utilize viewing_page vertically.
     }
 
-    pub fn next_page(&mut self, display: ChapterDisplay) -> bool {
+    pub fn next_page(&mut self, display: SectionDisplay) -> bool {
         if self.viewing_page + 1 < self.page_count() {
             self.set_page(self.viewing_page + 1, display);
 
@@ -1168,7 +1142,7 @@ impl ChapterContents {
         }
     }
 
-    pub fn previous_page(&mut self, display: ChapterDisplay) -> bool {
+    pub fn previous_page(&mut self, display: SectionDisplay) -> bool {
         if self.viewing_page != 0 {
             self.set_page(self.viewing_page - 1, display);
 
@@ -1178,8 +1152,8 @@ impl ChapterContents {
         }
     }
 
-    pub fn on_stop_viewing(&self, display: ChapterDisplay) {
-        if display == ChapterDisplay::Scroll {
+    pub fn on_stop_viewing(&self, display: SectionDisplay) {
+        if display == SectionDisplay::Scroll {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
@@ -1188,8 +1162,8 @@ impl ChapterContents {
         }
     }
 
-    pub fn on_start_viewing(&self, display: ChapterDisplay) {
-        if display == ChapterDisplay::Scroll {
+    pub fn on_start_viewing(&self, display: SectionDisplay) {
+        if display == SectionDisplay::Scroll {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
