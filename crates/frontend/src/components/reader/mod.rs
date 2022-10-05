@@ -495,73 +495,13 @@ impl Component for Reader {
         };
 
 
-        let (frame_class, frame_style) = if self.cached_display == SectionDisplay::Scroll {
-            (
-                "frames",
-                format!(
-                    "top: calc(-{}% + {}px); {}",
-                    self.viewing_chapter * 100,
-                    self.drag_distance,
-                    Some("transition: top 0.5s ease 0s;").unwrap_or_default()
-                )
-            )
-        } else {
-            let mut transition = Some("transition: left 0.5s ease 0s;");
-
-            // Prevent empty pages when on the first or last page of a section.
-            let amount = if self.drag_distance.is_positive() {
-                if self.get_current_section().map(|v| v.viewing_page() == 0).unwrap_or_default() {
-                    transition = None;
-                    self.drag_distance
-                } else {
-                    0
-                }
-            } else if self.drag_distance.is_negative() {
-                if self.get_current_section().map(|v| v.viewing_page() == v.page_count().saturating_sub(1)).unwrap_or_default() {
-                    transition = None;
-                    self.drag_distance
-                } else {
-                    0
-                }
-            } else {
-                0
-            };
-
-            (
-                "frames horizontal",
-                format!("left: calc(-{}% + {}px); {}", self.viewing_chapter * 100, amount, transition.unwrap_or_default())
-            )
-        };
+        let (frame_class, frame_style) = self.get_frame_class_and_style();
 
         let link = ctx.link().clone();
 
         html! {
             <div class="reader">
-                <div class="navbar">
-                    {
-                        match self.cached_display {
-                            SectionDisplay::Double | SectionDisplay::Single => html! {
-                                <>
-                                    <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Page" }</a>
-                                    <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Page" }</a>
-                                    <span>{ "Page " } { self.current_page_pos() + 1 } { "/" } { page_count }</span>
-                                    <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Page" }</a>
-                                    <a onclick={ ctx.link().callback(move |_| Msg::SetPage(page_count - 1)) }>{ "Last Page" }</a>
-                                </>
-                            },
-
-                            SectionDisplay::Scroll => html! {
-                                <>
-                                    <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Section" }</a>
-                                    <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Section" }</a>
-                                    <span><b>{ "Section " } { self.viewing_chapter + 1 } { "/" } { section_count }</b></span>
-                                    <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Section" }</a>
-                                    <a onclick={ ctx.link().callback(move |_| Msg::SetPage(section_count - 1)) }>{ "Last Section" }</a>
-                                </>
-                            }
-                        }
-                    }
-                </div>
+                { self.render_navbar(ctx) }
 
                 <div class="pages" style={ pages_style.clone() }>
                     {
@@ -657,6 +597,79 @@ impl Component for Reader {
 }
 
 impl Reader {
+    fn render_navbar(&self, ctx: &Context<Self>) -> Html {
+        let page_count = self.page_count(ctx);
+        let section_count = ctx.props().book.chapter_count;
+
+        html! {
+            <div class="navbar">
+                {
+                    match self.cached_display {
+                        SectionDisplay::Double | SectionDisplay::Single => html! {
+                            <>
+                                <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Page" }</a>
+                                <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Page" }</a>
+                                <span>{ "Page " } { self.current_page_pos() + 1 } { "/" } { page_count }</span>
+                                <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Page" }</a>
+                                <a onclick={ ctx.link().callback(move |_| Msg::SetPage(page_count - 1)) }>{ "Last Page" }</a>
+                            </>
+                        },
+
+                        SectionDisplay::Scroll => html! {
+                            <>
+                                <a onclick={ ctx.link().callback(|_| Msg::SetPage(0)) }>{ "First Section" }</a>
+                                <a onclick={ ctx.link().callback(|_| Msg::PreviousPage) }>{ "Previous Section" }</a>
+                                <span><b>{ "Section " } { self.viewing_chapter + 1 } { "/" } { section_count }</b></span>
+                                <a onclick={ ctx.link().callback(|_| Msg::NextPage) }>{ "Next Section" }</a>
+                                <a onclick={ ctx.link().callback(move |_| Msg::SetPage(section_count - 1)) }>{ "Last Section" }</a>
+                            </>
+                        }
+                    }
+                }
+            </div>
+        }
+    }
+
+    fn get_frame_class_and_style(&self) -> (&'static str, String) {
+        if self.cached_display == SectionDisplay::Scroll {
+            (
+                "frames",
+                format!(
+                    "top: calc(-{}% + {}px); {}",
+                    self.viewing_chapter * 100,
+                    self.drag_distance,
+                    Some("transition: top 0.5s ease 0s;").unwrap_or_default()
+                )
+            )
+        } else {
+            let mut transition = Some("transition: left 0.5s ease 0s;");
+
+            // Prevent empty pages when on the first or last page of a section.
+            let amount = if self.drag_distance.is_positive() {
+                if self.get_current_section().map(|v| v.viewing_page() == 0).unwrap_or_default() {
+                    transition = None;
+                    self.drag_distance
+                } else {
+                    0
+                }
+            } else if self.drag_distance.is_negative() {
+                if self.get_current_section().map(|v| v.viewing_page() == v.page_count().saturating_sub(1)).unwrap_or_default() {
+                    transition = None;
+                    self.drag_distance
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+
+            (
+                "frames horizontal",
+                format!("left: calc(-{}% + {}px); {}", self.viewing_chapter * 100, amount, transition.unwrap_or_default())
+            )
+        }
+    }
+
     fn use_progression(&mut self, prog: Option<Progression>, ctx: &Context<Self>) {
         if let Some(prog) = prog {
             match prog {
