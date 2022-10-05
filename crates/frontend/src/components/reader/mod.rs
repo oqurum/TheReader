@@ -10,10 +10,12 @@ use yew::{prelude::*, html::Scope};
 use crate::request;
 
 
-mod layout;
-mod view_overlay;
+pub mod layout;
+pub mod section;
+pub mod view_overlay;
 
 pub use self::layout::SectionDisplay;
+use self::section::{SectionLoadProgress, SectionContents};
 pub use self::view_overlay::{ViewOverlay, OverlayEvent, DragType};
 
 
@@ -58,7 +60,7 @@ pub struct ReaderSettings {
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-struct CachedPage {
+pub struct CachedPage {
     chapter: usize,
     chapter_local_page: usize,
 }
@@ -134,7 +136,7 @@ pub struct Reader {
     cached_dimensions: Option<(i32, i32)>,
 
     // All the sections the books has and the current cached info
-    sections: HashMap<usize, BookSection>,
+    sections: HashMap<usize, SectionLoadProgress>,
 
     /// The Chapter we're in
     viewing_chapter: usize,
@@ -167,7 +169,7 @@ impl Component for Reader {
                 let mut map = HashMap::new();
 
                 for i in 0..ctx.props().book.chapter_count {
-                    map.insert(i, BookSection::Waiting);
+                    map.insert(i, SectionLoadProgress::Waiting);
                 }
 
                 map
@@ -448,10 +450,10 @@ impl Component for Reader {
                 }
 
                 // Update newly iframe with styling and size.
-                if let Some(BookSection::Loaded(sec)) = self.sections.get(&page.chapter.value) {
+                if let Some(SectionLoadProgress::Loaded(sec)) = self.sections.get(&page.chapter.value) {
                     sec.on_stop_viewing(self.cached_display);
-                    js_set_page_display_style(&sec.iframe, self.cached_display.into());
-                    update_iframe_size(Some(ctx.props().settings.dimensions), &sec.iframe);
+                    js_set_page_display_style(sec.get_iframe(), self.cached_display.into());
+                    update_iframe_size(Some(ctx.props().settings.dimensions), sec.get_iframe());
                 }
 
 
@@ -508,14 +510,14 @@ impl Component for Reader {
 
             // Prevent empty pages when on the first or last page of a section.
             let amount = if self.drag_distance.is_positive() {
-                if self.get_current_section().map(|v| v.viewing_page == 0).unwrap_or_default() {
+                if self.get_current_section().map(|v| v.viewing_page() == 0).unwrap_or_default() {
                     transition = None;
                     self.drag_distance
                 } else {
                     0
                 }
             } else if self.drag_distance.is_negative() {
-                if self.get_current_section().map(|v| v.viewing_page == v.page_count().saturating_sub(1)).unwrap_or_default() {
+                if self.get_current_section().map(|v| v.viewing_page() == v.page_count().saturating_sub(1)).unwrap_or_default() {
                     transition = None;
                     self.drag_distance
                 } else {
@@ -582,7 +584,7 @@ impl Component for Reader {
                                 .into_iter()
                                 .map(|i| {
                                     if let Some(v) = self.sections.get(&i).unwrap().as_chapter() {
-                                        Html::VRef(v.iframe.clone().into())
+                                        Html::VRef(v.get_iframe().clone().into())
                                     } else {
                                         html! {
                                             <div style={ pages_style.clone() }>
@@ -619,9 +621,9 @@ impl Component for Reader {
 
             // Refresh all page styles and sizes.
             for chap in self.sections.values() {
-                if let BookSection::Loaded(chap) = chap {
-                    js_set_page_display_style(&chap.iframe, self.cached_display.into());
-                    update_iframe_size(Some(props.settings.dimensions), &chap.iframe);
+                if let SectionLoadProgress::Loaded(chap) = chap {
+                    js_set_page_display_style(chap.get_iframe(), self.cached_display.into());
+                    update_iframe_size(Some(props.settings.dimensions), chap.get_iframe());
                 }
             }
 
@@ -640,7 +642,7 @@ impl Component for Reader {
                 if sec.is_waiting() {
                     log::info!("Generating Chapter {}", chap.value + 1);
 
-                    *sec = BookSection::Loading(generate_pages(
+                    *sec = SectionLoadProgress::Loading(generate_pages(
                         Some(props.settings.dimensions),
                         props.book.id,
                         chap.clone(),
@@ -666,14 +668,14 @@ impl Reader {
                         if char_pos != -1 {
                             let book_section = self.sections.get_mut(&(chapter as usize)).unwrap();
 
-                            if let BookSection::Loaded(section) = book_section {
+                            if let SectionLoadProgress::Loaded(section) = book_section {
                                 if self.cached_display == SectionDisplay::Scroll {
-                                    if let Some(_element) = js_get_element_from_byte_position(&section.iframe, char_pos as usize) {
+                                    if let Some(_element) = js_get_element_from_byte_position(section.get_iframe(), char_pos as usize) {
                                         // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
                                         // element.scroll_into_view();
                                     }
                                 } else {
-                                    let page = js_get_page_from_byte_position(&section.iframe, char_pos as usize);
+                                    let page = js_get_page_from_byte_position(section.get_iframe(), char_pos as usize);
 
                                     if let Some(page) = page {
                                         section.set_page(page, self.cached_display);
@@ -698,22 +700,24 @@ impl Reader {
         let mut total_page_pos = 0;
 
         // TODO: Verify if needed. Or can we do values_mut() we need to have it in asc order
-        for chap in 0..self.sections.len() {
-            if let Some(BookSection::Loaded(ele)) = self.sections.get_mut(&chap) {
-                let page_count = get_iframe_page_count(&ele.iframe).max(1);
+        for chapter in 0..self.sections.len() {
+            if let Some(SectionLoadProgress::Loaded(ele)) = self.sections.get_mut(&chapter) {
+                let page_count = get_iframe_page_count(ele.get_iframe()).max(1);
 
                 ele.gpi = total_page_pos;
 
                 total_page_pos += page_count;
 
-                ele.cached_pages.clear();
+                let mut items = Vec::new();
 
                 for local_page in 0..page_count {
-                    ele.cached_pages.push(CachedPage {
-                        chapter: ele.chapter,
+                    items.push(CachedPage {
+                        chapter,
                         chapter_local_page: local_page
                     });
                 }
+
+                ele.set_cached_pages(items);
             }
         }
     }
@@ -790,7 +794,7 @@ impl Reader {
     /// Expensive. Iterates through previous sections.
     fn set_page(&mut self, new_total_page: usize, ctx: &Context<Self>) -> bool {
         for chap in 0..ctx.props().book.chapter_count {
-            if let Some(BookSection::Loaded(section)) = self.sections.get_mut(&chap) {
+            if let Some(SectionLoadProgress::Loaded(section)) = self.sections.get_mut(&chap) {
                 // This should only happen if the page isn't loaded for some reason.
                 if new_total_page < section.gpi {
                     break;
@@ -799,7 +803,7 @@ impl Reader {
                 let local_page = new_total_page - section.gpi;
 
                 if local_page < section.page_count() {
-                    self.viewing_chapter = section.chapter;
+                    self.viewing_chapter = section.chapter();
 
                     section.set_page(local_page, self.cached_display);
 
@@ -818,9 +822,9 @@ impl Reader {
             }
         }
 
-        if let Some(BookSection::Loaded(section)) = self.sections.get_mut(&next_section) {
+        if let Some(SectionLoadProgress::Loaded(section)) = self.sections.get_mut(&next_section) {
             self.viewing_chapter = next_section;
-            section.viewing_page = 0;
+            section.set_page(0, self.cached_display);
             section.on_start_viewing(self.cached_display);
 
             true
@@ -848,11 +852,11 @@ impl Reader {
 
     fn current_page_pos(&self) -> usize {
         self.get_current_section()
-            .map(|s| s.gpi + s.viewing_page)
+            .map(|s| s.gpi + s.viewing_page())
             .unwrap_or_default()
     }
 
-    fn get_previous_section_mut(&mut self) -> Option<&mut ChapterContents> {
+    fn get_previous_section_mut(&mut self) -> Option<&mut SectionContents> {
         if let Some(chapter) = self.viewing_chapter.checked_sub(1) {
             self.sections.get_mut(&chapter).and_then(|v| v.as_chapter_mut())
         } else {
@@ -860,18 +864,18 @@ impl Reader {
         }
     }
 
-    fn get_current_section(&self) -> Option<&ChapterContents> {
+    fn get_current_section(&self) -> Option<&SectionContents> {
         self.sections.get(&self.viewing_chapter).and_then(|v| v.as_chapter())
     }
 
-    fn get_current_section_mut(&mut self) -> Option<&mut ChapterContents> {
+    fn get_current_section_mut(&mut self) -> Option<&mut SectionContents> {
         self.sections.get_mut(&self.viewing_chapter).and_then(|v| v.as_chapter_mut())
     }
 
 
     fn upload_progress_and_emit(&self, ctx: &Context<Self>) {
         if let Some(chap) = self.get_current_section() {
-            self.upload_progress(&chap.iframe, ctx);
+            self.upload_progress(chap.get_iframe(), ctx);
 
             ctx.props().event.emit(ReaderEvent::LoadChapters);
         }
@@ -880,7 +884,7 @@ impl Reader {
     fn upload_progress(&self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = (
             self.viewing_chapter,
-            self.get_current_section().map(|v| v.viewing_page).unwrap_or_default() as i64,
+            self.get_current_section().map(|v| v.viewing_page()).unwrap_or_default() as i64,
             js_get_current_byte_pos(iframe).map(|v| v as i64).unwrap_or(-1),
             ctx.props().book.id
         );
@@ -940,7 +944,7 @@ fn create_iframe() -> HtmlIFrameElement {
         .unwrap()
 }
 
-fn generate_pages(book_dimensions: Option<(i32, i32)>, book_id: FileId, chapter: Chapter, scope: Scope<Reader>) -> ChapterContents {
+fn generate_pages(book_dimensions: Option<(i32, i32)>, book_id: FileId, chapter: Chapter, scope: Scope<Reader>) -> SectionContents {
     let iframe = create_iframe();
 
     iframe.set_attribute("fetchPriority", "low").unwrap();
@@ -971,14 +975,7 @@ fn generate_pages(book_dimensions: Option<(i32, i32)>, book_id: FileId, chapter:
 
     new_frame.set_onload(Some(f.as_ref().unchecked_ref()));
 
-    ChapterContents {
-        cached_pages: Vec::new(),
-        chapter: chap_value,
-        iframe: new_frame,
-        on_load: f,
-        gpi: 0,
-        viewing_page: 0,
-    }
+    SectionContents::new(chap_value, new_frame, f)
 }
 
 fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameElement) {
@@ -994,199 +991,4 @@ fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameEl
 pub struct GenerateChapter {
     iframe: HtmlIFrameElement,
     chapter: Chapter,
-}
-
-
-pub enum BookSection {
-    Waiting,
-    Loading(ChapterContents),
-    Loaded(ChapterContents)
-}
-
-impl BookSection {
-    pub fn is_waiting(&self) -> bool {
-        matches!(self, Self::Waiting)
-    }
-
-    pub fn is_loading(&self) -> bool {
-        matches!(self, Self::Loading(_))
-    }
-
-    pub fn is_loaded(&self) -> bool {
-        matches!(self, Self::Loaded(_))
-    }
-
-    pub fn convert_to_loaded(self) -> Self {
-        if let Self::Loading(v) = self {
-            Self::Loaded(v)
-        } else {
-            panic!("unable to convert")
-        }
-    }
-
-    pub fn as_loaded(&self) -> Option<&ChapterContents> {
-        match self {
-            Self::Loaded(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn as_chapter(&self) -> Option<&ChapterContents> {
-        match self {
-            Self::Loading(v) |
-            Self::Loaded(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn as_chapter_mut(&mut self) -> Option<&mut ChapterContents> {
-        match self {
-            Self::Loading(v) |
-            Self::Loaded(v) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-
-pub struct ChapterContents {
-    #[allow(dead_code)]
-    on_load: Closure<dyn FnMut()>,
-
-    cached_pages: Vec<CachedPage>,
-
-    pub iframe: HtmlIFrameElement,
-    pub chapter: usize,
-
-    /// Global Page Index
-    pub gpi: usize,
-
-    pub viewing_page: usize,
-}
-
-impl ChapterContents {
-    fn page_count(&self) -> usize {
-        self.cached_pages.len()
-    }
-
-    fn get_page_count_until(&self) -> usize {
-        self.gpi + self.page_count()
-    }
-
-    pub fn transitioning_page(&self, amount: isize) {
-        let body = self.iframe.content_document().unwrap().body().unwrap();
-
-        // Prevent empty pages when on the first or last page of a section.
-        let amount = if (amount.is_positive() && self.viewing_page == 0) ||
-            (amount.is_negative() && self.viewing_page == self.page_count().saturating_sub(1))
-        {
-            0
-        } else {
-            amount
-        };
-
-        if amount == 0 {
-            body.style().set_property("transition", "left 0.5s ease 0s").unwrap();
-        } else {
-            body.style().remove_property("transition").unwrap();
-        }
-
-        body.style().set_property(
-            "left",
-            &format!(
-                "calc(-{}% - {}px)",
-                100 * self.viewing_page,
-                self.viewing_page as isize * 10 - amount
-            )
-        ).unwrap();
-    }
-
-    pub fn set_last_page(&mut self, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.scroll_with_x_and_y(0.0, el.scroll_height() as f64);
-        } else {
-            self.set_page(self.page_count().saturating_sub(1), display);
-        }
-    }
-
-    pub fn set_page(&mut self, page_number: usize, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.scroll_with_x_and_y(0.0, 0.0);
-        } else {
-            self.viewing_page = page_number;
-
-            let body = self.iframe.content_document().unwrap().body().unwrap();
-            body.style().set_property("transition", "left 0.5s ease 0s").unwrap();
-            body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * self.viewing_page, self.viewing_page * 10)).unwrap();
-        }
-
-        // TODO: Update Scroll position.
-        // TODO: Utilize viewing_page vertically.
-    }
-
-    pub fn next_page(&mut self, display: SectionDisplay) -> bool {
-        if self.viewing_page + 1 < self.page_count() {
-            self.set_page(self.viewing_page + 1, display);
-
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn previous_page(&mut self, display: SectionDisplay) -> bool {
-        if self.viewing_page != 0 {
-            self.set_page(self.viewing_page - 1, display);
-
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn on_stop_viewing(&self, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.style().set_property("overflow", "hidden").unwrap_throw();
-        }
-    }
-
-    pub fn on_start_viewing(&self, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.style().remove_property("overflow").unwrap_throw();
-        }
-    }
-}
-
-impl PartialEq for ChapterContents {
-    fn eq(&self, other: &Self) -> bool {
-        self.chapter == other.chapter
-    }
-}
-
-
-pub struct FoundChapterPage<'a> {
-    pub chapter: &'a ChapterContents,
-    pub local_page: usize
-}
-
-impl<'a> PartialEq for FoundChapterPage<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        self.chapter == other.chapter
-    }
 }
