@@ -25,9 +25,9 @@ impl SectionLoadProgress {
         matches!(self, Self::Loaded(_))
     }
 
-    pub fn convert_to_loaded(self) -> Self {
-        if let Self::Loading(v) = self {
-            Self::Loaded(v)
+    pub fn convert_to_loaded(&mut self) {
+        if let Self::Loading(v) = std::mem::replace(self, Self::Waiting) {
+            *self = Self::Loaded(v);
         } else {
             panic!("unable to convert")
         }

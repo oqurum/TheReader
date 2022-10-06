@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::Mutex, path::PathBuf};
+use std::{rc::Rc, sync::Mutex, path::PathBuf};
 
 use common_local::{MediaItem, Progression, Chapter, api, FileId};
 use gloo_timers::callback::Timeout;
@@ -38,7 +38,7 @@ extern "C" {
 
 macro_rules! get_current_section_mut {
     ($self:ident) => {
-        $self.sections.get_mut(&$self.viewing_chapter)
+        $self.sections.get_mut($self.viewing_chapter)
             .and_then(|v| v.as_chapter_mut())
     }
 }
@@ -46,7 +46,7 @@ macro_rules! get_current_section_mut {
 macro_rules! get_previous_section_mut {
     ($self:ident) => {
         if let Some(chapter) = $self.viewing_chapter.checked_sub(1) {
-            $self.sections.get_mut(&chapter).and_then(|v| v.as_chapter_mut())
+            $self.sections.get_mut(chapter).and_then(|v| v.as_chapter_mut())
         } else {
             None
         }
@@ -155,7 +155,7 @@ pub struct Reader {
     cached_dimensions: Option<(i32, i32)>,
 
     // All the sections the books has and the current cached info
-    sections: HashMap<usize, SectionLoadProgress>,
+    sections: Vec<SectionLoadProgress>,
 
     /// The Chapter we're in
     viewing_chapter: usize,
@@ -184,15 +184,7 @@ impl Component for Reader {
         Self {
             cached_display: ctx.props().settings.display.clone(),
             cached_dimensions: None,
-            sections: {
-                let mut map = HashMap::new();
-
-                for i in 0..ctx.props().book.chapter_count {
-                    map.insert(i, SectionLoadProgress::Waiting);
-                }
-
-                map
-            },
+            sections: (0..ctx.props().book.chapter_count).map(|_| SectionLoadProgress::Waiting).collect(),
 
             viewing_chapter: 0,
             drag_distance: 0,
@@ -401,27 +393,13 @@ impl Component for Reader {
             ReaderMsg::GenerateIFrameLoaded(page) => {
                 js_update_iframe_after_load(&page.iframe, page.chapter.value, &self.handle_js_redirect_clicks);
 
-                { // Page changes use a transition. After the transition ends we'll upload the progress. Fixes the issue of js_get_current_by_pos being incorrect.
-                    let link = ctx.link().clone();
-                    let f = Closure::wrap(Box::new(move || link.send_message(ReaderMsg::UploadProgress)) as Box<dyn FnMut()>);
-
-                    let body = page.iframe.content_document().unwrap().body().unwrap();
-                    body.set_ontransitionend(Some(f.as_ref().unchecked_ref()));
-
-                    f.forget();
-                }
-
-                {
-                    let gen = self.sections.remove(&page.chapter.value).unwrap();
-                    self.sections.insert(page.chapter.value, gen.convert_to_loaded());
-                }
-
+                self.sections[page.chapter.value].convert_to_loaded();
 
                 self.cached_display.add_to_iframe(&page.iframe, ctx);
 
 
                 // Update newly iframe with styling and size.
-                if let Some(SectionLoadProgress::Loaded(section)) = self.sections.get_mut(&page.chapter.value) {
+                if let SectionLoadProgress::Loaded(section) = &mut self.sections[page.chapter.value] {
                     self.cached_display.on_stop_viewing(section);
 
                     js_set_page_display_style(section.get_iframe(), self.cached_display.as_u8());
@@ -429,7 +407,7 @@ impl Component for Reader {
                 }
 
 
-                let loading_count = self.sections.values().filter(|v| v.is_loading()).count();
+                let loading_count = self.sections.iter().filter(|v| v.is_loading()).count();
 
                 if self.are_all_sections_generated() {
                     self.on_all_frames_generated(ctx);
@@ -493,7 +471,7 @@ impl Component for Reader {
                             for (0..section_count)
                                 .into_iter()
                                 .map(|i| {
-                                    if let Some(v) = self.sections.get(&i).unwrap().as_chapter() {
+                                    if let Some(v) = self.sections[i].as_chapter() {
                                         Html::VRef(v.get_iframe().clone().into())
                                     } else {
                                         html! {
@@ -530,7 +508,7 @@ impl Component for Reader {
             self.cached_dimensions = Some(props.settings.dimensions);
 
             // Refresh all page styles and sizes.
-            for prog in self.sections.values() {
+            for prog in &self.sections {
                 if let SectionLoadProgress::Loaded(section) = prog {
                     js_set_page_display_style(section.get_iframe(), self.cached_display.as_u8());
                     update_iframe_size(Some(props.settings.dimensions), section.get_iframe());
@@ -550,17 +528,17 @@ impl Component for Reader {
 
         // Reverse iterator since for some reason chapter "generation" works from LIFO
         for chap in chaps.chapters.iter().rev() {
-            if let Some(sec) = self.sections.get_mut(&chap.value) {
-                if sec.is_waiting() {
-                    log::info!("Generating Chapter {}", chap.value + 1);
+            let sec = &mut self.sections[chap.value];
 
-                    *sec = SectionLoadProgress::Loading(generate_pages(
-                        Some(props.settings.dimensions),
-                        props.book.id,
-                        chap.clone(),
-                        ctx.link().clone()
-                    ));
-                }
+            if sec.is_waiting() {
+                log::info!("Generating Chapter {}", chap.value + 1);
+
+                *sec = SectionLoadProgress::Loading(generate_pages(
+                    Some(props.settings.dimensions),
+                    props.book.id,
+                    chap.clone(),
+                    ctx.link().clone()
+                ));
             }
         }
 
@@ -646,28 +624,23 @@ impl Reader {
         if let Some(prog) = prog {
             match prog {
                 Progression::Ebook { chapter, char_pos, .. } if self.viewing_chapter == 0 => {
-                    if self.sections.contains_key(&(chapter as usize)) {
-                        // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
-                        self.set_section(chapter as usize, ctx);
+                    // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
+                    self.set_section(chapter as usize, ctx);
 
-                        if char_pos != -1 {
-                            let book_section = self.sections.get_mut(&(chapter as usize)).unwrap();
+                    if char_pos != -1 {
+                        if let SectionLoadProgress::Loaded(section) = &mut self.sections[chapter as usize] {
+                            if self.cached_display.is_scroll() {
+                                if let Some(_element) = js_get_element_from_byte_position(section.get_iframe(), char_pos as usize) {
+                                    // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
+                                    // element.scroll_into_view();
+                                }
+                            } else {
+                                let page = js_get_page_from_byte_position(section.get_iframe(), char_pos as usize);
 
-                            if let SectionLoadProgress::Loaded(section) = book_section {
-                                if self.cached_display.is_scroll() {
-                                    if let Some(_element) = js_get_element_from_byte_position(section.get_iframe(), char_pos as usize) {
-                                        // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
-                                        // element.scroll_into_view();
-                                    }
-                                } else {
-                                    let page = js_get_page_from_byte_position(section.get_iframe(), char_pos as usize);
-
-                                    if let Some(page) = page {
-                                        self.cached_display.set_page(page, section);
-                                    }
+                                if let Some(page) = page {
+                                    self.cached_display.set_page(page, section);
                                 }
                             }
-
                         }
                     }
                 }
@@ -678,7 +651,7 @@ impl Reader {
     }
 
     fn are_all_sections_generated(&self) -> bool {
-        self.sections.values().all(|v| v.is_loaded())
+        self.sections.iter().all(|v| v.is_loaded())
     }
 
     fn update_cached_pages(&mut self) {
@@ -686,7 +659,7 @@ impl Reader {
 
         // TODO: Verify if needed. Or can we do values_mut() we need to have it in asc order
         for chapter in 0..self.sections.len() {
-            if let Some(SectionLoadProgress::Loaded(ele)) = self.sections.get_mut(&chapter) {
+            if let SectionLoadProgress::Loaded(ele) = &mut self.sections[chapter] {
                 let page_count = get_iframe_page_count(ele.get_iframe()).max(1);
 
                 ele.gpi = total_page_pos;
@@ -775,7 +748,7 @@ impl Reader {
     /// Expensive. Iterates through previous sections.
     fn set_page(&mut self, new_total_page: usize, ctx: &Context<Self>) -> bool {
         for chap in 0..ctx.props().book.chapter_count {
-            if let Some(SectionLoadProgress::Loaded(section)) = self.sections.get_mut(&chap) {
+            if let SectionLoadProgress::Loaded(section) = &mut self.sections[chap] {
                 // This should only happen if the page isn't loaded for some reason.
                 if new_total_page < section.gpi {
                     break;
@@ -797,13 +770,11 @@ impl Reader {
     }
 
     fn set_section(&mut self, next_section: usize, _ctx: &Context<Self>) -> bool {
-        if self.sections.contains_key(&next_section) {
-            if let Some(section) = self.get_current_section() {
-                self.cached_display.on_stop_viewing(section);
-            }
+        if let Some(section) = self.get_current_section() {
+            self.cached_display.on_stop_viewing(section);
         }
 
-        if let Some(SectionLoadProgress::Loaded(section)) = self.sections.get_mut(&next_section) {
+        if let SectionLoadProgress::Loaded(section) = &mut self.sections[next_section] {
             self.viewing_chapter = next_section;
 
             self.cached_display.set_page(0, section);
@@ -821,7 +792,7 @@ impl Reader {
         let section_count = ctx.props().book.chapter_count;
 
         for index in 1..=section_count {
-            if let Some(pos) = self.sections.get(&(section_count - index))
+            if let Some(pos) = self.sections.get(section_count - index)
                 .and_then(|s| Some(s.as_loaded()?.get_page_count_until()))
             {
                 return pos;
@@ -839,7 +810,7 @@ impl Reader {
     }
 
     fn get_current_section(&self) -> Option<&SectionContents> {
-        self.sections.get(&self.viewing_chapter).and_then(|v| v.as_chapter())
+        self.sections.get(self.viewing_chapter).and_then(|v| v.as_chapter())
     }
 
 
