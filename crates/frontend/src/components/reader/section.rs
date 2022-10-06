@@ -141,8 +141,8 @@ impl SectionContents {
         ).unwrap();
     }
 
-    pub fn set_last_page(&mut self, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
+    pub fn set_last_page(&mut self, display: &SectionDisplay) {
+        if display.is_scroll() {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
@@ -153,8 +153,8 @@ impl SectionContents {
         }
     }
 
-    pub fn set_page(&mut self, page_number: usize, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
+    pub fn set_page(&mut self, page_number: usize, display: &SectionDisplay) {
+        if display.is_scroll() {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
@@ -169,7 +169,7 @@ impl SectionContents {
         }
     }
 
-    pub fn next_page(&mut self, display: SectionDisplay) -> bool {
+    pub fn next_page(&mut self, display: &SectionDisplay) -> bool {
         if self.viewing_page + 1 < self.page_count() {
             self.set_page(self.viewing_page + 1, display);
 
@@ -179,7 +179,7 @@ impl SectionContents {
         }
     }
 
-    pub fn previous_page(&mut self, display: SectionDisplay) -> bool {
+    pub fn previous_page(&mut self, display: &SectionDisplay) -> bool {
         if self.viewing_page != 0 {
             self.set_page(self.viewing_page - 1, display);
 
@@ -190,8 +190,8 @@ impl SectionContents {
     }
 
 
-    pub fn on_stop_viewing(&self, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
+    pub fn on_stop_viewing(&self, display: &SectionDisplay) {
+        if display.is_scroll() {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
@@ -200,8 +200,8 @@ impl SectionContents {
         }
     }
 
-    pub fn on_start_viewing(&self, display: SectionDisplay) {
-        if display == SectionDisplay::Scroll {
+    pub fn on_start_viewing(&self, display: &SectionDisplay) {
+        if display.is_scroll() {
             let el: HtmlElement = self.iframe.content_document().unwrap_throw()
                 .scrolling_element().unwrap_throw()
                 .unchecked_into();
