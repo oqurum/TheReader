@@ -1,7 +1,7 @@
-use wasm_bindgen::{prelude::Closure, UnwrapThrowExt, JsCast};
-use web_sys::{HtmlIFrameElement, HtmlElement};
+use wasm_bindgen::prelude::Closure;
+use web_sys::HtmlIFrameElement;
 
-use super::{CachedPage, SectionDisplay};
+use super::CachedPage;
 
 
 
@@ -71,7 +71,7 @@ pub struct SectionContents {
     /// Global Page Index
     pub gpi: usize,
 
-    viewing_page: usize,
+    pub viewing_page: usize,
 }
 
 impl SectionContents {
@@ -139,75 +139,6 @@ impl SectionContents {
                 self.viewing_page as isize * 10 - amount
             )
         ).unwrap();
-    }
-
-    pub fn set_last_page(&mut self, display: &SectionDisplay) {
-        if display.is_scroll() {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.scroll_with_x_and_y(0.0, el.scroll_height() as f64);
-        } else {
-            self.set_page(self.page_count().saturating_sub(1), display);
-        }
-    }
-
-    pub fn set_page(&mut self, page_number: usize, display: &SectionDisplay) {
-        if display.is_scroll() {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.scroll_with_x_and_y(0.0, 0.0);
-        } else {
-            self.viewing_page = page_number;
-
-            let body = self.iframe.content_document().unwrap().body().unwrap();
-            body.style().set_property("transition", "left 0.5s ease 0s").unwrap();
-            body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * self.viewing_page, self.viewing_page * 10)).unwrap();
-        }
-    }
-
-    pub fn next_page(&mut self, display: &SectionDisplay) -> bool {
-        if self.viewing_page + 1 < self.page_count() {
-            self.set_page(self.viewing_page + 1, display);
-
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn previous_page(&mut self, display: &SectionDisplay) -> bool {
-        if self.viewing_page != 0 {
-            self.set_page(self.viewing_page - 1, display);
-
-            true
-        } else {
-            false
-        }
-    }
-
-
-    pub fn on_stop_viewing(&self, display: &SectionDisplay) {
-        if display.is_scroll() {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.style().set_property("overflow", "hidden").unwrap_throw();
-        }
-    }
-
-    pub fn on_start_viewing(&self, display: &SectionDisplay) {
-        if display.is_scroll() {
-            let el: HtmlElement = self.iframe.content_document().unwrap_throw()
-                .scrolling_element().unwrap_throw()
-                .unchecked_into();
-
-            el.style().remove_property("overflow").unwrap_throw();
-        }
     }
 }
 

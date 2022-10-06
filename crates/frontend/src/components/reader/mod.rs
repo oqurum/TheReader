@@ -36,6 +36,25 @@ extern "C" {
 
 
 
+macro_rules! get_current_section_mut {
+    ($self:ident) => {
+        $self.sections.get_mut(&$self.viewing_chapter)
+            .and_then(|v| v.as_chapter_mut())
+    }
+}
+
+macro_rules! get_previous_section_mut {
+    ($self:ident) => {
+        if let Some(chapter) = $self.viewing_chapter.checked_sub(1) {
+            $self.sections.get_mut(&chapter).and_then(|v| v.as_chapter_mut())
+        } else {
+            None
+        }
+    };
+}
+
+
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PageLoadType {
     All,
@@ -402,10 +421,11 @@ impl Component for Reader {
 
 
                 // Update newly iframe with styling and size.
-                if let Some(SectionLoadProgress::Loaded(sec)) = self.sections.get(&page.chapter.value) {
-                    sec.on_stop_viewing(&self.cached_display);
-                    js_set_page_display_style(sec.get_iframe(), self.cached_display.as_u8());
-                    update_iframe_size(Some(ctx.props().settings.dimensions), sec.get_iframe());
+                if let Some(SectionLoadProgress::Loaded(section)) = self.sections.get_mut(&page.chapter.value) {
+                    self.cached_display.on_stop_viewing(section);
+
+                    js_set_page_display_style(section.get_iframe(), self.cached_display.as_u8());
+                    update_iframe_size(Some(ctx.props().settings.dimensions), section.get_iframe());
                 }
 
 
@@ -419,11 +439,9 @@ impl Component for Reader {
 
                 self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
 
-                let display = self.cached_display.clone();
-
                 // Make sure the previous section is on the last page for better page turning on initial load.
-                if let Some(prev_sect) = self.get_previous_section_mut() {
-                    prev_sect.set_last_page(&display);
+                if let Some(prev_sect) = get_previous_section_mut!(self) {
+                    self.cached_display.set_last_page(prev_sect)
                 }
 
                 if loading_count == 0 {
@@ -645,7 +663,7 @@ impl Reader {
                                     let page = js_get_page_from_byte_position(section.get_iframe(), char_pos as usize);
 
                                     if let Some(page) = page {
-                                        section.set_page(page, &self.cached_display);
+                                        self.cached_display.set_page(page, section);
                                     }
                                 }
                             }
@@ -700,26 +718,25 @@ impl Reader {
 
 
     fn next_page(&mut self) -> bool {
-        let display = self.cached_display.clone();
         let viewing_chapter = self.viewing_chapter;
         let section_count = self.sections.len();
 
-        if let Some(curr_sect) = self.get_current_section_mut() {
-            if curr_sect.next_page(&display) {
+        if let Some(curr_sect) = get_current_section_mut!(self) {
+            if self.cached_display.next_page(curr_sect) {
                 return true;
             } else {
                 curr_sect.transitioning_page(0);
             }
 
             if viewing_chapter + 1 != section_count {
-                curr_sect.on_stop_viewing(&display);
+                self.cached_display.on_stop_viewing(curr_sect);
 
                 self.viewing_chapter += 1;
 
                 // Make sure the next sections viewing page is zero.
-                if let Some(next_sect) = self.get_current_section_mut() {
-                    next_sect.set_page(0, &display);
-                    next_sect.on_start_viewing(&display);
+                if let Some(next_sect) = get_current_section_mut!(self) {
+                    self.cached_display.set_page(0, next_sect);
+                    self.cached_display.on_start_viewing(next_sect);
                 }
 
                 return true;
@@ -730,25 +747,22 @@ impl Reader {
     }
 
     fn previous_page(&mut self) -> bool {
-        let display = self.cached_display.clone();
-        let viewing_chapter = self.viewing_chapter;
-
-        if let Some(curr_sect) = self.get_current_section_mut() {
-            if curr_sect.previous_page(&display) {
+        if let Some(curr_sect) = get_current_section_mut!(self) {
+            if self.cached_display.previous_page(curr_sect) {
                 return true;
             } else {
                 curr_sect.transitioning_page(0);
             }
 
-            if viewing_chapter != 0 {
-                curr_sect.on_stop_viewing(&display);
+            if self.viewing_chapter != 0 {
+                self.cached_display.on_stop_viewing(curr_sect);
 
                 self.viewing_chapter -= 1;
 
                 // Make sure the next sections viewing page is maxed.
-                if let Some(next_sect) = self.get_current_section_mut() {
-                    next_sect.set_last_page(&display);
-                    next_sect.on_start_viewing(&display);
+                if let Some(next_sect) = get_current_section_mut!(self) {
+                    self.cached_display.set_last_page(next_sect);
+                    self.cached_display.on_start_viewing(next_sect);
                 }
 
                 return true;
@@ -772,7 +786,7 @@ impl Reader {
                 if local_page < section.page_count() {
                     self.viewing_chapter = section.chapter();
 
-                    section.set_page(local_page, &self.cached_display);
+                    self.cached_display.set_page(local_page, section);
 
                     return true;
                 }
@@ -785,14 +799,15 @@ impl Reader {
     fn set_section(&mut self, next_section: usize, _ctx: &Context<Self>) -> bool {
         if self.sections.contains_key(&next_section) {
             if let Some(section) = self.get_current_section() {
-                section.on_stop_viewing(&self.cached_display);
+                self.cached_display.on_stop_viewing(section);
             }
         }
 
         if let Some(SectionLoadProgress::Loaded(section)) = self.sections.get_mut(&next_section) {
             self.viewing_chapter = next_section;
-            section.set_page(0, &self.cached_display);
-            section.on_start_viewing(&self.cached_display);
+
+            self.cached_display.set_page(0, section);
+            self.cached_display.on_start_viewing(section);
 
             true
         } else {
@@ -823,20 +838,8 @@ impl Reader {
             .unwrap_or_default()
     }
 
-    fn get_previous_section_mut(&mut self) -> Option<&mut SectionContents> {
-        if let Some(chapter) = self.viewing_chapter.checked_sub(1) {
-            self.sections.get_mut(&chapter).and_then(|v| v.as_chapter_mut())
-        } else {
-            None
-        }
-    }
-
     fn get_current_section(&self) -> Option<&SectionContents> {
         self.sections.get(&self.viewing_chapter).and_then(|v| v.as_chapter())
-    }
-
-    fn get_current_section_mut(&mut self) -> Option<&mut SectionContents> {
-        self.sections.get_mut(&self.viewing_chapter).and_then(|v| v.as_chapter_mut())
     }
 
 

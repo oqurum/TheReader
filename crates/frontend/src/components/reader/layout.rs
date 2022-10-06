@@ -3,16 +3,18 @@ use std::{rc::Rc, cell::Cell};
 use chrono::Utc;
 use gloo_timers::callback::Timeout;
 use wasm_bindgen::{UnwrapThrowExt, JsCast, prelude::Closure, JsValue};
-use web_sys::{HtmlIFrameElement, HtmlElement, WheelEvent, Document, EventTarget};
+use web_sys::{HtmlElement, WheelEvent, Document, EventTarget, HtmlIFrameElement};
 use yew::Context;
 
-use super::{CachedPage, Reader, ReaderMsg, DragType, OverlayEvent};
+use super::{Reader, ReaderMsg, DragType, OverlayEvent, section::SectionContents};
+
+type Destructor = Box<dyn FnOnce(&EventTarget, &js_sys::Function) -> std::result::Result<(), JsValue>>;
 
 pub struct ElementEvent {
     element: EventTarget,
     function: Box<dyn AsRef<JsValue>>,
 
-    destructor: Option<Box<dyn FnOnce(&EventTarget, &js_sys::Function) -> std::result::Result<(), JsValue>>>,
+    destructor: Option<Destructor>,
 }
 
 impl ElementEvent {
@@ -20,7 +22,7 @@ impl ElementEvent {
         element: EventTarget,
         function: C,
         creator: F,
-        destructor: Box<dyn FnOnce(&EventTarget, &js_sys::Function) -> std::result::Result<(), JsValue>>,
+        destructor: Destructor,
     ) -> Self {
         let this = Self {
             element,
@@ -68,6 +70,55 @@ impl SectionDisplay {
             SectionDisplay::Single(v) |
             SectionDisplay::Double(v) => v.add_to_iframe(iframe, ctx),
             SectionDisplay::Scroll(v) => v.add_to_iframe(iframe, ctx),
+        }
+    }
+
+
+    pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
+        match self {
+            SectionDisplay::Single(v) |
+            SectionDisplay::Double(v) => v.set_page(index, section),
+            SectionDisplay::Scroll(v) => v.set_page(index, section),
+        }
+    }
+
+    pub fn next_page(&mut self, section: &mut SectionContents) -> bool {
+        match self {
+            SectionDisplay::Single(v) |
+            SectionDisplay::Double(v) => v.next_page(section),
+            SectionDisplay::Scroll(v) => v.next_page(),
+        }
+    }
+
+    pub fn previous_page(&mut self, section: &mut SectionContents) -> bool {
+        match self {
+            SectionDisplay::Single(v) |
+            SectionDisplay::Double(v) => v.previous_page(section),
+            SectionDisplay::Scroll(v) => v.previous_page(),
+        }
+    }
+
+    pub fn set_last_page(&mut self, section: &mut SectionContents) {
+        match self {
+            SectionDisplay::Single(v) |
+            SectionDisplay::Double(v) => v.set_last_page(section),
+            SectionDisplay::Scroll(v) => v.set_last_page(section),
+        }
+    }
+
+    pub fn on_start_viewing(&self, section: &SectionContents) {
+        match self {
+            SectionDisplay::Single(_) |
+            SectionDisplay::Double(_) => (),
+            SectionDisplay::Scroll(v) => v.on_start_viewing(section),
+        }
+    }
+
+    pub fn on_stop_viewing(&self, section: &SectionContents) {
+        match self {
+            SectionDisplay::Single(_) |
+            SectionDisplay::Double(_) => (),
+            SectionDisplay::Scroll(v) => v.on_stop_viewing(section),
         }
     }
 
@@ -122,14 +173,12 @@ impl PartialEq for SectionDisplay {
 
 // Page Display
 
-#[derive(Debug, Clone)]
 pub struct PageDisplay {
     /// Total pages Being displayed at once.
+    #[allow(dead_code)]
     count: usize,
 
-    cached_pages: Vec<CachedPage>,
-
-    viewing_page: usize,
+    _events: Vec<ElementEvent>,
 }
 
 impl PageDisplay {
@@ -137,50 +186,83 @@ impl PageDisplay {
         Self {
             count,
 
-            cached_pages: Vec::new(),
-
-            viewing_page: 0
+            _events: Vec::new(),
         }
     }
 
     pub fn add_to_iframe(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Reader>)  {
-        //
+        // Page changes use a transition. After the transition ends we'll upload the progress.
+        // Fixes the issue of js_get_current_by_pos being incorrect.
+
+        let body = iframe.content_document()
+            .unwrap_throw()
+            .body().unwrap_throw();
+        let link = ctx.link().clone();
+
+        let function = Closure::wrap(Box::new(move || link.send_message(ReaderMsg::UploadProgress)) as Box<dyn FnMut()>);
+
+        self._events.push(ElementEvent::link(
+            body.unchecked_into(),
+            function,
+            |element, func| element.add_event_listener_with_callback("transitionend", func),
+            Box::new(|element, func| element.remove_event_listener_with_callback("transitionend", func))
+        ));
     }
 
-    pub fn page_count(&self) -> usize {
-        self.cached_pages.len()
-    }
 
-    pub fn set_page(&mut self, index: usize, iframe: &HtmlIFrameElement) -> bool {
-        if index >= self.cached_pages.len() {
+    pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
+        if index >= section.page_count() {
             return false;
         }
 
-        self.viewing_page = index;
+        section.viewing_page = index;
 
-        let body = iframe.content_document().unwrap_throw()
+        let body = section.get_iframe()
+            .content_document().unwrap_throw()
             .body().unwrap_throw();
 
         body.style().set_property("transition", "left 0.5s ease 0s").unwrap_throw();
-        body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * self.viewing_page, self.viewing_page * 10)).unwrap_throw();
+        body.style().set_property("left", &format!("calc(-{}% - {}px)", 100 * section.viewing_page, section.viewing_page * 10)).unwrap_throw();
 
         true
     }
 
-    pub fn next_page(&mut self, iframe: &HtmlIFrameElement) -> bool {
-        if self.viewing_page + 1 < self.page_count() {
-            self.set_page(self.viewing_page + 1, iframe)
+    pub fn next_page(&mut self, section: &mut SectionContents) -> bool {
+        if section.viewing_page + 1 < section.page_count() {
+            self.set_page(section.viewing_page + 1, section)
         } else {
             false
         }
     }
 
-    pub fn previous_page(&mut self, iframe: &HtmlIFrameElement) -> bool {
-        if self.viewing_page != 0 {
-            self.set_page(self.viewing_page - 1, iframe)
+    pub fn previous_page(&mut self, section: &mut SectionContents) -> bool {
+        if section.viewing_page != 0 {
+            self.set_page(section.viewing_page - 1, section)
         } else {
             false
         }
+    }
+
+    pub fn set_last_page(&mut self, section: &mut SectionContents) {
+        self.set_page(section.page_count().saturating_sub(1), section);
+    }
+}
+
+// TODO: Remove
+impl Clone for PageDisplay {
+    fn clone(&self) -> Self {
+        Self {
+            count: self.count,
+            _events: Vec::new(),
+        }
+    }
+}
+
+impl std::fmt::Debug for PageDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PageDisplay")
+            .field("count", &self.count)
+            .finish()
     }
 }
 
@@ -204,8 +286,9 @@ impl ScrollDisplay {
     }
 
     pub fn add_to_iframe(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Reader>)  {
+        let body = iframe.content_document().unwrap();
+
         { // Scroll Display - Used to handle section changing with the scroll wheel.
-            let body = iframe.content_document().unwrap();
             let link = ctx.link().clone();
 
             let function = Closure::wrap(Box::new(move |e: WheelEvent| {
@@ -226,7 +309,7 @@ impl ScrollDisplay {
 
 
             self._events.push(ElementEvent::link(
-                body.unchecked_into(),
+                body.clone().unchecked_into(),
                 function,
                 |element, func| element.add_event_listener_with_callback("wheel", func),
                 Box::new(|element, func| element.remove_event_listener_with_callback("wheel", func))
@@ -236,7 +319,6 @@ impl ScrollDisplay {
         { // Scroll Display - On click
             let link = ctx.link().clone();
             let press_duration = Rc::new(Cell::new(Utc::now()));
-            let body = iframe.content_document().unwrap_throw();
 
             let press_duration2 = press_duration.clone();
             let function_md = Closure::wrap(Box::new(move || {
@@ -270,13 +352,11 @@ impl ScrollDisplay {
         }
     }
 
-    pub fn page_count(&self) -> usize {
-        1
-    }
 
     /// Will only scroll to the start of the section
-    pub fn set_page(&mut self, _index: usize, iframe: &HtmlIFrameElement) -> bool {
-        let el = iframe.content_document().unwrap_throw()
+    pub fn set_page(&mut self, _index: usize, section: &mut SectionContents) -> bool {
+        let el = section.get_iframe()
+            .content_document().unwrap_throw()
             .scrolling_element().unwrap_throw();
 
         el.scroll_with_x_and_y(0.0, 0.0);
@@ -292,16 +372,28 @@ impl ScrollDisplay {
         false
     }
 
-    pub fn on_stop_viewing(&self, iframe: &HtmlIFrameElement) {
-        let el: HtmlElement = iframe.content_document().unwrap_throw()
+    pub fn set_last_page(&mut self, section: &mut SectionContents) {
+        let el: HtmlElement = section.get_iframe()
+            .content_document().unwrap_throw()
+            .scrolling_element().unwrap_throw()
+            .unchecked_into();
+
+        el.scroll_with_x_and_y(0.0, el.scroll_height() as f64);
+    }
+
+
+    pub fn on_stop_viewing(&self, section: &SectionContents) {
+        let el: HtmlElement = section.get_iframe()
+            .content_document().unwrap_throw()
             .scrolling_element().unwrap_throw()
             .unchecked_into();
 
         el.style().set_property("overflow", "hidden").unwrap_throw();
     }
 
-    pub fn on_start_viewing(&self, iframe: &HtmlIFrameElement) {
-        let el: HtmlElement = iframe.content_document().unwrap_throw()
+    pub fn on_start_viewing(&self, section: &SectionContents) {
+        let el: HtmlElement = section.get_iframe()
+            .content_document().unwrap_throw()
             .scrolling_element().unwrap_throw()
             .unchecked_into();
 
