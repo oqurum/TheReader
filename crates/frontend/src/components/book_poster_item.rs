@@ -1,5 +1,5 @@
 use common::BookId;
-use common_local::{DisplayItem, api, ThumbnailStoreExt};
+use common_local::{DisplayItem, api, ThumbnailStoreExt, Progression, MediaItem};
 use web_sys::{MouseEvent, HtmlElement, HtmlInputElement};
 use yew::{Component, Properties, Callback, Context, Html, html, TargetCast};
 use yew_router::prelude::Link;
@@ -11,8 +11,13 @@ use crate::{Route, request};
 
 #[derive(Properties)]
 pub struct BookPosterItemProps {
+    // TODO: Convert to Either<DisplayItem, BookProgression> and remove progress field.
     pub item: DisplayItem,
-    pub callback: Callback<BookPosterItemMsg>,
+    pub callback: Option<Callback<BookPosterItemMsg>>,
+
+    // i64 is currently just total chapter count
+    pub progress: Option<(Progression, MediaItem)>,
+
     #[prop_or_default]
     pub is_editing: bool,
     #[prop_or_default]
@@ -51,7 +56,10 @@ impl Component for BookPosterItem {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        ctx.props().callback.emit(msg);
+        if let Some(cb) = ctx.props().callback.as_ref() {
+            cb.emit(msg);
+        }
+
         true
     }
 
@@ -75,8 +83,14 @@ impl Component for BookPosterItem {
             BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::More { book_id, mouse_pos: ((bb.left() + bb.width()) as i32, (bb.top() + bb.height()) as i32) }))
         });
 
+        let route_to = if let Some((_, file)) = ctx.props().progress.as_ref() {
+            Route::ReadBook { book_id: file.id }
+        } else {
+            Route::ViewBook { book_id: item.id }
+        };
+
         html! {
-            <Link<Route> to={Route::ViewBook { book_id: item.id }} classes="book-list-item">
+            <Link<Route> to={ route_to } classes="book-list-item">
                 <div class="poster">
                     <div class="top-left">
                         <input
@@ -132,6 +146,17 @@ impl Component for BookPosterItem {
                         }
                     }
                 </div>
+                {
+                    if let Some(&(Progression::Ebook { chapter, .. }, ref file)) = ctx.props().progress.as_ref() {
+                        html! {
+                            <div class="progress" title={ format!("Reading Chapter {}/{}", chapter + 1, file.chapter_count) }>
+                                <div class="prog-bar" style={ format!("width: {}%;", (chapter as f32 / file.chapter_count as f32 * 100.0) as i32) }></div>
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
                 <div class="info">
                     <div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>
                     {

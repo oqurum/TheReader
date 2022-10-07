@@ -164,7 +164,10 @@ pub async fn progress_file_add(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    FileProgressionModel::insert_or_update(member.member_id(), *file_id, body.into_inner(), &db).await?;
+    if let Some(book_id) = FileModel::find_one_by_id(*file_id, &db).await?.and_then(|v| v.book_id) {
+        FileProgressionModel::insert_or_update(member.member_id(), book_id, *file_id, body.into_inner(), &db).await?;
+    }
+
     Ok(web::Json(WrappingResponse::okay("success")))
 }
 

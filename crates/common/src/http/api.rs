@@ -44,6 +44,8 @@ pub type ApiGetMemberSelfResponse = self::GetMemberSelfResponse;
 // Books
 /// GET     /books
 pub type ApiGetBookListResponse = self::GetBookListResponse;
+/// GET     /books/preset
+pub type ApiGetBookPresetListResponse = self::GetBookPresetListResponse;
 /// GET     /book/{id}/posters
 pub type ApiGetPosterByBookIdResponse = self::GetPostersResponse;
 /// POST    /book/{id}/posters
@@ -167,6 +169,32 @@ impl BookListQuery {
     pub fn has_query(&self) -> bool {
         !self.filters.filters.is_empty()
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BookPresetListQuery {
+    pub offset: Option<usize>,
+    pub limit: Option<usize>,
+
+    pub preset: BookPresetListType,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum BookPresetListType {
+    Progressing,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetBookPresetListResponse {
+    pub count: usize,
+    pub items: Vec<BookProgression>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BookProgression {
+    pub progress: Progression,
+    pub book: DisplayItem,
+    pub file: MediaItem,
 }
 
 

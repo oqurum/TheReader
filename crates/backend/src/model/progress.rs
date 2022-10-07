@@ -1,18 +1,19 @@
 use chrono::{DateTime, Utc, TimeZone};
-use common::MemberId;
+use common::{MemberId, BookId};
 use rusqlite::{params, OptionalExtension};
 
 use common_local::{Progression, util::serialize_datetime, FileId};
 use serde::Serialize;
 use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
+use super::{TableRow, AdvRow, book::BookModel};
 
 
 
 
 #[derive(Debug, Serialize)]
 pub struct FileProgressionModel {
+    pub book_id: BookId,
     pub file_id: FileId,
     pub user_id: MemberId,
 
@@ -35,9 +36,10 @@ pub struct FileProgressionModel {
 }
 
 impl FileProgressionModel {
-    pub fn new(progress: Progression, user_id: MemberId, file_id: FileId) -> Self {
+    pub fn new(progress: Progression, user_id: MemberId, book_id: BookId, file_id: FileId) -> Self {
         match progress {
             Progression::Complete => Self {
+                book_id,
                 file_id,
                 user_id,
                 type_of: 0,
@@ -50,6 +52,7 @@ impl FileProgressionModel {
             },
 
             Progression::Ebook { chapter, page, char_pos } => Self {
+                book_id,
                 file_id,
                 user_id,
                 type_of: 1,
@@ -62,6 +65,7 @@ impl FileProgressionModel {
             },
 
             Progression::AudioBook { chapter, seek_pos } => Self {
+                book_id,
                 file_id,
                 user_id,
                 type_of: 2,
@@ -80,6 +84,7 @@ impl FileProgressionModel {
 impl TableRow<'_> for FileProgressionModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
+            book_id: row.next()?,
             file_id: row.next()?,
             user_id: row.next()?,
 
@@ -123,18 +128,18 @@ impl From<FileProgressionModel> for Progression {
 
 
 impl FileProgressionModel {
-    pub async fn insert_or_update(member_id: MemberId, file_id: FileId, progress: Progression, db: &Database) -> Result<()> {
-        let prog = Self::new(progress, member_id, file_id);
+    pub async fn insert_or_update(member_id: MemberId, book_id: BookId, file_id: FileId, progress: Progression, db: &Database) -> Result<()> {
+        let prog = Self::new(progress, member_id, book_id, file_id);
 
         if Self::find_one(member_id, file_id, db).await?.is_some() {
             db.write().await.execute(
-                r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE file_id = ?6 AND user_id = ?7"#,
-                params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.file_id, prog.user_id]
+                r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE book_id = ?6 AND file_id = ?7 AND user_id = ?8"#,
+                params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.book_id, prog.file_id, prog.user_id]
             )?;
         } else {
             db.write().await.execute(
-                r#"INSERT INTO file_progression (file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#,
-                params![prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
+                r#"INSERT INTO file_progression (book_id, file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"#,
+                params![prog.book_id, prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
             )?;
         }
 
@@ -156,5 +161,28 @@ impl FileProgressionModel {
         )?;
 
         Ok(())
+    }
+
+
+    pub async fn get_member_progression_and_books(member_id: MemberId, db: &Database) -> Result<Vec<(Self, BookModel)>> {
+        let read = db.read().await;
+
+        let mut statement = read.prepare(r"
+            SELECT * FROM file_progression
+            JOIN metadata_item ON metadata_item.id = file_progression.book_id
+            WHERE user_id = ?1 AND type_of = ?2
+            ORDER BY updated_at DESC"
+        )?;
+
+        let rows = statement.query_map(
+            params![member_id, 1],
+            |v| {
+                let mut row = AdvRow::from(v);
+
+                Ok((Self::create(&mut row)?, BookModel::create(&mut row)?))
+            }
+        )?;
+
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 }

@@ -1,6 +1,6 @@
 use actix_web::{get, web, post, delete};
 
-use common_local::{api, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer, ModifyValuesBy};
+use common_local::{api::{self, BookPresetListType, BookProgression}, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer, ModifyValuesBy};
 use chrono::Utc;
 use common::{ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
 use serde_qs::actix::QsQuery;
@@ -75,6 +75,45 @@ pub async fn load_book_list(
         items,
         count,
     })))
+}
+
+
+// TODO: Place into GET /books
+#[get("/books/preset")]
+pub async fn load_book_preset_list(
+    query: QsQuery<api::BookPresetListQuery>,
+    member: MemberCookie,
+    db: web::Data<Database>,
+) -> WebResult<JsonResponse<api::GetBookPresetListResponse>> {
+    let member = member.fetch_or_error(&db).await?;
+
+    match query.preset {
+        BookPresetListType::Progressing => {
+            let mut items = Vec::new();
+
+            for (a, book) in FileProgressionModel::get_member_progression_and_books(member.id, &db).await? {
+                let file = FileModel::find_one_by_id(a.file_id, &db).await?.unwrap();
+
+                let book = DisplayItem {
+                    id: book.id,
+                    title: book.title.or(book.original_title).unwrap_or_default(),
+                    cached: book.cached,
+                    thumb_path: book.thumb_path,
+                };
+
+                items.push(BookProgression {
+                    progress: a.into(),
+                    book,
+                    file: file.into(),
+                });
+            }
+
+            Ok(web::Json(WrappingResponse::okay(api::GetBookPresetListResponse {
+                items,
+                count: 0,
+            })))
+        }
+    }
 }
 
 

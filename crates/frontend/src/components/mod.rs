@@ -15,3 +15,4 @@ pub use popup::{
 pub use reader::Reader;
 pub use mass_selector_bar::MassSelectBar;
 pub use sidebar::Sidebar;
+pub use book_poster_item::BookPosterItem;

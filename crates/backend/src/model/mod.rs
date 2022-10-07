@@ -17,10 +17,7 @@ pub trait TableRow<'a> where Self: Sized {
     fn create(row: &mut AdvRow<'a>) -> rusqlite::Result<Self>;
 
     fn from_row(value: &'a Row<'a>) -> rusqlite::Result<Self> {
-        Self::create(&mut AdvRow {
-            index: 0,
-            row: value
-        })
+        Self::create(&mut AdvRow::from(value))
     }
 }
 
@@ -44,5 +41,14 @@ impl<'a> AdvRow<'a> {
 
     pub fn has_next(&self) -> rusqlite::Result<bool> {
         self.row.get::<_, Option<String>>(self.index).map(|v| v.is_some())
+    }
+}
+
+impl<'a> From<&'a Row<'a>> for AdvRow<'a> {
+    fn from(row: &'a Row<'a>) -> Self {
+        AdvRow {
+            index: 0,
+            row
+        }
     }
 }

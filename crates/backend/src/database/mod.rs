@@ -147,6 +147,7 @@ pub async fn init() -> Result<Database> {
     // File Progression
     conn.execute(
         r#"CREATE TABLE IF NOT EXISTS "file_progression" (
+            "book_id"       INTEGER NOT NULL,
             "file_id"       INTEGER NOT NULL,
             "user_id"       INTEGER NOT NULL,
 
@@ -162,6 +163,7 @@ pub async fn init() -> Result<Database> {
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
+        	FOREIGN KEY("book_id") REFERENCES metadata_item("id") ON DELETE CASCADE,
 
             UNIQUE(file_id, user_id)
         );"#,

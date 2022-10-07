@@ -3,7 +3,7 @@ use std::path::Path;
 use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse, DeletionResponse}, BookId, ImageIdType};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
-use wasm_bindgen::{JsValue, JsCast};
+use wasm_bindgen::{JsValue, JsCast, UnwrapThrowExt};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
 
@@ -174,6 +174,23 @@ pub async fn get_books(
     let url = format!(
         "/api/books?{}",
         serde_qs::to_string(&BookListQuery::new(library, offset, limit, search).unwrap()).unwrap()
+    );
+
+    fetch(
+        "GET",
+        &url,
+        Option::<&()>::None
+    ).await.unwrap_or_else(def)
+}
+
+pub async fn get_books_preset(
+    offset: Option<usize>,
+    limit: Option<usize>,
+    preset: BookPresetListType,
+) -> WrappingResponse<ApiGetBookPresetListResponse> {
+    let url = format!(
+        "/api/books/preset?{}",
+        serde_qs::to_string(&BookPresetListQuery { offset, limit, preset }).unwrap_throw()
     );
 
     fetch(
