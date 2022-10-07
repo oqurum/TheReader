@@ -1,8 +1,10 @@
 use common_local::ws::WebsocketResponse;
 use futures::{channel::mpsc::{Sender, channel, Receiver}, SinkExt, StreamExt, stream::{SplitSink, SplitStream}};
 use gloo_timers::future::TimeoutFuture;
+use gloo_utils::window;
 use reqwasm::websocket::{futures::WebSocket, Message};
 
+use wasm_bindgen::UnwrapThrowExt;
 use wasm_bindgen_futures::spawn_local;
 use yew_agent::Dispatched;
 
@@ -12,11 +14,17 @@ pub use event_bus::WsEventBus;
 use crate::util::as_local_path_without_http;
 
 pub fn open_websocket_conn() {
-    let url = format!("wss://{}", as_local_path_without_http("/ws/"));
+    let ws_type = if window().location().protocol().unwrap_throw() == "https" {
+        "wss"
+    } else {
+        "ws"
+    };
+
+    let url = format!("{ws_type}://{}", as_local_path_without_http("/ws/"));
 
     let ws = WebSocket::open(&url).unwrap();
 
-    log::info!("Conencted to WS: {}", url);
+    log::info!("Connected to WS: {}", url);
 
     // Split Websocket
     let (write, read) = ws.split();
