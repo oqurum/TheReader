@@ -7,7 +7,7 @@ use reqwest::Url;
 use serde::{Serialize, Deserialize};
 use serde_qs::actix::QsQuery;
 
-use crate::{database::Database, WebResult, config::{does_config_exist, CONFIG_PATH, CONFIG_FILE, get_config, save_config, update_config}, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::NewLibraryModel, directory::DirectoryModel, auth::AuthModel}, Result};
+use crate::{database::Database, WebResult, config::{is_setup as iss_setup, CONFIG_PATH, CONFIG_FILE, get_config, save_config, update_config}, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::NewLibraryModel, directory::DirectoryModel, auth::AuthModel}, Result};
 
 
 
@@ -23,7 +23,7 @@ pub async fn is_setup(
             return Err(ApiErrorResponse::new("Not owner").into());
         }
 
-        Ok(web::Json(WrappingResponse::okay(does_config_exist())))
+        Ok(web::Json(WrappingResponse::okay(iss_setup())))
     } else {
         Ok(web::Json(WrappingResponse::okay(false)))
     }
@@ -42,7 +42,7 @@ pub async fn save_initial_setup(
         if !member.permissions.is_owner() {
             return Err(ApiErrorResponse::new("Not owner").into());
         }
-    } else if !does_config_exist() {
+    } else if !iss_setup() {
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
@@ -209,7 +209,11 @@ pub struct RegisterAgentQuery {
 }
 
 
-async fn save_setup_config(value: SetupConfig) -> Result<()> {
+async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
+    let temp_config = get_config();
+
+    value.server.auth_key = temp_config.server.auth_key;
+
     let config = Config {
         server: value.server,
         libby: LibraryConnection::default(),
@@ -222,7 +226,7 @@ async fn save_setup_config(value: SetupConfig) -> Result<()> {
         toml_edit::ser::to_string_pretty(&config)?,
     ).await?;
 
-    *CONFIG_FILE.lock().unwrap() = Some(config);
+    *CONFIG_FILE.lock().unwrap() = config;
 
     Ok(())
 }

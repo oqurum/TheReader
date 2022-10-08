@@ -10,7 +10,7 @@ use common_local::setup::ConfigEmail;
 use common_local::{Permissions, MemberAuthType};
 use common::api::{WrappingResponse, ApiErrorResponse};
 
-use crate::config::{does_config_exist, get_config};
+use crate::config::{is_setup, get_config};
 use crate::http::JsonResponse;
 use crate::model::auth::AuthModel;
 use crate::model::member::{NewMemberModel, MemberModel};
@@ -42,7 +42,7 @@ pub async fn post_passwordless_oauth(
     identity: Option<Identity>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<String>> {
-    if identity.is_some() || !does_config_exist() {
+    if identity.is_some() || !is_setup() {
         return Err(ApiErrorResponse::new("Already logged in").into());
     }
 
@@ -132,7 +132,7 @@ pub async fn get_passwordless_oauth_callback(
 
 
             // Check to see if we don't have any other Members and We're in the setup phase.
-            if !does_config_exist() && MemberModel::count(&db).await? == 0 {
+            if !is_setup() && MemberModel::count(&db).await? == 0 {
                 new_member.permissions = Permissions::owner();
             }
 

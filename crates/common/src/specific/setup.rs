@@ -23,7 +23,7 @@ impl SetupConfig {
 
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub server: ConfigServer,
     #[serde(default)]

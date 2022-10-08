@@ -17,7 +17,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::Error;
 use crate::WebResult;
-use crate::config::does_config_exist;
+use crate::config::is_setup;
 use crate::database::Database;
 use crate::http::JsonResponse;
 use crate::model::member::MemberModel;
@@ -73,7 +73,7 @@ pub async fn post_password_oauth(
 
 
         // Check to see if we don't have any other Members and We're in the setup phase.
-        if !does_config_exist() && MemberModel::count(&db).await? == 0 {
+        if !is_setup() && MemberModel::count(&db).await? == 0 {
             new_member.permissions = Permissions::owner();
         }
 

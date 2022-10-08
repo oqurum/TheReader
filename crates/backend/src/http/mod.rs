@@ -10,7 +10,7 @@ use actix_web::{web, App, HttpServer, cookie::SameSite};
 use common::api::WrappingResponse;
 
 use crate::CliArgs;
-use crate::config::get_config;
+use crate::config::{get_config, is_setup};
 use crate::database::Database;
 
 mod api;
@@ -26,7 +26,7 @@ pub type JsonResponse<V> = web::Json<WrappingResponse<V>>;
 
 // TODO: Convert to async closure (https://github.com/rust-lang/rust/issues/62290)
 async fn default_handler(req: actix_web::HttpRequest) -> std::io::Result<HttpResponse> {
-    if !req.path().contains('.') && !crate::config::does_config_exist() && !req.uri().path().contains("/setup") {
+    if !req.path().contains('.') && !is_setup() && !req.uri().path().contains("/setup") {
         Ok(HttpResponse::TemporaryRedirect()
             .insert_header((header::LOCATION, "/setup"))
             .finish())

@@ -8,10 +8,13 @@ use crate::Result;
 
 pub static CONFIG_PATH: &str = "./app/config.toml";
 
+static IS_SETUP: Mutex<bool> = Mutex::new(false);
 
 lazy_static! {
-    pub static ref CONFIG_FILE: Mutex<Option<Config>> = {
+    pub static ref CONFIG_FILE: Mutex<Config> = {
         if let Ok(data) = std::fs::read(CONFIG_PATH) {
+            *IS_SETUP.lock().unwrap() = true;
+
             #[allow(clippy::expect_used)]
             Mutex::new(toml_edit::de::from_slice(&data).expect("Loading Config File"))
         } else {
@@ -20,12 +23,12 @@ lazy_static! {
     };
 }
 
-pub fn does_config_exist() -> bool {
-    CONFIG_FILE.lock().unwrap().is_some()
+pub fn is_setup() -> bool {
+    *IS_SETUP.lock().unwrap()
 }
 
 pub fn get_config() -> Config {
-    CONFIG_FILE.lock().unwrap().clone().unwrap()
+    CONFIG_FILE.lock().unwrap().clone()
 }
 
 pub fn update_config<F: FnOnce(&mut Config) -> Result<()>>(value: F) -> Result<()> {
@@ -33,7 +36,7 @@ pub fn update_config<F: FnOnce(&mut Config) -> Result<()>>(value: F) -> Result<(
 
     value(&mut config)?;
 
-    *CONFIG_FILE.lock().unwrap() = Some(config);
+    *CONFIG_FILE.lock().unwrap() = config;
 
     Ok(())
 }
@@ -48,7 +51,7 @@ pub async fn save_config() -> Result<()> {
         toml_edit::ser::to_string_pretty(&config)?,
     ).await?;
 
-    *CONFIG_FILE.lock().unwrap() = Some(config);
+    *CONFIG_FILE.lock().unwrap() = config;
 
     Ok(())
 }
