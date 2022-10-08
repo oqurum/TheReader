@@ -8,7 +8,7 @@ use crate::Result;
 
 pub static CONFIG_PATH: &str = "./app/config.toml";
 
-static IS_SETUP: Mutex<bool> = Mutex::new(false);
+pub static IS_SETUP: Mutex<bool> = Mutex::new(false);
 
 lazy_static! {
     pub static ref CONFIG_FILE: Mutex<Config> = {

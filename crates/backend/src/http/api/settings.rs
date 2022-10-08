@@ -7,7 +7,7 @@ use reqwest::Url;
 use serde::{Serialize, Deserialize};
 use serde_qs::actix::QsQuery;
 
-use crate::{database::Database, WebResult, config::{is_setup as iss_setup, CONFIG_PATH, CONFIG_FILE, get_config, save_config, update_config}, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::NewLibraryModel, directory::DirectoryModel, auth::AuthModel}, Result};
+use crate::{database::Database, WebResult, config::{is_setup as iss_setup, CONFIG_PATH, CONFIG_FILE, get_config, save_config, update_config, IS_SETUP}, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::NewLibraryModel, directory::DirectoryModel, auth::AuthModel}, Result};
 
 
 
@@ -227,6 +227,7 @@ async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
     ).await?;
 
     *CONFIG_FILE.lock().unwrap() = config;
+    *IS_SETUP.lock().unwrap() = true;
 
     Ok(())
 }
