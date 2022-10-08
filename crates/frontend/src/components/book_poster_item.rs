@@ -65,23 +65,11 @@ impl Component for BookPosterItem {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let &BookPosterItemProps {
-            is_editing,
             is_updating,
             ref item,
             ..
         } = ctx.props();
 
-        let book_id = item.id;
-
-        let on_click_more = ctx.link().callback(move |e: MouseEvent| {
-            e.prevent_default();
-            e.stop_propagation();
-
-            let target = e.target_unchecked_into::<HtmlElement>();
-            let bb = target.get_bounding_client_rect();
-
-            BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::More { book_id, mouse_pos: ((bb.left() + bb.width()) as i32, (bb.top() + bb.height()) as i32) }))
-        });
 
         let route_to = if let Some((_, file)) = ctx.props().progress.as_ref() {
             Route::ReadBook { book_id: file.id }
@@ -92,49 +80,7 @@ impl Component for BookPosterItem {
         html! {
             <Link<Route> to={ route_to } classes="book-list-item">
                 <div class="poster">
-                    <div class="top-left">
-                        <input
-                            checked={is_editing}
-                            type="checkbox"
-                            onclick={ctx.link().callback(move |e: MouseEvent| {
-                                e.prevent_default();
-                                e.stop_propagation();
-
-                                BookPosterItemMsg::Ignore
-                            })}
-                            onmouseup={ctx.link().callback(move |e: MouseEvent| {
-                                let input = e.target_unchecked_into::<HtmlInputElement>();
-
-                                let value = !input.checked();
-
-                                input.set_checked(value);
-
-                                BookPosterItemMsg::AddOrRemoveItemFromEditing(book_id, value)
-                            })}
-                        />
-                    </div>
-                    <div class="bottom-right">
-                        <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
-                    </div>
-                    <div class="bottom-left">
-                        <span class="material-icons" onclick={ctx.link().callback_future(move |e: MouseEvent| {
-                            e.prevent_default();
-                            e.stop_propagation();
-
-                            async move {
-                                let resp = request::get_media_view(book_id).await;
-
-                                match resp.ok() {
-                                    Ok(res) => BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Edit(Box::new(res)))),
-                                    Err(err) => {
-                                        crate::display_error(err);
-                                        BookPosterItemMsg::Ignore
-                                    }
-                                }
-
-                            }
-                        })} title="More Options">{ "edit" }</span>
-                    </div>
+                    { self.render_tools(ctx) }
                     <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                     {
                         if is_updating {
@@ -170,6 +116,81 @@ impl Component for BookPosterItem {
                     }
                 </div>
             </Link<Route>>
+        }
+    }
+}
+
+impl BookPosterItem {
+    fn render_tools(&self, ctx: &Context<Self>) -> Html {
+        let &BookPosterItemProps {
+            is_editing,
+            ref item,
+            ref callback,
+            ..
+        } = ctx.props();
+
+        if callback.is_none() {
+            return html! {}
+        }
+
+        let book_id = item.id;
+
+        let on_click_more = ctx.link().callback(move |e: MouseEvent| {
+            e.prevent_default();
+            e.stop_propagation();
+
+            let target = e.target_unchecked_into::<HtmlElement>();
+            let bb = target.get_bounding_client_rect();
+
+            BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::More { book_id, mouse_pos: ((bb.left() + bb.width()) as i32, (bb.top() + bb.height()) as i32) }))
+        });
+
+        html! {
+            <>
+                <div class="top-left">
+                    <input
+                        checked={ is_editing }
+                        type="checkbox"
+                        onclick={ ctx.link().callback(move |e: MouseEvent| {
+                            e.prevent_default();
+                            e.stop_propagation();
+
+                            BookPosterItemMsg::Ignore
+                        }) }
+                        onmouseup={ ctx.link().callback(move |e: MouseEvent| {
+                            let input = e.target_unchecked_into::<HtmlInputElement>();
+
+                            let value = !input.checked();
+
+                            input.set_checked(value);
+
+                            BookPosterItemMsg::AddOrRemoveItemFromEditing(book_id, value)
+                        }) }
+                    />
+                </div>
+                <div class="bottom-right">
+                    <span class="material-icons" onclick={ on_click_more } title="More Options">{ "more_horiz" }</span>
+                </div>
+                <div class="bottom-left">
+                    <span class="material-icons" onclick={ ctx.link().callback_future(move |e: MouseEvent| {
+                        e.prevent_default();
+                        e.stop_propagation();
+
+                        async move {
+                            let resp = request::get_media_view(book_id).await;
+
+                            match resp.ok() {
+                                Ok(res) => BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Edit(Box::new(res)))),
+                                Err(err) => {
+                                    crate::display_error(err);
+                                    BookPosterItemMsg::Ignore
+                                }
+                            }
+
+                        }
+                    }) } title="More Options">{ "edit" }</span>
+                </div>
+            </>
         }
     }
 }
