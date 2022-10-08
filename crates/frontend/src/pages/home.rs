@@ -1,4 +1,4 @@
-use common::api::WrappingResponse;
+use common::{component::CarouselComponent, api::WrappingResponse};
 use common_local::api::{ApiGetBookPresetListResponse, BookPresetListType};
 use yew::prelude::*;
 
@@ -55,7 +55,7 @@ impl Component for HomePage {
                             html! {
                                 <>
                                     <h3>{ "In Progress" }</h3>
-                                    <div class="book-list normal">
+                                    <CarouselComponent>
                                     {
                                         for sec.items.iter().map(|item| {
                                             html! {
@@ -63,13 +63,13 @@ impl Component for HomePage {
                                                     is_editing=false
                                                     is_updating=false
 
-                                                    progress={ (item.progress.clone(), item.file.clone()) }
+                                                    progress={ (item.progress, item.file.clone()) }
                                                     item={ item.book.clone() }
                                                 />
                                             }
                                         })
                                     }
-                                    </div>
+                                    </CarouselComponent>
                                 </>
                             }
                         } else {
