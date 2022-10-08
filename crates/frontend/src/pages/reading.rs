@@ -382,10 +382,12 @@ impl ReadingBook {
         match self.reader_settings.type_of {
             PageLoadType::All => {
                 if chap_cont.chapters.is_empty() {
-                    (curr_section.saturating_sub(1), curr_section + 2)
+                    (curr_section.saturating_sub(2), curr_section + 3)
                 } else {
                     let mut start_pos = 0;
                     let mut end_pos = 0;
+
+                    // TODO: Simplify. Returns the next region of sections we need to load.
 
                     for section in chapters {
                         // If end_pos == 0 that means we haven't found a valid section to load.
@@ -418,8 +420,10 @@ impl ReadingBook {
 
             PageLoadType::Select => {
                 if chap_cont.chapters.is_empty() {
-                    (curr_section.saturating_sub(1), curr_section + 2)
+                    (curr_section.saturating_sub(2), curr_section + 3)
                 } else {
+                    // TODO: Simplify. Returns the next region of sections we need to load.
+
                     let found_previous = curr_section != 0 && chapters.iter().any(|v| *v == curr_section - 1);
                     let found_next = curr_section + 1 != total_sections && chapters.iter().any(|v| *v == curr_section + 1);
 
