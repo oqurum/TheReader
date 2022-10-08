@@ -30,6 +30,8 @@ pub struct Config {
     pub libby: LibraryConnection,
     pub email: Option<ConfigEmail>,
     pub authenticators: Authenticators,
+
+    pub has_admin_account: bool,
 }
 
 

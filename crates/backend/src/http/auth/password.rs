@@ -17,7 +17,9 @@ use serde::{Serialize, Deserialize};
 
 use crate::Error;
 use crate::WebResult;
-use crate::config::is_setup;
+use crate::config::get_config;
+use crate::config::save_config;
+use crate::config::update_config;
 use crate::database::Database;
 use crate::http::JsonResponse;
 use crate::model::member::MemberModel;
@@ -72,13 +74,27 @@ pub async fn post_password_oauth(
         };
 
 
-        // Check to see if we don't have any other Members and We're in the setup phase.
-        if !is_setup() && MemberModel::count(&db).await? == 0 {
+        let has_admin_account = get_config().has_admin_account;
+
+        // Check to see if we don't have the admin account created yet.
+        if !has_admin_account {
             new_member.permissions = Permissions::owner();
         }
 
 
-        new_member.insert(&db).await?
+        let inserted = new_member.insert(&db).await?;
+
+        // Update config.
+        if !has_admin_account {
+            update_config(|config| {
+                config.has_admin_account = true;
+                Ok(())
+            })?;
+
+            save_config().await?;
+        }
+
+        inserted
     };
 
     super::remember_member_auth(&request.extensions(), member.id)?;

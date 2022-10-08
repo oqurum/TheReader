@@ -219,6 +219,8 @@ async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
         libby: LibraryConnection::default(),
         email: value.email,
         authenticators: value.authenticators,
+
+        has_admin_account: false,
     };
 
     tokio::fs::write(
