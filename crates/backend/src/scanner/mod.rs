@@ -123,8 +123,6 @@ async fn file_match_or_create_book(file: FileModel, library_id: LibraryId, db: &
 
             book_model.library_id = library_id;
 
-            println!("{book_model:#?}");
-
             // TODO: Store Publisher inside Database
             book_model.cached = book_model.cached.publisher_optional(publisher).author_optional(main_author);
 
