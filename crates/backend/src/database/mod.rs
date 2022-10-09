@@ -86,11 +86,6 @@ pub async fn init() -> Result<Database> {
 
             "cached"              TEXT,
 
-            "tags_genre"          TEXT,
-            "tags_collection"     TEXT,
-            "tags_author"         TEXT,
-            "tags_country"        TEXT,
-
             "available_at"        DATETIME,
             "year"                INTEGER,
 

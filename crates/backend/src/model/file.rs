@@ -129,7 +129,7 @@ impl NewFileModel {
 
         conn.execute(r#"
             INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, library_id, metadata_id, chapter_count)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         "#,
         params![
             &self.path, &self.file_type, &self.file_name, self.file_size,

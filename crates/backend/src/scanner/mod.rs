@@ -4,6 +4,7 @@ use crate::{Result, database::Database, metadata::{get_metadata_from_files, Meta
 use bookie::BookSearch;
 use chrono::{Utc, TimeZone};
 use common::parse_book_id;
+use common_local::LibraryId;
 use tokio::fs;
 
 
@@ -84,7 +85,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
                         let file_id = file.id;
 
                         // TODO: Run Concurrently.
-                        if let Err(e) = file_match_or_create_book(file, db).await {
+                        if let Err(e) = file_match_or_create_book(file, library.id, db).await {
                             eprintln!("File #{file_id} file_match_or_create_metadata Error: {e}");
                         }
                     }
@@ -101,7 +102,7 @@ pub async fn library_scan(library: &LibraryModel, directories: Vec<DirectoryMode
 }
 
 
-async fn file_match_or_create_book(file: FileModel, db: &Database) -> Result<()> {
+async fn file_match_or_create_book(file: FileModel, library_id: LibraryId, db: &Database) -> Result<()> {
     if file.book_id.is_none() {
         let file_id = file.id;
 
@@ -118,6 +119,11 @@ async fn file_match_or_create_book(file: FileModel, db: &Database) -> Result<()>
             }
 
             let mut book_model: BookModel = meta.into();
+
+
+            book_model.library_id = library_id;
+
+            println!("{book_model:#?}");
 
             // TODO: Store Publisher inside Database
             book_model.cached = book_model.cached.publisher_optional(publisher).author_optional(main_author);
