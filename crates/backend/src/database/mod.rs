@@ -53,7 +53,7 @@ pub async fn init() -> Result<Database> {
             "file_size"        INTEGER NOT NULL,
 
             "library_id"       INTEGER,
-            "metadata_id"      INTEGER,
+            "book_id"      INTEGER,
             "chapter_count"    INTEGER,
 
             "identifier"       TEXT,
@@ -64,14 +64,14 @@ pub async fn init() -> Result<Database> {
 
             PRIMARY KEY("id" AUTOINCREMENT),
 
-            FOREIGN KEY("metadata_id") REFERENCES metadata_item("id") ON DELETE CASCADE
+            FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE
         );"#,
         []
     )?;
 
-    // Metadata Item
+    // Book Item
     conn.execute(
-        r#"CREATE TABLE IF NOT EXISTS "metadata_item" (
+        r#"CREATE TABLE IF NOT EXISTS "book" (
             "id"                  INTEGER NOT NULL,
 
             "library_id"          INTEGER,
@@ -103,16 +103,16 @@ pub async fn init() -> Result<Database> {
         []
     )?;
 
-    // Metadata People
+    // Book People
     conn.execute(
-        r#"CREATE TABLE IF NOT EXISTS "metadata_person" (
-            "metadata_id"    INTEGER NOT NULL,
+        r#"CREATE TABLE IF NOT EXISTS "book_person" (
+            "book_id"    INTEGER NOT NULL,
             "person_id"      INTEGER NOT NULL,
 
-            FOREIGN KEY("metadata_id") REFERENCES metadata_item("id") ON DELETE CASCADE,
+            FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE,
         	FOREIGN KEY("person_id") REFERENCES tag_person("id") ON DELETE CASCADE,
 
-            UNIQUE(metadata_id, person_id)
+            UNIQUE(book_id, person_id)
         );"#,
         []
     )?;
@@ -158,7 +158,7 @@ pub async fn init() -> Result<Database> {
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
-        	FOREIGN KEY("book_id") REFERENCES metadata_item("id") ON DELETE CASCADE,
+        	FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE,
 
             UNIQUE(file_id, user_id)
         );"#,

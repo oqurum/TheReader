@@ -169,7 +169,7 @@ impl FileProgressionModel {
 
         let mut statement = read.prepare(r"
             SELECT * FROM file_progression
-            JOIN metadata_item ON metadata_item.id = file_progression.book_id
+            JOIN book ON book.id = file_progression.book_id
             WHERE user_id = ?1 AND type_of = ?2
             ORDER BY updated_at DESC"
         )?;

@@ -110,7 +110,7 @@ impl BookModel {
         if table_book.is_none() {
             db.write().await
             .execute(r#"
-                INSERT INTO metadata_item (
+                INSERT INTO book (
                     library_id, source, file_item_count,
                     title, original_title, description, rating, thumb_url,
                     cached,
@@ -133,12 +133,12 @@ impl BookModel {
             return Ok(Self::find_one_by_source(&self.source, db).await?.unwrap());
         } else if self.id != 0 {
             db.write().await
-            .execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
+            .execute(r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
                 params![self.id]
             )?;
         } else {
             db.write().await
-            .execute(r#"UPDATE metadata_item SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
+            .execute(r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
                 params![self.source.to_string()]
             )?;
         }
@@ -151,7 +151,7 @@ impl BookModel {
 
         db.write().await
         .execute(r#"
-            UPDATE metadata_item SET
+            UPDATE book SET
                 library_id = ?2, source = ?3, file_item_count = ?4,
                 title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
                 cached = ?10,
@@ -179,13 +179,13 @@ impl BookModel {
             if model.file_item_count < 1 {
                 db.write().await
                 .execute(
-                    r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
+                    r#"UPDATE book SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
                     params![id]
                 )?;
             } else {
                 db.write().await
                 .execute(
-                    r#"DELETE FROM metadata_item WHERE id = ?1"#,
+                    r#"DELETE FROM book WHERE id = ?1"#,
                     params![id]
                 )?;
             }
@@ -199,7 +199,7 @@ impl BookModel {
             if model.file_item_count > 0 {
                 db.write().await
                 .execute(
-                    r#"UPDATE metadata_item SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
+                    r#"UPDATE book SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
                     params![id]
                 )?;
             }
@@ -211,7 +211,7 @@ impl BookModel {
     pub async fn set_file_count(id: BookId, file_count: usize, db: &Database) -> Result<()> {
         db.write().await
         .execute(
-            r#"UPDATE metadata_item SET file_item_count = ?2 WHERE id = ?1"#,
+            r#"UPDATE book SET file_item_count = ?2 WHERE id = ?1"#,
             params![id, file_count]
         )?;
 
@@ -221,7 +221,7 @@ impl BookModel {
     // TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
     pub async fn find_one_by_source(source: &Source, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM metadata_item WHERE source = ?1"#,
+            r#"SELECT * FROM book WHERE source = ?1"#,
             params![source.to_string()],
             |v| BookModel::from_row(v)
         ).optional()?)
@@ -229,7 +229,7 @@ impl BookModel {
 
     pub async fn find_one_by_id(id: BookId, db: &Database) -> Result<Option<Self>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM metadata_item WHERE id = ?1"#,
+            r#"SELECT * FROM book WHERE id = ?1"#,
             params![id],
             |v| BookModel::from_row(v)
         ).optional()?)
@@ -237,7 +237,7 @@ impl BookModel {
 
     pub async fn delete_by_id(id: BookId, db: &Database) -> Result<usize> {
         Ok(db.write().await.execute(
-            r#"DELETE FROM metadata_item WHERE id = ?1"#,
+            r#"DELETE FROM book WHERE id = ?1"#,
             params![id]
         )?)
     }
@@ -256,7 +256,7 @@ impl BookModel {
             .map(|pid| format!(r#"id IN (SELECT book_id FROM book_person WHERE person_id = {pid})"#))
             .unwrap_or_default();
 
-        let mut conn = this.prepare(&format!(r#"SELECT * FROM metadata_item {insert_where} {lib_id} {insert_and} {inner_query} LIMIT ?1 OFFSET ?2"#))?;
+        let mut conn = this.prepare(&format!(r#"SELECT * FROM book {insert_where} {lib_id} {insert_and} {inner_query} LIMIT ?1 OFFSET ?2"#))?;
 
         let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
 
@@ -326,7 +326,7 @@ impl BookModel {
         Ok(db.write().await
         .execute(
             &format!(
-                "UPDATE metadata_item SET {} WHERE id = ?1",
+                "UPDATE book SET {} WHERE id = ?1",
                 items.iter()
                     .enumerate()
                     .map(|(i, v)| format!("{v} = ?{}", 2 + i))
@@ -340,7 +340,7 @@ impl BookModel {
 
     // Search
     fn gen_search_query(filter: &FilterContainer, library: Option<LibraryId>) -> String {
-        let mut sql = String::from("SELECT * FROM metadata_item WHERE ");
+        let mut sql = String::from("SELECT * FROM book WHERE ");
         let orig_len = sql.len();
 
         let mut f_comp = Vec::new();
@@ -385,19 +385,19 @@ impl BookModel {
                         match fil.modifier {
                             FilterModifier::IsNull => {
                                 f_comp.push(String::from(
-                                    "id NOT IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
+                                    "id NOT IN (SELECT book_id FROM book_person WHERE book_id = book.id)"
                                 ));
                             }
 
                             FilterModifier::IsNotNull => {
                                 f_comp.push(String::from(
-                                    "id IN (SELECT metadata_id FROM metadata_person WHERE metadata_id = metadata_item.id)"
+                                    "id IN (SELECT book_id FROM book_person WHERE book_id = book.id)"
                                 ));
                             }
 
                             v => {
                                 f_comp.push(format!(
-                                    "id IN (SELECT metadata_id FROM metadata_person WHERE person_id {} {})",
+                                    "id IN (SELECT book_id FROM book_person WHERE person_id {} {})",
                                     get_modifier(fil.type_of, v),
                                     pid
                                 ));
@@ -411,7 +411,7 @@ impl BookModel {
         sql += &f_comp.join(" AND ");
 
         if sql.len() == orig_len {
-            String::from("SELECT * FROM metadata_item ")
+            String::from("SELECT * FROM book ")
         } else {
             sql
         }

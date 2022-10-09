@@ -122,10 +122,10 @@ impl PersonModel {
         let this = db.read().await;
 
         let mut conn = this.prepare(r#"
-            SELECT tag_person.* FROM metadata_person
+            SELECT tag_person.* FROM book_person
             LEFT JOIN
-                tag_person ON tag_person.id = metadata_person.person_id
-            WHERE metadata_id = ?1
+                tag_person ON tag_person.id = book_person.person_id
+            WHERE book_id = ?1
         "#)?;
 
         let map = conn.query_map([id], |v| Self::from_row(v))?;

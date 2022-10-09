@@ -222,11 +222,11 @@ impl PopupEditBook {
             TabDisplay::General => self.render_tab_general(ctx),
             TabDisplay::Poster => {
                 if self.cached_posters.is_none() {
-                    let metadata_id = ctx.props().media_resp.book.id;
+                    let book_id = ctx.props().media_resp.book.id;
 
                     ctx.link()
                     .send_future(async move {
-                        Msg::RetrievePostersResponse(request::get_posters_for_book(metadata_id).await)
+                        Msg::RetrievePostersResponse(request::get_posters_for_book(book_id).await)
                     });
                 }
 

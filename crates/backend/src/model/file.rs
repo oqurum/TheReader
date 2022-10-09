@@ -128,7 +128,7 @@ impl NewFileModel {
         let conn = db.write().await;
 
         conn.execute(r#"
-            INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, library_id, metadata_id, chapter_count)
+            INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, library_id, book_id, chapter_count)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         "#,
         params![
@@ -163,7 +163,7 @@ impl FileModel {
 
         let mut conn = this.prepare(r#"
             SELECT * FROM file
-            LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id
+            LEFT JOIN book ON book.id = file.book_id
             WHERE library_id = ?1
             LIMIT ?2
             OFFSET ?3
@@ -177,7 +177,7 @@ impl FileModel {
     pub async fn find_by_missing_book(db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
-        let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id = 0 OR metadata_id = NULL")?;
+        let mut conn = this.prepare("SELECT * FROM file WHERE book_id = 0 OR book_id = NULL")?;
 
         let map = conn.query_map([], |v| Self::from_row(v))?;
 
@@ -194,7 +194,7 @@ impl FileModel {
 
     pub async fn find_one_by_id_with_book(id: FileId, db: &Database) -> Result<Option<FileWithBook>> {
         Ok(db.read().await.query_row(
-            r#"SELECT * FROM file LEFT JOIN metadata_item ON metadata_item.id = file.metadata_id WHERE file.id = ?1"#,
+            r#"SELECT * FROM file LEFT JOIN book ON book.id = file.book_id WHERE file.id = ?1"#,
             [id],
             |v| FileWithBook::from_row(v)
         ).optional()?)
@@ -203,7 +203,7 @@ impl FileModel {
     pub async fn find_by_book_id(book_id: BookId, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
-        let mut conn = this.prepare("SELECT * FROM file WHERE metadata_id=?1")?;
+        let mut conn = this.prepare("SELECT * FROM file WHERE book_id=?1")?;
 
         let map = conn.query_map([book_id], |v| Self::from_row(v))?;
 
@@ -216,7 +216,7 @@ impl FileModel {
 
     pub async fn update_book_id(file_id: FileId, book_id: BookId, db: &Database) -> Result<()> {
         db.write().await
-        .execute(r#"UPDATE file SET metadata_id = ?1 WHERE id = ?2"#,
+        .execute(r#"UPDATE file SET book_id = ?1 WHERE id = ?2"#,
             params![book_id, file_id]
         )?;
 
@@ -225,7 +225,7 @@ impl FileModel {
 
     pub async fn transfer_book_id(old_book_id: BookId, new_book_id: BookId, db: &Database) -> Result<usize> {
         Ok(db.write().await
-        .execute(r#"UPDATE file SET metadata_id = ?1 WHERE metadata_id = ?2"#,
+        .execute(r#"UPDATE file SET book_id = ?1 WHERE book_id = ?2"#,
             params![new_book_id, old_book_id]
         )?)
     }
