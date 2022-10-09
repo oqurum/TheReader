@@ -34,6 +34,13 @@ pub struct Config {
     pub has_admin_account: bool,
 }
 
+impl Config {
+    pub fn is_fully_setup(&self) -> bool {
+        self.has_admin_account
+        // TODO: self.authenticators.main_server
+    }
+}
+
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]

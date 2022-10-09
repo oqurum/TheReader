@@ -1,33 +1,43 @@
 // TODO: Expand to multiple inlined pages.
 
-use common::api::WrappingResponse;
-use common_local::{EditManager, setup::SetupConfig};
+use std::path::PathBuf;
+
+use common::{component::{FileSearchComponent, FileSearchRequest, FileSearchEvent, file_search::FileInfo}, api::{WrappingResponse, ApiErrorResponse}};
+use common_local::{EditManager, setup::{SetupConfig, Config}, api::ApiGetSetupResponse};
+use gloo_utils::window;
 use validator::{Validate, ValidationErrors};
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::{request, Route};
+use super::PasswordLogin;
 
 
 pub enum SetupPageMessage {
+    Ignore,
+
     AfterSentConfigSuccess,
     AfterSentConfigError(String),
+
+    LoginPasswordResponse(std::result::Result<String, ApiErrorResponse>),
 
     Finish,
 
     UpdateInput(Box<dyn Fn(&mut EditManager<SetupConfig>, String)>, String),
 
-    IsAlreadySetupResponse(WrappingResponse<bool>),
+    IsAlreadySetupResponse(WrappingResponse<ApiGetSetupResponse>),
 }
 
 pub struct SetupPage {
-    is_setup: IsSetup,
+    initial_config: IsSetup,
     config: EditManager<SetupConfig>,
     is_waiting_for_resp: bool,
 
     current_errors: ValidationErrors,
+
+    password_response: Option<std::result::Result<String, ApiErrorResponse>>,
 }
 
 impl Component for SetupPage {
@@ -42,27 +52,30 @@ impl Component for SetupPage {
         Self {
             config: EditManager::default(),
             is_waiting_for_resp: false,
-            is_setup: IsSetup::Unknown,
+            initial_config: IsSetup::Unknown,
 
             current_errors: ValidationErrors::new(),
+
+            password_response: None,
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            SetupPageMessage::Ignore => return false,
+
             SetupPageMessage::IsAlreadySetupResponse(resp) => {
                 match resp.ok() {
-                    Ok(is_setup) => {
-                        self.is_setup = if is_setup {
+                    Ok(config) => {
+                        self.initial_config = config.map(IsSetup::Initially).unwrap_or(IsSetup::No);
+
+                        if self.is_fully_setup() {
                             // TODO: Add a delay + reason.
                             let history = ctx.link().history().unwrap();
                             history.push(Route::Dashboard);
+                        }
+                    }
 
-                            IsSetup::Yes
-                        } else {
-                            IsSetup::No
-                        };
-                    },
                     Err(err) => crate::display_error(err),
                 }
             }
@@ -107,13 +120,22 @@ impl Component for SetupPage {
             SetupPageMessage::UpdateInput(funky, value) => {
                 funky(&mut self.config, value);
             }
+
+            // Admin Creation
+
+            SetupPageMessage::LoginPasswordResponse(resp) => {
+                match resp {
+                    Ok(_) => window().location().reload().unwrap_throw(),
+                    Err(e) => crate::display_error(e),
+                }
+            }
         }
 
         true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        match self.is_setup {
+        match &self.initial_config {
             IsSetup::Unknown => html! {
                 <div class="setup-container">
                     <div class="view-container">
@@ -126,14 +148,17 @@ impl Component for SetupPage {
                 </div>
             },
 
-            IsSetup::Yes => html! {
-                <div class="setup-container">
-                    <div class="view-container">
-                        <div class="center-normal">
-                            <div class="center-container">
-                                <h2>{ "Already Setup..." }</h2>
-                                <span>{ "Redirecting..." }</span>
-                            </div>
+            IsSetup::Initially(config) => html! {
+                <div class={ "view-container setup-view-container" }>
+                    <div class="center-normal">
+                        <div class="center-container ignore-vertical inner-setup">
+                            {
+                                if !config.has_admin_account {
+                                    self.part_1_account_setup(ctx)
+                                } else {
+                                    self.part_2_external_authentication(ctx)
+                                }
+                            }
                         </div>
                     </div>
                 </div>
@@ -142,14 +167,14 @@ impl Component for SetupPage {
             IsSetup::No => html! {
                 <div class={ "view-container setup-view-container" }>
                     <div class="center-normal">
-                        <div class="center-container ignore-vertical">
+                        <div class="center-container ignore-vertical inner-setup">
                             <h2>{ "Setup" }</h2>
 
-                            { self.render_server_info(ctx) }
-                            { self.render_auth_toggles(ctx) }
-                            { self.render_email_setup(ctx) }
+                            { self.part_0_render_server_info(ctx) }
+                            { self.part_0_render_auth_toggles(ctx) }
+                            { self.part_0_render_email_setup(ctx) }
 
-                            <div>
+                            <div class="tools">
                                 {
                                     if self.current_errors.is_empty() {
                                         html! {}
@@ -176,7 +201,15 @@ impl Component for SetupPage {
 }
 
 impl SetupPage {
-    fn render_server_info(&self, ctx: &Context<Self>) -> Html {
+    fn is_fully_setup(&self) -> bool {
+        match &self.initial_config {
+            IsSetup::Unknown => false,
+            IsSetup::Initially(config) => config.is_fully_setup(),
+            IsSetup::No => false,
+        }
+    }
+
+    fn part_0_render_server_info(&self, ctx: &Context<Self>) -> Html {
         html! {
             <>
                 <div class="navbar-module">
@@ -199,23 +232,48 @@ impl SetupPage {
                 </div>
 
                 <div class="form-container">
-                    <label for="our-directory">{ "What directory?" }</label>
-                    <input
-                        id="our-directory" type="text"
-                        value={ self.config.directories.first().map(|v| v.to_string()) }
-                        onchange={
-                            ctx.link().callback(move |e: Event| SetupPageMessage::UpdateInput(
-                                Box::new(|e, v| { e.directories = vec![v]; }),
-                                e.target().unwrap().unchecked_into::<HtmlInputElement>().value(),
-                            ))
-                        }
+                    <label for="our-directory">{ "Search Directory" }</label>
+                    <FileSearchComponent
+                        init_location={ PathBuf::from(self.config.directories.first().map(|v| v.as_str()).unwrap_or("/")) }
+                        on_event={ ctx.link().callback_future(|e| async move {
+                            match e {
+                                FileSearchEvent::Request(req) => {
+                                    match request::get_directory_contents(&req.path.display().to_string()).await.ok() {
+                                        Ok(v) => {
+                                            req.update.emit(
+                                                v.into_iter()
+                                                    .map(|v| FileInfo {
+                                                        title: v.title,
+                                                        path: v.path,
+                                                        is_file: v.is_file,
+                                                    })
+                                                    .collect()
+                                            );
+                                        }
+
+                                        Err(_) => {
+                                            req.update.emit(Vec::new());
+                                        }
+                                    }
+
+                                    SetupPageMessage::Ignore
+                                }
+
+                                FileSearchEvent::Submit(directory) => {
+                                    SetupPageMessage::UpdateInput(
+                                        Box::new(|e, v| { e.directories = vec![v]; }),
+                                        directory.display().to_string().replace("\\", "/"),
+                                    )
+                                }
+                            }
+                        }) }
                     />
                 </div>
             </>
         }
     }
 
-    fn render_auth_toggles(&self, ctx: &Context<Self>) -> Html {
+    fn part_0_render_auth_toggles(&self, ctx: &Context<Self>) -> Html {
         html! {
             <>
                 <div class="navbar-module">
@@ -257,7 +315,7 @@ impl SetupPage {
                     </div>
 
                     <div class="row">
-                        <input type="checkbox" id="our-external-auth" checked={ self.config.authenticators.main_server }
+                        <input type="checkbox" id="our-external-auth" disabled=true checked={ self.config.authenticators.main_server }
                             onchange={
                                 ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
                                     Box::new(|e, _| { e.authenticators.main_server = !e.authenticators.main_server; }),
@@ -272,7 +330,7 @@ impl SetupPage {
         }
     }
 
-    fn render_email_setup(&self, ctx: &Context<Self>) -> Html {
+    fn part_0_render_email_setup(&self, ctx: &Context<Self>) -> Html {
         if self.config.authenticators.email_no_pass {
             let email = self.config.email.clone().unwrap_or_default();
 
@@ -405,6 +463,28 @@ impl SetupPage {
 
     }
 
+    // 3rd setup page should be external auth if previously selected.
+
+    fn part_1_account_setup(&self, ctx: &Context<Self>) -> Html {
+        html! {
+            <>
+                <h2>{ "Setup Admin Account" }</h2>
+
+                <PasswordLogin cb={ ctx.link().callback(SetupPageMessage::LoginPasswordResponse) } />
+            </>
+        }
+    }
+
+    fn part_2_external_authentication(&self, ctx: &Context<Self>) -> Html {
+        html! {
+            <>
+                <h2>{ "Setup External Authentication" }</h2>
+
+                <span>{ "TODO: Not implemented." }</span>
+            </>
+        }
+    }
+
     // fn on_change_textarea(scope: &Scope<Self>, updating: ChangingType) -> Callback<Event> {
     //     scope.callback(move |e: Event| {
     //         Msg::UpdateTextArea(updating, e.target().unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value())
@@ -413,9 +493,8 @@ impl SetupPage {
 }
 
 
-#[derive(Clone, Copy, PartialEq)]
 enum IsSetup {
     Unknown,
-    Yes,
+    Initially(Config),
     No
 }

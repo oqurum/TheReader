@@ -1,6 +1,7 @@
 use common::api::ApiErrorResponse;
 use web_sys::HtmlInputElement;
-use yew::{prelude::*, html::Scope};
+use yew::prelude::*;
+use yew_hooks::use_async;
 use yew_router::{prelude::RouterScopeExt, history::History};
 
 use crate::{request, Route};
@@ -61,8 +62,8 @@ impl Component for LoginPage {
             <div class="login-container">
                 <div class="center-normal">
                     <div class="center-container">
-                        <PasswordlessLogin cb={ ctx.link().clone() } />
-                        <PasswordLogin cb={ ctx.link().clone() } />
+                        <PasswordlessLogin cb={ ctx.link().callback(Msg::LoginPasswordlessResponse) } />
+                        <PasswordLogin cb={ ctx.link().callback(Msg::LoginPasswordResponse) } />
                     </div>
                 </div>
             </div>
@@ -72,8 +73,8 @@ impl Component for LoginPage {
 
 
 #[derive(Properties)]
-struct InnerProps {
-    cb: Scope<LoginPage>,
+pub struct InnerProps {
+    pub cb: Callback<std::result::Result<String, ApiErrorResponse>>,
 }
 
 impl PartialEq for InnerProps {
@@ -85,7 +86,7 @@ impl PartialEq for InnerProps {
 
 
 #[function_component(PasswordlessLogin)]
-fn passwordless(props: &InnerProps) -> Html {
+pub fn _passwordless(props: &InnerProps) -> Html {
     let passless_email = use_state(String::new);
 
     let on_change_passless_email = {
@@ -93,17 +94,20 @@ fn passwordless(props: &InnerProps) -> Html {
         Callback::from(move |e: Event| value.set(e.target_unchecked_into::<HtmlInputElement>().value()))
     };
 
-    let submit_passless = {
-        props.cb.callback_future(move |_| {
-            let email = passless_email.clone();
+    let submit_passless = use_async(async move {
+        let email = passless_email.clone();
+        request::login_without_password(email.to_string()).await.ok()
+    });
 
-            async move {
-                let resp = request::login_without_password(email.to_string()).await;
+    let async_resp = submit_passless.clone();
+    let callback = props.cb.clone();
+    use_effect_with_deps(move |loading| {
+        if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+            callback.emit(async_resp.data.clone().ok_or_else(|| async_resp.error.clone().unwrap()));
+        }
 
-                Msg::LoginPasswordlessResponse(resp.ok())
-            }
-        })
-    };
+        || {}
+    }, submit_passless.loading);
 
     html! {
         <>
@@ -112,7 +116,7 @@ fn passwordless(props: &InnerProps) -> Html {
                 <label for="emailpassless">{ "Email Address" }</label>
                 <input type="email" name="email" id="emailpassless" onchange={ on_change_passless_email } />
 
-                <input type="submit" value="Log in" class="button" onclick={ submit_passless } />
+                <input type="submit" value="Log in" class="button" onclick={ Callback::from(move |_| submit_passless.run()) } />
             </div>
         </>
     }
@@ -120,7 +124,7 @@ fn passwordless(props: &InnerProps) -> Html {
 
 
 #[function_component(PasswordLogin)]
-fn password(props: &InnerProps) -> Html {
+pub fn _password(props: &InnerProps) -> Html {
     let pass_email = use_state(String::new);
     let pass_pass = use_state(String::new);
 
@@ -134,18 +138,21 @@ fn password(props: &InnerProps) -> Html {
         Callback::from(move |e: Event| value.set(e.target_unchecked_into::<HtmlInputElement>().value()))
     };
 
-    let submit_pass = {
-        props.cb.callback_future(move |_| {
-            let email = pass_email.clone();
-            let pass = pass_pass.clone();
+    let submit_pass = use_async(async move {
+        let email = pass_email.clone();
+        let pass = pass_pass.clone();
+        request::login_with_password(email.to_string(), pass.to_string()).await.ok()
+    });
 
-            async move {
-                let resp = request::login_with_password(email.to_string(), pass.to_string()).await;
+    let async_resp = submit_pass.clone();
+    let callback = props.cb.clone();
+    use_effect_with_deps(move |loading| {
+        if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+            callback.emit(async_resp.data.clone().ok_or_else(|| async_resp.error.clone().unwrap()));
+        }
 
-                Msg::LoginPasswordResponse(resp.ok())
-            }
-        })
-    };
+        || {}
+    }, submit_pass.loading);
 
     html! {
         <>
@@ -157,7 +164,7 @@ fn password(props: &InnerProps) -> Html {
                 <label for="password">{ "Password" }</label>
                 <input type="password" name="password" id="password" onchange={ on_change_pass_pass } />
 
-                <input type="submit" value="Log in" class="button" onclick={ submit_pass } />
+                <input type="submit" value="Log in" class="button" onclick={ Callback::from(move |_| submit_pass.run()) } />
             </div>
         </>
     }

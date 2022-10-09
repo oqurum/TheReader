@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use chrono::NaiveDate;
 use common::{ImageId, PersonId, Either, Source, api::QueryListResponse, BookId, util::{serialize_naivedate_opt, deserialize_naivedate_opt}};
@@ -57,6 +57,10 @@ pub type ApiPostUpdateBookResponse = ();
 /// GET     /book/search
 pub type ApiGetBookSearchResponse = self::BookSearchResponse;
 
+// Directory
+/// GET     /book/search
+pub type ApiGetDirectoryResponse = Vec<DirectoryEntry>;
+
 // Options
 /// GET     /options
 pub type ApiGetOptionsResponse = self::GetOptionsResponse;
@@ -80,10 +84,19 @@ pub type ApiPostRunTaskResponse = ();
 
 // Setup
 /// GET     /setup
-pub type ApiGetIsSetupResponse = bool;
+pub type ApiGetSetupResponse = Option<Config>;
 /// POST    /setup
 pub type ApiPostSetupResponse = ();
 
+
+// Directory
+
+#[derive(Serialize, Deserialize)]
+pub struct DirectoryEntry {
+    pub title: String,
+    pub path: PathBuf,
+    pub is_file: bool,
+}
 
 
 // Images

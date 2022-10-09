@@ -127,7 +127,7 @@ where
             let (r, mut pl) = req.into_parts();
 
             // Should we ignore the check?
-            if r.path() == "/api/setup" {
+            if r.path() == "/api/setup" || r.path() == "/api/directory" {
                 return srv.call(ServiceRequest::from_parts(r, pl)).await;
             }
 

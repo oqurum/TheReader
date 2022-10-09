@@ -7,26 +7,33 @@ use reqwest::Url;
 use serde::{Serialize, Deserialize};
 use serde_qs::actix::QsQuery;
 
-use crate::{database::Database, WebResult, config::{is_setup as iss_setup, CONFIG_PATH, CONFIG_FILE, get_config, save_config, update_config, IS_SETUP}, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::NewLibraryModel, directory::DirectoryModel, auth::AuthModel}, Result};
+use crate::{database::Database, WebResult, config::{is_setup as iss_setup, CONFIG_PATH, CONFIG_FILE, get_config, save_config, update_config, IS_SETUP}, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::{NewLibraryModel, LibraryModel}, directory::DirectoryModel, auth::AuthModel}, Result};
 
 
 
 #[get("/setup")]
-pub async fn is_setup(
+pub async fn get_configg(
     member: Option<MemberCookie>,
     db: web::Data<Database>,
-) -> WebResult<JsonResponse<api::ApiGetIsSetupResponse>> {
-    if let Some(member) = member.as_ref() {
-        let member = member.fetch_or_error(&db).await?;
+) -> WebResult<JsonResponse<api::ApiGetSetupResponse>> {
+    if iss_setup() {
+        if let Some(member) = member.as_ref() {
+            let member = member.fetch_or_error(&db).await?;
 
-        if !member.permissions.is_owner() {
+            if !member.permissions.is_owner() {
+                return Err(ApiErrorResponse::new("Not owner").into());
+            }
+        } else {
             return Err(ApiErrorResponse::new("Not owner").into());
         }
-
-        Ok(web::Json(WrappingResponse::okay(iss_setup())))
-    } else {
-        Ok(web::Json(WrappingResponse::okay(false)))
     }
+
+    let mut config = get_config();
+
+    config.libby.token = config.libby.token.map(|_| String::new());
+    config.server.auth_key.clear();
+
+    Ok(web::Json(WrappingResponse::okay(Some(config))))
 }
 
 
@@ -55,11 +62,13 @@ pub async fn save_initial_setup(
         }
     }
 
+    let mut library_count = LibraryModel::count(&db).await?;
+
     for path in &config.directories {
         let now = Utc::now();
 
         let lib = NewLibraryModel {
-            name: format!("New Library {}", now.timestamp_millis()),
+            name: format!("New Library #{library_count}"),
             created_at: now,
             scanned_at: now,
             updated_at: now,
@@ -67,6 +76,8 @@ pub async fn save_initial_setup(
 
         // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
         DirectoryModel { library_id: lib.id, path: path.clone() }.insert(&db).await?;
+
+        library_count += 1;
     }
 
     save_setup_config(config).await?;
@@ -228,8 +239,8 @@ async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
         toml_edit::ser::to_string_pretty(&config)?,
     ).await?;
 
+    *IS_SETUP.lock().unwrap() = config.is_fully_setup();
     *CONFIG_FILE.lock().unwrap() = config;
-    *IS_SETUP.lock().unwrap() = true;
 
     Ok(())
 }

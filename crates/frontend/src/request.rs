@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse, DeletionResponse}, BookId, ImageIdType};
+use gloo_utils::format::JsValueSerdeExt;
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use wasm_bindgen::{JsValue, JsCast, UnwrapThrowExt};
@@ -11,7 +12,7 @@ use common_local::{api::*, Progression, SearchType, setup::SetupConfig, LibraryI
 
 
 // Setup
-pub async fn check_if_setup() -> WrappingResponse<ApiGetIsSetupResponse> {
+pub async fn check_if_setup() -> WrappingResponse<ApiGetSetupResponse> {
     fetch(
         "GET",
         "/api/setup",
@@ -355,11 +356,25 @@ pub async fn login_without_password(email: String) -> WrappingResponse<String> {
 }
 
 
+// Directory
+
+pub async fn get_directory_contents(path: &str) -> WrappingResponse<ApiGetDirectoryResponse> {
+    fetch(
+        "GET",
+        &format!(
+            "/api/directory?path={}",
+            urlencoding::encode(path),
+        ),
+        Option::<&()>::None
+    ).await.unwrap_or_else(def)
+}
+
+
 
 async fn fetch<V: for<'a> Deserialize<'a>>(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<V, JsValue> {
     let text = fetch_jsvalue(method, url, body).await?;
 
-    text.into_serde()
+    JsValueSerdeExt::into_serde(&text)
         .map_err(|v| JsValue::from_str(&v.to_string()))
 }
 

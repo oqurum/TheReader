@@ -13,10 +13,12 @@ pub static IS_SETUP: Mutex<bool> = Mutex::new(false);
 lazy_static! {
     pub static ref CONFIG_FILE: Mutex<Config> = {
         if let Ok(data) = std::fs::read(CONFIG_PATH) {
-            *IS_SETUP.lock().unwrap() = true;
-
             #[allow(clippy::expect_used)]
-            Mutex::new(toml_edit::de::from_slice(&data).expect("Loading Config File"))
+            let config: Config = toml_edit::de::from_slice(&data).expect("Loading Config File");
+
+            *IS_SETUP.lock().unwrap() = config.is_fully_setup();
+
+            Mutex::new(config)
         } else {
             Mutex::default()
         }

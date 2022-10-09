@@ -80,6 +80,14 @@ impl LibraryModel {
         Ok(db.write().await.execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
     }
 
+    pub async fn count(db: &Database) -> Result<usize> {
+        Ok(db.read().await.query_row(
+            "SELECT COUNT(*) FROM library",
+            [],
+            |v| v.get(0)
+        )?)
+    }
+
     pub async fn get_all(db: &Database) -> Result<Vec<LibraryModel>> {
         let this = db.read().await;
 
