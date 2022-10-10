@@ -98,6 +98,11 @@ pub struct DirectoryEntry {
     pub is_file: bool,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct GetDirectoryQuery {
+    pub path: String,
+}
+
 
 // Images
 

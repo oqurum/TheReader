@@ -238,7 +238,7 @@ impl SetupPage {
                         on_event={ ctx.link().callback_future(|e| async move {
                             match e {
                                 FileSearchEvent::Request(req) => {
-                                    match request::get_directory_contents(&req.path.display().to_string()).await.ok() {
+                                    match request::get_directory_contents(req.path.display().to_string()).await.ok() {
                                         Ok(v) => {
                                             req.update.emit(
                                                 v.into_iter()

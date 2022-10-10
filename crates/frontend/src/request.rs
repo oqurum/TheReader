@@ -358,12 +358,14 @@ pub async fn login_without_password(email: String) -> WrappingResponse<String> {
 
 // Directory
 
-pub async fn get_directory_contents(path: &str) -> WrappingResponse<ApiGetDirectoryResponse> {
+pub async fn get_directory_contents(path: String) -> WrappingResponse<ApiGetDirectoryResponse> {
     fetch(
         "GET",
         &format!(
-            "/api/directory?path={}",
-            urlencoding::encode(path),
+            "/api/directory?{}",
+            serde_urlencoded::to_string(GetDirectoryQuery {
+                path
+            }).unwrap_throw(),
         ),
         Option::<&()>::None
     ).await.unwrap_or_else(def)
