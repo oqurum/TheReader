@@ -156,8 +156,8 @@ impl BookModel {
                 title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
                 cached = ?10,
                 available_at = ?11, year = ?12,
-                refreshed_at = ?13, created_at = ?14, updated_at = ?15, deleted_at = ?16,
-                hash = ?17
+                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15,
+                hash = ?16
             WHERE id = ?1"#,
             params![
                 self.id,
@@ -165,7 +165,7 @@ impl BookModel {
                 &self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
                 &self.cached.as_string_optional(),
                 &self.available_at, &self.year,
-                &self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
+                &self.refreshed_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
                 self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
                 &self.hash
             ]
