@@ -5,10 +5,13 @@ use crate::Result;
 
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(transparent)]
 pub struct FilterContainer {
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub filters: Vec<FilterOperator>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_by: Option<(FilterTableType, bool)>,
 }
 
 impl FilterContainer {
@@ -22,7 +25,9 @@ impl FilterContainer {
         Ok(Self {
             filters: value.iter()
                 .map(|v| FilterOperator::decode(v))
-                .collect::<Result<Vec<_>>>()?
+                .collect::<Result<Vec<_>>>()?,
+
+            order_by: None,
         })
     }
 
@@ -35,6 +40,11 @@ impl FilterContainer {
 
     pub fn add_query_filter(&mut self, value: String) {
         self.filters.push(FilterOperator::new(FilterTableType::Query, FilterModifier::Equal, FilterValue::Value(value)))
+    }
+
+    pub fn order_by(mut self, value: FilterTableType, desc: bool) -> Self {
+        self.order_by = Some((value, desc));
+        self
     }
 }
 
@@ -92,6 +102,8 @@ pub enum FilterTableType {
     //
     Query,
     Person,
+
+    CreatedAt,
 }
 
 

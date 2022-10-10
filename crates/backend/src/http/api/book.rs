@@ -1,6 +1,6 @@
 use actix_web::{get, web, post, delete};
 
-use common_local::{api::{self, BookPresetListType, BookProgression}, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, filter::FilterContainer, ModifyValuesBy};
+use common_local::{api::{self, BookPresetListType, BookProgression}, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, ModifyValuesBy};
 use chrono::Utc;
 use common::{ImageType, Either, api::{ApiErrorResponse, WrappingResponse, DeletionResponse}, PersonId, MISSING_THUMB_PATH, BookId};
 use serde_qs::actix::QsQuery;
@@ -15,46 +15,16 @@ pub async fn load_book_list(
     query: QsQuery<api::BookListQuery>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookListResponse>> {
-    let (items, count) = if query.has_query() {
-        let search = &query.filters;
+    let count = BookModel::count_search_by(&query.filters, query.library, &db).await?;
 
-        let count = BookModel::count_search_by(search, query.library, &db).await?;
-
-        let items = if count == 0 {
-            Vec::new()
-        } else {
-            BookModel::search_by(
-                search,
-                query.library,
-                query.offset.unwrap_or(0),
-                query.limit.unwrap_or(50),
-                &db,
-            ).await?
-                .into_iter()
-                .map(|book| {
-                    DisplayItem {
-                        id: book.id,
-                        title: book.title.or(book.original_title).unwrap_or_default(),
-                        cached: book.cached,
-                        thumb_path: book.thumb_path,
-                    }
-                })
-                .collect()
-        };
-
-        (items, count)
+    let items = if count == 0 {
+        Vec::new()
     } else {
-        let count = BookModel::count_search_by(
-            &FilterContainer::default(),
-            query.library,
-            &db,
-        ).await?;
-
-        let items = BookModel::find_by(
+        BookModel::search_by(
+            &query.filters,
             query.library,
             query.offset.unwrap_or(0),
             query.limit.unwrap_or(50),
-            None,
             &db,
         ).await?
             .into_iter()
@@ -66,9 +36,7 @@ pub async fn load_book_list(
                     thumb_path: book.thumb_path,
                 }
             })
-            .collect();
-
-        (items, count)
+            .collect()
     };
 
     Ok(web::Json(WrappingResponse::okay(api::GetBookListResponse {

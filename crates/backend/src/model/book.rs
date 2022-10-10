@@ -355,6 +355,8 @@ impl BookModel {
             match fil.type_of {
                 FilterTableType::Id => todo!(),
 
+                FilterTableType::CreatedAt => todo!(),
+
                 FilterTableType::Source => for query in fil.value.values() {
                     f_comp.push(format!("source {} '{}%' ", get_modifier(fil.type_of, fil.modifier), query));
                 }
@@ -409,6 +411,18 @@ impl BookModel {
         }
 
         sql += &f_comp.join(" AND ");
+
+        if let Some((order_name, is_desc)) = filter.order_by {
+            let field_name = match order_name {
+                FilterTableType::Id => "id",
+                FilterTableType::Query => "title",
+                FilterTableType::CreatedAt => "created_at",
+                FilterTableType::Source => todo!(),
+                FilterTableType::Person => todo!(),
+            };
+
+            sql += &format!(" ORDER BY {field_name} {} ", if is_desc { "DESC" } else { "ASC" });
+        }
 
         if sql.len() == orig_len {
             String::from("SELECT * FROM book ")
