@@ -1,4 +1,5 @@
-use actix_web::{get, web, post, delete};
+use actix_files::NamedFile;
+use actix_web::{get, web, post, delete, http::header::{ContentDisposition, HeaderValue}};
 
 use common_local::{api::{self, BookPresetListType, BookProgression}, SearchType, SearchFor, SearchForBooksBy, Poster, DisplayItem, ModifyValuesBy};
 use chrono::Utc;
@@ -216,6 +217,37 @@ pub async fn update_book_info(
     }
 
     Ok(web::Json(WrappingResponse::okay("success")))
+}
+
+
+
+#[get("/book/{id}/download")]
+pub async fn download_book(book_id: web::Path<BookId>, db: web::Data<Database>) -> WebResult<NamedFile> {
+    let mut files = FileModel::find_by_book_id(*book_id, &db).await?;
+
+    if files.is_empty() {
+        return Err(crate::Error::Internal(crate::InternalError::ItemMissing).into());
+    }
+
+    let mut index = 0;
+
+    for (i, file) in files.iter().enumerate().skip(1) {
+        if file.file_size > files[index].file_size {
+            index = i;
+        }
+    }
+
+    let file_model = files.remove(index);
+
+    Ok(
+        NamedFile::open_async(file_model.path).await
+            .map_err(crate::Error::from)?
+            .set_content_disposition(ContentDisposition::from_raw(&HeaderValue::from_str(&format!(
+                r#"attachment; filename="{}.{}""#,
+                file_model.file_name.replace('"', ""), // Shouldn't have " in the file_name but just in-case.
+                file_model.file_type,
+            )).unwrap()).expect("ContentDisposition::from_raw"))
+    )
 }
 
 

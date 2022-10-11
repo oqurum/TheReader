@@ -42,6 +42,7 @@ pub fn api_route() -> Scope<
         .service(file::notes_file_get)
         .service(file::notes_file_add)
         .service(file::notes_file_delete)
+        .service(file::download_file)
 
         // Image
         .service(image::get_local_image)
@@ -60,6 +61,7 @@ pub fn api_route() -> Scope<
         .service(book::insert_or_update_book_image)
         .service(book::insert_book_person)
         .service(book::delete_book_person)
+        .service(book::download_book)
 
         // Person
         .service(person::load_person)

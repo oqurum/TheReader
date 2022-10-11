@@ -1,11 +1,14 @@
 use std::io::Read;
 
+use actix_files::NamedFile;
+use actix_web::http::header::ContentDisposition;
 use actix_web::{get, web, HttpResponse, post, delete};
 
 use common::api::WrappingResponse;
 use common_local::{Chapter, api, Progression, FileId};
 use bookie::Book;
 use futures::TryStreamExt;
+use reqwest::header::HeaderValue;
 
 use crate::model::file::FileModel;
 use crate::model::note::FileNoteModel;
@@ -119,6 +122,22 @@ pub async fn load_file(member: MemberCookie, file_id: web::Path<FileId>, db: web
     } else {
         None
     })))
+}
+
+#[get("/file/{id}/download")]
+pub async fn download_file(file_id: web::Path<FileId>, db: web::Data<Database>) -> WebResult<NamedFile> {
+    let file_model = FileModel::find_one_by_id(*file_id, &db).await?
+        .ok_or(crate::Error::Internal(crate::InternalError::ItemMissing))?;
+
+    Ok(
+        NamedFile::open_async(file_model.path).await
+            .map_err(crate::Error::from)?
+            .set_content_disposition(ContentDisposition::from_raw(&HeaderValue::from_str(&format!(
+                r#"attachment; filename="{}.{}""#,
+                file_model.file_name.replace('"', ""), // Shouldn't have " in the file_name but just in-case.
+                file_model.file_type,
+            )).unwrap()).expect("ContentDisposition::from_raw"))
+    )
 }
 
 

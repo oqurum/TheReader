@@ -78,8 +78,8 @@ impl Component for BookPosterItem {
         };
 
         html! {
-            <Link<Route> to={ route_to } classes="book-list-item">
-                <div class="poster">
+            <div class="book-list-item">
+                <Link<Route> to={ route_to } classes="poster">
                     { self.render_tools(ctx) }
                     <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                     {
@@ -91,7 +91,8 @@ impl Component for BookPosterItem {
                             html! {}
                         }
                     }
-                </div>
+                </Link<Route>>
+
                 {
                     if let Some(&(Progression::Ebook { chapter, .. }, ref file)) = ctx.props().progress.as_ref() {
                         html! {
@@ -103,8 +104,9 @@ impl Component for BookPosterItem {
                         html! {}
                     }
                 }
+
                 <div class="info">
-                    <div class="title" title={ item.title.clone() }>{ item.title.clone() }</div>
+                    <div class="title" title={ item.title.clone() }><Link<Route> to={ Route::ViewBook { book_id: item.id } }>{ item.title.clone() }</Link<Route>></div>
                     {
                         if let Some(author) = item.cached.author.as_ref() {
                             html! {
@@ -115,7 +117,7 @@ impl Component for BookPosterItem {
                         }
                     }
                 </div>
-            </Link<Route>>
+            </div>
         }
     }
 }

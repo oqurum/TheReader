@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse, DeletionResponse}, BookId, ImageIdType};
-use gloo_utils::format::JsValueSerdeExt;
+use gloo_utils::{format::JsValueSerdeExt, window};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use wasm_bindgen::{JsValue, JsCast, UnwrapThrowExt};
@@ -9,6 +9,19 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
 
 use common_local::{api::*, Progression, SearchType, setup::SetupConfig, LibraryId, FileId, filter::FilterContainer};
+
+
+
+pub fn get_download_path(value: Either<BookId, FileId>) -> String {
+    let path = window().location().origin().unwrap_throw();
+
+    let (type_of, id) = match value {
+        Either::Left(v) => ("book", *v),
+        Either::Right(v) => ("file", *v),
+    };
+
+    format!("{path}/api/{type_of}/{id}/download")
+}
 
 
 // Setup

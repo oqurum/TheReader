@@ -1,5 +1,7 @@
 use common_local::{api::{GetBookResponse, self}, util::file_size_bytes_to_readable_string, ThumbnailStoreExt};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, api::WrappingResponse};
+use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, api::WrappingResponse, Either};
+use gloo_utils::window;
+use wasm_bindgen::UnwrapThrowExt;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -216,6 +218,14 @@ impl MediaView {
                                                 <PopupClose class="menu-item" onclick={
                                                     on_click_prevdef(ctx.link(), Msg::UpdateBook(book_id))
                                                 }>{ "Refresh Metadata" }</PopupClose>
+                                                <PopupClose class="menu-item" onclick={
+                                                    Callback::from(move |_| {
+                                                        window().open_with_url_and_target(
+                                                            &request::get_download_path(Either::Left(book_id)),
+                                                            "_blank"
+                                                        ).unwrap_throw();
+                                                    })
+                                                }>{ "Download" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
                                                     on_click_prevdef_stopprop(ctx.link(), Msg::ShowPopup(DisplayOverlay::SearchForBook { book_id, input_value: None }))
                                                 }>{ "Search For Book" }</PopupClose>

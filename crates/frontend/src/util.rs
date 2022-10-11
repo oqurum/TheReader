@@ -10,17 +10,10 @@ use yew::{html::Scope, Callback, Component};
 pub fn as_local_path_without_http(value: &str) -> String {
     let loc = window().location();
 
-    let host = loc.hostname().unwrap_throw();
-
-    let host = if let Some(port) = loc.port().ok().filter(|v| !v.is_empty()) {
-        format!("{host}:{port}")
-    } else {
-        host
-    };
+    let host = loc.host().unwrap_throw();
 
     format!(
-        "{}/{}",
-        host,
+        "{host}/{}",
         if let Some(v) = value.strip_prefix('/') {
             v
         } else {

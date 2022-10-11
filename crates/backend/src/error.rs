@@ -143,6 +143,9 @@ pub enum InternalError {
     #[error("The user does not exist")]
     UserMissing,
 
+    #[error("The item does not exist")]
+    ItemMissing,
+
     // SQL
 
     #[error("Invalid Model")]
