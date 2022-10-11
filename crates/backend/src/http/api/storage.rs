@@ -13,7 +13,7 @@ pub async fn get_directory(
     query: web::Query<GetDirectoryQuery>,
     member: Option<MemberCookie>,
     db: web::Data<Database>,
-) -> WebResult<JsonResponse<Vec<api::DirectoryEntry>>> {
+) -> WebResult<JsonResponse<api::ApiGetDirectoryResponse>> {
     if let Some(member) = &member {
         let member = member.fetch_or_error(&db).await?;
 
@@ -48,20 +48,23 @@ pub async fn get_directory(
     }
 
 
-
     Ok(web::Json(WrappingResponse::okay(
-        std::fs::read_dir(&path)
-            .map_err(Error::from)?
-            .filter_map(|v| {
-                let item = v.ok()?;
+        api::GetDirectoryResponse {
+            items: std::fs::read_dir(&path)
+                .map_err(Error::from)?
+                .filter_map(|v| {
+                    let item = v.ok()?;
 
-                Some(api::DirectoryEntry {
-                    title: item.file_name().to_string_lossy().into_owned(),
-                    path: item.path(),
-                    is_file: item.metadata().ok()?.is_file(),
+                    Some(api::DirectoryEntry {
+                        title: item.file_name().to_string_lossy().into_owned(),
+                        path: item.path(),
+                        is_file: item.metadata().ok()?.is_file(),
+                    })
                 })
-            })
-            .collect()
+                .collect(),
+
+            path,
+        }
     )))
 }
 

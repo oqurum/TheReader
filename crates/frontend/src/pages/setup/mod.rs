@@ -240,19 +240,20 @@ impl SetupPage {
                                 FileSearchEvent::Request(req) => {
                                     match request::get_directory_contents(req.path.display().to_string()).await.ok() {
                                         Ok(v) => {
-                                            req.update.emit(
-                                                v.into_iter()
+                                            req.update.emit((
+                                                Some(v.path),
+                                                v.items.into_iter()
                                                     .map(|v| FileInfo {
                                                         title: v.title,
                                                         path: v.path,
                                                         is_file: v.is_file,
                                                     })
                                                     .collect()
-                                            );
+                                            ));
                                         }
 
                                         Err(_) => {
-                                            req.update.emit(Vec::new());
+                                            req.update.emit((None, Vec::new()));
                                         }
                                     }
 

@@ -59,7 +59,7 @@ pub type ApiGetBookSearchResponse = self::BookSearchResponse;
 
 // Directory
 /// GET     /book/search
-pub type ApiGetDirectoryResponse = Vec<DirectoryEntry>;
+pub type ApiGetDirectoryResponse = GetDirectoryResponse;
 
 // Options
 /// GET     /options
@@ -96,6 +96,12 @@ pub struct DirectoryEntry {
     pub title: String,
     pub path: PathBuf,
     pub is_file: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GetDirectoryResponse {
+    pub path: PathBuf,
+    pub items: Vec<DirectoryEntry>,
 }
 
 #[derive(Serialize, Deserialize)]
