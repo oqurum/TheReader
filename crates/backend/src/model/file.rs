@@ -25,6 +25,7 @@ pub struct NewFileModel {
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
+    pub hash: Option<String>,
 
     pub modified_at: DateTime<Utc>,
     pub accessed_at: DateTime<Utc>,
@@ -47,6 +48,7 @@ pub struct FileModel {
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
+    pub hash: Option<String>,
 
     #[serde(serialize_with = "serialize_datetime")]
     pub modified_at: DateTime<Utc>,
@@ -96,6 +98,7 @@ impl TableRow<'_> for FileModel {
             chapter_count: row.next()?,
 
             identifier: row.next()?,
+            hash: row.next()?,
 
             modified_at: Utc.timestamp_millis(row.next()?),
             accessed_at: Utc.timestamp_millis(row.next()?),
@@ -118,6 +121,7 @@ impl NewFileModel {
             book_id: self.book_id,
             chapter_count: self.chapter_count,
             identifier: self.identifier,
+            hash: self.hash,
             modified_at: self.modified_at,
             accessed_at: self.accessed_at,
             created_at: self.created_at,
@@ -128,13 +132,13 @@ impl NewFileModel {
         let conn = db.write().await;
 
         conn.execute(r#"
-            INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, library_id, book_id, chapter_count)
+            INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, hash, library_id, book_id, chapter_count)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         "#,
         params![
             &self.path, &self.file_type, &self.file_name, self.file_size,
             self.modified_at.timestamp_millis(), self.accessed_at.timestamp_millis(), self.created_at.timestamp_millis(),
-            self.identifier.as_deref(),
+            self.identifier.as_deref(), self.hash.as_deref(),
             self.library_id, self.book_id, self.chapter_count
         ])?;
 
@@ -208,6 +212,20 @@ impl FileModel {
         let map = conn.query_map([book_id], |v| Self::from_row(v))?;
 
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    pub async fn find_by_missing_hash(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+        let this = db.read().await;
+
+        let mut conn = this.prepare("SELECT * FROM file WHERE hash IS NULL LIMIT ?1 OFFSET ?2")?;
+
+        let map = conn.query_map([ limit, offset ], |v| Self::from_row(v))?;
+
+        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    pub async fn count_by_missing_hash(db: &Database) -> Result<usize> {
+        Ok(db.read().await.query_row("SELECT COUNT(*) FROM file WHERE hash IS NULL", [], |v| v.get(0))?)
     }
 
     pub async fn count(db: &Database) -> Result<usize> {

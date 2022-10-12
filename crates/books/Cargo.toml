@@ -26,3 +26,4 @@ binstall-zip = { version = "0.6", optional = true }
 
 urlencoding = { workspace = true }
 base64 = "0.13"
+blake3 = "1.3"

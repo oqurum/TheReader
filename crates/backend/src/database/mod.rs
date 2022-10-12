@@ -53,10 +53,11 @@ pub async fn init() -> Result<Database> {
             "file_size"        INTEGER NOT NULL,
 
             "library_id"       INTEGER,
-            "book_id"      INTEGER,
+            "book_id"          INTEGER,
             "chapter_count"    INTEGER,
 
             "identifier"       TEXT,
+            "hash"             TEXT,
 
             "modified_at"      DATETIME NOT NULL,
             "accessed_at"      DATETIME NOT NULL,

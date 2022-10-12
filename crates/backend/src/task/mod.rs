@@ -3,7 +3,7 @@ use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque}
 use actix_web::web;
 use async_trait::async_trait;
 use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, filter::FilterContainer, LibraryId};
-use chrono::Utc;
+use chrono::{Utc, DateTime};
 use common::{BookId, PersonId, Source};
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
@@ -20,6 +20,16 @@ use crate::{
 
 lazy_static! {
     pub static ref TASKS_QUEUED: Mutex<VecDeque<Box<dyn Task>>> = Mutex::new(VecDeque::new());
+
+    static ref TASK_INTERVALS: Mutex<Vec<TaskInterval>> = Mutex::new(vec![
+        TaskInterval { last_ran: None, interval: Duration::from_secs(60 * 60), task: || Box::new(TaskFileHashSetter)  },
+    ]);
+}
+
+struct TaskInterval {
+    pub last_ran: Option<DateTime<Utc>>,
+    pub interval: Duration,
+    pub task: fn() -> Box<dyn Task> // I shouldn't have to box this.
 }
 
 
@@ -52,14 +62,39 @@ pub fn start_task_manager(db: web::Data<Database>) {
 
                 // Used to prevent holding lock past await.
                 let task = {
-                    let mut v = TASKS_QUEUED.lock().unwrap();
-                    v.pop_front()
+                    let now = Utc::now();
+
+                    let mut v = TASK_INTERVALS.lock().unwrap();
+
+                    let interval = v.iter_mut().find_map(|v| {
+                        match v.last_ran {
+                            None => {
+                                // TODO: Update last_ran AFTER we've ran the task.
+                                v.last_ran = Some(Utc::now());
+
+                                Some((v.task)())
+                            }
+
+                            Some(d) if now.signed_duration_since(d).to_std().unwrap() >= v.interval => {
+                                // TODO: Update last_ran AFTER we've ran the task.
+                                v.last_ran = Some(Utc::now());
+
+                                Some((v.task)())
+                            }
+
+                            _ => None
+                        }
+                    });
+
+                    interval.or_else(|| TASKS_QUEUED.lock().unwrap().pop_front())
                 };
 
                 if let Some(mut task) = task {
                     let start_time = Instant::now();
 
                     let task_id = UniqueId::default();
+
+                    println!("Task {:?} Started - ID: {task_id}", task.name());
 
                     match task.run(task_id, &db).await {
                         Ok(_) => println!("Task {:?} Finished Successfully. Took: {:?}", task.name(), start_time.elapsed()),
@@ -72,6 +107,50 @@ pub fn start_task_manager(db: web::Data<Database>) {
         });
     });
 }
+
+
+
+pub struct TaskFileHashSetter;
+
+#[async_trait]
+impl Task for TaskFileHashSetter {
+    async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
+        const LIMIT: usize = 250;
+
+        let total = FileModel::count_by_missing_hash(db).await?;
+
+        for _ in (0..total).step_by(LIMIT) {
+            // send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType));
+
+            let models = FileModel::find_by_missing_hash(0, LIMIT, db).await?;
+
+            let mut updates = Vec::new();
+
+            for model in models {
+                if let Ok(Some(mut book)) = bookie::load_from_path(&model.path) {
+                    if let Some(hash) = book.compute_hash() {
+                        updates.push([ hash, model.path ]);
+                    }
+                }
+            }
+
+            let write = db.write().await;
+
+            let mut stmt = write.prepare("UPDATE file SET hash = ?1 WHERE path = ?2").unwrap();
+
+            for update in updates {
+                stmt.execute(update).unwrap();
+            }
+        }
+
+        Ok(())
+    }
+
+    fn name(&self) -> &'static str {
+        "File Hash Setter"
+    }
+}
+
 
 
 

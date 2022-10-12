@@ -163,6 +163,18 @@ impl Book for EpubBook {
         Ok(this)
     }
 
+    fn compute_hash(&mut self) -> Option<String> {
+        let mut hasher = blake3::Hasher::new();
+
+        for href in self.package.manifest.items.iter().map(|v| v.href.clone()).collect::<Vec<_>>() {
+            if let Ok(asdf) = self.read_path_as_bytes(&href, None, None) {
+                hasher.update(&asdf);
+            }
+        }
+
+        Some(hasher.finalize().to_string())
+    }
+
     fn find(&self, search: BookSearch<'_>) -> Option<Vec<String>> {
         match search {
             BookSearch::CoverImage => Some(vec![self.package.manifest.get_item_by_property("cover-image")?.href.to_owned()]),

@@ -49,6 +49,10 @@ impl Book for EpubBook {
         Ok(this)
     }
 
+    fn compute_hash(&mut self) -> Option<String> {
+        None
+    }
+
     fn find(&self, _search: BookSearch<'_>) -> Option<Vec<String>> {
         None
     }

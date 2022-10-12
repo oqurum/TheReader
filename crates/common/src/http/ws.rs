@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{sync::atomic::{AtomicUsize, Ordering}, fmt};
 
 use common::BookId;
 use serde::{Serialize, Deserialize};
@@ -21,6 +21,11 @@ impl Default for UniqueId {
     }
 }
 
+impl fmt::Display for UniqueId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        usize::fmt(&self.0, f)
+    }
+}
 
 
 #[derive(Debug, Serialize, Deserialize)]

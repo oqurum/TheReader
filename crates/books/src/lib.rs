@@ -46,6 +46,8 @@ pub trait Book {
     fn get_root_file_dir(&self) -> &Path;
 
     fn find(&self, search: BookSearch<'_>) -> Option<Vec<String>>;
+
+    fn compute_hash(&mut self) -> Option<String>;
 }
 
 pub enum BookSearch<'a> {
