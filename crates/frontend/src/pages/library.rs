@@ -5,7 +5,7 @@ use common::{BookId, component::{InfiniteScroll, InfiniteScrollEvent, Popup, Pop
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{request, components::{PopupSearchBook, PopupEditBook, MassSelectBar, Sidebar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
+use crate::{request, components::{DropdownInfoPopup, DropdownInfoPopupEvent, PopupSearchBook, PopupEditBook, MassSelectBar, Sidebar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
 
 
 #[derive(Properties, PartialEq, Eq)]
@@ -227,7 +227,7 @@ impl Component for LibraryPage {
                             }
                         }
 
-                        PosterItem::UpdateBookBySource(book_id) => {
+                        PosterItem::UpdateBookById(book_id) => {
                             ctx.link()
                             .send_future(async move {
                                 request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
@@ -316,26 +316,22 @@ impl LibraryPage {
                                         }
                                     }
 
-                                    &DisplayOverlayItem::More { book_id, mouse_pos } => {
+                                    &DisplayOverlayItem::More { book_id, mouse_pos: (pos_x, pos_y) } => {
                                         html! {
-                                            <Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-                                                <div class="menu-list">
-                                                    <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookBySource(book_id))))
-                                                    }>{ "Refresh Metadata" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }))))
-                                                    }>{ "Search For Book" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookByFiles(book_id))))
-                                                    }>{ "Quick Search By Files" }</PopupClose>
-                                                    <PopupClose class="menu-item" >{ "Delete" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id }))))
-                                                    }>{ "Show Info" }</PopupClose>
-                                                </div>
-                                            </Popup>
+                                            <DropdownInfoPopup
+                                                { pos_x }
+                                                { pos_y }
+                                                { book_id }
+
+                                                event={ ctx.link().callback(move |e| {
+                                                    match e {
+                                                        DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
+                                                        DropdownInfoPopupEvent::RefreshMetadata => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id))),
+                                                        DropdownInfoPopupEvent::SearchFor => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }))),
+                                                        DropdownInfoPopupEvent::Info => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id }))),
+                                                    }
+                                                }) }
+                                            />
                                         }
                                     }
 

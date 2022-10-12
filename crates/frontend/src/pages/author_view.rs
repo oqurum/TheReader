@@ -185,7 +185,7 @@ impl Component for AuthorView {
                             }
                         }
 
-                        PosterItem::UpdateBookBySource(book_id) => {
+                        PosterItem::UpdateBookById(book_id) => {
                             ctx.link()
                             .send_future(async move {
                                 request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
@@ -435,7 +435,7 @@ impl Component for AuthorView {
                                                 <div class="menu-list">
                                                     <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
                                                     <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookBySource(book_id))))
+                                                        on_click_prevdef(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id))))
                                                     }>{ "Refresh Metadata" }</PopupClose>
                                                     <PopupClose class="menu-item" onclick={
                                                         on_click_prevdef_stopprop(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }))))

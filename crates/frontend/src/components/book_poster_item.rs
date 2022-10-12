@@ -1,7 +1,7 @@
-use common::BookId;
+use common::{BookId, component::{Popup, PopupType, PopupClose}, Either};
 use common_local::{DisplayItem, api, ThumbnailStoreExt, Progression, MediaItem};
 use web_sys::{MouseEvent, HtmlElement, HtmlInputElement};
-use yew::{Component, Properties, Callback, Context, Html, html, TargetCast};
+use yew::{Component, Properties, Callback, Context, Html, html, TargetCast, function_component};
 use yew_router::prelude::Link;
 
 use crate::{Route, request};
@@ -206,7 +206,7 @@ pub enum PosterItem {
     ShowPopup(DisplayOverlayItem),
 
     // Popup Events
-    UpdateBookBySource(BookId),
+    UpdateBookById(BookId),
 
     // Popup Events
     UpdateBookByFiles(BookId),
@@ -244,4 +244,99 @@ impl PartialEq for DisplayOverlayItem {
             _ => false
         }
     }
+}
+
+
+
+
+#[derive(Clone, Copy)]
+pub enum DropdownInfoPopupEvent {
+    Closed,
+    RefreshMetadata,
+    SearchFor,
+    Info,
+}
+
+
+#[derive(Properties, PartialEq)]
+pub struct DropdownInfoPopupProps {
+    pub pos_x: i32,
+    pub pos_y: i32,
+
+    pub book_id: BookId,
+
+    pub event: Callback<DropdownInfoPopupEvent>
+}
+
+
+#[function_component(DropdownInfoPopup)]
+pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
+    let book_id = props.book_id;
+
+    html! {
+        <Popup type_of={ PopupType::AtPoint(props.pos_x, props.pos_y) } on_close={ props.event.reform(|_| DropdownInfoPopupEvent::Closed) }>
+            <div class="menu-list">
+                // <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
+
+                <PopupClose class="menu-item" onclick={ on_click_prevdef(
+                    props.event.clone(),
+                    |cb, _| cb.emit(DropdownInfoPopupEvent::RefreshMetadata)
+                ) }>{ "Refresh Metadata" }</PopupClose>
+
+                {
+                    if cfg!(feature = "web") {
+                        use gloo_utils::window;
+                        use wasm_bindgen::UnwrapThrowExt;
+
+                        html! {
+                            <PopupClose class="menu-item" onclick={
+                                Callback::from(move |_| {
+                                    window().open_with_url_and_target(
+                                        &request::get_download_path(Either::Left(book_id)),
+                                        "_blank"
+                                    ).unwrap_throw();
+                                })
+                            }>{ "Download" }</PopupClose>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+
+                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop(
+                    props.event.clone(),
+                    |cb, _| cb.emit(DropdownInfoPopupEvent::SearchFor)
+                ) }>{ "Search For Book" }</PopupClose>
+
+                // <PopupClose class="menu-item">{ "Delete" }</PopupClose>
+
+                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop(
+                    props.event.clone(),
+                    |cb, _| cb.emit(DropdownInfoPopupEvent::Info)
+                ) }>{ "Show Info" }</PopupClose>
+            </div>
+        </Popup>
+    }
+}
+
+
+/// A Callback which calls "prevent_default" and "stop_propagation"
+///
+/// Also will prevent any more same events downstream from activating
+pub fn on_click_prevdef_stopprop<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(cb: Callback<S>, func: F) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+        e.stop_propagation();
+
+        func(&cb, e);
+    })
+}
+
+/// A Callback which calls "prevent_default"
+pub fn on_click_prevdef<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(cb: Callback<S>, func: F) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+
+        func(&cb, e);
+    })
 }
