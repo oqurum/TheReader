@@ -1,13 +1,15 @@
 // Websocket used for notifications
 
-use std::{sync::Mutex, time::{Instant, Duration}};
+use std::{
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 
-use actix::{Actor, StreamHandler, Recipient, Message, Handler, AsyncContext, ActorContext};
-use actix_web::{web, Error, HttpRequest, HttpResponse, get};
+use actix::{Actor, ActorContext, AsyncContext, Handler, Message, Recipient, StreamHandler};
+use actix_web::{get, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
-use common_local::ws::{WebsocketResponse, WebsocketNotification};
+use common_local::ws::{WebsocketNotification, WebsocketResponse};
 use lazy_static::lazy_static;
-
 
 lazy_static! {
     // TODO: Change lock type.
@@ -17,21 +19,21 @@ lazy_static! {
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(60);
 
-
 struct MyWs {
     hb: Instant,
 }
 
 impl MyWs {
     fn new() -> Self {
-        Self {
-            hb: Instant::now(),
-        }
+        Self { hb: Instant::now() }
     }
 
     fn on_start(&self, ctx: &mut <Self as Actor>::Context) {
         // Save Client into array.
-        SOCKET_CLIENTS.lock().unwrap().push(ctx.address().recipient());
+        SOCKET_CLIENTS
+            .lock()
+            .unwrap()
+            .push(ctx.address().recipient());
     }
 
     fn hb(&self, ctx: &mut <Self as Actor>::Context) {
@@ -96,8 +98,6 @@ pub async fn ws_index(req: HttpRequest, stream: web::Payload) -> Result<HttpResp
     ws::start(MyWs::new(), &req, stream)
 }
 
-
-
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Line(WebsocketNotification);
@@ -109,7 +109,6 @@ impl Handler<Line> for MyWs {
         ctx.text(serde_json::to_string(&WebsocketResponse::Notification(msg.0)).unwrap());
     }
 }
-
 
 fn send_message(ctx: &mut ws::WebsocketContext<MyWs>, value: WebsocketResponse) {
     ctx.text(serde_json::to_string(&value).unwrap());

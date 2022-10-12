@@ -1,13 +1,21 @@
+use common::{
+    api::WrappingResponse,
+    component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupClose, PopupType},
+    util::truncate_on_indices,
+    PersonId,
+};
 use common_local::{api, Person, SearchType};
-use common::{component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupClose, PopupType}, PersonId, util::truncate_on_indices, api::WrappingResponse};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlElement, HtmlInputElement};
-use yew::{prelude::*, html::Scope};
+use yew::{html::Scope, prelude::*};
 use yew_router::prelude::Link;
 
-use crate::{request, util::{on_click_prevdef_stopprop, on_click_prevdef}, Route};
-
+use crate::{
+    request,
+    util::{on_click_prevdef, on_click_prevdef_stopprop},
+    Route,
+};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -24,7 +32,7 @@ pub enum Msg {
     PosterItem(PosterItem),
     ClosePopup,
 
-    Ignore
+    Ignore,
 }
 
 pub struct AuthorListPage {
@@ -48,7 +56,7 @@ impl Component for AuthorListPage {
             total_media_count: 0,
             is_fetching_authors: false,
             media_popup: None,
-            author_list_ref: NodeRef::default()
+            author_list_ref: NodeRef::default(),
         }
     }
 
@@ -61,10 +69,15 @@ impl Component for AuthorListPage {
 
                 self.is_fetching_authors = true;
 
-                let offset = Some(self.media_items.as_ref().map(|v| v.len()).unwrap_or_default()).filter(|v| *v != 0);
+                let offset = Some(
+                    self.media_items
+                        .as_ref()
+                        .map(|v| v.len())
+                        .unwrap_or_default(),
+                )
+                .filter(|v| *v != 0);
 
-                ctx.link()
-                .send_future(async move {
+                ctx.link().send_future(async move {
                     Msg::PeopleListResults(request::get_people(None, offset, None).await)
                 });
             }
@@ -81,30 +94,40 @@ impl Component for AuthorListPage {
                         } else {
                             self.media_items = Some(resp.items);
                         }
-                    },
+                    }
                     Err(err) => crate::display_error(err),
                 }
             }
 
             Msg::PersonUpdateSearchResults(search_value, resp) => {
-                if let Some(DisplayOverlay::SearchForPerson { response, input_value, .. }) = self.media_popup.as_mut() {
+                if let Some(DisplayOverlay::SearchForPerson {
+                    response,
+                    input_value,
+                    ..
+                }) = self.media_popup.as_mut()
+                {
                     match resp.ok() {
                         Ok(resp) => {
                             *response = Some(resp);
                             *input_value = Some(search_value);
-                        },
+                        }
                         Err(err) => crate::display_error(err),
                     }
                 }
             }
 
             Msg::PersonCombineSearchResults(search_value, resp) => {
-                if let Some(DisplayOverlay::CombinePersonWith { response, input_value, .. }) = self.media_popup.as_mut() {
+                if let Some(DisplayOverlay::CombinePersonWith {
+                    response,
+                    input_value,
+                    ..
+                }) = self.media_popup.as_mut()
+                {
                     match resp.ok() {
                         Ok(resp) => {
                             *response = Some(resp);
                             *input_value = Some(search_value);
-                        },
+                        }
                         Err(err) => crate::display_error(err),
                     }
                 }
@@ -132,14 +155,14 @@ impl Component for AuthorListPage {
                 }
 
                 PosterItem::UpdatePerson(person_id) => {
-                    ctx.link()
-                    .send_future(async move {
-                        request::update_person(person_id, &api::PostPersonBody::AutoMatchById).await;
+                    ctx.link().send_future(async move {
+                        request::update_person(person_id, &api::PostPersonBody::AutoMatchById)
+                            .await;
 
                         Msg::Ignore
                     });
                 }
-            }
+            },
 
             Msg::ClosePopup => {
                 self.media_popup = None;
@@ -402,7 +425,6 @@ impl AuthorListPage {
         }
     }
 
-
     // TODO: Move into own struct.
     fn render_media_item(&self, item: &Person, scope: &Scope<Self>) -> Html {
         let person_id = item.id;
@@ -413,7 +435,10 @@ impl AuthorListPage {
 
             let scroll = author_list_ref.cast::<HtmlElement>().unwrap().scroll_top();
 
-            Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More { person_id, mouse_pos: (e.page_x(), e.page_y() + scroll) }))
+            Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::More {
+                person_id,
+                mouse_pos: (e.page_x(), e.page_y() + scroll),
+            }))
         });
 
         html! {
@@ -442,12 +467,15 @@ impl AuthorListPage {
     // }
 
     pub fn can_req_more(&self) -> bool {
-        let count = self.media_items.as_ref().map(|v| v.len()).unwrap_or_default();
+        let count = self
+            .media_items
+            .as_ref()
+            .map(|v| v.len())
+            .unwrap_or_default();
 
         count != 0 && count != self.total_media_count as usize
     }
 }
-
 
 #[derive(Clone)]
 pub enum PosterItem {
@@ -458,28 +486,27 @@ pub enum PosterItem {
     UpdatePerson(PersonId),
 }
 
-
 #[derive(Clone)]
 pub enum DisplayOverlay {
     Info {
-        person_id: PersonId
+        person_id: PersonId,
     },
 
     More {
         person_id: PersonId,
-        mouse_pos: (i32, i32)
+        mouse_pos: (i32, i32),
     },
 
     SearchForPerson {
         person_id: PersonId,
         input_value: Option<String>,
-        response: Option<api::BookSearchResponse>
+        response: Option<api::BookSearchResponse>,
     },
 
     CombinePersonWith {
         person_id: PersonId,
         input_value: Option<String>,
-        response: Option<Vec<Person>>
+        response: Option<Vec<Person>>,
     },
 }
 
@@ -487,13 +514,28 @@ impl PartialEq for DisplayOverlay {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Info { person_id: l_id }, Self::Info { person_id: r_id }) => l_id == r_id,
-            (Self::More { person_id: l_id, .. }, Self::More { person_id: r_id, .. }) => l_id == r_id,
             (
-                Self::SearchForPerson { person_id: l_id, input_value: l_val, .. },
-                Self::SearchForPerson { person_id: r_id, input_value: r_val, .. }
+                Self::More {
+                    person_id: l_id, ..
+                },
+                Self::More {
+                    person_id: r_id, ..
+                },
+            ) => l_id == r_id,
+            (
+                Self::SearchForPerson {
+                    person_id: l_id,
+                    input_value: l_val,
+                    ..
+                },
+                Self::SearchForPerson {
+                    person_id: r_id,
+                    input_value: r_val,
+                    ..
+                },
             ) => l_id == r_id && l_val == r_val,
 
-            _ => false
+            _ => false,
         }
     }
 }

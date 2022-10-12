@@ -1,24 +1,31 @@
-use std::{pin::Pin, future::{Ready, ready}, task::{Poll, Context}, rc::Rc};
+use std::{
+    future::{ready, Ready},
+    pin::Pin,
+    rc::Rc,
+    task::{Context, Poll},
+};
 
 use actix_identity::Identity;
-use actix_web::{FromRequest, HttpRequest, dev::{Payload, Transform, Service, ServiceRequest, ServiceResponse, Extensions}, body::MessageBody};
+use actix_web::{
+    body::MessageBody,
+    dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
+    FromRequest, HttpRequest,
+};
 use chrono::Utc;
-use common::{MemberId, api::ApiErrorResponse};
+use common::{api::ApiErrorResponse, MemberId};
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{Result, database::Database, model::member::MemberModel, InternalError, WebError};
+use crate::{database::Database, model::member::MemberModel, InternalError, Result, WebError};
 
 pub mod password;
 pub mod passwordless;
-
 
 #[derive(Serialize, Deserialize)]
 pub struct CookieAuth {
     pub member_id: MemberId,
     pub stored_since: i64,
 }
-
 
 pub fn get_auth_value(identity: &Identity) -> Option<CookieAuth> {
     let ident = identity.id().ok()?;
@@ -27,7 +34,10 @@ pub fn get_auth_value(identity: &Identity) -> Option<CookieAuth> {
 
 pub async fn get_auth_member(identity: &Identity, db: &Database) -> Option<MemberModel> {
     let store = get_auth_value(identity)?;
-    MemberModel::find_one_by_id(store.member_id, db).await.ok().flatten()
+    MemberModel::find_one_by_id(store.member_id, db)
+        .await
+        .ok()
+        .flatten()
 }
 
 pub fn remember_member_auth(ext: &Extensions, member_id: MemberId) -> Result<()> {
@@ -61,10 +71,10 @@ impl MemberCookie {
     }
 }
 
-
 impl FromRequest for MemberCookie {
     type Error = WebError;
-    type Future = Pin<Box<dyn std::future::Future<Output = std::result::Result<MemberCookie, Self::Error>>>>;
+    type Future =
+        Pin<Box<dyn std::future::Future<Output = std::result::Result<MemberCookie, Self::Error>>>>;
 
     fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
         let fut = Identity::from_request(req, pl);
@@ -78,7 +88,6 @@ impl FromRequest for MemberCookie {
         })
     }
 }
-
 
 pub struct LoginRequired;
 
@@ -95,7 +104,9 @@ where
     type Future = Ready<std::result::Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(CheckLoginMiddleware { service: Rc::new(service) }))
+        ready(Ok(CheckLoginMiddleware {
+            service: Rc::new(service),
+        }))
     }
 }
 
@@ -113,10 +124,7 @@ where
     type Error = actix_web::Error;
     type Future = LocalBoxFuture<'static, std::result::Result<Self::Response, Self::Error>>;
 
-    fn poll_ready(
-        &self,
-        cx: &mut Context<'_>,
-    ) -> Poll<std::result::Result<(), Self::Error>> {
+    fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<std::result::Result<(), Self::Error>> {
         self.service.poll_ready(cx)
     }
 

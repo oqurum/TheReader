@@ -1,11 +1,18 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use chrono::NaiveDate;
-use common::{ImageId, PersonId, Either, Source, api::QueryListResponse, BookId, util::{serialize_naivedate_opt, deserialize_naivedate_opt}};
-use serde::{Serialize, Deserialize};
+use common::{
+    api::QueryListResponse,
+    util::{deserialize_naivedate_opt, serialize_naivedate_opt},
+    BookId, Either, ImageId, PersonId, Source,
+};
+use serde::{Deserialize, Serialize};
 
-use crate::{MediaItem, Progression, LibraryColl, BasicLibrary, Chapter, DisplayItem, DisplayBookItem, Person, SearchType, Member, Poster, Result, LibraryId, filter::FilterContainer, BookEdit, ModifyValuesBy, setup::Config};
-
+use crate::{
+    filter::FilterContainer, setup::Config, BasicLibrary, BookEdit, Chapter, DisplayBookItem,
+    DisplayItem, LibraryColl, LibraryId, MediaItem, Member, ModifyValuesBy, Person, Poster,
+    Progression, Result, SearchType,
+};
 
 // API Routes
 
@@ -88,7 +95,6 @@ pub type ApiGetSetupResponse = Option<Config>;
 /// POST    /setup
 pub type ApiPostSetupResponse = ();
 
-
 // Directory
 
 #[derive(Serialize, Deserialize)]
@@ -109,20 +115,17 @@ pub struct GetDirectoryQuery {
     pub path: String,
 }
 
-
 // Images
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPostersResponse {
-    pub items: Vec<Poster>
+    pub items: Vec<Poster>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChangePosterBody {
     pub url_or_id: Either<String, ImageId>,
 }
-
-
 
 // Members
 
@@ -131,15 +134,12 @@ pub struct GetMemberSelfResponse {
     pub member: Option<Member>,
 }
 
-
 // Libraries
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetLibrariesResponse {
-    pub items: Vec<LibraryColl>
+    pub items: Vec<LibraryColl>,
 }
-
-
 
 // Book
 #[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
@@ -151,7 +151,6 @@ pub struct MassEditBooks {
     pub people_list_mod: ModifyValuesBy,
 }
 
-
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct LoadResourceQuery {
     #[serde(default)]
@@ -161,13 +160,13 @@ pub struct LoadResourceQuery {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetFileByIdResponse {
     pub media: MediaItem,
-    pub progress: Option<Progression>
+    pub progress: Option<Progression>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetBookListResponse {
     pub count: usize,
-    pub items: Vec<DisplayItem>
+    pub items: Vec<DisplayItem>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -181,7 +180,12 @@ pub struct BookListQuery {
 }
 
 impl BookListQuery {
-    pub fn new(library: Option<LibraryId>, offset: Option<usize>, limit: Option<usize>, filters: FilterContainer) -> Result<Self> {
+    pub fn new(
+        library: Option<LibraryId>,
+        offset: Option<usize>,
+        limit: Option<usize>,
+        filters: FilterContainer,
+    ) -> Result<Self> {
         Ok(Self {
             library,
             offset,
@@ -211,7 +215,7 @@ pub enum BookPresetListType {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetBookPresetListResponse {
     pub count: usize,
-    pub items: Vec<BookProgression>
+    pub items: Vec<BookProgression>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -221,15 +225,11 @@ pub struct BookProgression {
     pub file: MediaItem,
 }
 
-
 pub type GetChaptersResponse = QueryListResponse<Chapter>;
-
-
 
 // People
 
 pub type GetPeopleResponse = QueryListResponse<Person>;
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PostPersonBody {
@@ -242,16 +242,13 @@ pub enum PostPersonBody {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPeopleSearch {
-    pub query: Option<String>
+    pub query: Option<String>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetPersonResponse {
     pub person: Person,
 }
-
-
 
 // Options
 
@@ -268,8 +265,6 @@ pub struct ModifyOptionsBody {
     pub libby_public_search: Option<bool>,
 }
 
-
-
 // Metadata
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -279,7 +274,6 @@ pub struct GetBookResponse {
     pub progress: Vec<Option<Progression>>,
     pub people: Vec<Person>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PostBookBody {
@@ -291,7 +285,6 @@ pub enum PostBookBody {
     Edit(BookEdit),
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetBookSearch {
     pub query: String,
@@ -300,7 +293,7 @@ pub struct GetBookSearch {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BookSearchResponse {
-    pub items: HashMap<String, Vec<SearchItem>>
+    pub items: HashMap<String, Vec<SearchItem>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -313,18 +306,17 @@ impl SearchItem {
     pub fn as_book(&self) -> &MetadataBookSearchItem {
         match self {
             Self::Book(v) => v,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
     pub fn as_person(&self) -> &MetadataPersonSearchItem {
         match self {
             Self::Person(v) => v,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetadataPersonSearchItem {
@@ -336,9 +328,15 @@ pub struct MetadataPersonSearchItem {
     pub other_names: Option<Vec<String>>,
     pub description: Option<String>,
 
-    #[serde(serialize_with = "serialize_naivedate_opt", deserialize_with = "deserialize_naivedate_opt")]
+    #[serde(
+        serialize_with = "serialize_naivedate_opt",
+        deserialize_with = "deserialize_naivedate_opt"
+    )]
     pub birth_date: Option<NaiveDate>,
-    #[serde(serialize_with = "serialize_naivedate_opt", deserialize_with = "deserialize_naivedate_opt")]
+    #[serde(
+        serialize_with = "serialize_naivedate_opt",
+        deserialize_with = "deserialize_naivedate_opt"
+    )]
     pub death_date: Option<NaiveDate>,
 }
 
@@ -358,8 +356,6 @@ pub struct RunTaskBody {
     pub run_search: Option<LibraryId>,
     pub run_metadata: Option<LibraryId>,
 }
-
-
 
 #[derive(Deserialize)]
 pub struct SimpleListQuery {

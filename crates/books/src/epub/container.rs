@@ -1,12 +1,13 @@
+use std::{
+    io::{Read, Seek},
+    ops::{Deref, DerefMut},
+};
 
-use std::{io::{Read, Seek}, ops::{Deref, DerefMut}};
-
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use binstall_zip::ZipArchive;
 
 use crate::Result;
-
 
 pub struct AbsContainer<R: Read + Seek> {
     pub archive: ZipArchive<R>,
@@ -22,7 +23,8 @@ impl<R: Read + Seek> AbsContainer<R> {
         // library_scan: XmlReader(Error { pos: 1:1, kind: Syntax("Unexpected characters outside the root element: \u{feff}") })
         // library_scan: SerdeXml(Syntax { source: Error { pos: 1:1, kind: Syntax("Unexpected characters outside the root element: \u{feff}") } })
 
-        { // Ensure mimetype file is "application/epub+zip"
+        {
+            // Ensure mimetype file is "application/epub+zip"
             let mut buf = String::new();
             archive.by_name("mimetype")?.read_to_string(&mut buf)?;
 
@@ -33,7 +35,10 @@ impl<R: Read + Seek> AbsContainer<R> {
 
             // Added a trim since it could contain a NL
             if buf.trim() != "application/epub+zip" {
-                panic!("Invalid file 'mimetype' contents: {:?} expected 'application/epub+zip'", buf)
+                panic!(
+                    "Invalid file 'mimetype' contents: {:?} expected 'application/epub+zip'",
+                    buf
+                )
             }
         }
 
@@ -45,7 +50,7 @@ impl<R: Read + Seek> AbsContainer<R> {
 
         Ok(Self {
             archive,
-            metainf_container
+            metainf_container,
         })
     }
 
@@ -58,12 +63,11 @@ impl<R: Read + Seek> AbsContainer<R> {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MetaInfContainer {
     pub version: String,
     #[serde(rename = "rootfiles")]
-    pub roots: RootfilesVec<RootFile>
+    pub roots: RootfilesVec<RootFile>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -71,9 +75,8 @@ pub struct RootFile {
     #[serde(rename = "full-path")]
     pub full_path: String,
     #[serde(rename = "media-type")]
-    pub media_type: String
+    pub media_type: String,
 }
-
 
 #[derive(PartialEq, Eq, Debug, Serialize)]
 pub struct RootfilesVec<T>(Vec<T>);

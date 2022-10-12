@@ -1,9 +1,17 @@
-use std::{ops::Deref, fmt::{Display, self}, num::ParseIntError, str::FromStr};
+use std::{
+    fmt::{self, Display},
+    num::ParseIntError,
+    ops::Deref,
+    str::FromStr,
+};
 
 #[cfg(feature = "backend")]
-use rusqlite::{Result, types::{FromSql, FromSqlResult, ValueRef, ToSql, ToSqlOutput}};
+use rusqlite::{
+    types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
+    Result,
+};
 
-use serde::{Serialize, Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use common::create_single_id;
 

@@ -2,13 +2,11 @@ use std::collections::HashMap;
 
 use crate::Result;
 use common::parse_book_id;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use super::{KeyItem, TypeValueItem, RecordDescription};
-
+use super::{KeyItem, RecordDescription, TypeValueItem};
 
 // TODO: We can retrive all Editions from the Work (original) book by using RFD instead of JSON.
-
 
 pub async fn get_book_by_id(id: &BookId) -> Result<Option<BookInfo>> {
     let resp = reqwest::get(id.get_json_url()).await?;
@@ -20,8 +18,10 @@ pub async fn get_book_by_id(id: &BookId) -> Result<Option<BookInfo>> {
     }
 }
 
-
-pub async fn search_for_books(type_of: BookSearchType, query: &str) -> Result<Option<BookSearchContainer>> {
+pub async fn search_for_books(
+    type_of: BookSearchType,
+    query: &str,
+) -> Result<Option<BookSearchContainer>> {
     let url = type_of.get_api_url(query);
 
     println!("[METADATA][OPEN LIBRARY]: Search URL: {}", url);
@@ -34,8 +34,6 @@ pub async fn search_for_books(type_of: BookSearchType, query: &str) -> Result<Op
         Ok(None)
     }
 }
-
-
 
 /// https://openlibrary.org/dev/docs/api/books
 #[derive(Debug)]
@@ -66,11 +64,19 @@ impl BookId {
     }
 
     pub fn get_json_url(&self) -> String {
-        format!("https://openlibrary.org/{}/{}.json", self.key(), self.value())
+        format!(
+            "https://openlibrary.org/{}/{}.json",
+            self.key(),
+            self.value()
+        )
     }
 
     pub fn get_rdf_url(&self) -> String {
-        format!("https://openlibrary.org/{}/{}.rdf", self.key(), self.value())
+        format!(
+            "https://openlibrary.org/{}/{}.rdf",
+            self.key(),
+            self.value()
+        )
     }
 
     /// Tries to convert string into one of these values to the best of its' ability.
@@ -78,11 +84,12 @@ impl BookId {
         match value {
             v if v.starts_with("OL") && v.ends_with('W') => Some(Self::Work(v)),
             v if v.starts_with("OL") && v.ends_with('M') => Some(Self::Edition(v)),
-            _ => parse_book_id(&value).into_possible_isbn_value().map(Self::Isbn)
+            _ => parse_book_id(&value)
+                .into_possible_isbn_value()
+                .map(Self::Isbn),
         }
     }
 }
-
 
 pub enum BookSearchType {
     Query,
@@ -92,7 +99,11 @@ pub enum BookSearchType {
 
 impl BookSearchType {
     pub fn get_api_url(&self, value: &str) -> String {
-        format!("http://openlibrary.org/search.json?{}={}", self.key(), urlencoding::encode(value))
+        format!(
+            "http://openlibrary.org/search.json?{}={}",
+            self.key(),
+            urlencoding::encode(value)
+        )
     }
 
     pub fn key(&self) -> &str {
@@ -104,7 +115,6 @@ impl BookSearchType {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BookSearchContainer {
     #[serde(rename = "numFound")]
@@ -115,7 +125,6 @@ pub struct BookSearchContainer {
     #[serde(rename = "docs")]
     pub items: Vec<BookSearchItem>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
@@ -225,9 +234,6 @@ pub struct BookSearchItem {
     pub time_key: Option<Vec<String>>,
 }
 
-
-
-
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookInfo {
@@ -298,7 +304,6 @@ pub struct Link {
     type_of: KeyItem,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Contributor {
     role: String,
@@ -315,7 +320,6 @@ pub struct TableOfContent {
     #[serde(rename = "type")]
     type_of: Option<KeyItem>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]

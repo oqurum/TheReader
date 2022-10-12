@@ -1,7 +1,5 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use validator::Validate;
-
-
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
 pub struct SetupConfig {
@@ -21,8 +19,6 @@ impl SetupConfig {
     }
 }
 
-
-
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub server: ConfigServer,
@@ -41,11 +37,13 @@ impl Config {
     }
 }
 
-
-
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct ConfigServer {
-    #[validate(length(min = 3, max = 32, message = "Must be at least 3 long and less than 32 long."))]
+    #[validate(length(
+        min = 3,
+        max = 32,
+        message = "Must be at least 3 long and less than 32 long."
+    ))]
     pub name: String,
     pub is_secure: bool,
     pub auth_key: Vec<u8>,
@@ -58,16 +56,16 @@ impl Default for ConfigServer {
         let mut rng = rand::thread_rng();
         let mut key = [0; 64];
 
-        rng.try_fill_bytes(&mut key).expect("Unable to fill buffer for Auth Key");
+        rng.try_fill_bytes(&mut key)
+            .expect("Unable to fill buffer for Auth Key");
 
         Self {
             name: Default::default(),
             is_secure: Default::default(),
-            auth_key: key.to_vec()
+            auth_key: key.to_vec(),
         }
     }
 }
-
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
 pub struct ConfigEmail {
@@ -105,7 +103,6 @@ impl Default for Authenticators {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LibraryConnection {

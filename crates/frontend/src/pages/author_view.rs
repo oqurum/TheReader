@@ -1,15 +1,30 @@
 use std::str::FromStr;
 
 use chrono::NaiveDate;
-use common::{component::{upload::UploadModule, popup::{Popup, PopupClose, PopupType}}, Either, PersonId, ImageIdType, api::WrappingResponse};
-use common_local::{api::{self, GetPostersResponse, GetPersonResponse}, filter::FilterContainer};
+use common::{
+    api::WrappingResponse,
+    component::{
+        popup::{Popup, PopupClose, PopupType},
+        upload::UploadModule,
+    },
+    Either, ImageIdType, PersonId,
+};
+use common_local::{
+    api::{self, GetPersonResponse, GetPostersResponse},
+    filter::FilterContainer,
+};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
-use yew::{prelude::*, html::Scope};
+use yew::{html::Scope, prelude::*};
 
-use crate::{components::{PopupEditBook, book_poster_item::{BookPosterItem, BookPosterItemMsg, PosterItem, DisplayOverlayItem}}, request, util::{on_click_prevdef, on_click_prevdef_stopprop}};
-
-
+use crate::{
+    components::{
+        book_poster_item::{BookPosterItem, BookPosterItemMsg, DisplayOverlayItem, PosterItem},
+        PopupEditBook,
+    },
+    request,
+    util::{on_click_prevdef, on_click_prevdef_stopprop},
+};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -28,7 +43,7 @@ pub enum Msg {
 
     BookListItemEvent(BookPosterItemMsg),
 
-    Ignore
+    Ignore,
 }
 
 #[derive(Properties, PartialEq, Eq)]
@@ -54,18 +69,13 @@ impl Component for AuthorView {
     fn create(ctx: &Context<Self>) -> Self {
         let person_id = ctx.props().id;
 
-        ctx.link()
-        .send_future(async move {
-            let resp = request::get_books(
-                None,
-                None,
-                None,
-                {
-                    let mut search = FilterContainer::default();
-                    search.add_person_filter(person_id);
-                    search
-                },
-            ).await;
+        ctx.link().send_future(async move {
+            let resp = request::get_books(None, None, None, {
+                let mut search = FilterContainer::default();
+                search.add_person_filter(person_id);
+                search
+            })
+            .await;
 
             Msg::BooksListResults(resp)
         });
@@ -85,43 +95,43 @@ impl Component for AuthorView {
         match msg {
             Msg::Ignore => return false,
 
-            Msg::BooksListResults(resp) => {
-                match resp.ok() {
-                    Ok(resp) => self.cached_books = Some(resp),
-                    Err(err) => crate::display_error(err),
-                }
-            }
+            Msg::BooksListResults(resp) => match resp.ok() {
+                Ok(resp) => self.cached_books = Some(resp),
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::ClosePopup => {
                 self.media_popup = None;
             }
 
-            Msg::UpdatedPoster => if let Some(book) = self.media.as_ref() {
-                let person_id = ImageIdType::new_person(book.person.id);
+            Msg::UpdatedPoster => {
+                if let Some(book) = self.media.as_ref() {
+                    let person_id = ImageIdType::new_person(book.person.id);
 
-                ctx.link()
-                .send_future(async move {
-                    Msg::RetrievePosters(request::get_posters_for(person_id).await)
-                });
+                    ctx.link().send_future(async move {
+                        Msg::RetrievePosters(request::get_posters_for(person_id).await)
+                    });
 
-                return false;
+                    return false;
+                }
             }
 
             // Edits
-            Msg::ToggleEdit => if let Some(book) = self.media.as_ref() {
-                if self.editing_item.is_none() {
-                    self.editing_item = Some(book.clone());
+            Msg::ToggleEdit => {
+                if let Some(book) = self.media.as_ref() {
+                    if self.editing_item.is_none() {
+                        self.editing_item = Some(book.clone());
 
-                    if self.cached_posters.is_none() {
-                        let person_id = ImageIdType::new_person(book.person.id);
+                        if self.cached_posters.is_none() {
+                            let person_id = ImageIdType::new_person(book.person.id);
 
-                        ctx.link()
-                        .send_future(async move {
-                            Msg::RetrievePosters(request::get_posters_for(person_id).await)
-                        });
+                            ctx.link().send_future(async move {
+                                Msg::RetrievePosters(request::get_posters_for(person_id).await)
+                            });
+                        }
+                    } else {
+                        self.editing_item = None;
                     }
-                } else {
-                    self.editing_item = None;
                 }
             }
 
@@ -150,63 +160,63 @@ impl Component for AuthorView {
                 match type_of {
                     ChangingType::Name => updating.person.name = value.unwrap_or_default(),
                     ChangingType::Description => updating.person.description = value,
-                    ChangingType::BirthDate => updating.person.birth_date = value.and_then(|v| NaiveDate::from_str(&v).ok()),
+                    ChangingType::BirthDate => {
+                        updating.person.birth_date =
+                            value.and_then(|v| NaiveDate::from_str(&v).ok())
+                    }
                 }
             }
 
-            Msg::RetrievePosters(resp) => {
-                match resp.ok() {
-                    Ok(resp) => self.cached_posters = Some(resp),
-                    Err(err) => crate::display_error(err),
-                }
-            }
+            Msg::RetrievePosters(resp) => match resp.ok() {
+                Ok(resp) => self.cached_posters = Some(resp),
+                Err(err) => crate::display_error(err),
+            },
 
-            Msg::RetrieveMediaView(resp) => {
-                match resp.ok() {
-                    Ok(resp) => self.media = Some(resp),
-                    Err(err) => crate::display_error(err),
-                }
-            }
+            Msg::RetrieveMediaView(resp) => match resp.ok() {
+                Ok(resp) => self.media = Some(resp),
+                Err(err) => crate::display_error(err),
+            },
 
-            Msg::BookListItemEvent(event) => {
-                match event {
-                    BookPosterItemMsg::AddOrRemoveItemFromEditing(_, _) => (),
+            Msg::BookListItemEvent(event) => match event {
+                BookPosterItemMsg::AddOrRemoveItemFromEditing(_, _) => (),
 
-                    BookPosterItemMsg::PosterItem(item) => match item {
-                        PosterItem::ShowPopup(new_disp) => {
-                            if let Some(old_disp) = self.media_popup.as_mut() {
-                                if *old_disp == new_disp {
-                                    self.media_popup = None;
-                                } else {
-                                    self.media_popup = Some(new_disp);
-                                }
+                BookPosterItemMsg::PosterItem(item) => match item {
+                    PosterItem::ShowPopup(new_disp) => {
+                        if let Some(old_disp) = self.media_popup.as_mut() {
+                            if *old_disp == new_disp {
+                                self.media_popup = None;
                             } else {
                                 self.media_popup = Some(new_disp);
                             }
-                        }
-
-                        PosterItem::UpdateBookById(book_id) => {
-                            ctx.link()
-                            .send_future(async move {
-                                request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
-
-                                Msg::Ignore
-                            });
-                        }
-
-                        PosterItem::UpdateBookByFiles(book_id) => {
-                            ctx.link()
-                            .send_future(async move {
-                                request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdByFiles).await;
-
-                                Msg::Ignore
-                            });
+                        } else {
+                            self.media_popup = Some(new_disp);
                         }
                     }
 
-                    BookPosterItemMsg::Ignore => (),
-                }
-            }
+                    PosterItem::UpdateBookById(book_id) => {
+                        ctx.link().send_future(async move {
+                            request::update_book(book_id, &api::PostBookBody::AutoMatchBookId)
+                                .await;
+
+                            Msg::Ignore
+                        });
+                    }
+
+                    PosterItem::UpdateBookByFiles(book_id) => {
+                        ctx.link().send_future(async move {
+                            request::update_book(
+                                book_id,
+                                &api::PostBookBody::AutoMatchBookIdByFiles,
+                            )
+                            .await;
+
+                            Msg::Ignore
+                        });
+                    }
+                },
+
+                BookPosterItemMsg::Ignore => (),
+            },
         }
 
         true
@@ -496,17 +506,30 @@ impl AuthorView {
 
     fn on_change_input(scope: &Scope<Self>, updating: ChangingType) -> Callback<Event> {
         scope.callback(move |e: Event| {
-            Msg::UpdateEditing(updating, e.target().unwrap().dyn_into::<HtmlInputElement>().unwrap().value())
+            Msg::UpdateEditing(
+                updating,
+                e.target()
+                    .unwrap()
+                    .dyn_into::<HtmlInputElement>()
+                    .unwrap()
+                    .value(),
+            )
         })
     }
 
     fn on_change_textarea(scope: &Scope<Self>, updating: ChangingType) -> Callback<Event> {
         scope.callback(move |e: Event| {
-            Msg::UpdateEditing(updating, e.target().unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value())
+            Msg::UpdateEditing(
+                updating,
+                e.target()
+                    .unwrap()
+                    .dyn_into::<HtmlTextAreaElement>()
+                    .unwrap()
+                    .value(),
+            )
         })
     }
 }
-
 
 #[derive(Clone, Copy)]
 pub enum ChangingType {

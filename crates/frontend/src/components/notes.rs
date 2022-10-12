@@ -5,14 +5,17 @@ use common_local::MediaItem;
 use gloo_timers::callback::Timeout;
 use gloo_utils::format::JsValueSerdeExt;
 use serde_json::json;
-use wasm_bindgen::{prelude::{wasm_bindgen, Closure}, JsValue, JsCast};
+use wasm_bindgen::{
+    prelude::{wasm_bindgen, Closure},
+    JsCast, JsValue,
+};
 use yew::prelude::*;
 
 use crate::request;
 
 #[derive(Properties)]
 pub struct Property {
-    pub book: Rc<MediaItem>
+    pub book: Rc<MediaItem>,
 }
 
 impl PartialEq for Property {
@@ -21,22 +24,20 @@ impl PartialEq for Property {
     }
 }
 
-
 pub enum Msg {
     RetrieveNotes(WrappingResponse<Option<String>>),
 
     OnDeltaChanged(JsValue),
     OnAutoSave,
 
-    Ignore
+    Ignore,
 }
-
 
 pub struct Notes {
     is_initiated: bool,
     quill: Option<QuillContents>,
     contents: JsValue,
-    timeout: Option<Timeout>
+    timeout: Option<Timeout>,
 }
 
 impl Component for Notes {
@@ -47,9 +48,7 @@ impl Component for Notes {
         let book_id = ctx.props().book.id;
 
         ctx.link()
-        .send_future(async move {
-            Msg::RetrieveNotes(request::get_book_notes(book_id).await)
-        });
+            .send_future(async move { Msg::RetrieveNotes(request::get_book_notes(book_id).await) });
 
         Self {
             is_initiated: false,
@@ -70,10 +69,12 @@ impl Component for Notes {
 
                 if let Some(notes) = self.quill.as_ref() {
                     let book_id = ctx.props().book.id;
-                    let body = js_sys::JSON::stringify(&notes.quill.get_contents()).unwrap().as_string().unwrap();
+                    let body = js_sys::JSON::stringify(&notes.quill.get_contents())
+                        .unwrap()
+                        .as_string()
+                        .unwrap();
 
-                    ctx.link()
-                    .send_future(async move {
+                    ctx.link().send_future(async move {
                         request::update_book_notes(book_id, body).await;
 
                         Msg::Ignore
@@ -83,26 +84,23 @@ impl Component for Notes {
 
             Msg::OnDeltaChanged(_delta_changes) => {
                 let scope = ctx.link().clone();
-                self.timeout = Some(Timeout::new(
-                    3_000,
-                    move || scope.send_message(Msg::OnAutoSave)
-                ));
+                self.timeout = Some(Timeout::new(3_000, move || {
+                    scope.send_message(Msg::OnAutoSave)
+                }));
             }
 
-            Msg::RetrieveNotes(resp) => {
-                match resp.ok() {
-                    Ok(data) => {
-                        if let Some(data) = data.filter(|v| !v.is_empty()) {
-                            self.contents = js_sys::JSON::parse(&data).unwrap();
+            Msg::RetrieveNotes(resp) => match resp.ok() {
+                Ok(data) => {
+                    if let Some(data) = data.filter(|v| !v.is_empty()) {
+                        self.contents = js_sys::JSON::parse(&data).unwrap();
 
-                            if let Some(quill) = self.quill.as_ref() {
-                                quill.quill.set_contents(&self.contents, None);
-                            }
+                        if let Some(quill) = self.quill.as_ref() {
+                            quill.quill.set_contents(&self.contents, None);
                         }
-                    },
-                    Err(err) => crate::display_error(err),
+                    }
                 }
-            }
+                Err(err) => crate::display_error(err),
+            },
         }
 
         false
@@ -150,21 +148,19 @@ impl Component for Notes {
                     },
                     "placeholder": "Compose an epic...",
                     "theme": "snow"
-                })).unwrap()
+                }))
+                .unwrap(),
             );
 
             let scope = ctx.link().clone();
-            let closure = Closure::wrap(
-                Box::new(move |delta: JsValue| scope.send_message(Msg::OnDeltaChanged(delta))) as Box<dyn FnMut(JsValue)>
-            );
+            let closure = Closure::wrap(Box::new(move |delta: JsValue| {
+                scope.send_message(Msg::OnDeltaChanged(delta))
+            }) as Box<dyn FnMut(JsValue)>);
 
             quill.on("text-change", closure.as_ref().unchecked_ref());
             quill.set_contents(&self.contents, None);
 
-            self.quill = Some(QuillContents {
-                quill,
-                closure
-            });
+            self.quill = Some(QuillContents { quill, closure });
 
             self.is_initiated = true;
         }
@@ -182,11 +178,10 @@ impl Notes {
     //
 }
 
-
 struct QuillContents {
     quill: Quill,
     #[allow(dead_code)]
-    closure: Closure<dyn FnMut(JsValue)>
+    closure: Closure<dyn FnMut(JsValue)>,
 }
 
 #[wasm_bindgen]

@@ -2,34 +2,31 @@
 
 // TODO: Better security. Simple Proof of Concept.
 
-
 use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
-use actix_web::{web, HttpRequest, HttpMessage};
+use actix_web::{web, HttpMessage, HttpRequest};
+use common::api::{ApiErrorResponse, WrappingResponse};
 use common_local::setup::ConfigEmail;
-use common_local::{Permissions, MemberAuthType};
-use common::api::{WrappingResponse, ApiErrorResponse};
+use common_local::{MemberAuthType, Permissions};
 
-use crate::config::{is_setup, get_config, update_config, save_config};
+use crate::config::{get_config, is_setup, save_config, update_config};
 use crate::http::JsonResponse;
 use crate::model::auth::AuthModel;
-use crate::model::member::{NewMemberModel, MemberModel};
-use crate::{Result, WebResult, Error};
+use crate::model::member::{MemberModel, NewMemberModel};
+use crate::{Error, Result, WebResult};
 use chrono::Utc;
 use lettre::message::header::ContentType;
 use lettre::message::{MultiPart, SinglePart};
-use lettre::{Message, SmtpTransport, Transport};
 use lettre::transport::smtp::authentication::Credentials;
-use rand::Rng;
+use lettre::{Message, SmtpTransport, Transport};
 use rand::prelude::ThreadRng;
-use serde::{Serialize, Deserialize};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 use crate::database::Database;
 
-
 pub static PASSWORDLESS_PATH: &str = "/auth/passwordless";
 pub static PASSWORDLESS_PATH_CB: &str = "/auth/passwordless/response";
-
 
 #[derive(Serialize, Deserialize)]
 pub struct PostPasswordlessCallback {
@@ -50,18 +47,23 @@ pub async fn post_passwordless_oauth(
 
     let (email_config, host) = match (
         config.email,
-        req.headers().get("host").and_then(|v| v.to_str().ok())
+        req.headers().get("host").and_then(|v| v.to_str().ok()),
     ) {
         (Some(a), Some(b)) => (a, b),
-        _ => return Err(ApiErrorResponse::new("Missing email from config OR unable to get host").into()),
+        _ => {
+            return Err(
+                ApiErrorResponse::new("Missing email from config OR unable to get host").into(),
+            )
+        }
     };
 
-    let proto = if config.server.is_secure { "https" } else { "http" };
-
+    let proto = if config.server.is_secure {
+        "https"
+    } else {
+        "http"
+    };
 
     let oauth_token = gen_sample_alphanumeric(32, &mut rand::thread_rng());
-
-
 
     let auth_callback_url = format!(
         "{proto}://{host}{}?{}",
@@ -69,22 +71,20 @@ pub async fn post_passwordless_oauth(
         serde_urlencoded::to_string(QueryCallback {
             oauth_token: oauth_token.clone(),
             email: query.email.clone()
-        }).map_err(Error::from)?
+        })
+        .map_err(Error::from)?
     );
 
-    let main_html = render_email(
-        proto,
-        host,
-        &email_config.display_name,
-        &auth_callback_url,
-    );
+    let main_html = render_email(proto, host, &email_config.display_name, &auth_callback_url);
 
     AuthModel {
         oauth_token,
         // TODO:
         oauth_token_secret: String::new(),
         created_at: Utc::now(),
-    }.insert(&db).await?;
+    }
+    .insert(&db)
+    .await?;
 
     send_auth_email(query.0.email, auth_callback_url, main_html, &email_config)?;
 
@@ -109,10 +109,7 @@ pub async fn get_passwordless_oauth_callback(
             .finish());
     }
 
-    let QueryCallback {
-        oauth_token,
-        email,
-    } = query.into_inner();
+    let QueryCallback { oauth_token, email } = query.into_inner();
 
     if AuthModel::remove_by_oauth_token(&oauth_token, &db).await? {
         // Create or Update User.
@@ -136,7 +133,6 @@ pub async fn get_passwordless_oauth_callback(
             if !has_admin_account {
                 new_member.permissions = Permissions::owner();
             }
-
 
             let inserted = new_member.insert(&db).await?;
 
@@ -164,7 +160,10 @@ pub async fn get_passwordless_oauth_callback(
 // TODO: Send emails/tests from own thread entirely. lettre uses a loop system.
 
 pub fn test_connection(email_config: &ConfigEmail) -> Result<bool> {
-    let creds = Credentials::new(email_config.smtp_username.clone(), email_config.smtp_password.clone());
+    let creds = Credentials::new(
+        email_config.smtp_username.clone(),
+        email_config.smtp_password.clone(),
+    );
 
     // Open a remote connection to gmail
     let mailer = SmtpTransport::relay(&email_config.smtp_relay)?
@@ -174,9 +173,20 @@ pub fn test_connection(email_config: &ConfigEmail) -> Result<bool> {
     Ok(mailer.test_connection()?)
 }
 
-pub fn send_auth_email(sending_to_email: String, alt_text: String, main_html: String, email_config: &ConfigEmail) -> Result<()> {
+pub fn send_auth_email(
+    sending_to_email: String,
+    alt_text: String,
+    main_html: String,
+    email_config: &ConfigEmail,
+) -> Result<()> {
     let email = Message::builder()
-        .from(format!("{} <{}>", email_config.display_name, email_config.sending_email).parse()?)
+        .from(
+            format!(
+                "{} <{}>",
+                email_config.display_name, email_config.sending_email
+            )
+            .parse()?,
+        )
         .reply_to(email_config.sending_email.parse()?)
         .to(sending_to_email.parse()?)
         .subject(&email_config.subject_line)
@@ -194,7 +204,10 @@ pub fn send_auth_email(sending_to_email: String, alt_text: String, main_html: St
                 ),
         )?;
 
-    let creds = Credentials::new(email_config.smtp_username.clone(), email_config.smtp_password.clone());
+    let creds = Credentials::new(
+        email_config.smtp_username.clone(),
+        email_config.smtp_password.clone(),
+    );
 
     // Open a remote connection to gmail
     let mailer = SmtpTransport::relay(&email_config.smtp_relay)?
@@ -221,7 +234,8 @@ fn render_email(
     email_display_name: &str,
     email_callback_url: &str,
 ) -> String {
-    format!(r#"
+    format!(
+        r#"
         <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
         <html xmlns="http://www.w3.org/1999/xhtml">
             <head>

@@ -1,37 +1,60 @@
-use std::{sync::Mutex, thread, time::{Duration, Instant}, collections::VecDeque};
+use std::{
+    collections::VecDeque,
+    sync::Mutex,
+    thread,
+    time::{Duration, Instant},
+};
 
 use actix_web::web;
 use async_trait::async_trait;
-use common_local::{SearchFor, SearchForBooksBy, ws::{UniqueId, WebsocketNotification, TaskType}, filter::FilterContainer, LibraryId};
-use chrono::{Utc, DateTime};
+use chrono::{DateTime, Utc};
 use common::{BookId, PersonId, Source};
+use common_local::{
+    filter::FilterContainer,
+    ws::{TaskType, UniqueId, WebsocketNotification},
+    LibraryId, SearchFor, SearchForBooksBy,
+};
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 
 use crate::{
-    Result,
     database::Database,
-    metadata::{MetadataReturned, get_metadata_from_files, get_metadata_by_source, get_person_by_source, search_all_agents, SearchItem, ActiveAgents, search_and_return_first_valid_agent, FoundImageLocation}, http::send_message_to_clients, model::{image::{ImageLinkModel, UploadedImageModel}, library::LibraryModel, directory::DirectoryModel, book::BookModel, file::FileModel, book_person::BookPersonModel, person::PersonModel, person_alt::PersonAltModel}, sort_by_similarity
+    http::send_message_to_clients,
+    metadata::{
+        get_metadata_by_source, get_metadata_from_files, get_person_by_source, search_all_agents,
+        search_and_return_first_valid_agent, ActiveAgents, FoundImageLocation, MetadataReturned,
+        SearchItem,
+    },
+    model::{
+        book::BookModel,
+        book_person::BookPersonModel,
+        directory::DirectoryModel,
+        file::FileModel,
+        image::{ImageLinkModel, UploadedImageModel},
+        library::LibraryModel,
+        person::PersonModel,
+        person_alt::PersonAltModel,
+    },
+    sort_by_similarity, Result,
 };
-
 
 // TODO: A should stop boolean
 // TODO: Store what's currently running
 
 lazy_static! {
     pub static ref TASKS_QUEUED: Mutex<VecDeque<Box<dyn Task>>> = Mutex::new(VecDeque::new());
-
-    static ref TASK_INTERVALS: Mutex<Vec<TaskInterval>> = Mutex::new(vec![
-        TaskInterval { last_ran: None, interval: Duration::from_secs(60 * 60), task: || Box::new(TaskFileHashSetter)  },
-    ]);
+    static ref TASK_INTERVALS: Mutex<Vec<TaskInterval>> = Mutex::new(vec![TaskInterval {
+        last_ran: None,
+        interval: Duration::from_secs(60 * 60),
+        task: || Box::new(TaskFileHashSetter)
+    },]);
 }
 
 struct TaskInterval {
     pub last_ran: Option<DateTime<Utc>>,
     pub interval: Duration,
-    pub task: fn() -> Box<dyn Task> // I shouldn't have to box this.
+    pub task: fn() -> Box<dyn Task>, // I shouldn't have to box this.
 }
-
 
 #[async_trait]
 pub trait Task: Send {
@@ -40,8 +63,6 @@ pub trait Task: Send {
     fn name(&self) -> &'static str;
 }
 
-
-
 pub fn queue_task<T: Task + 'static>(task: T) {
     TASKS_QUEUED.lock().unwrap().push_back(Box::new(task));
 }
@@ -49,8 +70,6 @@ pub fn queue_task<T: Task + 'static>(task: T) {
 pub fn queue_task_priority<T: Task + 'static>(task: T) {
     TASKS_QUEUED.lock().unwrap().push_front(Box::new(task));
 }
-
-
 
 pub fn start_task_manager(db: web::Data<Database>) {
     thread::spawn(move || {
@@ -75,14 +94,16 @@ pub fn start_task_manager(db: web::Data<Database>) {
                                 Some((v.task)())
                             }
 
-                            Some(d) if now.signed_duration_since(d).to_std().unwrap() >= v.interval => {
+                            Some(d)
+                                if now.signed_duration_since(d).to_std().unwrap() >= v.interval =>
+                            {
                                 // TODO: Update last_ran AFTER we've ran the task.
                                 v.last_ran = Some(Utc::now());
 
                                 Some((v.task)())
                             }
 
-                            _ => None
+                            _ => None,
                         }
                     });
 
@@ -97,7 +118,11 @@ pub fn start_task_manager(db: web::Data<Database>) {
                     println!("Task {:?} Started - ID: {task_id}", task.name());
 
                     match task.run(task_id, &db).await {
-                        Ok(_) => println!("Task {:?} Finished Successfully. Took: {:?}", task.name(), start_time.elapsed()),
+                        Ok(_) => println!(
+                            "Task {:?} Finished Successfully. Took: {:?}",
+                            task.name(),
+                            start_time.elapsed()
+                        ),
                         Err(e) => eprintln!("Task {:?} Error: {e}", task.name()),
                     }
 
@@ -107,8 +132,6 @@ pub fn start_task_manager(db: web::Data<Database>) {
         });
     });
 }
-
-
 
 pub struct TaskFileHashSetter;
 
@@ -129,14 +152,16 @@ impl Task for TaskFileHashSetter {
             for model in models {
                 if let Ok(Some(mut book)) = bookie::load_from_path(&model.path) {
                     if let Some(hash) = book.compute_hash() {
-                        updates.push([ hash, model.path ]);
+                        updates.push([hash, model.path]);
                     }
                 }
             }
 
             let write = db.write().await;
 
-            let mut stmt = write.prepare("UPDATE file SET hash = ?1 WHERE path = ?2").unwrap();
+            let mut stmt = write
+                .prepare("UPDATE file SET hash = ?1 WHERE path = ?2")
+                .unwrap();
 
             for update in updates {
                 stmt.execute(update).unwrap();
@@ -151,31 +176,29 @@ impl Task for TaskFileHashSetter {
     }
 }
 
-
-
-
 pub struct TaskLibraryScan {
-    pub library_id: LibraryId
+    pub library_id: LibraryId,
 }
 
 #[async_trait]
 impl Task for TaskLibraryScan {
     async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
-        let library = LibraryModel::find_one_by_id(self.library_id, db).await?.unwrap();
+        let library = LibraryModel::find_one_by_id(self.library_id, db)
+            .await?
+            .unwrap();
 
-        let directories = DirectoryModel::find_directories_by_library_id(self.library_id, db).await?;
+        let directories =
+            DirectoryModel::find_directories_by_library_id(self.library_id, db).await?;
 
         crate::scanner::library_scan(&library, directories, db).await?;
 
         Ok(())
     }
 
-    fn name(&self) ->  &'static str {
+    fn name(&self) -> &'static str {
         "Library Scan"
     }
 }
-
-
 
 // Metadata
 
@@ -197,26 +220,21 @@ pub enum UpdatingBook {
     /// If input (old) Book ID is different than Sources' Book ID (current) we replace and join the old one into the current one.
     ///
     /// If they're equal we update based off the external metadata agents data we receive.
-    UpdateBookWithSource {
-        book_id: BookId,
-        source: Source,
-    },
+    UpdateBookWithSource { book_id: BookId, source: Source },
     /// Updates all books with specified agent by files.
     UpdateAllWithAgent {
         library_id: LibraryId,
-        agent: String
+        agent: String,
     },
 }
 
 pub struct TaskUpdateInvalidBook {
-    state: UpdatingBook
+    state: UpdatingBook,
 }
 
 impl TaskUpdateInvalidBook {
     pub fn new(state: UpdatingBook) -> Self {
-        Self {
-            state
-        }
+        Self { state }
     }
 }
 
@@ -234,26 +252,40 @@ impl Task for TaskUpdateInvalidBook {
                         match get_metadata_from_files(&[file], &ActiveAgents::default()).await {
                             Ok(meta) => {
                                 if let Some(mut ret) = meta {
-                                    let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
+                                    let (main_author, author_ids) =
+                                        ret.add_or_ignore_authors_into_database(db).await?;
 
-                                    let MetadataReturned { mut meta, publisher, .. } = ret;
+                                    let MetadataReturned {
+                                        mut meta,
+                                        publisher,
+                                        ..
+                                    } = ret;
 
                                     // TODO: This is For Local File Data. Need specify.
-                                    if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_file_data()) {
+                                    if let Some(item) =
+                                        meta.thumb_locations.iter_mut().find(|v| v.is_file_data())
+                                    {
                                         item.download(db).await?;
                                     }
 
                                     let mut book_model: BookModel = meta.into();
 
                                     // TODO: Store Publisher inside Database
-                                    book_model.cached = book_model.cached.publisher_optional(publisher).author_optional(main_author);
+                                    book_model.cached = book_model
+                                        .cached
+                                        .publisher_optional(publisher)
+                                        .author_optional(main_author);
 
                                     let book_model = book_model.insert_or_increment(db).await?;
                                     FileModel::update_book_id(file_id, book_model.id, db).await?;
 
                                     if let Some(thumb_path) = book_model.thumb_path.as_value() {
-                                        if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-                                            ImageLinkModel::new_book(image.id, book_model.id).insert(db).await?;
+                                        if let Some(image) =
+                                            UploadedImageModel::get_by_path(thumb_path, db).await?
+                                        {
+                                            ImageLinkModel::new_book(image.id, book_model.id)
+                                                .insert(db)
+                                                .await?;
                                         }
                                     }
 
@@ -261,7 +293,9 @@ impl Task for TaskUpdateInvalidBook {
                                         BookPersonModel {
                                             book_id: book_model.id,
                                             person_id,
-                                        }.insert_or_ignore(db).await?;
+                                        }
+                                        .insert_or_ignore(db)
+                                        .await?;
                                     }
                                 }
                             }
@@ -276,7 +310,10 @@ impl Task for TaskUpdateInvalidBook {
 
             UpdatingBook::AutoUpdateBookIdByFiles(book_id) => {
                 println!("Auto Update Metadata ID by Files: {}", book_id);
-                send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book_id)));
+                send_message_to_clients(WebsocketNotification::new_task(
+                    task_id,
+                    TaskType::UpdatingBook(book_id),
+                ));
 
                 let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
@@ -285,14 +322,19 @@ impl Task for TaskUpdateInvalidBook {
 
             UpdatingBook::AutoUpdateBookId(book_id) => {
                 println!("Auto Update Metadata ID by Source: {}", book_id);
-                send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book_id)));
+                send_message_to_clients(WebsocketNotification::new_task(
+                    task_id,
+                    TaskType::UpdatingBook(book_id),
+                ));
 
                 let book_model = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
                 println!("Updating by title");
 
                 // Step 1
-                let search_query = book_model.title.as_deref()
+                let search_query = book_model
+                    .title
+                    .as_deref()
                     .or(book_model.original_title.as_deref());
 
                 if let Some(search_query) = search_query {
@@ -300,32 +342,30 @@ impl Task for TaskUpdateInvalidBook {
                         search_query,
                         SearchFor::Book(SearchForBooksBy::Query),
                         &ActiveAgents::default(),
-                    ).await?;
+                    )
+                    .await?;
 
                     if !found.is_empty() {
-                        let found_item = sort_by_similarity(
-                            search_query,
-                            found,
-                            |v| match v {
-                                SearchItem::Book(v) => v.title.as_deref(),
-                                SearchItem::Author(v) => Some(&v.name),
+                        let found_item = sort_by_similarity(search_query, found, |v| match v {
+                            SearchItem::Book(v) => v.title.as_deref(),
+                            SearchItem::Author(v) => Some(&v.name),
+                        })
+                        .into_iter()
+                        .find(|&(score, ref item)| match item {
+                            SearchItem::Book(book) => {
+                                println!("Score: {score} | {:?} | {}", book.title, book.source);
+                                score > 0.75 && !book.thumb_locations.is_empty()
                             }
-                        )
-                            .into_iter()
-                            .find(|&(score, ref item)| match item {
-                                SearchItem::Book(book) => {
-                                    println!("Score: {score} | {:?} | {}", book.title, book.source);
-                                    score > 0.75 && !book.thumb_locations.is_empty()
-                                }
-                                _ => false
-                            })
-                            .map(|(_, item)| item);
+                            _ => false,
+                        })
+                        .map(|(_, item)| item);
 
                         // Now we need to do a search for found item and return it.
                         if let Some(item) = found_item.and_then(|v| v.into_book()) {
                             match get_metadata_by_source(&item.source).await? {
                                 Some(metadata) => {
-                                    overwrite_book_with_new_metadata(book_model, metadata, db).await?;
+                                    overwrite_book_with_new_metadata(book_model, metadata, db)
+                                        .await?;
 
                                     return Ok(());
                                 }
@@ -340,21 +380,39 @@ impl Task for TaskUpdateInvalidBook {
                 // Etc..
             }
 
-            UpdatingBook::UpdateBookWithSource { book_id: old_book_id, source } => {
-                println!("UpdatingMetadata::SpecificMatchSingleMetaId {{ book_id: {:?}, source: {:?} }}", old_book_id, source);
-                send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(old_book_id)));
+            UpdatingBook::UpdateBookWithSource {
+                book_id: old_book_id,
+                source,
+            } => {
+                println!(
+                    "UpdatingMetadata::SpecificMatchSingleMetaId {{ book_id: {:?}, source: {:?} }}",
+                    old_book_id, source
+                );
+                send_message_to_clients(WebsocketNotification::new_task(
+                    task_id,
+                    TaskType::UpdatingBook(old_book_id),
+                ));
 
                 match BookModel::find_one_by_source(&source, db).await? {
                     // If the metadata already exists we move the old metadata files to the new one and completely remove old metadata.
                     Some(book_item) => {
                         if book_item.id != old_book_id {
-                            println!("Changing Current File Metadata ({}) to New File Metadata ({})", old_book_id, book_item.id);
+                            println!(
+                                "Changing Current File Metadata ({}) to New File Metadata ({})",
+                                old_book_id, book_item.id
+                            );
 
                             // Change file metas'from old to new meta
-                            let changed_files = FileModel::transfer_book_id(old_book_id, book_item.id, db).await?;
+                            let changed_files =
+                                FileModel::transfer_book_id(old_book_id, book_item.id, db).await?;
 
                             // Update new meta file count
-                            BookModel::set_file_count(book_item.id, book_item.file_item_count as usize + changed_files, db).await?;
+                            BookModel::set_file_count(
+                                book_item.id,
+                                book_item.file_item_count as usize + changed_files,
+                                db,
+                            )
+                            .await?;
 
                             // Remove old meta persons
                             BookPersonModel::delete_by_book_id(old_book_id, db).await?;
@@ -370,20 +428,31 @@ impl Task for TaskUpdateInvalidBook {
                             println!("Updating File Metadata.");
 
                             if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
-                                let mut current_book = BookModel::find_one_by_id(old_book_id, db).await?.unwrap();
+                                let mut current_book =
+                                    BookModel::find_one_by_id(old_book_id, db).await?.unwrap();
 
-                                let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
+                                let (main_author, author_ids) =
+                                    new_meta.add_or_ignore_authors_into_database(db).await?;
 
-                                let MetadataReturned { mut meta, publisher, .. } = new_meta;
+                                let MetadataReturned {
+                                    mut meta,
+                                    publisher,
+                                    ..
+                                } = new_meta;
 
-                                if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_url()) {
+                                if let Some(item) =
+                                    meta.thumb_locations.iter_mut().find(|v| v.is_url())
+                                {
                                     item.download(db).await?;
                                 }
 
                                 let mut new_book: BookModel = meta.into();
 
                                 // TODO: Store Publisher inside Database
-                                new_book.cached = new_book.cached.publisher_optional(publisher).author_optional(main_author);
+                                new_book.cached = new_book
+                                    .cached
+                                    .publisher_optional(publisher)
+                                    .author_optional(main_author);
 
                                 if current_book.rating == 0.0 {
                                     current_book.rating = new_book.rating;
@@ -403,16 +472,21 @@ impl Task for TaskUpdateInvalidBook {
                                 current_book.updated_at = Utc::now();
 
                                 // No old thumb, but we have an new one. Set new one as old one.
-                                if current_book.thumb_path.is_none() && new_book.thumb_path.is_some() {
+                                if current_book.thumb_path.is_none()
+                                    && new_book.thumb_path.is_some()
+                                {
                                     current_book.thumb_path = new_book.thumb_path;
                                 }
 
                                 if let Some(thumb_path) = current_book.thumb_path.as_value() {
-                                    if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-                                        ImageLinkModel::new_book(image.id, current_book.id).insert(db).await?;
+                                    if let Some(image) =
+                                        UploadedImageModel::get_by_path(thumb_path, db).await?
+                                    {
+                                        ImageLinkModel::new_book(image.id, current_book.id)
+                                            .insert(db)
+                                            .await?;
                                     }
                                 }
-
 
                                 current_book.update(db).await?;
 
@@ -420,7 +494,9 @@ impl Task for TaskUpdateInvalidBook {
                                     BookPersonModel {
                                         book_id: current_book.id,
                                         person_id,
-                                    }.insert_or_ignore(db).await?;
+                                    }
+                                    .insert_or_ignore(db)
+                                    .await?;
                                 }
                             } else {
                                 println!("Unable to get book metadata from source {:?}", source);
@@ -434,20 +510,30 @@ impl Task for TaskUpdateInvalidBook {
                         if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
                             println!("Grabbed New Book from Source {:?}, updating old Book ({}) with it.", source, old_book_id);
 
-                            let old_book = BookModel::find_one_by_id(old_book_id, db).await?.unwrap();
+                            let old_book =
+                                BookModel::find_one_by_id(old_book_id, db).await?.unwrap();
 
-                            let (main_author, author_ids) = new_meta.add_or_ignore_authors_into_database(db).await?;
+                            let (main_author, author_ids) =
+                                new_meta.add_or_ignore_authors_into_database(db).await?;
 
-                            let MetadataReturned { mut meta, publisher, .. } = new_meta;
+                            let MetadataReturned {
+                                mut meta,
+                                publisher,
+                                ..
+                            } = new_meta;
 
-                            if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_url()) {
+                            if let Some(item) = meta.thumb_locations.iter_mut().find(|v| v.is_url())
+                            {
                                 item.download(db).await?;
                             }
 
                             let mut book: BookModel = meta.into();
 
                             // TODO: Store Publisher inside Database
-                            book.cached = book.cached.publisher_optional(publisher).author_optional(main_author);
+                            book.cached = book
+                                .cached
+                                .publisher_optional(publisher)
+                                .author_optional(main_author);
 
                             book.id = old_book.id;
                             book.library_id = old_book.library_id;
@@ -468,8 +554,12 @@ impl Task for TaskUpdateInvalidBook {
                             }
 
                             if let Some(thumb_path) = book.thumb_path.as_value() {
-                                if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-                                    ImageLinkModel::new_book(image.id, book.id).insert(db).await?;
+                                if let Some(image) =
+                                    UploadedImageModel::get_by_path(thumb_path, db).await?
+                                {
+                                    ImageLinkModel::new_book(image.id, book.id)
+                                        .insert(db)
+                                        .await?;
                                 }
                             }
 
@@ -482,7 +572,9 @@ impl Task for TaskUpdateInvalidBook {
                                 BookPersonModel {
                                     book_id: book.id,
                                     person_id,
-                                }.insert_or_ignore(db).await?;
+                                }
+                                .insert_or_ignore(db)
+                                .await?;
                             }
                         } else {
                             println!("Unable to get metadata from source {:?}", source);
@@ -492,7 +584,10 @@ impl Task for TaskUpdateInvalidBook {
                 }
             }
 
-            UpdatingBook::UpdateAllWithAgent{ library_id, agent: _a } => {
+            UpdatingBook::UpdateAllWithAgent {
+                library_id,
+                agent: _a,
+            } => {
                 // TODO: Use agent
                 let active_agent = ActiveAgents {
                     google: false,
@@ -503,21 +598,34 @@ impl Task for TaskUpdateInvalidBook {
 
                 const LIMIT: usize = 100;
 
-                let amount = BookModel::count_search_by(&FilterContainer::default(), Some(library_id), db).await?;
+                let amount =
+                    BookModel::count_search_by(&FilterContainer::default(), Some(library_id), db)
+                        .await?;
                 let mut offset = 0;
 
                 while offset < amount {
-                    let books = BookModel::find_by(Some(library_id), offset, LIMIT, None, db).await?;
+                    let books =
+                        BookModel::find_by(Some(library_id), offset, LIMIT, None, db).await?;
 
                     for book in books {
-                        if Utc::now().signed_duration_since(book.refreshed_at).num_days() > 7 {
+                        if Utc::now()
+                            .signed_duration_since(book.refreshed_at)
+                            .num_days()
+                            > 7
+                        {
                             let book_id = book.id;
 
-                            send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType::UpdatingBook(book_id)));
+                            send_message_to_clients(WebsocketNotification::new_task(
+                                task_id,
+                                TaskType::UpdatingBook(book_id),
+                            ));
 
                             Self::update_book_by_files(book, &active_agent, db).await?;
 
-                            send_message_to_clients(WebsocketNotification::update_task(task_id, TaskType::UpdatingBook(book_id)));
+                            send_message_to_clients(WebsocketNotification::update_task(
+                                task_id,
+                                TaskType::UpdatingBook(book_id),
+                            ));
                         }
                     }
 
@@ -529,7 +637,7 @@ impl Task for TaskUpdateInvalidBook {
         Ok(())
     }
 
-    fn name(&self) ->  &'static str {
+    fn name(&self) -> &'static str {
         "Updating Book"
     }
 }
@@ -543,40 +651,49 @@ impl TaskUpdateInvalidBook {
         let files = FileModel::find_by_book_id(book_model.id, db).await?;
 
         Ok(match get_metadata_from_files(&files, agent).await? {
-            None => if let Some(title) = book_model.title.as_deref() { // TODO: Seperate
-                // Check by "title - author" secondly.
-                let search = format!(
-                    "{} {}",
-                    title,
-                    book_model.cached.author.as_deref().unwrap_or_default()
-                );
+            None => {
+                if let Some(title) = book_model.title.as_deref() {
+                    // TODO: Seperate
+                    // Check by "title - author" secondly.
+                    let search = format!(
+                        "{} {}",
+                        title,
+                        book_model.cached.author.as_deref().unwrap_or_default()
+                    );
 
-                // Search for query.
-                let results = search_all_agents(search.trim(), SearchFor::Book(SearchForBooksBy::Query), agent).await?;
+                    // Search for query.
+                    let results = search_all_agents(
+                        search.trim(),
+                        SearchFor::Book(SearchForBooksBy::Query),
+                        agent,
+                    )
+                    .await?;
 
-                // Find the SearchedItem by similarity.
-                let found_item = results.sort_items_by_similarity(title)
-                    .into_iter()
-                    .find(|&(score, ref item)| match item {
-                        SearchItem::Book(book) => {
-                            println!("Score: {score} | {:?} | {}", book.title, book.source);
-                            score > 0.75 && !book.thumb_locations.is_empty()
-                        }
-                        _ => false
-                    })
-                    .map(|(_, item)| item);
+                    // Find the SearchedItem by similarity.
+                    let found_item = results
+                        .sort_items_by_similarity(title)
+                        .into_iter()
+                        .find(|&(score, ref item)| match item {
+                            SearchItem::Book(book) => {
+                                println!("Score: {score} | {:?} | {}", book.title, book.source);
+                                score > 0.75 && !book.thumb_locations.is_empty()
+                            }
+                            _ => false,
+                        })
+                        .map(|(_, item)| item);
 
-                // Now we need to do a search for found item and return it.
-                if let Some(item) = found_item.and_then(|v| v.into_book()) {
-                    get_metadata_by_source(&item.source).await?
+                    // Now we need to do a search for found item and return it.
+                    if let Some(item) = found_item.and_then(|v| v.into_book()) {
+                        get_metadata_by_source(&item.source).await?
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
             }
 
-            v => v
+            v => v,
         })
     }
 
@@ -589,14 +706,15 @@ impl TaskUpdateInvalidBook {
         let found_meta = Self::return_found_metadata_by_files(&curr_book_model, agent, db).await?;
 
         match found_meta {
-            Some(metadata) => overwrite_book_with_new_metadata(curr_book_model, metadata, db).await?,
+            Some(metadata) => {
+                overwrite_book_with_new_metadata(curr_book_model, metadata, db).await?
+            }
             None => eprintln!("Book Grabber Error: UNABLE TO FIND"),
         }
 
         Ok(())
     }
 }
-
 
 async fn overwrite_book_with_new_metadata(
     mut curr_book_model: BookModel,
@@ -605,7 +723,11 @@ async fn overwrite_book_with_new_metadata(
 ) -> Result<()> {
     let (main_author, author_ids) = metadata.add_or_ignore_authors_into_database(db).await?;
 
-    let MetadataReturned { mut meta, publisher, .. } = metadata;
+    let MetadataReturned {
+        mut meta,
+        publisher,
+        ..
+    } = metadata;
 
     // If we have no local files we'll download the first one.
     if !meta.thumb_locations.iter().any(|v| v.is_local()) {
@@ -617,7 +739,10 @@ async fn overwrite_book_with_new_metadata(
     let mut new_book_model: BookModel = meta.into();
 
     // TODO: Store Publisher inside Database
-    new_book_model.cached = new_book_model.cached.publisher_optional(publisher).author_optional(main_author);
+    new_book_model.cached = new_book_model
+        .cached
+        .publisher_optional(publisher)
+        .author_optional(main_author);
 
     // Update New Book with old one
     new_book_model.id = curr_book_model.id;
@@ -648,7 +773,9 @@ async fn overwrite_book_with_new_metadata(
 
     if let Some(thumb_path) = new_book_model.thumb_path.as_value() {
         if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-            ImageLinkModel::new_book(image.id, new_book_model.id).insert(db).await?;
+            ImageLinkModel::new_book(image.id, new_book_model.id)
+                .insert(db)
+                .await?;
         }
     }
 
@@ -660,38 +787,31 @@ async fn overwrite_book_with_new_metadata(
         BookPersonModel {
             book_id: new_book_model.id,
             person_id,
-        }.insert_or_ignore(db).await?;
+        }
+        .insert_or_ignore(db)
+        .await?;
     }
 
     Ok(())
 }
-
-
 
 // People
 
 #[derive(Clone)]
 pub enum UpdatingPeople {
     AutoUpdateById(PersonId),
-    UpdatePersonWithSource {
-        person_id: PersonId,
-        source: Source,
-    }
+    UpdatePersonWithSource { person_id: PersonId, source: Source },
 }
 
-
 pub struct TaskUpdatePeople {
-    state: UpdatingPeople
+    state: UpdatingPeople,
 }
 
 impl TaskUpdatePeople {
     pub fn new(state: UpdatingPeople) -> Self {
-        Self {
-            state
-        }
+        Self { state }
     }
 }
-
 
 #[async_trait]
 impl Task for TaskUpdatePeople {
@@ -712,17 +832,24 @@ impl Task for TaskUpdatePeople {
         }
     }
 
-    fn name(&self) ->  &'static str {
+    fn name(&self) -> &'static str {
         "Updating Person"
     }
 }
 
 impl TaskUpdatePeople {
-    pub async fn overwrite_person_with_source(mut old_person: PersonModel, source: &Source, db: &Database) -> Result<()> {
+    pub async fn overwrite_person_with_source(
+        mut old_person: PersonModel,
+        source: &Source,
+        db: &Database,
+    ) -> Result<()> {
         if let Some(new_person) = get_person_by_source(source).await? {
             // TODO: Need to make sure it doesn't conflict with alt names or normal names if different.
             if old_person.name != new_person.name {
-                println!("TODO: Old Name {:?} != New Name {:?}", old_person.name, new_person.name);
+                println!(
+                    "TODO: Old Name {:?} != New Name {:?}",
+                    old_person.name, new_person.name
+                );
             }
 
             // Download thumb url and store it.
@@ -740,7 +867,10 @@ impl TaskUpdatePeople {
                     if let Err(e) = (PersonAltModel {
                         person_id: old_person.id,
                         name,
-                    }).insert(db).await {
+                    })
+                    .insert(db)
+                    .await
+                    {
                         eprintln!("[TASK]: Add Alt Name Error: {e}");
                     }
                 }

@@ -2,17 +2,18 @@ use actix_web::{get, web};
 use common::api::WrappingResponse;
 use common_local::{api, LibraryColl};
 
-use crate::{database::Database, WebResult, model::library::LibraryModel, http::JsonResponse};
-
-
+use crate::{database::Database, http::JsonResponse, model::library::LibraryModel, WebResult};
 
 #[get("/libraries")]
-async fn load_library_list(db: web::Data<Database>) -> WebResult<JsonResponse<api::ApiGetLibrariesResponse>> {
-    Ok(web::Json(WrappingResponse::okay(api::GetLibrariesResponse {
-        items: LibraryModel::get_all(&db).await?
-            .into_iter()
-            .map(|file| {
-                LibraryColl {
+async fn load_library_list(
+    db: web::Data<Database>,
+) -> WebResult<JsonResponse<api::ApiGetLibrariesResponse>> {
+    Ok(web::Json(WrappingResponse::okay(
+        api::GetLibrariesResponse {
+            items: LibraryModel::get_all(&db)
+                .await?
+                .into_iter()
+                .map(|file| LibraryColl {
                     id: file.id,
 
                     name: file.name,
@@ -21,10 +22,9 @@ async fn load_library_list(db: web::Data<Database>) -> WebResult<JsonResponse<ap
                     scanned_at: file.scanned_at.timestamp_millis(),
                     updated_at: file.updated_at.timestamp_millis(),
 
-                    directories: Vec::new()
-                }
-            })
-            .collect()
-    })))
+                    directories: Vec::new(),
+                })
+                .collect(),
+        },
+    )))
 }
-

@@ -1,14 +1,12 @@
-use chrono::{DateTime, Utc, TimeZone};
+use chrono::{DateTime, TimeZone, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
+use crate::{database::Database, Result};
 use common_local::{util::serialize_datetime, FileId};
 use serde::Serialize;
-use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
-
-
+use super::{AdvRow, TableRow};
 
 #[derive(Debug, Serialize)]
 pub struct FileNoteModel {
@@ -37,7 +35,6 @@ impl FileNoteModel {
     }
 }
 
-
 impl TableRow<'_> for FileNoteModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
@@ -54,11 +51,12 @@ impl TableRow<'_> for FileNoteModel {
     }
 }
 
-
-
 impl FileNoteModel {
     pub async fn insert_or_update(&self, db: &Database) -> Result<()> {
-        if Self::find_one(self.file_id, self.member_id, db).await?.is_some() {
+        if Self::find_one(self.file_id, self.member_id, db)
+            .await?
+            .is_some()
+        {
             db.write().await.execute(
                 r#"UPDATE file_note SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
                 params![self.data, self.data_size, self.updated_at.timestamp_millis(), self.file_id, self.member_id]
@@ -73,18 +71,26 @@ impl FileNoteModel {
         Ok(())
     }
 
-    pub async fn find_one(file_id: FileId, member_id: MemberId, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            "SELECT * FROM file_note WHERE user_id = ?1 AND file_id = ?2",
-            params![member_id, file_id],
-            |v| Self::from_row(v)
-        ).optional()?)
+    pub async fn find_one(
+        file_id: FileId,
+        member_id: MemberId,
+        db: &Database,
+    ) -> Result<Option<Self>> {
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                "SELECT * FROM file_note WHERE user_id = ?1 AND file_id = ?2",
+                params![member_id, file_id],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn delete_one(file_id: FileId, member_id: MemberId, db: &Database) -> Result<()> {
         db.write().await.execute(
             "DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
-            params![member_id, file_id]
+            params![member_id, file_id],
         )?;
 
         Ok(())

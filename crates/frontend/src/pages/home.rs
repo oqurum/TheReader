@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
-use common::{component::CarouselComponent, api::WrappingResponse};
-use common_local::{api::{ApiGetBookPresetListResponse, BookPresetListType, self}, LibraryId, DisplayItem, LibraryColl, filter::{FilterContainer, FilterTableType}};
+use common::{api::WrappingResponse, component::CarouselComponent};
+use common_local::{
+    api::{self, ApiGetBookPresetListResponse, BookPresetListType},
+    filter::{FilterContainer, FilterTableType},
+    DisplayItem, LibraryColl, LibraryId,
+};
 use yew::prelude::*;
 
-use crate::{components::{BookPosterItem, Sidebar}, request};
+use crate::{
+    components::{BookPosterItem, Sidebar},
+    request,
+};
 
 pub enum Msg {
     Ignore,
@@ -40,9 +47,8 @@ impl Component for HomePage {
             }
         });
 
-        ctx.link().send_future(async move {
-            Msg::LibraryListResults(request::get_libraries().await)
-        });
+        ctx.link()
+            .send_future(async move { Msg::LibraryListResults(request::get_libraries().await) });
 
         Self {
             libraries: Vec::new(),
@@ -53,7 +59,6 @@ impl Component for HomePage {
         }
     }
 
-
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::Ignore => return false,
@@ -62,7 +67,9 @@ impl Component for HomePage {
 
             Msg::LibraryRecentResponse(library_id, resp) => {
                 match resp.ok() {
-                    Ok(resp) => { self.library_items.insert(library_id, resp.items); },
+                    Ok(resp) => {
+                        self.library_items.insert(library_id, resp.items);
+                    }
                     Err(e) => crate::display_error(e),
                 }
 
@@ -167,9 +174,9 @@ impl HomePage {
                             Some(lib_id),
                             None,
                             Some(25),
-                            FilterContainer::default()
-                                .order_by(FilterTableType::CreatedAt, true)
-                        ).await
+                            FilterContainer::default().order_by(FilterTableType::CreatedAt, true),
+                        )
+                        .await,
                     )
                 });
 

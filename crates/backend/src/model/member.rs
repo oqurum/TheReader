@@ -1,14 +1,12 @@
-use chrono::{DateTime, Utc, TimeZone};
+use chrono::{DateTime, TimeZone, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{util::serialize_datetime, Permissions, MemberAuthType};
+use crate::{database::Database, Result};
+use common_local::{util::serialize_datetime, MemberAuthType, Permissions};
 use serde::Serialize;
-use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
-
-
+use super::{AdvRow, TableRow};
 
 pub struct NewMemberModel {
     pub name: String,
@@ -18,7 +16,6 @@ pub struct NewMemberModel {
     pub type_of: MemberAuthType,
 
     // TODO: pub oqurum_oauth: Option<OqurumOauth>,
-
     pub permissions: Permissions,
 
     pub created_at: DateTime<Utc>,
@@ -59,7 +56,6 @@ pub struct MemberModel {
     pub updated_at: DateTime<Utc>,
 }
 
-
 impl From<MemberModel> for common_local::Member {
     fn from(value: MemberModel) -> common_local::Member {
         common_local::Member {
@@ -73,8 +69,6 @@ impl From<MemberModel> for common_local::Member {
         }
     }
 }
-
-
 
 impl TableRow<'_> for MemberModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
@@ -91,7 +85,6 @@ impl TableRow<'_> for MemberModel {
         })
     }
 }
-
 
 impl NewMemberModel {
     pub async fn insert(self, db: &Database) -> Result<MemberModel> {
@@ -110,29 +103,33 @@ impl NewMemberModel {
     }
 }
 
-
 impl MemberModel {
     pub async fn find_one_by_email(value: &str, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM members WHERE email = ?1"#,
-            params![value],
-            |v| Self::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM members WHERE email = ?1"#,
+                params![value],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn find_one_by_id(id: MemberId, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM members WHERE id = ?1"#,
-            params![id],
-            |v| Self::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT * FROM members WHERE id = ?1"#, params![id], |v| {
+                Self::from_row(v)
+            })
+            .optional()?)
     }
 
     pub async fn count(db: &Database) -> Result<usize> {
-        Ok(db.read().await.query_row(
-            r#"SELECT COUNT(*) FROM members"#,
-            [],
-            |v| v.get(0)
-        )?)
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT COUNT(*) FROM members"#, [], |v| v.get(0))?)
     }
 }

@@ -1,18 +1,28 @@
-use std::{collections::HashMap, ops::{Deref, DerefMut}};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
-use crate::{Result, model::{book::BookModel, file::FileModel, person::{PersonModel, NewPersonModel}, person_alt::PersonAltModel, book_person::BookPersonModel}, util};
+use crate::{
+    model::{
+        book::BookModel,
+        book_person::BookPersonModel,
+        file::FileModel,
+        person::{NewPersonModel, PersonModel},
+        person_alt::PersonAltModel,
+    },
+    util, Result,
+};
 use async_trait::async_trait;
-use common_local::{SearchFor, BookItemCached, LibraryId};
-use chrono::{Utc, NaiveDate};
-use common::{BookId, PersonId, ThumbnailStore, Source, Agent, Either};
+use chrono::{NaiveDate, Utc};
+use common::{Agent, BookId, Either, PersonId, Source, ThumbnailStore};
+use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;
 
 use crate::database::Database;
 
 use self::{
-    google_books::GoogleBooksMetadata,
-    libby::LibbyMetadata,
-    local::LocalMetadata,
+    google_books::GoogleBooksMetadata, libby::LibbyMetadata, local::LocalMetadata,
     openlibrary::OpenLibraryMetadata,
 };
 
@@ -29,7 +39,7 @@ macro_rules! return_if_found {
         match $v {
             Ok(Some(v)) => return Ok(Some(v)),
             Ok(None) => (),
-            Err(e) => eprintln!("metadata::get_metadata: {}", e)
+            Err(e) => eprintln!("metadata::get_metadata: {}", e),
         }
     };
 }
@@ -39,11 +49,10 @@ macro_rules! return_if_found_vec {
         match $v {
             Ok(v) if v.is_empty() => (),
             Ok(v) => return Ok(v),
-            Err(e) => eprintln!("metadata::get_metadata: {}", e)
+            Err(e) => eprintln!("metadata::get_metadata: {}", e),
         }
     };
 }
-
 
 pub struct ActiveAgents {
     pub google: bool,
@@ -63,7 +72,6 @@ impl Default for ActiveAgents {
     }
 }
 
-
 #[async_trait]
 pub trait Metadata {
     fn prefix_text<V: AsRef<str>>(&self, value: V) -> String {
@@ -73,9 +81,15 @@ pub trait Metadata {
     fn get_agent(&self) -> Agent;
 
     // Metadata
-    async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>>;
+    async fn get_metadata_from_files(
+        &mut self,
+        files: &[FileModel],
+    ) -> Result<Option<MetadataReturned>>;
 
-    async fn get_metadata_by_source_id(&mut self, _value: &str) -> Result<Option<MetadataReturned>> {
+    async fn get_metadata_by_source_id(
+        &mut self,
+        _value: &str,
+    ) -> Result<Option<MetadataReturned>> {
         Ok(None)
     }
 
@@ -84,7 +98,6 @@ pub trait Metadata {
     async fn get_person_by_source_id(&mut self, _value: &str) -> Result<Option<AuthorInfo>> {
         Ok(None)
     }
-
 
     // Both
 
@@ -98,7 +111,10 @@ pub trait Metadata {
 /// Attempts to return the first valid Metadata from Files.
 ///
 /// Also checks local agent.
-pub async fn get_metadata_from_files(files: &[FileModel], agent: &ActiveAgents) -> Result<Option<MetadataReturned>> {
+pub async fn get_metadata_from_files(
+    files: &[FileModel],
+    agent: &ActiveAgents,
+) -> Result<Option<MetadataReturned>> {
     if agent.libby {
         return_if_found!(LibbyMetadata.get_metadata_from_files(files).await);
     }
@@ -122,18 +138,30 @@ pub async fn get_metadata_from_files(files: &[FileModel], agent: &ActiveAgents) 
 /// Doesn't check local
 pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataReturned>> {
     match &source.agent {
-        v if v == &LibbyMetadata.get_agent() => LibbyMetadata.get_metadata_by_source_id(&source.value).await,
-        v if v == &OpenLibraryMetadata.get_agent() => OpenLibraryMetadata.get_metadata_by_source_id(&source.value).await,
-        v if v == &GoogleBooksMetadata.get_agent() => GoogleBooksMetadata.get_metadata_by_source_id(&source.value).await,
+        v if v == &LibbyMetadata.get_agent() => {
+            LibbyMetadata.get_metadata_by_source_id(&source.value).await
+        }
+        v if v == &OpenLibraryMetadata.get_agent() => {
+            OpenLibraryMetadata
+                .get_metadata_by_source_id(&source.value)
+                .await
+        }
+        v if v == &GoogleBooksMetadata.get_agent() => {
+            GoogleBooksMetadata
+                .get_metadata_by_source_id(&source.value)
+                .await
+        }
 
-        _ => Ok(None)
+        _ => Ok(None),
     }
 }
 
-
-
 /// Attempts to return the first valid Metadata from Query.
-pub async fn search_and_return_first_valid_agent(query: &str, search_for: SearchFor, agent: &ActiveAgents) -> Result<Vec<SearchItem>> {
+pub async fn search_and_return_first_valid_agent(
+    query: &str,
+    search_for: SearchFor,
+    agent: &ActiveAgents,
+) -> Result<Vec<SearchItem>> {
     if agent.libby {
         return_if_found_vec!(LibbyMetadata.search(query, search_for).await);
     }
@@ -149,26 +177,28 @@ pub async fn search_and_return_first_valid_agent(query: &str, search_for: Search
     Ok(Vec::new())
 }
 
-
 /// Searches all agents except for local.
-pub async fn search_all_agents(search: &str, search_for: SearchFor, agent: &ActiveAgents) -> Result<SearchResults> {
+pub async fn search_all_agents(
+    search: &str,
+    search_for: SearchFor,
+    agent: &ActiveAgents,
+) -> Result<SearchResults> {
     let mut map = HashMap::new();
 
     // Checks to see if we can use get_metadata_by_source (source:id)
     if let Ok(source) = Source::try_from(search) {
         // Check if it's a Metadata Source.
         if let Some(val) = get_metadata_by_source(&source).await? {
-            map.insert(
-                source.agent,
-                vec![SearchItem::Book(val.meta)],
-            );
+            map.insert(source.agent, vec![SearchItem::Book(val.meta)]);
 
             return Ok(SearchResults(map));
         }
     }
 
-
-    async fn search_or_ignore(enabled: bool, value: impl Future<Output = Result<Vec<SearchItem>>>) -> Result<Vec<SearchItem>> {
+    async fn search_or_ignore(
+        enabled: bool,
+        value: impl Future<Output = Result<Vec<SearchItem>>>,
+    ) -> Result<Vec<SearchItem>> {
         if enabled {
             value.await
         } else {
@@ -177,20 +207,27 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor, agent: &Acti
     }
 
     // Search all sources
-    let prefixes = [LibbyMetadata.get_agent(), OpenLibraryMetadata.get_agent(), GoogleBooksMetadata.get_agent()];
+    let prefixes = [
+        LibbyMetadata.get_agent(),
+        OpenLibraryMetadata.get_agent(),
+        GoogleBooksMetadata.get_agent(),
+    ];
     let asdf = futures::future::join_all([
         search_or_ignore(agent.libby, LibbyMetadata.search(search, search_for)),
-        search_or_ignore(agent.openlib, OpenLibraryMetadata.search(search, search_for)),
+        search_or_ignore(
+            agent.openlib,
+            OpenLibraryMetadata.search(search, search_for),
+        ),
         search_or_ignore(agent.google, GoogleBooksMetadata.search(search, search_for)),
-    ]).await;
+    ])
+    .await;
 
     for (val, prefix) in asdf.into_iter().zip(prefixes) {
         match val {
-            Ok(val) => if !val.is_empty() {
-                map.insert(
-                    prefix,
-                    val,
-                );
+            Ok(val) => {
+                if !val.is_empty() {
+                    map.insert(prefix, val);
+                }
             }
 
             Err(e) => eprintln!("{:?}", e),
@@ -203,30 +240,32 @@ pub async fn search_all_agents(search: &str, search_for: SearchFor, agent: &Acti
 /// Searches all agents except for local.
 pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>> {
     match &source.agent {
-        v if v == &LibbyMetadata.get_agent() => LibbyMetadata.get_person_by_source_id(&source.value).await,
-        v if v == &OpenLibraryMetadata.get_agent() => OpenLibraryMetadata.get_person_by_source_id(&source.value).await,
-        v if v == &GoogleBooksMetadata.get_agent() => GoogleBooksMetadata.get_person_by_source_id(&source.value).await,
+        v if v == &LibbyMetadata.get_agent() => {
+            LibbyMetadata.get_person_by_source_id(&source.value).await
+        }
+        v if v == &OpenLibraryMetadata.get_agent() => {
+            OpenLibraryMetadata
+                .get_person_by_source_id(&source.value)
+                .await
+        }
+        v if v == &GoogleBooksMetadata.get_agent() => {
+            GoogleBooksMetadata
+                .get_person_by_source_id(&source.value)
+                .await
+        }
 
-        _ => Ok(None)
+        _ => Ok(None),
     }
 }
-
-
 
 pub struct SearchResults(pub HashMap<Agent, Vec<SearchItem>>);
 
 impl SearchResults {
     pub fn sort_items_by_similarity(self, match_with: &str) -> Vec<(f64, SearchItem)> {
-        util::sort_by_similarity(
-            match_with,
-            self.0.into_values().flatten(),
-            |v| {
-                match v {
-                    SearchItem::Book(v) => v.title.as_deref(),
-                    SearchItem::Author(v) => Some(&v.name),
-                }
-            }
-        )
+        util::sort_by_similarity(match_with, self.0.into_values().flatten(), |v| match v {
+            SearchItem::Book(v) => v.title.as_deref(),
+            SearchItem::Author(v) => Some(&v.name),
+        })
     }
 }
 
@@ -244,12 +283,10 @@ impl DerefMut for SearchResults {
     }
 }
 
-
-
 #[derive(Debug)]
 pub enum SearchItem {
     Author(AuthorInfo),
-    Book(FoundItem)
+    Book(FoundItem),
 }
 
 impl SearchItem {
@@ -268,7 +305,6 @@ impl SearchItem {
     }
 }
 
-
 #[derive(Debug)]
 pub struct AuthorInfo {
     pub source: Source,
@@ -283,20 +319,21 @@ pub struct AuthorInfo {
     pub death_date: Option<NaiveDate>,
 }
 
-
 #[derive(Debug)]
 pub struct MetadataReturned {
     // Person, Alt Names
     pub authors: Option<Vec<AuthorInfo>>,
     pub publisher: Option<String>, // TODO: Is this needed? We have BookItemCached in meta field
     // TODO: Add More.
-
-    pub meta: FoundItem
+    pub meta: FoundItem,
 }
 
 impl MetadataReturned {
     /// Returns (Main Author, Person IDs)
-    pub async fn add_or_ignore_authors_into_database(&mut self, db: &Database) -> Result<(Option<String>, Vec<PersonId>)> {
+    pub async fn add_or_ignore_authors_into_database(
+        &mut self,
+        db: &Database,
+    ) -> Result<(Option<String>, Vec<PersonId>)> {
         let mut main_author = None;
         let mut person_ids = Vec::new();
 
@@ -312,7 +349,8 @@ impl MetadataReturned {
                         PersonAltModel::delete_by_id(person.id, db).await?;
                         PersonModel::delete_by_id(person.id, db).await?;
 
-                        relink_books = BookPersonModel::find_by(Either::Right(person.id), db).await?;
+                        relink_books =
+                            BookPersonModel::find_by(Either::Right(person.id), db).await?;
                         BookPersonModel::delete_by_person_id(person.id, db).await?;
                     } else {
                         person_ids.push(person.id);
@@ -355,7 +393,10 @@ impl MetadataReturned {
                         if let Err(e) = (PersonAltModel {
                             person_id: person.id,
                             name,
-                        }).insert(db).await {
+                        })
+                        .insert(db)
+                        .await
+                        {
                             eprintln!("[OL]: Add Alt Name Error: {e}");
                         }
                     }
@@ -365,7 +406,9 @@ impl MetadataReturned {
                     BookPersonModel {
                         person_id: person.id,
                         book_id: model.book_id,
-                    }.insert_or_ignore(db).await?;
+                    }
+                    .insert_or_ignore(db)
+                    .await?;
                 }
 
                 person_ids.push(person.id);
@@ -380,7 +423,6 @@ impl MetadataReturned {
     }
 }
 
-
 #[derive(Debug)]
 pub struct FoundItem {
     pub source: Source,
@@ -394,7 +436,7 @@ pub struct FoundItem {
     pub cached: BookItemCached,
 
     pub available_at: Option<i64>,
-    pub year: Option<i64>
+    pub year: Option<i64>,
 }
 
 impl From<FoundItem> for BookModel {
@@ -408,10 +450,16 @@ impl From<FoundItem> for BookModel {
             original_title: val.title,
             description: val.description,
             rating: val.rating,
-            thumb_path: val.thumb_locations.iter()
+            thumb_path: val
+                .thumb_locations
+                .iter()
                 .find_map(|v| v.as_local_value().cloned())
                 .unwrap_or(ThumbnailStore::None),
-            all_thumb_urls: val.thumb_locations.into_iter().filter_map(|v| v.into_url_value()).collect(),
+            all_thumb_urls: val
+                .thumb_locations
+                .into_iter()
+                .filter_map(|v| v.into_url_value())
+                .collect(),
             cached: val.cached,
             refreshed_at: Utc::now(),
             created_at: Utc::now(),
@@ -424,7 +472,6 @@ impl From<FoundItem> for BookModel {
     }
 }
 
-
 #[derive(Debug)]
 pub enum FoundImageLocation {
     Url(String),
@@ -436,21 +483,21 @@ impl FoundImageLocation {
     pub fn into_url_value(self) -> Option<String> {
         match self {
             Self::Url(v) => Some(v),
-            _ => None
+            _ => None,
         }
     }
 
     pub fn as_url_value(&self) -> Option<&str> {
         match self {
             Self::Url(v) => Some(v.as_str()),
-            _ => None
+            _ => None,
         }
     }
 
     pub fn as_local_value(&self) -> Option<&ThumbnailStore> {
         match self {
             Self::Local(v) => Some(v),
-            _ => None
+            _ => None,
         }
     }
 
@@ -474,16 +521,12 @@ impl FoundImageLocation {
                     url.insert_str(0, "https:");
                 }
 
-                let resp = reqwest::get(&*url)
-                    .await?
-                    .bytes()
-                    .await?;
+                let resp = reqwest::get(&*url).await?.bytes().await?;
 
                 match crate::store_image(resp.to_vec(), db).await {
                     Ok(model) => *self = Self::Local(model.path),
                     Err(e) => eprintln!("FoundImageLocation::download: {}", e),
                 }
-
             }
 
             FoundImageLocation::FileData(image) => {

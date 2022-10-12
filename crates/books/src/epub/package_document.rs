@@ -1,13 +1,13 @@
-use std::{io::Read, collections::HashMap, rc::Rc, cell::RefCell};
+use std::{cell::RefCell, collections::HashMap, io::Read, rc::Rc};
 
-use xml::{EventReader, reader::XmlEvent, name::OwnedName, attribute::OwnedAttribute, namespace::Namespace};
+use xml::{
+    attribute::OwnedAttribute, name::OwnedName, namespace::Namespace, reader::XmlEvent, EventReader,
+};
 
-use crate::{Result, Error};
+use crate::{Error, Result};
 
 pub static FILE_EXT: &str = "opf";
 pub static MIME_TYPE: &str = "application/oebps-package+xml";
-
-
 
 #[derive(Debug, Default)]
 pub struct PackageDocument {
@@ -17,7 +17,7 @@ pub struct PackageDocument {
     pub manifest: PackageManifest,
     pub spine: PackageSpine,
 
-    pub collection: Option<Vec<PackageCollection>>
+    pub collection: Option<Vec<PackageCollection>>,
 }
 
 impl PackageDocument {
@@ -34,8 +34,11 @@ impl PackageDocument {
                 // XmlEvent::StartDocument { version, encoding, standalone } => {
                 //     println!("Start: {:?} {:?} {:?}", version, encoding, standalone);
                 // }
-
-                XmlEvent::StartElement { name, attributes, namespace } => {
+                XmlEvent::StartElement {
+                    name,
+                    attributes,
+                    namespace,
+                } => {
                     let this_item = Rc::new(RefCell::new(XmlElement {
                         name,
                         attributes,
@@ -47,9 +50,7 @@ impl PackageDocument {
                     if let Some(parent) = appending_to.last() {
                         parent.borrow_mut().children.push(this_item.clone());
                         appending_to.push(this_item);
-                    }
-
-                    else if root_package.is_none() {
+                    } else if root_package.is_none() {
                         root_package = Some(this_item.clone());
                         appending_to.push(this_item);
                     }
@@ -67,7 +68,7 @@ impl PackageDocument {
 
                 XmlEvent::EndDocument => break,
 
-                _ => ()
+                _ => (),
             }
         }
 
@@ -85,8 +86,7 @@ impl PackageDocument {
                     WorkingOn::Manifest => &mut this.manifest,
                     WorkingOn::Spine => &mut this.spine,
                     // WorkingOn::Collection => this.collection,
-
-                    _ => continue
+                    _ => continue,
                 };
 
                 parser.parse(element)?;
@@ -105,7 +105,7 @@ pub struct XmlElement {
     pub attributes: Vec<OwnedAttribute>,
     pub namespace: Namespace,
     pub value: Option<String>,
-    pub children: Vec<Rc<RefCell<XmlElement>>>
+    pub children: Vec<Rc<RefCell<XmlElement>>>,
 }
 
 impl XmlElement {
@@ -116,8 +116,6 @@ impl XmlElement {
             .collect()
     }
 }
-
-
 
 #[derive(Clone, Copy)]
 enum WorkingOn {
@@ -135,11 +133,10 @@ impl WorkingOn {
             "manifest" => Self::Manifest,
             "spine" => Self::Spine,
 
-            _ => return None
+            _ => return None,
         })
     }
 }
-
 
 #[derive(Debug, Default)]
 pub struct PackageAttributes {
@@ -152,7 +149,7 @@ pub struct PackageAttributes {
     pub unique_identifier: String,
     pub version: String,
 
-    pub other: HashMap<OwnedName, String>
+    pub other: HashMap<OwnedName, String>,
 }
 
 impl Parser for PackageAttributes {
@@ -170,7 +167,9 @@ impl Parser for PackageAttributes {
                 (None, "unique-identifier") => self.unique_identifier = attr.value,
                 (None, "version") => self.version = attr.value,
 
-                _ => {self.other.insert(attr.name, attr.value);}
+                _ => {
+                    self.other.insert(attr.name, attr.value);
+                }
             }
         }
 
@@ -186,28 +185,37 @@ pub struct PackageMetadata {
     pub meta_items: Vec<MetaItem>,
     pub dcmes_elements: HashMap<String, Vec<DcmesElement>>,
     pub non_prefixed_items: HashMap<String, Vec<XmlElement>>,
-    pub opf_items: HashMap<String, Vec<XmlElement>>
+    pub opf_items: HashMap<String, Vec<XmlElement>>,
 }
 
 impl PackageMetadata {
     // TODO: Make REQUIRED elements functions, along with utilizing meta connections.
 
     pub fn get_creators(&self) -> Vec<&str> {
-        self.dcmes_elements.get("creator")
-            .map(|v|
-                v.iter()
-                    .filter_map(|v| v.value.as_deref())
-                    .collect()
-            )
+        self.dcmes_elements
+            .get("creator")
+            .map(|v| v.iter().filter_map(|v| v.value.as_deref()).collect())
             .unwrap_or_default()
     }
 
     pub fn get_ident_pub(&self) -> Option<&str> {
-        self.dcmes_elements.get("identifier")?.iter().find_map(|v| if  v.id.as_deref() == Some("pub-id") { v.value.as_deref() } else { None })
+        self.dcmes_elements.get("identifier")?.iter().find_map(|v| {
+            if v.id.as_deref() == Some("pub-id") {
+                v.value.as_deref()
+            } else {
+                None
+            }
+        })
     }
 
     pub fn get_ident_isbn(&self) -> Option<&str> {
-        self.dcmes_elements.get("identifier")?.iter().find_map(|v| if v.id.as_deref() == Some("isbn-id") { v.value.as_deref() } else { None })
+        self.dcmes_elements.get("identifier")?.iter().find_map(|v| {
+            if v.id.as_deref() == Some("isbn-id") {
+                v.value.as_deref()
+            } else {
+                None
+            }
+        })
     }
 
     // TODO: Actually utilize <meta refines="#dc-name" ..>
@@ -224,13 +232,31 @@ impl Parser for PackageMetadata {
 
                 (None, "meta") => self.meta_items.push(MetaItem::try_from(child)?),
 
-                (None, name) => { self.non_prefixed_items.entry(name.to_owned()).or_default().push(child); }
+                (None, name) => {
+                    self.non_prefixed_items
+                        .entry(name.to_owned())
+                        .or_default()
+                        .push(child);
+                }
 
-                (Some("dc"), name) => { self.dcmes_elements.entry(name.to_owned()).or_default().push(DcmesElement::try_from(child)?); }
+                (Some("dc"), name) => {
+                    self.dcmes_elements
+                        .entry(name.to_owned())
+                        .or_default()
+                        .push(DcmesElement::try_from(child)?);
+                }
 
-                (Some("opf"), name) => { self.opf_items.entry(name.to_owned()).or_default().push(child); }
+                (Some("opf"), name) => {
+                    self.opf_items
+                        .entry(name.to_owned())
+                        .or_default()
+                        .push(child);
+                }
 
-                _ => println!("PackageMetadata::parse(XmlElement): Missing Child Element parse for: {:?}", (child.name.prefix.as_deref(), child.name.local_name.as_str())),
+                _ => println!(
+                    "PackageMetadata::parse(XmlElement): Missing Child Element parse for: {:?}",
+                    (child.name.prefix.as_deref(), child.name.local_name.as_str())
+                ),
             }
         }
 
@@ -251,7 +277,7 @@ pub struct MetaItem {
 
     pub value: Option<String>,
 
-    pub undefined: HashMap<String, String>
+    pub undefined: HashMap<String, String>,
 }
 
 impl MetaItem {
@@ -265,7 +291,7 @@ impl MetaItem {
             "property" => Some(&self.property),
             "value" => self.value.as_deref(),
 
-            v => self.undefined.get(v).map(|v| v.as_str())
+            v => self.undefined.get(v).map(|v| v.as_str()),
         }
     }
 }
@@ -282,7 +308,7 @@ impl TryFrom<XmlElement> for MetaItem {
             xml_lang: None,
             property: String::new(),
             value: elem.value,
-            undefined: HashMap::new()
+            undefined: HashMap::new(),
         };
 
         for attr in elem.attributes {
@@ -294,7 +320,9 @@ impl TryFrom<XmlElement> for MetaItem {
                 "lang" => this.xml_lang = Some(attr.value),
                 "property" => this.property = attr.value,
 
-                _ => {this.undefined.insert(attr.name.local_name, attr.value);}
+                _ => {
+                    this.undefined.insert(attr.name.local_name, attr.value);
+                }
             }
         }
 
@@ -305,11 +333,10 @@ impl TryFrom<XmlElement> for MetaItem {
     }
 }
 
-
 #[derive(Debug, Default)]
 pub struct PackageManifest {
     pub id: Option<String>,
-    pub items: Vec<ManifestItem>
+    pub items: Vec<ManifestItem>,
 }
 
 impl PackageManifest {
@@ -318,18 +345,23 @@ impl PackageManifest {
     }
 
     pub fn get_item_by_property(&self, value: &str) -> Option<&ManifestItem> {
-        self.items.iter().find(|item| item.properties.as_deref() == Some(value))
+        self.items
+            .iter()
+            .find(|item| item.properties.as_deref() == Some(value))
     }
 }
 
 impl Parser for PackageManifest {
     fn parse(&mut self, mut element: XmlElement) -> Result<()> {
-        self.id = element.attributes.iter().find(|v| v.name.local_name == "id").map(|v| v.value.to_owned());
+        self.id = element
+            .attributes
+            .iter()
+            .find(|v| v.name.local_name == "id")
+            .map(|v| v.value.to_owned());
 
         for child in element.take_inner_children() {
             self.items.push(ManifestItem::try_from(child)?);
         }
-
 
         // TODO: assertions | https://www.w3.org/publishing/epub3/epub-packages.html#sec-manifest-elem
 
@@ -347,15 +379,23 @@ pub struct ManifestItem {
     pub properties: Option<String>,
 }
 
-
 // TODO: Could use serde if I wanted to.
 impl TryFrom<XmlElement> for ManifestItem {
     type Error = Error;
 
     fn try_from(elem: XmlElement) -> std::result::Result<Self, Self::Error> {
-        let mut attr = elem.attributes
+        let mut attr = elem
+            .attributes
             .into_iter()
-            .map(|v| (v.name.prefix.map(|p| format!("{}:{}", p, v.name.local_name.as_str())).unwrap_or(v.name.local_name), v.value))
+            .map(|v| {
+                (
+                    v.name
+                        .prefix
+                        .map(|p| format!("{}:{}", p, v.name.local_name.as_str()))
+                        .unwrap_or(v.name.local_name),
+                    v.value,
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         // TODO: Errors
@@ -371,14 +411,12 @@ impl TryFrom<XmlElement> for ManifestItem {
     }
 }
 
-
-
 #[derive(Debug, Default)]
 pub struct PackageSpine {
     pub id: Option<String>,
     pub page_progression_direction: Option<String>,
     pub toc: Option<String>, // LEGACY
-    pub items: Vec<SpineItemRef>
+    pub items: Vec<SpineItemRef>,
 }
 
 impl Parser for PackageSpine {
@@ -404,7 +442,7 @@ pub struct SpineItemRef {
 impl SpineItemRef {
     /// https://www.w3.org/publishing/epub3/epub-packages.html#sec-itemref-elem
     pub fn is_linear(&self) -> bool {
-        if let Some(linear) = self.linear.as_deref(){
+        if let Some(linear) = self.linear.as_deref() {
             linear == "yes"
         } else {
             true
@@ -412,15 +450,23 @@ impl SpineItemRef {
     }
 }
 
-
 // TODO: Could use serde if I wanted to.
 impl TryFrom<XmlElement> for SpineItemRef {
     type Error = Error;
 
     fn try_from(elem: XmlElement) -> std::result::Result<Self, Self::Error> {
-        let mut attr = elem.attributes
+        let mut attr = elem
+            .attributes
             .into_iter()
-            .map(|v| (v.name.prefix.map(|p| format!("{}:{}", p, v.name.local_name.as_str())).unwrap_or(v.name.local_name), v.value))
+            .map(|v| {
+                (
+                    v.name
+                        .prefix
+                        .map(|p| format!("{}:{}", p, v.name.local_name.as_str()))
+                        .unwrap_or(v.name.local_name),
+                    v.value,
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         // TODO: Errors
@@ -434,9 +480,6 @@ impl TryFrom<XmlElement> for SpineItemRef {
     }
 }
 
-
-
-
 #[derive(Debug, Default)]
 pub struct PackageCollection {
     pub dir: Option<String>,
@@ -447,10 +490,15 @@ pub struct PackageCollection {
 
 impl Parser for PackageCollection {
     fn parse(&mut self, element: XmlElement) -> Result<()> {
-        println!("{:?}", (element.name.prefix.as_deref(), element.name.local_name.as_str()));
+        println!(
+            "{:?}",
+            (
+                element.name.prefix.as_deref(),
+                element.name.local_name.as_str()
+            )
+        );
 
         // https://www.w3.org/publishing/epub3/epub-packages.html#sec-pkg-collections
-
 
         // TODO: assertions
 
@@ -458,15 +506,12 @@ impl Parser for PackageCollection {
     }
 }
 
-
-
 // TODO: Meet specific criteria. | https://www.w3.org/publishing/epub3/epub-packages.html#sec-package-content-conf
-
 
 #[derive(Debug, Default)]
 pub struct PairIdValue {
     pub id: String,
-    pub value: String
+    pub value: String,
 }
 
 impl TryFrom<XmlElement> for PairIdValue {
@@ -488,16 +533,25 @@ pub struct DcmesElement {
     pub id: Option<String>,
     pub xml_lang: Option<String>,
 
-    pub value: Option<String>
+    pub value: Option<String>,
 }
 
 impl TryFrom<XmlElement> for DcmesElement {
     type Error = Error;
 
     fn try_from(elem: XmlElement) -> std::result::Result<Self, Self::Error> {
-        let mut attr = elem.attributes
+        let mut attr = elem
+            .attributes
             .into_iter()
-            .map(|v| (v.name.prefix.map(|p| format!("{}:{}", p, v.name.local_name.as_str())).unwrap_or(v.name.local_name), v.value))
+            .map(|v| {
+                (
+                    v.name
+                        .prefix
+                        .map(|p| format!("{}:{}", p, v.name.local_name.as_str()))
+                        .unwrap_or(v.name.local_name),
+                    v.value,
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         Ok(Self {
@@ -509,9 +563,6 @@ impl TryFrom<XmlElement> for DcmesElement {
         })
     } // TODO: Error
 }
-
-
-
 
 trait Parser {
     fn parse(&mut self, element: XmlElement) -> Result<()>;

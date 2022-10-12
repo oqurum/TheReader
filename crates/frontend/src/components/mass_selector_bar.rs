@@ -1,13 +1,22 @@
 use std::{rc::Rc, sync::Mutex};
 
-use common::{BookId, component::{popup::{button::ButtonWithPopup, Popup, PopupType, PopupClose}, multi_select::{MultiSelectModule, MultiSelectItem, MultiSelectEvent}}, PersonId, api::WrappingResponse};
-use common_local::{api::{self, ApiGetPeopleResponse, MassEditBooks}, Person, ModifyValuesBy};
+use common::{
+    api::WrappingResponse,
+    component::{
+        multi_select::{MultiSelectEvent, MultiSelectItem, MultiSelectModule},
+        popup::{button::ButtonWithPopup, Popup, PopupClose, PopupType},
+    },
+    BookId, PersonId,
+};
+use common_local::{
+    api::{self, ApiGetPeopleResponse, MassEditBooks},
+    ModifyValuesBy, Person,
+};
 use gloo_timers::callback::Timeout;
 use web_sys::{HtmlElement, HtmlSelectElement};
 use yew::prelude::*;
 
 use crate::request;
-
 
 static EDITING_CONTAINER_CLASS: &str = "editing-items-inside";
 
@@ -26,13 +35,11 @@ impl PartialEq for Property {
     }
 }
 
-
 pub enum Msg {
     SaveResponse(WrappingResponse<String>),
 
     Ignore,
     // TogglePopup,
-
     UpdateMultiple(api::PostBookBody),
 
     EditPopupMsg(MsgEditPopup),
@@ -48,7 +55,6 @@ pub enum MsgEditPopup {
     UpdateEdit(Box<dyn Fn(&mut MassEditBooks, String)>, String),
     Save,
 }
-
 
 pub struct MassSelectBar {
     popup_display: Option<LocalPopupType>,
@@ -80,8 +86,7 @@ impl Component for MassSelectBar {
                     items.clone()
                 };
 
-                ctx.link()
-                .send_future(async move {
+                ctx.link().send_future(async move {
                     for book_id in book_ids {
                         request::update_book(book_id, &type_of).await;
                     }
@@ -101,59 +106,65 @@ impl Component for MassSelectBar {
             Msg::EditPopupMsg(msg) => {
                 if let Some(popup) = self.popup_display.as_mut() {
                     match popup {
-                        LocalPopupType::EditBooks { selected_people, cached_people, edit } => {
-                            match msg {
-                                MsgEditPopup::SearchText(search) => {
-                                    let scope = ctx.link().clone();
-                                    self.search_timeout = Some(Timeout::new(250, move || {
-                                        scope.send_future(async move {
-                                            Msg::EditPopupMsg(MsgEditPopup::PeopleResponse(request::get_people(Some(&search), None, None).await))
-                                        });
-                                    }));
-
-                                    return false;
-                                }
-
-                                MsgEditPopup::TogglePerson { toggle, id } => {
-                                    if toggle {
-                                        if let Some(person) = cached_people.iter().find(|v| v.id == id) {
-                                            selected_people.push(person.clone());
-                                            edit.people_list.push(person.id);
-                                        }
-                                    } else {
-                                        if let Some(index) = selected_people.iter().position(|v| v.id == id) {
-                                            selected_people.remove(index);
-                                        }
-
-                                        if let Some(index) = edit.people_list.iter().position(|v| *v == id) {
-                                            edit.people_list.remove(index);
-                                        }
-                                    }
-                                }
-
-                                MsgEditPopup::PeopleResponse(resp) => {
-                                    match resp.ok() {
-                                        Ok(resp) => *cached_people = resp.items,
-                                        Err(err) => crate::display_error(err),
-                                    }
-                                }
-
-                                MsgEditPopup::UpdateEdit(func, input) => {
-                                    func(edit, input);
-                                }
-
-                                MsgEditPopup::Save => {
-                                    edit.book_ids = ctx.props().editing_items.lock().unwrap().clone();
-
-                                    let edit = edit.clone();
-
-                                    ctx.link().send_future(async move {
-                                        Msg::SaveResponse(request::update_books(&edit).await)
+                        LocalPopupType::EditBooks {
+                            selected_people,
+                            cached_people,
+                            edit,
+                        } => match msg {
+                            MsgEditPopup::SearchText(search) => {
+                                let scope = ctx.link().clone();
+                                self.search_timeout = Some(Timeout::new(250, move || {
+                                    scope.send_future(async move {
+                                        Msg::EditPopupMsg(MsgEditPopup::PeopleResponse(
+                                            request::get_people(Some(&search), None, None).await,
+                                        ))
                                     });
+                                }));
 
+                                return false;
+                            }
+
+                            MsgEditPopup::TogglePerson { toggle, id } => {
+                                if toggle {
+                                    if let Some(person) = cached_people.iter().find(|v| v.id == id)
+                                    {
+                                        selected_people.push(person.clone());
+                                        edit.people_list.push(person.id);
+                                    }
+                                } else {
+                                    if let Some(index) =
+                                        selected_people.iter().position(|v| v.id == id)
+                                    {
+                                        selected_people.remove(index);
+                                    }
+
+                                    if let Some(index) =
+                                        edit.people_list.iter().position(|v| *v == id)
+                                    {
+                                        edit.people_list.remove(index);
+                                    }
                                 }
                             }
-                        }
+
+                            MsgEditPopup::PeopleResponse(resp) => match resp.ok() {
+                                Ok(resp) => *cached_people = resp.items,
+                                Err(err) => crate::display_error(err),
+                            },
+
+                            MsgEditPopup::UpdateEdit(func, input) => {
+                                func(edit, input);
+                            }
+
+                            MsgEditPopup::Save => {
+                                edit.book_ids = ctx.props().editing_items.lock().unwrap().clone();
+
+                                let edit = edit.clone();
+
+                                ctx.link().send_future(async move {
+                                    Msg::SaveResponse(request::update_books(&edit).await)
+                                });
+                            }
+                        },
                     }
                 }
             }
@@ -283,15 +294,13 @@ impl Component for MassSelectBar {
     }
 }
 
-
-
 #[derive(Clone, PartialEq)]
 pub enum LocalPopupType {
     EditBooks {
         edit: MassEditBooks,
         selected_people: Vec<Person>,
         cached_people: Vec<Person>,
-    }
+    },
 }
 
 impl LocalPopupType {
@@ -299,7 +308,7 @@ impl LocalPopupType {
         Self::EditBooks {
             edit: MassEditBooks::default(),
             selected_people: Default::default(),
-            cached_people: Default::default()
+            cached_people: Default::default(),
         }
     }
 }

@@ -1,21 +1,24 @@
 use std::path::PathBuf;
 
-use chrono::{DateTime, Utc, NaiveDate};
-use common::{MemberId, PersonId, ImageId, ThumbnailStore, Source, BookId, Agent, util::{serialize_naivedate_opt, deserialize_naivedate_opt}};
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, NaiveDate, Utc};
+use common::{
+    util::{deserialize_naivedate_opt, serialize_naivedate_opt},
+    Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore,
+};
+use serde::{Deserialize, Serialize};
 
 use util::*;
 
-mod http;
-mod ext;
-pub mod util;
 pub mod error;
+mod ext;
+mod http;
 pub mod specific;
+pub mod util;
 
+pub use error::{Error, Result};
 pub use ext::*;
 pub use http::*;
 pub use specific::*;
-pub use error::{Result, Error};
 
 // Member
 
@@ -30,13 +33,17 @@ pub struct Member {
 
     pub permissions: Permissions,
 
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub created_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub updated_at: DateTime<Utc>,
 }
-
-
 
 // Used for People View
 
@@ -48,14 +55,23 @@ pub struct Person {
 
     pub name: String,
     pub description: Option<String>,
-    #[serde(serialize_with = "serialize_naivedate_opt", deserialize_with = "deserialize_naivedate_opt")]
+    #[serde(
+        serialize_with = "serialize_naivedate_opt",
+        deserialize_with = "deserialize_naivedate_opt"
+    )]
     pub birth_date: Option<NaiveDate>,
 
     pub thumb_url: ThumbnailStore,
 
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub updated_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub created_at: DateTime<Utc>,
 }
 
@@ -74,7 +90,6 @@ impl PartialEq for Person {
         self.id == other.id
     }
 }
-
 
 // Used for Library View
 
@@ -104,7 +119,6 @@ impl From<DisplayBookItem> for DisplayItem {
     }
 }
 
-
 // Used for Media View
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -124,24 +138,40 @@ pub struct DisplayBookItem {
     // TODO: Make table for all tags. Include publisher in it. Remove country.
     pub cached: BookItemCached,
 
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub refreshed_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub created_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub updated_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime_opt", deserialize_with = "deserialize_datetime_opt")]
+    #[serde(
+        serialize_with = "serialize_datetime_opt",
+        deserialize_with = "deserialize_datetime_opt"
+    )]
     pub deleted_at: Option<DateTime<Utc>>,
 
     pub available_at: Option<i64>,
     pub year: Option<i64>,
 
-    pub hash: String
+    pub hash: String,
 }
 
 impl DisplayBookItem {
     pub fn get_title(&self) -> String {
-        self.title.as_ref().or(self.original_title.as_ref()).cloned().unwrap_or_else(|| String::from("No Title"))
+        self.title
+            .as_ref()
+            .or(self.original_title.as_ref())
+            .cloned()
+            .unwrap_or_else(|| String::from("No Title"))
     }
 }
 
@@ -150,7 +180,10 @@ impl Default for DisplayBookItem {
         Self {
             id: Default::default(),
             library_id: Default::default(),
-            source: Source { agent: Agent::new_owned(String::default()), value: String::default() },
+            source: Source {
+                agent: Agent::new_owned(String::default()),
+                value: String::default(),
+            },
             file_item_count: Default::default(),
             title: Default::default(),
             original_title: Default::default(),
@@ -164,11 +197,10 @@ impl Default for DisplayBookItem {
             deleted_at: Default::default(),
             available_at: Default::default(),
             year: Default::default(),
-            hash: Default::default()
+            hash: Default::default(),
         }
     }
 }
-
 
 // Used for Reader
 
@@ -199,7 +231,6 @@ impl PartialEq for MediaItem {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Progression {
     Ebook {
@@ -213,7 +244,7 @@ pub enum Progression {
         seek_pos: i64,
     },
 
-    Complete
+    Complete,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -221,7 +252,6 @@ pub struct Chapter {
     pub file_path: PathBuf,
     pub value: usize,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LibraryColl {
@@ -232,9 +262,8 @@ pub struct LibraryColl {
     pub created_at: i64,
     pub updated_at: i64,
 
-    pub directories: Vec<String>
+    pub directories: Vec<String>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicLibrary {
@@ -247,10 +276,8 @@ pub struct BasicLibrary {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicDirectory {
     pub library_id: LibraryId,
-    pub path: String
+    pub path: String,
 }
-
-
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BookItemCached {
@@ -312,7 +339,7 @@ impl BookItemCached {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SearchType {
     Book,
-    Person
+    Person,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -329,8 +356,6 @@ pub enum SearchForBooksBy {
     Contents,
 }
 
-
-
 // Image
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -341,6 +366,9 @@ pub struct Poster {
 
     pub path: String,
 
-    #[serde(serialize_with = "serialize_datetime", deserialize_with = "deserialize_datetime")]
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
     pub created_at: DateTime<Utc>,
 }

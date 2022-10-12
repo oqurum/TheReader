@@ -13,7 +13,9 @@ pub async fn get_authors_from_book_by_rfd(id: &BookId) -> Result<Vec<rfd::Author
 
     let record: rfd::RfdModel = serde_xml_rs::from_str(&text)?;
 
-    let authors = record.description.into_iter()
+    let authors = record
+        .description
+        .into_iter()
         .filter_map(|v| v.authors)
         .flatten()
         .flat_map(|v| v.description)
@@ -21,7 +23,6 @@ pub async fn get_authors_from_book_by_rfd(id: &BookId) -> Result<Vec<rfd::Author
 
     Ok(authors)
 }
-
 
 pub async fn get_author_from_url(url_or_path: &str) -> Result<Option<json::AuthorJson>> {
     let resp = reqwest::get(into_url(url_or_path)).await?;
@@ -36,15 +37,12 @@ pub async fn get_author_from_url(url_or_path: &str) -> Result<Option<json::Autho
 fn into_url(url_or_path: &str) -> String {
     if url_or_path.starts_with("/authors") {
         format!("https://openlibrary.org{}.json", url_or_path)
-    }
-    else if url_or_path.starts_with("OL") {
+    } else if url_or_path.starts_with("OL") {
         format!("https://openlibrary.org/authors/{}.json", url_or_path)
     } else {
         url_or_path.to_string()
     }
 }
-
-
 
 pub async fn search_for_authors(value: &str) -> Result<Option<json::AuthorSearchContainer>> {
     let url = format!(
@@ -63,12 +61,11 @@ pub async fn search_for_authors(value: &str) -> Result<Option<json::AuthorSearch
     }
 }
 
-
 pub mod json {
     use std::collections::HashMap;
 
+    use crate::metadata::openlibrary::{KeyItem, RecordDescription, TypeValueItem};
     use serde::{Deserialize, Serialize};
-    use crate::metadata::openlibrary::{KeyItem, TypeValueItem, RecordDescription};
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct AuthorSearchContainer {
@@ -99,7 +96,6 @@ pub mod json {
         #[serde(rename = "_version_")]
         pub version: Option<i64>,
     }
-
 
     #[derive(Debug, Serialize, Deserialize)]
     #[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
@@ -145,20 +141,19 @@ pub mod rfd {
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct RfdDescriptionItem {
-            pub about: String,
-            #[serde(rename = "authorList")]
-            pub authors: Option<Vec<AuthorList>>,
+        pub about: String,
+        #[serde(rename = "authorList")]
+        pub authors: Option<Vec<AuthorList>>,
 
-            pub contributor: Option<Vec<String>>,
+        pub contributor: Option<Vec<String>>,
+        // title: String,
+        // publisher: String,
+        // #[serde(rename = "placeOfPublication")]
+        // publication_place: Option<String>,
+        // issued: String,
+        // extent: String,
 
-            // title: String,
-            // publisher: String,
-            // #[serde(rename = "placeOfPublication")]
-            // publication_place: Option<String>,
-            // issued: String,
-            // extent: String,
-
-            // edition: Option<String>,
+        // edition: Option<String>,
     }
 
     #[derive(Debug, Serialize, Deserialize)]

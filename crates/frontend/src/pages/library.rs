@@ -1,12 +1,32 @@
-use std::{rc::Rc, sync::Mutex, collections::{HashMap, HashSet}};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+    sync::Mutex,
+};
 
-use common_local::{api, DisplayItem, ws::{WebsocketNotification, UniqueId, TaskType}, LibraryId};
-use common::{BookId, component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupClose, PopupType}, api::WrappingResponse};
+use common::{
+    api::WrappingResponse,
+    component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupClose, PopupType},
+    BookId,
+};
+use common_local::{
+    api,
+    ws::{TaskType, UniqueId, WebsocketNotification},
+    DisplayItem, LibraryId,
+};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{request, components::{DropdownInfoPopup, DropdownInfoPopupEvent, PopupSearchBook, PopupEditBook, MassSelectBar, Sidebar, book_poster_item::{BookPosterItem, DisplayOverlayItem, PosterItem, BookPosterItemMsg}}, services::WsEventBus, util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery}};
-
+use crate::{
+    components::{
+        book_poster_item::{BookPosterItem, BookPosterItemMsg, DisplayOverlayItem, PosterItem},
+        DropdownInfoPopup, DropdownInfoPopupEvent, MassSelectBar, PopupEditBook, PopupSearchBook,
+        Sidebar,
+    },
+    request,
+    services::WsEventBus,
+    util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery},
+};
 
 #[derive(Properties, PartialEq, Eq)]
 pub struct Property {
@@ -32,7 +52,7 @@ pub enum Msg {
 
     BookListItemEvent(BookPosterItemMsg),
 
-    Ignore
+    Ignore,
 }
 
 pub struct LibraryPage {
@@ -98,9 +118,13 @@ impl Component for LibraryPage {
 
                             if let Some(items) = self.media_items.as_ref() {
                                 if items.iter().any(|v| v.id == book_id) {
-                                    ctx.link()
-                                    .send_future(async move {
-                                        Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
+                                    ctx.link().send_future(async move {
+                                        Msg::BookItemResults(
+                                            id,
+                                            request::get_media_view(book_id)
+                                                .await
+                                                .map(|v| v.book.into()),
+                                        )
                                     });
                                 }
                             }
@@ -114,9 +138,13 @@ impl Component for LibraryPage {
 
                             if let Some(items) = self.media_items.as_ref() {
                                 if items.iter().any(|v| v.id == book_id) {
-                                    ctx.link()
-                                    .send_future(async move {
-                                        Msg::BookItemResults(id, request::get_media_view(book_id).await.map(|v| v.book.into()))
+                                    ctx.link().send_future(async move {
+                                        Msg::BookItemResults(
+                                            id,
+                                            request::get_media_view(book_id)
+                                                .await
+                                                .map(|v| v.book.into()),
+                                        )
                                     });
                                 }
                             }
@@ -125,23 +153,22 @@ impl Component for LibraryPage {
                 }
             }
 
-            Msg::BookItemResults(unique_id, resp) => {
-                match resp.ok() {
-                    Ok(book_item) => {
-                        if let Some(book_id) = self.task_items.remove(&unique_id) {
-                            self.task_items_updating.remove(&book_id);
-                        }
-
-                        if let Some(items) = self.media_items.as_mut() {
-                            if let Some(current_item) = items.iter_mut().find(|v| v.id == book_item.id) {
-                                *current_item = book_item;
-                            }
-                        }
+            Msg::BookItemResults(unique_id, resp) => match resp.ok() {
+                Ok(book_item) => {
+                    if let Some(book_id) = self.task_items.remove(&unique_id) {
+                        self.task_items_updating.remove(&book_id);
                     }
 
-                    Err(err) => crate::display_error(err),
+                    if let Some(items) = self.media_items.as_mut() {
+                        if let Some(current_item) = items.iter_mut().find(|v| v.id == book_item.id)
+                        {
+                            *current_item = book_item;
+                        }
+                    }
                 }
-            }
+
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::ClosePopup => {
                 self.media_popup = None;
@@ -158,18 +185,26 @@ impl Component for LibraryPage {
 
                 self.is_fetching_media_items = true;
 
-                let offset = Some(self.media_items.as_ref().map(|v| v.len()).unwrap_or_default()).filter(|v| *v != 0);
+                let offset = Some(
+                    self.media_items
+                        .as_ref()
+                        .map(|v| v.len())
+                        .unwrap_or_default(),
+                )
+                .filter(|v| *v != 0);
 
                 let library = ctx.props().library_id;
 
-                ctx.link()
-                .send_future(async move {
-                    Msg::MediaListResults(request::get_books(
-                        Some(library),
-                        offset,
-                        None,
-                        SearchQuery::load().filters
-                    ).await)
+                ctx.link().send_future(async move {
+                    Msg::MediaListResults(
+                        request::get_books(
+                            Some(library),
+                            offset,
+                            None,
+                            SearchQuery::load().filters,
+                        )
+                        .await,
+                    )
                 });
             }
 
@@ -189,7 +224,6 @@ impl Component for LibraryPage {
 
                     Err(err) => crate::display_error(err),
                 }
-
             }
 
             Msg::OnScroll(event) => {
@@ -200,55 +234,56 @@ impl Component for LibraryPage {
                 return false;
             }
 
-            Msg::BookListItemEvent(event) => {
-                match event {
-                    BookPosterItemMsg::AddOrRemoveItemFromEditing(id, value) => {
-                        let mut items = self.editing_items.lock().unwrap();
+            Msg::BookListItemEvent(event) => match event {
+                BookPosterItemMsg::AddOrRemoveItemFromEditing(id, value) => {
+                    let mut items = self.editing_items.lock().unwrap();
 
-                        if value {
-                            if !items.iter().any(|v| *v == id) {
-                                items.push(id);
-                            }
-                        } else if let Some(index) = items.iter().position(|v| *v == id) {
-                            items.swap_remove(index);
+                    if value {
+                        if !items.iter().any(|v| *v == id) {
+                            items.push(id);
                         }
+                    } else if let Some(index) = items.iter().position(|v| *v == id) {
+                        items.swap_remove(index);
                     }
+                }
 
-                    BookPosterItemMsg::PosterItem(item) => match item {
-                        PosterItem::ShowPopup(new_disp) => {
-                            if let Some(old_disp) = self.media_popup.as_mut() {
-                                if *old_disp == new_disp {
-                                    self.media_popup = None;
-                                } else {
-                                    self.media_popup = Some(new_disp);
-                                }
+                BookPosterItemMsg::PosterItem(item) => match item {
+                    PosterItem::ShowPopup(new_disp) => {
+                        if let Some(old_disp) = self.media_popup.as_mut() {
+                            if *old_disp == new_disp {
+                                self.media_popup = None;
                             } else {
                                 self.media_popup = Some(new_disp);
                             }
-                        }
-
-                        PosterItem::UpdateBookById(book_id) => {
-                            ctx.link()
-                            .send_future(async move {
-                                request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
-
-                                Msg::Ignore
-                            });
-                        }
-
-                        PosterItem::UpdateBookByFiles(book_id) => {
-                            ctx.link()
-                            .send_future(async move {
-                                request::update_book(book_id, &api::PostBookBody::AutoMatchBookIdByFiles).await;
-
-                                Msg::Ignore
-                            });
+                        } else {
+                            self.media_popup = Some(new_disp);
                         }
                     }
 
-                    BookPosterItemMsg::Ignore => (),
-                }
-            }
+                    PosterItem::UpdateBookById(book_id) => {
+                        ctx.link().send_future(async move {
+                            request::update_book(book_id, &api::PostBookBody::AutoMatchBookId)
+                                .await;
+
+                            Msg::Ignore
+                        });
+                    }
+
+                    PosterItem::UpdateBookByFiles(book_id) => {
+                        ctx.link().send_future(async move {
+                            request::update_book(
+                                book_id,
+                                &api::PostBookBody::AutoMatchBookIdByFiles,
+                            )
+                            .await;
+
+                            Msg::Ignore
+                        });
+                    }
+                },
+
+                BookPosterItemMsg::Ignore => (),
+            },
 
             Msg::Ignore => return false,
         }
@@ -382,7 +417,6 @@ impl LibraryPage {
         }
     }
 
-
     // fn render_placeholder_item() -> Html {
     //     html! {
     //         <div class="book-list-item placeholder">
@@ -396,7 +430,11 @@ impl LibraryPage {
     // }
 
     pub fn can_req_more(&self) -> bool {
-        let count = self.media_items.as_ref().map(|v| v.len()).unwrap_or_default();
+        let count = self
+            .media_items
+            .as_ref()
+            .map(|v| v.len())
+            .unwrap_or_default();
 
         count != 0 && count != self.total_media_count as usize
     }

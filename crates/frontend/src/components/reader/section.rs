@@ -3,13 +3,10 @@ use web_sys::HtmlIFrameElement;
 
 use super::CachedPage;
 
-
-
-
 pub enum SectionLoadProgress {
     Waiting,
     Loading(SectionContents),
-    Loaded(SectionContents)
+    Loaded(SectionContents),
 }
 
 impl SectionLoadProgress {
@@ -42,22 +39,18 @@ impl SectionLoadProgress {
 
     pub fn as_chapter(&self) -> Option<&SectionContents> {
         match self {
-            Self::Loading(v) |
-            Self::Loaded(v) => Some(v),
+            Self::Loading(v) | Self::Loaded(v) => Some(v),
             _ => None,
         }
     }
 
     pub fn as_chapter_mut(&mut self) -> Option<&mut SectionContents> {
         match self {
-            Self::Loading(v) |
-            Self::Loaded(v) => Some(v),
+            Self::Loading(v) | Self::Loaded(v) => Some(v),
             _ => None,
         }
     }
 }
-
-
 
 pub struct SectionContents {
     #[allow(dead_code)]
@@ -86,7 +79,6 @@ impl SectionContents {
         }
     }
 
-
     pub fn get_iframe(&self) -> &HtmlIFrameElement {
         &self.iframe
     }
@@ -94,7 +86,6 @@ impl SectionContents {
     pub fn set_cached_pages(&mut self, value: Vec<CachedPage>) {
         self.cached_pages = value;
     }
-
 
     pub fn page_count(&self) -> usize {
         self.cached_pages.len()
@@ -112,13 +103,12 @@ impl SectionContents {
         self.gpi + self.page_count()
     }
 
-
     pub fn transitioning_page(&self, amount: isize) {
         let body = self.iframe.content_document().unwrap().body().unwrap();
 
         // Prevent empty pages when on the first or last page of a section.
-        let amount = if (amount.is_positive() && self.viewing_page == 0) ||
-            (amount.is_negative() && self.viewing_page == self.page_count().saturating_sub(1))
+        let amount = if (amount.is_positive() && self.viewing_page == 0)
+            || (amount.is_negative() && self.viewing_page == self.page_count().saturating_sub(1))
         {
             0
         } else {
@@ -126,19 +116,23 @@ impl SectionContents {
         };
 
         if amount == 0 {
-            body.style().set_property("transition", "left 0.5s ease 0s").unwrap();
+            body.style()
+                .set_property("transition", "left 0.5s ease 0s")
+                .unwrap();
         } else {
             body.style().remove_property("transition").unwrap();
         }
 
-        body.style().set_property(
-            "left",
-            &format!(
-                "calc(-{}% - {}px)",
-                100 * self.viewing_page,
-                self.viewing_page as isize * 10 - amount
+        body.style()
+            .set_property(
+                "left",
+                &format!(
+                    "calc(-{}% - {}px)",
+                    100 * self.viewing_page,
+                    self.viewing_page as isize * 10 - amount
+                ),
             )
-        ).unwrap();
+            .unwrap();
     }
 }
 

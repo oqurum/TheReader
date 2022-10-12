@@ -1,15 +1,33 @@
-use actix_web::{web, get, post, HttpResponse, http::header, HttpRequest};
-use common_local::{setup::{SetupConfig, Config, LibraryConnection}, api};
+use actix_web::{get, http::header, post, web, HttpRequest, HttpResponse};
 use chrono::Utc;
-use common::api::{ApiErrorResponse, WrappingResponse, librarian::{AuthFormLink, Scope, AuthQueryHandshake}, reader::VerifyAgentQuery};
-use rand::distributions::{DistString, Alphanumeric};
+use common::api::{
+    librarian::{AuthFormLink, AuthQueryHandshake, Scope},
+    reader::VerifyAgentQuery,
+    ApiErrorResponse, WrappingResponse,
+};
+use common_local::{
+    api,
+    setup::{Config, LibraryConnection, SetupConfig},
+};
+use rand::distributions::{Alphanumeric, DistString};
 use reqwest::Url;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_qs::actix::QsQuery;
 
-use crate::{database::Database, WebResult, config::{is_setup as iss_setup, CONFIG_PATH, CONFIG_FILE, get_config, save_config, update_config, IS_SETUP}, http::{passwordless::test_connection, MemberCookie, JsonResponse}, model::{library::{NewLibraryModel, LibraryModel}, directory::DirectoryModel, auth::AuthModel}, Result};
-
-
+use crate::{
+    config::{
+        get_config, is_setup as iss_setup, save_config, update_config, CONFIG_FILE, CONFIG_PATH,
+        IS_SETUP,
+    },
+    database::Database,
+    http::{passwordless::test_connection, JsonResponse, MemberCookie},
+    model::{
+        auth::AuthModel,
+        directory::DirectoryModel,
+        library::{LibraryModel, NewLibraryModel},
+    },
+    Result, WebResult,
+};
 
 #[get("/setup")]
 pub async fn get_configg(
@@ -36,7 +54,6 @@ pub async fn get_configg(
     Ok(web::Json(WrappingResponse::okay(Some(config))))
 }
 
-
 #[post("/setup")]
 pub async fn save_initial_setup(
     body: web::Json<SetupConfig>,
@@ -52,7 +69,6 @@ pub async fn save_initial_setup(
     } else if !iss_setup() {
         return Err(ApiErrorResponse::new("Not owner").into());
     }
-
 
     let config = body.into_inner();
 
@@ -72,10 +88,17 @@ pub async fn save_initial_setup(
             created_at: now,
             scanned_at: now,
             updated_at: now,
-        }.insert(&db).await?;
+        }
+        .insert(&db)
+        .await?;
 
         // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
-        DirectoryModel { library_id: lib.id, path: path.clone() }.insert(&db).await?;
+        DirectoryModel {
+            library_id: lib.id,
+            path: path.clone(),
+        }
+        .insert(&db)
+        .await?;
 
         library_count += 1;
     }
@@ -84,8 +107,6 @@ pub async fn save_initial_setup(
 
     Ok(web::Json(WrappingResponse::okay(String::new())))
 }
-
-
 
 // External Metadata Initiation
 // Client -> Server - Initial request
@@ -104,7 +125,6 @@ pub async fn post_setup_agent(
         return Ok(HttpResponse::NotAcceptable().body("Not owner"));
     }
 
-
     let config = get_config();
 
     if config.libby.token.is_some() {
@@ -113,7 +133,14 @@ pub async fn post_setup_agent(
 
     let redirect_uri = {
         let host = match req.headers().get("host").and_then(|v| v.to_str().ok()) {
-            Some(v) => format!("{}://{v}", if config.server.is_secure { "https" } else { "http" }),
+            Some(v) => format!(
+                "{}://{v}",
+                if config.server.is_secure {
+                    "https"
+                } else {
+                    "http"
+                }
+            ),
             None => return Ok(HttpResponse::NotAcceptable().body("Missing host")),
         };
 
@@ -122,7 +149,6 @@ pub async fn post_setup_agent(
         location_uri.to_string()
     };
 
-
     let state = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
 
     // TODO: Should I store it in AuthModel?
@@ -130,25 +156,28 @@ pub async fn post_setup_agent(
         oauth_token: state.clone(),
         oauth_token_secret: String::new(),
         created_at: Utc::now(),
-    }.insert(&db).await?;
-
+    }
+    .insert(&db)
+    .await?;
 
     let mut location_uri = Url::parse(&config.libby.url).unwrap();
     location_uri.set_path("authorize");
-    location_uri.set_query(Some(&serde_qs::to_string(&AuthFormLink {
-        server_owner_name: Some(member.name),
-        server_name: Some(config.server.name),
-        server_id: None,
-        redirect_uri,
-        state,
-        scope: Scope::ServerRegister,
-    }).unwrap()));
+    location_uri.set_query(Some(
+        &serde_qs::to_string(&AuthFormLink {
+            server_owner_name: Some(member.name),
+            server_name: Some(config.server.name),
+            server_id: None,
+            redirect_uri,
+            state,
+            scope: Scope::ServerRegister,
+        })
+        .unwrap(),
+    ));
 
     Ok(HttpResponse::SeeOther()
         .insert_header((header::LOCATION, location_uri.to_string()))
         .body("redirecting..."))
 }
-
 
 #[get("/setup/agent/verify")]
 pub async fn get_setup_agent_verify(
@@ -170,18 +199,21 @@ pub async fn get_setup_agent_verify(
         return Ok(HttpResponse::NotAcceptable().body("Agent is already setup"));
     }
 
-
     if AuthModel::remove_by_oauth_token(&query.state, &db).await? {
         let mut location_uri = Url::parse(&config.libby.url).unwrap();
         location_uri.set_path("auth/handshake");
-        location_uri.set_query(Some(&serde_qs::to_string(&AuthQueryHandshake {
-            public_id: query.public_id.clone(),
-            server_id: query.server_id.clone(),
-            state: Some(query.state),
-            scope: query.scope,
-        }).unwrap()));
+        location_uri.set_query(Some(
+            &serde_qs::to_string(&AuthQueryHandshake {
+                public_id: query.public_id.clone(),
+                server_id: query.server_id.clone(),
+                state: Some(query.state),
+                scope: query.scope,
+            })
+            .unwrap(),
+        ));
 
-        let resp = reqwest::get(location_uri).await
+        let resp = reqwest::get(location_uri)
+            .await
             .map_err(crate::Error::from)?;
 
         if resp.status().is_success() {
@@ -204,10 +236,7 @@ pub async fn get_setup_agent_verify(
     } else {
         Ok(HttpResponse::InternalServerError().body("Incorrect State. Try Linking again."))
     }
-
 }
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RegisterAgentQuery {
@@ -218,7 +247,6 @@ pub struct RegisterAgentQuery {
     pub state: String,
     pub scope: String,
 }
-
 
 async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
     let temp_config = get_config();
@@ -234,10 +262,7 @@ async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
         has_admin_account: false,
     };
 
-    tokio::fs::write(
-        CONFIG_PATH,
-        toml_edit::ser::to_string_pretty(&config)?,
-    ).await?;
+    tokio::fs::write(CONFIG_PATH, toml_edit::ser::to_string_pretty(&config)?).await?;
 
     *IS_SETUP.lock().unwrap() = config.is_fully_setup();
     *CONFIG_FILE.lock().unwrap() = config;

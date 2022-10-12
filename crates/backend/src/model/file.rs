@@ -1,15 +1,12 @@
-use chrono::{Utc, DateTime, TimeZone};
+use chrono::{DateTime, TimeZone, Utc};
 use common::BookId;
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{LibraryId, util::serialize_datetime, FileId, MediaItem};
+use crate::{database::Database, Result};
+use common_local::{util::serialize_datetime, FileId, LibraryId, MediaItem};
 use serde::Serialize;
-use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow, book::BookModel};
-
-
-
+use super::{book::BookModel, AdvRow, TableRow};
 
 // FileModel
 
@@ -31,7 +28,6 @@ pub struct NewFileModel {
     pub accessed_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct FileModel {
@@ -107,8 +103,6 @@ impl TableRow<'_> for FileModel {
     }
 }
 
-
-
 impl NewFileModel {
     pub fn into_file(self, id: FileId) -> FileModel {
         FileModel {
@@ -146,32 +140,49 @@ impl NewFileModel {
     }
 }
 
-
 impl FileModel {
     pub async fn path_exists(path: &str, db: &Database) -> Result<bool> {
-        Ok(db.read().await.query_row(r#"SELECT id FROM file WHERE path = ?1"#, [path], |_| Ok(1)).optional()?.is_some())
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT id FROM file WHERE path = ?1"#, [path], |_| Ok(1))
+            .optional()?
+            .is_some())
     }
 
-    pub async fn find_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by(
+        library: usize,
+        offset: usize,
+        limit: usize,
+        db: &Database,
+    ) -> Result<Vec<Self>> {
         let this = db.read().await;
 
-        let mut conn = this.prepare("SELECT * FROM file WHERE library_id = ?1 LIMIT ?2 OFFSET ?3")?;
+        let mut conn =
+            this.prepare("SELECT * FROM file WHERE library_id = ?1 LIMIT ?2 OFFSET ?3")?;
 
         let map = conn.query_map([library, limit, offset], |v| Self::from_row(v))?;
 
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_with_book_by(library: usize, offset: usize, limit: usize, db: &Database) -> Result<Vec<FileWithBook>> {
+    pub async fn find_with_book_by(
+        library: usize,
+        offset: usize,
+        limit: usize,
+        db: &Database,
+    ) -> Result<Vec<FileWithBook>> {
         let this = db.read().await;
 
-        let mut conn = this.prepare(r#"
+        let mut conn = this.prepare(
+            r#"
             SELECT * FROM file
             LEFT JOIN book ON book.id = file.book_id
             WHERE library_id = ?1
             LIMIT ?2
             OFFSET ?3
-        "#)?;
+        "#,
+        )?;
 
         let map = conn.query_map([library, limit, offset], |v| FileWithBook::from_row(v))?;
 
@@ -189,19 +200,28 @@ impl FileModel {
     }
 
     pub async fn find_one_by_id(id: FileId, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM file WHERE id=?1"#,
-            params![id],
-            |v| Self::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT * FROM file WHERE id=?1"#, params![id], |v| {
+                Self::from_row(v)
+            })
+            .optional()?)
     }
 
-    pub async fn find_one_by_id_with_book(id: FileId, db: &Database) -> Result<Option<FileWithBook>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM file LEFT JOIN book ON book.id = file.book_id WHERE file.id = ?1"#,
-            [id],
-            |v| FileWithBook::from_row(v)
-        ).optional()?)
+    pub async fn find_one_by_id_with_book(
+        id: FileId,
+        db: &Database,
+    ) -> Result<Option<FileWithBook>> {
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM file LEFT JOIN book ON book.id = file.book_id WHERE file.id = ?1"#,
+                [id],
+                |v| FileWithBook::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn find_by_book_id(book_id: BookId, db: &Database) -> Result<Vec<Self>> {
@@ -214,47 +234,60 @@ impl FileModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_by_missing_hash(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_missing_hash(
+        offset: usize,
+        limit: usize,
+        db: &Database,
+    ) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM file WHERE hash IS NULL LIMIT ?1 OFFSET ?2")?;
 
-        let map = conn.query_map([ limit, offset ], |v| Self::from_row(v))?;
+        let map = conn.query_map([limit, offset], |v| Self::from_row(v))?;
 
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
     pub async fn count_by_missing_hash(db: &Database) -> Result<usize> {
-        Ok(db.read().await.query_row("SELECT COUNT(*) FROM file WHERE hash IS NULL", [], |v| v.get(0))?)
+        Ok(db
+            .read()
+            .await
+            .query_row("SELECT COUNT(*) FROM file WHERE hash IS NULL", [], |v| {
+                v.get(0)
+            })?)
     }
 
     pub async fn count(db: &Database) -> Result<usize> {
-        Ok(db.read().await.query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
     }
 
     pub async fn update_book_id(file_id: FileId, book_id: BookId, db: &Database) -> Result<()> {
-        db.write().await
-        .execute(r#"UPDATE file SET book_id = ?1 WHERE id = ?2"#,
-            params![book_id, file_id]
+        db.write().await.execute(
+            r#"UPDATE file SET book_id = ?1 WHERE id = ?2"#,
+            params![book_id, file_id],
         )?;
 
         Ok(())
     }
 
-    pub async fn transfer_book_id(old_book_id: BookId, new_book_id: BookId, db: &Database) -> Result<usize> {
-        Ok(db.write().await
-        .execute(r#"UPDATE file SET book_id = ?1 WHERE book_id = ?2"#,
-            params![new_book_id, old_book_id]
+    pub async fn transfer_book_id(
+        old_book_id: BookId,
+        new_book_id: BookId,
+        db: &Database,
+    ) -> Result<usize> {
+        Ok(db.write().await.execute(
+            r#"UPDATE file SET book_id = ?1 WHERE book_id = ?2"#,
+            params![new_book_id, old_book_id],
         )?)
     }
 }
 
-
-
-
 pub struct FileWithBook {
     pub file: FileModel,
-    pub book: Option<BookModel>
+    pub book: Option<BookModel>,
 }
 
 impl TableRow<'_> for FileWithBook {
@@ -262,10 +295,12 @@ impl TableRow<'_> for FileWithBook {
         Ok(Self {
             file: FileModel::create(row)?,
 
-            book: row.has_next()
-                .ok().filter(|v| *v)
+            book: row
+                .has_next()
+                .ok()
+                .filter(|v| *v)
                 .map(|_| BookModel::create(row))
-                .transpose()?
+                .transpose()?,
         })
     }
 }

@@ -1,15 +1,12 @@
-use chrono::{DateTime, Utc, TimeZone};
-use common::{MemberId, BookId};
+use chrono::{DateTime, TimeZone, Utc};
+use common::{BookId, MemberId};
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{Progression, util::serialize_datetime, FileId};
+use crate::{database::Database, Result};
+use common_local::{util::serialize_datetime, FileId, Progression};
 use serde::Serialize;
-use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow, book::BookModel};
-
-
-
+use super::{book::BookModel, AdvRow, TableRow};
 
 #[derive(Debug, Serialize)]
 pub struct FileProgressionModel {
@@ -51,7 +48,11 @@ impl FileProgressionModel {
                 created_at: Utc::now(),
             },
 
-            Progression::Ebook { chapter, page, char_pos } => Self {
+            Progression::Ebook {
+                chapter,
+                page,
+                char_pos,
+            } => Self {
                 book_id,
                 file_id,
                 user_id,
@@ -75,11 +76,10 @@ impl FileProgressionModel {
                 seek_pos: Some(seek_pos),
                 updated_at: Utc::now(),
                 created_at: Utc::now(),
-            }
+            },
         }
     }
 }
-
 
 impl TableRow<'_> for FileProgressionModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
@@ -103,7 +103,6 @@ impl TableRow<'_> for FileProgressionModel {
     }
 }
 
-
 impl From<FileProgressionModel> for Progression {
     fn from(val: FileProgressionModel) -> Self {
         match val.type_of {
@@ -120,15 +119,19 @@ impl From<FileProgressionModel> for Progression {
                 seek_pos: val.seek_pos.unwrap(),
             },
 
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
 
-
-
 impl FileProgressionModel {
-    pub async fn insert_or_update(member_id: MemberId, book_id: BookId, file_id: FileId, progress: Progression, db: &Database) -> Result<()> {
+    pub async fn insert_or_update(
+        member_id: MemberId,
+        book_id: BookId,
+        file_id: FileId,
+        progress: Progression,
+        db: &Database,
+    ) -> Result<()> {
         let prog = Self::new(progress, member_id, book_id, file_id);
 
         if Self::find_one(member_id, file_id, db).await?.is_some() {
@@ -146,42 +149,50 @@ impl FileProgressionModel {
         Ok(())
     }
 
-    pub async fn find_one(member_id: MemberId, file_id: FileId, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            "SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
-            params![member_id, file_id],
-            |v| Self::from_row(v)
-        ).optional()?)
+    pub async fn find_one(
+        member_id: MemberId,
+        file_id: FileId,
+        db: &Database,
+    ) -> Result<Option<Self>> {
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                "SELECT * FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
+                params![member_id, file_id],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn delete_one(member_id: MemberId, file_id: FileId, db: &Database) -> Result<()> {
         db.write().await.execute(
             "DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
-            params![member_id, file_id]
+            params![member_id, file_id],
         )?;
 
         Ok(())
     }
 
-
-    pub async fn get_member_progression_and_books(member_id: MemberId, db: &Database) -> Result<Vec<(Self, BookModel)>> {
+    pub async fn get_member_progression_and_books(
+        member_id: MemberId,
+        db: &Database,
+    ) -> Result<Vec<(Self, BookModel)>> {
         let read = db.read().await;
 
-        let mut statement = read.prepare(r"
+        let mut statement = read.prepare(
+            r"
             SELECT * FROM file_progression
             JOIN book ON book.id = file_progression.book_id
             WHERE user_id = ?1 AND type_of = ?2
-            ORDER BY updated_at DESC"
+            ORDER BY updated_at DESC",
         )?;
 
-        let rows = statement.query_map(
-            params![member_id, 1],
-            |v| {
-                let mut row = AdvRow::from(v);
+        let rows = statement.query_map(params![member_id, 1], |v| {
+            let mut row = AdvRow::from(v);
 
-                Ok((Self::create(&mut row)?, BookModel::create(&mut row)?))
-            }
-        )?;
+            Ok((Self::create(&mut row)?, BookModel::create(&mut row)?))
+        })?;
 
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }

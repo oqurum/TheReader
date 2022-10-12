@@ -1,9 +1,20 @@
-use common_local::{api::{GetBookResponse, self}, util::file_size_bytes_to_readable_string, ThumbnailStoreExt};
-use common::{BookId, component::popup::{Popup, PopupType}, api::WrappingResponse};
+use common::{
+    api::WrappingResponse,
+    component::popup::{Popup, PopupType},
+    BookId,
+};
+use common_local::{
+    api::{self, GetBookResponse},
+    util::file_size_bytes_to_readable_string,
+    ThumbnailStoreExt,
+};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::{request, Route, components::{PopupSearchBook, PopupEditBook, DropdownInfoPopup, DropdownInfoPopupEvent}};
+use crate::{
+    components::{DropdownInfoPopup, DropdownInfoPopupEvent, PopupEditBook, PopupSearchBook},
+    request, Route,
+};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -18,12 +29,12 @@ pub enum Msg {
     // Popup Events
     UpdateBook(BookId),
 
-    Ignore
+    Ignore,
 }
 
 #[derive(Properties, PartialEq, Eq)]
 pub struct Property {
-    pub id: BookId
+    pub id: BookId,
 }
 
 pub struct MediaView {
@@ -51,12 +62,10 @@ impl Component for MediaView {
                 self.media_popup = None;
             }
 
-            Msg::RetrieveMediaView(value) => {
-                match value.ok() {
-                    Ok(resp) => self.media = Some(resp),
-                    Err(err) => crate::display_error(err),
-                }
-            }
+            Msg::RetrieveMediaView(value) => match value.ok() {
+                Ok(resp) => self.media = Some(resp),
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::ShowPopup(new_disp) => {
                 if let Some(old_disp) = self.media_popup.as_mut() {
@@ -71,8 +80,7 @@ impl Component for MediaView {
             }
 
             Msg::UpdateBook(book_id) => {
-                ctx.link()
-                .send_future(async move {
+                ctx.link().send_future(async move {
                     request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
 
                     Msg::Ignore
@@ -117,13 +125,22 @@ impl Component for MediaView {
 
 impl MediaView {
     fn render_main(&self, ctx: &Context<Self>) -> Html {
-        if let Some(GetBookResponse { people, book, media, progress }) = self.media.as_ref() {
+        if let Some(GetBookResponse {
+            people,
+            book,
+            media,
+            progress,
+        }) = self.media.as_ref()
+        {
             let book_id = book.id;
             let on_click_more = ctx.link().callback(move |e: MouseEvent| {
                 e.prevent_default();
                 e.stop_propagation();
 
-                Msg::ShowPopup(DisplayOverlay::More { book_id, mouse_pos: (e.page_x(), e.page_y()) })
+                Msg::ShowPopup(DisplayOverlay::More {
+                    book_id,
+                    mouse_pos: (e.page_x(), e.page_y()),
+                })
             });
 
             let media_prog = media.iter().zip(progress.iter());
@@ -270,18 +287,17 @@ impl MediaView {
     }
 }
 
-
 #[derive(Clone)]
 pub enum DisplayOverlay {
     Info {
-        book_id: BookId
+        book_id: BookId,
     },
 
     Edit(Box<api::GetBookResponse>),
 
     More {
         book_id: BookId,
-        mouse_pos: (i32, i32)
+        mouse_pos: (i32, i32),
     },
 
     SearchForBook {
@@ -296,11 +312,19 @@ impl PartialEq for DisplayOverlay {
             (Self::Info { book_id: l_id }, Self::Info { book_id: r_id }) => l_id == r_id,
             (Self::More { book_id: l_id, .. }, Self::More { book_id: r_id, .. }) => l_id == r_id,
             (
-                Self::SearchForBook { book_id: l_id, input_value: l_val, .. },
-                Self::SearchForBook { book_id: r_id, input_value: r_val, .. }
+                Self::SearchForBook {
+                    book_id: l_id,
+                    input_value: l_val,
+                    ..
+                },
+                Self::SearchForBook {
+                    book_id: r_id,
+                    input_value: r_val,
+                    ..
+                },
             ) => l_id == r_id && l_val == r_val,
 
-            _ => false
+            _ => false,
         }
     }
 }

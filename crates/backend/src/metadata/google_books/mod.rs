@@ -4,16 +4,16 @@
 
 use std::collections::HashMap;
 
-use crate::{Result, model::file::FileModel};
+use crate::{model::file::FileModel, Result};
 use async_trait::async_trait;
 use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::metadata::{FoundItem, FoundImageLocation};
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor};
+use super::{Metadata, MetadataReturned, SearchFor, SearchItem};
+use crate::metadata::{FoundImageLocation, FoundItem};
 
 lazy_static! {
     pub static ref REMOVE_HTML_TAGS: Regex = Regex::new("<(.|\n)*?>").unwrap();
@@ -27,12 +27,15 @@ impl Metadata for GoogleBooksMetadata {
         Agent::new_static("googlebooks")
     }
 
-    async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {
+    async fn get_metadata_from_files(
+        &mut self,
+        files: &[FileModel],
+    ) -> Result<Option<MetadataReturned>> {
         for file in files {
             if let Some(isbn) = file.identifier.clone() {
                 match self.request_query(isbn).await {
                     Ok(Some(v)) => return Ok(Some(v)),
-                    a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a)
+                    a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a),
                 }
             }
         }
@@ -56,13 +59,17 @@ impl Metadata for GoogleBooksMetadata {
             SearchFor::Person => Ok(Vec::new()),
 
             SearchFor::Book(specifically) => {
-                let url = format!("https://www.googleapis.com/books/v1/volumes?q={}", match specifically {
-                    SearchForBooksBy::AuthorName => BookSearchKeyword::InAuthor.combile_string(search),
-                    SearchForBooksBy::Contents |
-                    SearchForBooksBy::Query => urlencoding::encode(search).to_string(),
-                    SearchForBooksBy::Title => BookSearchKeyword::InTitle.combile_string(search),
-                });
-
+                let url = format!(
+                    "https://www.googleapis.com/books/v1/volumes?q={}",
+                    match specifically {
+                        SearchForBooksBy::AuthorName =>
+                            BookSearchKeyword::InAuthor.combile_string(search),
+                        SearchForBooksBy::Contents | SearchForBooksBy::Query =>
+                            urlencoding::encode(search).to_string(),
+                        SearchForBooksBy::Title =>
+                            BookSearchKeyword::InTitle.combile_string(search),
+                    }
+                );
 
                 println!("[METADATA][GOOGLE BOOKS]: Search URL: {}", url);
 
@@ -82,7 +89,11 @@ impl Metadata for GoogleBooksMetadata {
                         books.push(SearchItem::Book(FoundItem {
                             source: self.prefix_text(&item.id).try_into()?,
                             title: item.volume_info.title.clone(),
-                            description: item.volume_info.description.as_deref().map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
+                            description: item
+                                .volume_info
+                                .description
+                                .as_deref()
+                                .map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
                             rating: item.volume_info.average_rating.unwrap_or_default(),
                             thumb_locations: vec![thumb_dl_url],
                             cached: BookItemCached::default(),
@@ -102,7 +113,11 @@ impl Metadata for GoogleBooksMetadata {
 
 impl GoogleBooksMetadata {
     pub async fn request_query(&self, id: String) -> Result<Option<MetadataReturned>> {
-        let resp = reqwest::get(format!("https://www.googleapis.com/books/v1/volumes?q={}", BookSearchKeyword::Isbn.combile_string(&id))).await?;
+        let resp = reqwest::get(format!(
+            "https://www.googleapis.com/books/v1/volumes?q={}",
+            BookSearchKeyword::Isbn.combile_string(&id)
+        ))
+        .await?;
 
         let book = if resp.status().is_success() {
             let mut books = resp.json::<BookVolumesContainer>().await?;
@@ -120,7 +135,11 @@ impl GoogleBooksMetadata {
     }
 
     pub async fn request_singular_id(&self, id: &str) -> Result<Option<MetadataReturned>> {
-        let resp = reqwest::get(format!("https://www.googleapis.com/books/v1/volumes/{}", id)).await?;
+        let resp = reqwest::get(format!(
+            "https://www.googleapis.com/books/v1/volumes/{}",
+            id
+        ))
+        .await?;
 
         if resp.status().is_success() {
             self.compile_book_volume_item(resp.json().await?).await
@@ -129,8 +148,10 @@ impl GoogleBooksMetadata {
         }
     }
 
-
-    async fn compile_book_volume_item(&self, value: BookVolumeItem) -> Result<Option<MetadataReturned>> {
+    async fn compile_book_volume_item(
+        &self,
+        value: BookVolumeItem,
+    ) -> Result<Option<MetadataReturned>> {
         let thumb_dl_url = FoundImageLocation::Url(format!(
             "https://books.google.com/books/publisher/content/images/frontcover/{}?fife=w400-h600",
             value.id
@@ -142,7 +163,11 @@ impl GoogleBooksMetadata {
             meta: FoundItem {
                 source: self.prefix_text(value.id).try_into()?,
                 title: value.volume_info.title.clone(),
-                description: value.volume_info.description.as_deref().map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
+                description: value
+                    .volume_info
+                    .description
+                    .as_deref()
+                    .map(|text| REMOVE_HTML_TAGS.replace_all(text, "").to_string()),
                 rating: value.volume_info.average_rating.unwrap_or_default(),
                 thumb_locations: vec![thumb_dl_url],
                 cached: BookItemCached::default()
@@ -150,14 +175,10 @@ impl GoogleBooksMetadata {
                     .author_optional(value.volume_info.authors.and_then(|v| v.first().cloned())),
                 available_at: None,
                 year: None,
-            }
+            },
         }))
     }
 }
-
-
-
-
 
 // Search
 
@@ -169,7 +190,7 @@ pub enum BookSearchKeyword {
     Subject,
     Isbn,
     Lccn,
-    Oclc
+    Oclc,
 }
 
 impl BookSearchKeyword {
@@ -190,8 +211,6 @@ impl BookSearchKeyword {
     }
 }
 
-
-
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(debug_assertions, serde(deny_unknown_fields))]
 pub struct BookVolumesContainer {
@@ -200,7 +219,6 @@ pub struct BookVolumesContainer {
     pub total_items: i64,
     pub items: Vec<BookVolumeItem>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -214,7 +232,6 @@ pub struct BookVolumeItem {
     pub access_info: BookVolumeAccessInfo,
     pub search_info: Option<BookVolumeSearchInfo>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -284,7 +301,6 @@ pub struct BookVolumeVolumeInfoImageLinks {
 
 // TODO: function to return largest size available. Otherwise use current way
 
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct BookVolumeSaleInfo {
@@ -292,7 +308,6 @@ pub struct BookVolumeSaleInfo {
     pub saleability: String,
     pub is_ebook: bool,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -320,7 +335,6 @@ pub struct BookVolumeAccessInfoEpub {
 pub struct BookVolumeAccessInfoPdf {
     is_available: bool,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

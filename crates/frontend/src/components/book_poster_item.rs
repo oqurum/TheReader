@@ -1,13 +1,13 @@
-use common::{BookId, component::{Popup, PopupType, PopupClose}, Either};
-use common_local::{DisplayItem, api, ThumbnailStoreExt, Progression, MediaItem};
-use web_sys::{MouseEvent, HtmlElement, HtmlInputElement};
-use yew::{Component, Properties, Callback, Context, Html, html, TargetCast, function_component};
+use common::{
+    component::{Popup, PopupClose, PopupType},
+    BookId, Either,
+};
+use common_local::{api, DisplayItem, MediaItem, Progression, ThumbnailStoreExt};
+use web_sys::{HtmlElement, HtmlInputElement, MouseEvent};
+use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast};
 use yew_router::prelude::Link;
 
-use crate::{Route, request};
-
-
-
+use crate::{request, Route};
 
 #[derive(Properties)]
 pub struct BookPosterItemProps {
@@ -26,13 +26,11 @@ pub struct BookPosterItemProps {
 
 impl PartialEq for BookPosterItemProps {
     fn eq(&self, other: &Self) -> bool {
-        self.item == other.item &&
-        self.is_editing == other.is_editing &&
-        self.is_updating == other.is_updating
+        self.item == other.item
+            && self.is_editing == other.is_editing
+            && self.is_updating == other.is_updating
     }
 }
-
-
 
 #[derive(Clone)]
 pub enum BookPosterItemMsg {
@@ -40,10 +38,8 @@ pub enum BookPosterItemMsg {
 
     AddOrRemoveItemFromEditing(BookId, bool),
 
-    Ignore
+    Ignore,
 }
-
-
 
 pub struct BookPosterItem;
 
@@ -69,7 +65,6 @@ impl Component for BookPosterItem {
             ref item,
             ..
         } = ctx.props();
-
 
         let route_to = if let Some((_, file)) = ctx.props().progress.as_ref() {
             Route::ReadBook { book_id: file.id }
@@ -132,7 +127,7 @@ impl BookPosterItem {
         } = ctx.props();
 
         if callback.is_none() {
-            return html! {}
+            return html! {};
         }
 
         let book_id = item.id;
@@ -144,7 +139,13 @@ impl BookPosterItem {
             let target = e.target_unchecked_into::<HtmlElement>();
             let bb = target.get_bounding_client_rect();
 
-            BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::More { book_id, mouse_pos: ((bb.left() + bb.width()) as i32, (bb.top() + bb.height()) as i32) }))
+            BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::More {
+                book_id,
+                mouse_pos: (
+                    (bb.left() + bb.width()) as i32,
+                    (bb.top() + bb.height()) as i32,
+                ),
+            }))
         });
 
         html! {
@@ -197,9 +198,6 @@ impl BookPosterItem {
     }
 }
 
-
-
-
 #[derive(Clone)]
 pub enum PosterItem {
     // Poster Specific Buttons
@@ -215,14 +213,14 @@ pub enum PosterItem {
 #[derive(Clone)]
 pub enum DisplayOverlayItem {
     Info {
-        book_id: BookId
+        book_id: BookId,
     },
 
     Edit(Box<api::GetBookResponse>),
 
     More {
         book_id: BookId,
-        mouse_pos: (i32, i32)
+        mouse_pos: (i32, i32),
     },
 
     SearchForBook {
@@ -237,17 +235,22 @@ impl PartialEq for DisplayOverlayItem {
             (Self::Info { book_id: l_id }, Self::Info { book_id: r_id }) => l_id == r_id,
             (Self::More { book_id: l_id, .. }, Self::More { book_id: r_id, .. }) => l_id == r_id,
             (
-                Self::SearchForBook { book_id: l_id, input_value: l_val, .. },
-                Self::SearchForBook { book_id: r_id, input_value: r_val, .. }
+                Self::SearchForBook {
+                    book_id: l_id,
+                    input_value: l_val,
+                    ..
+                },
+                Self::SearchForBook {
+                    book_id: r_id,
+                    input_value: r_val,
+                    ..
+                },
             ) => l_id == r_id && l_val == r_val,
 
-            _ => false
+            _ => false,
         }
     }
 }
-
-
-
 
 #[derive(Clone, Copy)]
 pub enum DropdownInfoPopupEvent {
@@ -257,7 +260,6 @@ pub enum DropdownInfoPopupEvent {
     Info,
 }
 
-
 #[derive(Properties, PartialEq)]
 pub struct DropdownInfoPopupProps {
     pub pos_x: i32,
@@ -265,9 +267,8 @@ pub struct DropdownInfoPopupProps {
 
     pub book_id: BookId,
 
-    pub event: Callback<DropdownInfoPopupEvent>
+    pub event: Callback<DropdownInfoPopupEvent>,
 }
-
 
 #[function_component(DropdownInfoPopup)]
 pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
@@ -319,11 +320,13 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
     }
 }
 
-
 /// A Callback which calls "prevent_default" and "stop_propagation"
 ///
 /// Also will prevent any more same events downstream from activating
-pub fn on_click_prevdef_stopprop<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(cb: Callback<S>, func: F) -> Callback<MouseEvent> {
+pub fn on_click_prevdef_stopprop<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(
+    cb: Callback<S>,
+    func: F,
+) -> Callback<MouseEvent> {
     Callback::from(move |e: MouseEvent| {
         e.prevent_default();
         e.stop_propagation();
@@ -333,7 +336,10 @@ pub fn on_click_prevdef_stopprop<S: 'static, F: Fn(&Callback<S>, MouseEvent) + '
 }
 
 /// A Callback which calls "prevent_default"
-pub fn on_click_prevdef<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(cb: Callback<S>, func: F) -> Callback<MouseEvent> {
+pub fn on_click_prevdef<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(
+    cb: Callback<S>,
+    func: F,
+) -> Callback<MouseEvent> {
     Callback::from(move |e: MouseEvent| {
         e.prevent_default();
 

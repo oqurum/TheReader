@@ -1,31 +1,31 @@
+use common::api::{ApiErrorResponse, WrappingResponse};
 use std::fmt::Write;
-use common::api::{WrappingResponse, ApiErrorResponse};
 
-use std::{num::ParseIntError, sync::PoisonError};
 use std::io::Error as IoError;
 use std::time::SystemTimeError;
+use std::{num::ParseIntError, sync::PoisonError};
 
 use thiserror::Error as ThisError;
 
 use bcrypt::BcryptError;
-use common::error::Error as CommonError;
-use rusqlite::Error as RusqliteError;
-use lettre::error::Error as LettreError;
-use lettre::address::AddressError;
-use lettre::transport::smtp::Error as SmtpError;
-use image::ImageError;
-use reqwest::Error as HttpError;
-use serde_urlencoded::ser::Error as UrlEncodedSerError;
-use serde_json::Error as JsonError;
-use serde_xml_rs::Error as XmlError;
-use serde::de::value::Error as SerdeValueError;
-use toml_edit::{de::Error as TomlDeError, ser::Error as TomlSerError};
-use common_local::Error as LocalCommonError;
 use bookie::Error as BookieError;
+use common::error::Error as CommonError;
+use common_local::Error as LocalCommonError;
+use image::ImageError;
+use lettre::address::AddressError;
+use lettre::error::Error as LettreError;
+use lettre::transport::smtp::Error as SmtpError;
+use reqwest::Error as HttpError;
+use rusqlite::Error as RusqliteError;
+use serde::de::value::Error as SerdeValueError;
+use serde_json::Error as JsonError;
+use serde_urlencoded::ser::Error as UrlEncodedSerError;
+use serde_xml_rs::Error as XmlError;
+use toml_edit::{de::Error as TomlDeError, ser::Error as TomlSerError};
 
 use actix_multipart::MultipartError;
-use actix_web::Error as ActixError;
 use actix_web::error::PayloadError;
+use actix_web::Error as ActixError;
 use actix_web::ResponseError;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -58,7 +58,6 @@ pub enum WebError {
     ApiResponse(#[from] ApiErrorResponse),
 }
 
-
 impl ResponseError for WebError {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
         let resp_value = match self {
@@ -68,23 +67,21 @@ impl ResponseError for WebError {
                 let mut description = String::new();
                 let _ = write!(&mut description, "{}", this);
                 WrappingResponse::<()>::error(description)
-            },
+            }
         };
 
         let mut res = actix_web::HttpResponse::new(self.status_code());
 
         res.headers_mut().insert(
             actix_web::http::header::CONTENT_TYPE,
-            actix_web::http::header::HeaderValue::from_static("text/plain; charset=utf-8")
+            actix_web::http::header::HeaderValue::from_static("text/plain; charset=utf-8"),
         );
 
         res.set_body(actix_web::body::BoxBody::new(
-            serde_json::to_string(&resp_value).unwrap()
+            serde_json::to_string(&resp_value).unwrap(),
         ))
     }
 }
-
-
 
 // Used for all Errors in Application.
 #[derive(Debug, ThisError)]
@@ -139,7 +136,6 @@ pub enum Error {
 #[derive(Debug, ThisError)]
 pub enum InternalError {
     // Actix
-
     #[error("The user does not exist")]
     UserMissing,
 
@@ -147,7 +143,6 @@ pub enum InternalError {
     ItemMissing,
 
     // SQL
-
     #[error("Invalid Model")]
     InvalidModel,
 }

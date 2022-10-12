@@ -1,16 +1,19 @@
 use std::path::Path;
 
-use common::{ImageId, PersonId, Either, api::{WrappingResponse, ApiErrorResponse, DeletionResponse}, BookId, ImageIdType};
+use common::{
+    api::{ApiErrorResponse, DeletionResponse, WrappingResponse},
+    BookId, Either, ImageId, ImageIdType, PersonId,
+};
 use gloo_utils::{format::JsValueSerdeExt, window};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use wasm_bindgen::{JsValue, JsCast, UnwrapThrowExt};
+use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{RequestInit, Request, RequestMode, Response, Headers};
+use web_sys::{Headers, Request, RequestInit, RequestMode, Response};
 
-use common_local::{api::*, Progression, SearchType, setup::SetupConfig, LibraryId, FileId, filter::FilterContainer};
-
-
+use common_local::{
+    api::*, filter::FilterContainer, setup::SetupConfig, FileId, LibraryId, Progression, SearchType,
+};
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {
     let path = window().location().origin().unwrap_throw();
@@ -23,58 +26,48 @@ pub fn get_download_path(value: Either<BookId, FileId>) -> String {
     format!("{path}/api/{type_of}/{id}/download")
 }
 
-
 // Setup
 pub async fn check_if_setup() -> WrappingResponse<ApiGetSetupResponse> {
-    fetch(
-        "GET",
-        "/api/setup",
-        Option::<&()>::None,
-    ).await.unwrap_or_else(def)
+    fetch("GET", "/api/setup", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn finish_setup(value: SetupConfig) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        "/api/setup",
-        Some(&value),
-    ).await.unwrap_or_else(def)
+    fetch("POST", "/api/setup", Some(&value))
+        .await
+        .unwrap_or_else(def)
 }
-
 
 // Member
 
 pub async fn get_member_self() -> WrappingResponse<ApiGetMemberSelfResponse> {
-    fetch(
-        "GET",
-        "/api/member",
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+    fetch("GET", "/api/member", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
-
 
 // Libraries
 
 pub async fn get_libraries() -> WrappingResponse<ApiGetLibrariesResponse> {
-    fetch(
-        "GET",
-        "/api/libraries",
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+    fetch("GET", "/api/libraries", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
-
 
 // People
 
 pub async fn update_person(id: PersonId, value: &PostPersonBody) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        &format!("/api/person/{}", id),
-        Some(value)
-    ).await.unwrap_or_else(def)
+    fetch("POST", &format!("/api/person/{}", id), Some(value))
+        .await
+        .unwrap_or_else(def)
 }
 
-pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Option<usize>) -> WrappingResponse<ApiGetPeopleResponse> {
+pub async fn get_people(
+    query: Option<&str>,
+    offset: Option<usize>,
+    limit: Option<usize>,
+) -> WrappingResponse<ApiGetPeopleResponse> {
     let mut url = String::from("/api/people?");
 
     if let Some(value) = offset {
@@ -94,30 +87,29 @@ pub async fn get_people(query: Option<&str>, offset: Option<usize>, limit: Optio
         url += &urlencoding::encode(value);
     }
 
-    fetch(
-        "GET",
-        &url,
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+    fetch("GET", &url, Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn get_person(id: PersonId) -> WrappingResponse<GetPersonResponse> {
-    fetch(
-        "GET",
-        &format!("/api/person/{}", id),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+    fetch("GET", &format!("/api/person/{}", id), Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
-pub async fn update_person_thumbnail(id: PersonId, url_or_id: Either<String, ImageId>) -> WrappingResponse<String> {
+pub async fn update_person_thumbnail(
+    id: PersonId,
+    url_or_id: Either<String, ImageId>,
+) -> WrappingResponse<String> {
     fetch(
         "POST",
         &format!("/api/person/{id}/thumbnail"),
-        Some(&ChangePosterBody { url_or_id })
-    ).await.unwrap_or_else(def)
+        Some(&ChangePosterBody { url_or_id }),
+    )
+    .await
+    .unwrap_or_else(def)
 }
-
-
 
 // Person Book Link
 
@@ -125,48 +117,53 @@ pub async fn add_person_to_book(book_id: BookId, person_id: PersonId) -> Wrappin
     fetch(
         "POST",
         &format!("/api/book/{book_id}/person/{person_id}"),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
-pub async fn delete_person_from_book(book_id: BookId, person_id: PersonId) -> WrappingResponse<DeletionResponse> {
+pub async fn delete_person_from_book(
+    book_id: BookId,
+    person_id: PersonId,
+) -> WrappingResponse<DeletionResponse> {
     fetch(
         "DELETE",
         &format!("/api/book/{book_id}/person/{person_id}"),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
-
 
 // Books
 
 pub async fn update_books(value: &MassEditBooks) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        "/api/book",
-        Some(value)
-    ).await.unwrap_or_else(def)
+    fetch("POST", "/api/book", Some(value))
+        .await
+        .unwrap_or_else(def)
 }
 
-
 pub async fn update_book(id: BookId, value: &PostBookBody) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        &format!("/api/book/{}", id),
-        Some(value)
-    ).await.unwrap_or_else(def)
+    fetch("POST", &format!("/api/book/{}", id), Some(value))
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn get_media_view(book_id: BookId) -> WrappingResponse<ApiGetBookByIdResponse> {
     fetch(
         "GET",
         &format!("/api/book/{}", book_id),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
-
-pub async fn search_for(search: &str, search_for: SearchType) -> WrappingResponse<ApiGetBookSearchResponse> {
+pub async fn search_for(
+    search: &str,
+    search_for: SearchType,
+) -> WrappingResponse<ApiGetBookSearchResponse> {
     fetch(
         "GET",
         &format!(
@@ -174,10 +171,11 @@ pub async fn search_for(search: &str, search_for: SearchType) -> WrappingRespons
             urlencoding::encode(search),
             serde_json::to_string(&search_for).unwrap().replace('"', "")
         ),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
-
 
 pub async fn get_books(
     library: Option<LibraryId>,
@@ -190,11 +188,9 @@ pub async fn get_books(
         serde_qs::to_string(&BookListQuery::new(library, offset, limit, search).unwrap()).unwrap()
     );
 
-    fetch(
-        "GET",
-        &url,
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+    fetch("GET", &url, Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn get_books_preset(
@@ -204,33 +200,44 @@ pub async fn get_books_preset(
 ) -> WrappingResponse<ApiGetBookPresetListResponse> {
     let url = format!(
         "/api/books/preset?{}",
-        serde_qs::to_string(&BookPresetListQuery { offset, limit, preset }).unwrap_throw()
+        serde_qs::to_string(&BookPresetListQuery {
+            offset,
+            limit,
+            preset
+        })
+        .unwrap_throw()
     );
 
-    fetch(
-        "GET",
-        &url,
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+    fetch("GET", &url, Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn get_book_info(id: FileId) -> WrappingResponse<ApiGetFileByIdResponse> {
-    fetch(
-        "GET",
-        &format!("/api/file/{}", id),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+    fetch("GET", &format!("/api/file/{}", id), Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
-pub async fn get_book_pages(book_id: FileId, start: usize, end: usize) -> WrappingResponse<ApiGetFilePagesByIdResponse> {
+pub async fn get_book_pages(
+    book_id: FileId,
+    start: usize,
+    end: usize,
+) -> WrappingResponse<ApiGetFilePagesByIdResponse> {
     fetch(
         "GET",
         &format!("/api/file/{}/pages/{}-{}", book_id, start, end),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
-pub fn compile_book_resource_path(book_id: FileId, location: &Path, query: LoadResourceQuery) -> String {
+pub fn compile_book_resource_path(
+    book_id: FileId,
+    location: &Path,
+    query: LoadResourceQuery,
+) -> String {
     format!(
         "/api/file/{}/res/{}?{}",
         book_id,
@@ -243,39 +250,49 @@ pub async fn get_posters_for_book(id: BookId) -> WrappingResponse<ApiGetPosterBy
     fetch(
         "GET",
         &format!("/api/book/{id}/posters"),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
-pub async fn change_poster_for_book(id: BookId, url_or_id: Either<String, ImageId>) -> WrappingResponse<String> {
+pub async fn change_poster_for_book(
+    id: BookId,
+    url_or_id: Either<String, ImageId>,
+) -> WrappingResponse<String> {
     fetch(
         "POST",
         &format!("/api/book/{id}/posters"),
-        Some(&ChangePosterBody {
-            url_or_id
-        })
-    ).await.unwrap_or_else(def)
+        Some(&ChangePosterBody { url_or_id }),
+    )
+    .await
+    .unwrap_or_else(def)
 }
-
 
 // Progress
 
-pub async fn update_book_progress(book_id: FileId, progression: &Progression) -> WrappingResponse<String> {
+pub async fn update_book_progress(
+    book_id: FileId,
+    progression: &Progression,
+) -> WrappingResponse<String> {
     fetch(
         "POST",
         &format!("/api/file/{}/progress", book_id),
-        Some(progression)
-    ).await.unwrap_or_else(def)
+        Some(progression),
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
 pub async fn remove_book_progress(book_id: FileId) -> WrappingResponse<String> {
     fetch(
         "DELETE",
         &format!("/api/file/{}/progress", book_id),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
-
 
 // Notes
 
@@ -283,26 +300,27 @@ pub async fn get_book_notes(book_id: FileId) -> WrappingResponse<ApiGetFileNotes
     fetch(
         "GET",
         &format!("/api/file/{}/notes", book_id),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
 pub async fn update_book_notes(book_id: FileId, data: String) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        &format!("/api/file/{}/notes", book_id),
-        Some(&data)
-    ).await.unwrap_or_else(def)
+    fetch("POST", &format!("/api/file/{}/notes", book_id), Some(&data))
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn remove_book_notes(book_id: FileId) -> WrappingResponse<String> {
     fetch(
         "DELETE",
         &format!("/api/file/{}/notes", book_id),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
-
 
 // Image
 
@@ -310,40 +328,37 @@ pub async fn get_posters_for(img_id_type: ImageIdType) -> WrappingResponse<GetPo
     fetch(
         "GET",
         &format!("/api/images/{}", img_id_type),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
 // Options
 
 pub async fn get_options() -> WrappingResponse<ApiGetOptionsResponse> {
-    fetch("GET", "/api/options", Option::<&()>::None).await.unwrap_or_else(def)
+    fetch("GET", "/api/options", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn update_options_add(options: ModifyOptionsBody) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        "/api/options",
-        Some(&options)
-    ).await.unwrap_or_else(def)
+    fetch("POST", "/api/options", Some(&options))
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn update_options_remove(options: ModifyOptionsBody) -> WrappingResponse<String> {
-    fetch(
-        "DELETE",
-        "/api/options",
-        Some(&options)
-    ).await.unwrap_or_else(def)
+    fetch("DELETE", "/api/options", Some(&options))
+        .await
+        .unwrap_or_else(def)
 }
 
 pub async fn run_task(value: RunTaskBody) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        "/api/task",
-        Some(&value)
-    ).await.unwrap_or_else(def)
+    fetch("POST", "/api/task", Some(&value))
+        .await
+        .unwrap_or_else(def)
 }
-
 
 // Login In
 
@@ -354,8 +369,10 @@ pub async fn login_with_password(email: String, password: String) -> WrappingRes
         Some(&json!({
             "email": email,
             "password": password,
-        }))
-    ).await.unwrap_or_else(def)
+        })),
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
 pub async fn login_without_password(email: String) -> WrappingResponse<String> {
@@ -364,10 +381,11 @@ pub async fn login_without_password(email: String) -> WrappingResponse<String> {
         "/auth/passwordless",
         Some(&json!({
             "email": email,
-        }))
-    ).await.unwrap_or_else(def)
+        })),
+    )
+    .await
+    .unwrap_or_else(def)
 }
-
 
 // Directory
 
@@ -376,30 +394,37 @@ pub async fn get_directory_contents(path: String) -> WrappingResponse<ApiGetDire
         "GET",
         &format!(
             "/api/directory?{}",
-            serde_urlencoded::to_string(GetDirectoryQuery {
-                path
-            }).unwrap_throw(),
+            serde_urlencoded::to_string(GetDirectoryQuery { path }).unwrap_throw(),
         ),
-        Option::<&()>::None
-    ).await.unwrap_or_else(def)
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
 }
 
-
-
-async fn fetch<V: for<'a> Deserialize<'a>>(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<V, JsValue> {
+async fn fetch<V: for<'a> Deserialize<'a>>(
+    method: &str,
+    url: &str,
+    body: Option<&impl Serialize>,
+) -> Result<V, JsValue> {
     let text = fetch_jsvalue(method, url, body).await?;
 
-    JsValueSerdeExt::into_serde(&text)
-        .map_err(|v| JsValue::from_str(&v.to_string()))
+    JsValueSerdeExt::into_serde(&text).map_err(|v| JsValue::from_str(&v.to_string()))
 }
 
-async fn fetch_jsvalue(method: &str, url: &str, body: Option<&impl Serialize>) -> Result<JsValue, JsValue> {
+async fn fetch_jsvalue(
+    method: &str,
+    url: &str,
+    body: Option<&impl Serialize>,
+) -> Result<JsValue, JsValue> {
     let mut opts = RequestInit::new();
     opts.method(method);
     opts.mode(RequestMode::Cors);
 
     if let Some(body) = body {
-        opts.body(Some(&JsValue::from_str(&serde_json::to_string(body).unwrap())));
+        opts.body(Some(&JsValue::from_str(
+            &serde_json::to_string(body).unwrap(),
+        )));
 
         let headers = Headers::new()?;
         headers.append("Content-Type", "application/json")?;
@@ -424,6 +449,6 @@ fn def<V>(e: JsValue) -> WrappingResponse<V> {
             let _ = write!(&mut s, "{:?}", e);
 
             s
-        }
+        },
     })
 }

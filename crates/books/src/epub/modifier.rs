@@ -1,15 +1,14 @@
-use std::{borrow::Cow, path::{Path, Component, PathBuf}};
-
-use xml::{
-    EmitterConfig,
-    reader::XmlEvent as ReaderEvent,
-    writer::XmlEvent as WriterEvent,
-    attribute::OwnedAttribute,
-    name::OwnedName, EventWriter
+use std::{
+    borrow::Cow,
+    path::{Component, Path, PathBuf},
 };
 
-use crate::{Result, Book};
+use xml::{
+    attribute::OwnedAttribute, name::OwnedName, reader::XmlEvent as ReaderEvent,
+    writer::XmlEvent as WriterEvent, EmitterConfig, EventWriter,
+};
 
+use crate::{Book, Result};
 
 /// Based on https://github.com/danigm/epub-rs/blob/master/src/xmlutils.rs#L229
 pub fn update_attributes_with<B, F, S>(
@@ -41,7 +40,11 @@ where
         match event {
             Err(e) => eprintln!("update_attributes_with: {}", e),
             Ok(v) => match v {
-                ReaderEvent::StartElement { name, attributes, namespace } => {
+                ReaderEvent::StartElement {
+                    name,
+                    attributes,
+                    namespace,
+                } => {
                     if skipping_name.is_some() {
                         continue;
                     }
@@ -56,11 +59,13 @@ where
                         .map(|attr| func_mod_attr(book, &name, attr))
                         .collect::<Vec<_>>();
 
-                    writer.write(WriterEvent::StartElement {
-                        attributes: Cow::Owned(attr.iter().map(|v| v.borrow()).collect()),
-                        name: name.borrow(),
-                        namespace: Cow::Owned(namespace)
-                    }).unwrap();
+                    writer
+                        .write(WriterEvent::StartElement {
+                            attributes: Cow::Owned(attr.iter().map(|v| v.borrow()).collect()),
+                            name: name.borrow(),
+                            namespace: Cow::Owned(namespace),
+                        })
+                        .unwrap();
                 }
 
                 ReaderEvent::EndElement { name } => {
@@ -93,20 +98,23 @@ where
                         writer.write(v).unwrap();
                     }
                 }
-            }
+            },
         }
     }
 
     Ok(output)
 }
 
-
 /// Updates the path `value` to include the internal zip `path`
 ///
 /// Also prepends the specific URI before everything
 ///
 /// Based on existing https://github.com/danigm/epub-rs/blob/master/src/doc.rs#L784
-pub fn update_value_with_relative_internal_path(mut file_path: PathBuf, value: &str, prepend_text: Option<&str>) -> String {
+pub fn update_value_with_relative_internal_path(
+    mut file_path: PathBuf,
+    value: &str,
+    prepend_text: Option<&str>,
+) -> String {
     // If it's an external file, return.
     if value.starts_with("http") {
         return value.to_string();
@@ -118,11 +126,15 @@ pub fn update_value_with_relative_internal_path(mut file_path: PathBuf, value: &
     for c in Path::new(value).components() {
         match c {
             // If it's ".." remove a directory.
-            Component::ParentDir => { file_path.pop(); }
+            Component::ParentDir => {
+                file_path.pop();
+            }
             // Otherwise add on it.
-            Component::Normal(v) => { file_path.push(v); }
+            Component::Normal(v) => {
+                file_path.push(v);
+            }
 
-            _ => ()
+            _ => (),
         }
     }
 

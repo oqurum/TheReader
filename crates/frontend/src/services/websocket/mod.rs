@@ -1,5 +1,9 @@
 use common_local::ws::WebsocketResponse;
-use futures::{channel::mpsc::{Sender, channel, Receiver}, SinkExt, StreamExt, stream::{SplitSink, SplitStream}};
+use futures::{
+    channel::mpsc::{channel, Receiver, Sender},
+    stream::{SplitSink, SplitStream},
+    SinkExt, StreamExt,
+};
 use gloo_timers::future::TimeoutFuture;
 use gloo_utils::window;
 use reqwasm::websocket::{futures::WebSocket, Message};
@@ -36,22 +40,30 @@ pub fn open_websocket_conn() {
     create_incoming_reader(read, send);
 }
 
-
-fn create_outgoing_writer(mut write: SplitSink<WebSocket, Message>, mut receive: Receiver<WebsocketResponse>) {
+fn create_outgoing_writer(
+    mut write: SplitSink<WebSocket, Message>,
+    mut receive: Receiver<WebsocketResponse>,
+) {
     spawn_local(async move {
         while let Some(s) = receive.next().await {
             if !s.is_pong() {
                 log::debug!("WEBSOCKET [OUTGOING]: {:?}", s);
             }
 
-            write.send(Message::Text(serde_json::to_string(&s).unwrap())).await.unwrap();
+            write
+                .send(Message::Text(serde_json::to_string(&s).unwrap()))
+                .await
+                .unwrap();
         }
 
         log::debug!("WebSocket Send Closed");
     });
 }
 
-fn create_incoming_reader(mut read: SplitStream<WebSocket>, mut send_back: Sender<WebsocketResponse>) {
+fn create_incoming_reader(
+    mut read: SplitStream<WebSocket>,
+    mut send_back: Sender<WebsocketResponse>,
+) {
     let mut event_bus = WsEventBus::dispatcher();
 
     spawn_local(async move {

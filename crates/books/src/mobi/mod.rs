@@ -2,21 +2,27 @@
 
 // https://wiki.mobileread.com/wiki/MOBI
 
-use std::{path::{PathBuf, Path}, borrow::Cow};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 use mobi::Mobi;
 
-use crate::{Result, BookSearch};
 use super::Book;
+use crate::{BookSearch, Result};
 
 pub struct EpubBook {
-    reader: Mobi
+    reader: Mobi,
 }
 
 impl Book for EpubBook {
-    fn load_from_path(path: &str) -> Result<Self> where Self: Sized {
+    fn load_from_path(path: &str) -> Result<Self>
+    where
+        Self: Sized,
+    {
         let this = Self {
-            reader: Mobi::from_path(path)?
+            reader: Mobi::from_path(path)?,
         };
 
         // Testing
@@ -42,7 +48,11 @@ impl Book for EpubBook {
 
         println!("{:?}", &recompiled[0..128]);
 
-        std::fs::write("./app/testing.html", String::from_utf8_lossy(&recompiled).to_string()).unwrap();
+        std::fs::write(
+            "./app/testing.html",
+            String::from_utf8_lossy(&recompiled).to_string(),
+        )
+        .unwrap();
 
         // std::fs::write("./app/testing.html", &this.reader.content_as_string_lossy()).unwrap();
 
@@ -73,14 +83,22 @@ impl Book for EpubBook {
         todo!()
     }
 
-    fn read_path_as_bytes(&mut self, _path: &str, _prepend_to_urls: Option<&str>, _add_css: Option<&[&str]>) -> Result<Vec<u8>> {
+    fn read_path_as_bytes(
+        &mut self,
+        _path: &str,
+        _prepend_to_urls: Option<&str>,
+        _add_css: Option<&[&str]>,
+    ) -> Result<Vec<u8>> {
         todo!()
     }
 
-    fn read_page_as_bytes(&mut self, _prepend_to_urls: Option<&str>, _add_css: Option<&[&str]>) -> Result<Vec<u8>> {
+    fn read_page_as_bytes(
+        &mut self,
+        _prepend_to_urls: Option<&str>,
+        _add_css: Option<&[&str]>,
+    ) -> Result<Vec<u8>> {
         todo!()
     }
-
 
     fn chapter_count(&self) -> usize {
         todo!()

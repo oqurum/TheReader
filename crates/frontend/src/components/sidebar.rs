@@ -1,9 +1,12 @@
-use common::{component::popup::{PopupClose, button::ButtonWithPopup}, api::WrappingResponse};
+use common::{
+    api::WrappingResponse,
+    component::popup::{button::ButtonWithPopup, PopupClose},
+};
 use common_local::{api, LibraryColl};
-use yew::{prelude::*, html::Scope};
+use yew::{html::Scope, prelude::*};
 use yew_router::{prelude::Link, scope_ext::RouterScopeExt};
 
-use crate::{Route, request};
+use crate::{request, Route};
 
 pub enum Msg {
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
@@ -21,12 +24,10 @@ impl Component for Sidebar {
 
     fn create(ctx: &Context<Self>) -> Self {
         ctx.link()
-        .send_future(async move {
-            Msg::LibraryListResults(request::get_libraries().await)
-        });
+            .send_future(async move { Msg::LibraryListResults(request::get_libraries().await) });
 
         Self {
-            library_items: None
+            library_items: None,
         }
     }
 
@@ -34,12 +35,10 @@ impl Component for Sidebar {
         match msg {
             Msg::Ignore => return false,
 
-            Msg::LibraryListResults(resp) => {
-                match resp.ok() {
-                    Ok(resp) => self.library_items = Some(resp.items),
-                    Err(err) => crate::display_error(err),
-                }
-            }
+            Msg::LibraryListResults(resp) => match resp.ok() {
+                Ok(resp) => self.library_items = Some(resp.items),
+                Err(err) => crate::display_error(err),
+            },
         }
 
         true
@@ -68,7 +67,6 @@ impl Sidebar {
 
         let to = Route::ViewLibrary { library_id };
         let cr = scope.route::<Route>().unwrap();
-
 
         html! {
             <Link<Route> {to} classes={ classes!("sidebar-item", "library", (cr == to).then_some("active")) }>

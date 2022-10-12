@@ -5,23 +5,26 @@
 // https://www.w3.org/publishing/epub3/epub-ocf.html
 // https://www.w3.org/publishing/epub3/epub-packages.html
 
-
-use std::{io::Read, fs::File, path::{PathBuf, Path}, borrow::Cow};
+use std::{
+    borrow::Cow,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use binstall_zip::ZipArchive;
 
-
+pub mod container;
 mod modifier;
 mod package_document;
-pub mod container;
 
-use crate::{Result, BookSearch};
+use crate::{BookSearch, Result};
 
 use super::Book;
 use container::*;
 
-pub use package_document::*;
 pub use modifier::*;
+pub use package_document::*;
 
 // TODO: Ignore specific file entries? Eg. "META-INF/calibre_bookmarks.txt"
 // Would allow for better file hashing to compare against. Eg. One zip may have it, the other may not even though they're the same.
@@ -32,7 +35,7 @@ pub struct EpubBook {
 
     root_file_dir: PathBuf,
 
-    pub chapter: usize
+    pub chapter: usize,
 }
 
 impl EpubBook {
@@ -52,21 +55,24 @@ impl EpubBook {
         Ok(())
     }
 
-
     fn get_manifest_item_by_spine(&self, value: usize) -> Option<&ManifestItem> {
         let spine_item = self.package.spine.items.get(value)?;
 
-        self.package.manifest.items
+        self.package
+            .manifest
+            .items
             .iter()
             .find(|mani_item| mani_item.id == spine_item.idref)
     }
 
     fn get_path_contents(&mut self, path: &str) -> Result<Vec<u8>> {
         // TODO: Optimize
-        let path = if path.starts_with(&self.root_file_dir.display().to_string().replace('\\', "/")) {
+        let path = if path.starts_with(&self.root_file_dir.display().to_string().replace('\\', "/"))
+        {
             path.to_string()
         } else {
-            self.root_file_dir.join(path)
+            self.root_file_dir
+                .join(path)
                 .display()
                 .to_string()
                 .replace('\\', "/")
@@ -77,7 +83,9 @@ impl EpubBook {
 
         let mut buf = Vec::new();
 
-        self.container.archive.by_name(&path)?
+        self.container
+            .archive
+            .by_name(&path)?
             .read_to_end(&mut buf)?;
 
         Ok(buf)
@@ -88,16 +96,27 @@ impl EpubBook {
         input: &[u8],
         page_path: PathBuf,
         prepend_to_urls: Option<&str>,
-        add_css: Option<&[&str]>
+        add_css: Option<&[&str]>,
     ) -> Result<Vec<u8>> {
         update_attributes_with(
             input,
             self,
             |book, element_name, mut attr| {
-                attr.value = match (element_name.local_name.as_str(), attr.name.local_name.as_str()) {
-                    ("link", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
+                attr.value = match (
+                    element_name.local_name.as_str(),
+                    attr.name.local_name.as_str(),
+                ) {
+                    ("link", "href") => update_value_with_relative_internal_path(
+                        page_path.clone(),
+                        &attr.value,
+                        prepend_to_urls,
+                    ),
                     ("img", "src") => {
-                        let path = update_value_with_relative_internal_path(page_path.clone(), &attr.value, None);
+                        let path = update_value_with_relative_internal_path(
+                            page_path.clone(),
+                            &attr.value,
+                            None,
+                        );
                         let cont = book.get_path_contents(&path);
 
                         if let Ok(cont) = cont {
@@ -109,25 +128,49 @@ impl EpubBook {
                                 format!("data:image;charset=utf-8;base64,{}", b64)
                             }
                         } else {
-                            update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls)
+                            update_value_with_relative_internal_path(
+                                page_path.clone(),
+                                &attr.value,
+                                prepend_to_urls,
+                            )
                         }
                     }
-                    ("image", "href") => update_value_with_relative_internal_path(page_path.clone(), &attr.value, prepend_to_urls),
-                    _ => return attr
+                    ("image", "href") => update_value_with_relative_internal_path(
+                        page_path.clone(),
+                        &attr.value,
+                        prepend_to_urls,
+                    ),
+                    _ => return attr,
                 };
                 attr
             },
             |book, name, attrs, writer| {
-                if name.local_name == "link" && attrs.iter().any(|v| v.name.local_name == "rel" && v.value.to_lowercase() == "stylesheet") {
+                if name.local_name == "link"
+                    && attrs.iter().any(|v| {
+                        v.name.local_name == "rel" && v.value.to_lowercase() == "stylesheet"
+                    })
+                {
                     if let Some(attr) = attrs.iter().find(|a| a.name.local_name == "href") {
                         // TODO: handle background-image:url('imagename.png');
                         // Remember to account for directory of the css file when correcting the url. (eg. "/css/" instead of just "/")
 
-                        let path = update_value_with_relative_internal_path(page_path.clone(), &attr.value, None);
+                        let path = update_value_with_relative_internal_path(
+                            page_path.clone(),
+                            &attr.value,
+                            None,
+                        );
 
-                        if let Some(cont) = book.get_path_contents(&path).ok().and_then(|v| String::from_utf8(v).ok()) {
-                            writer.write(xml::writer::XmlEvent::start_element("style")).unwrap();
-                            writer.write(xml::writer::XmlEvent::characters(&cont)).unwrap();
+                        if let Some(cont) = book
+                            .get_path_contents(&path)
+                            .ok()
+                            .and_then(|v| String::from_utf8(v).ok())
+                        {
+                            writer
+                                .write(xml::writer::XmlEvent::start_element("style"))
+                                .unwrap();
+                            writer
+                                .write(xml::writer::XmlEvent::characters(&cont))
+                                .unwrap();
                             writer.write(xml::writer::XmlEvent::end_element()).unwrap();
 
                             return true;
@@ -137,25 +180,23 @@ impl EpubBook {
 
                 false
             },
-            if let Some(v) = add_css {
-                v
-            } else {
-                &[]
-            }
+            if let Some(v) = add_css { v } else { &[] },
         )
     }
 }
 
-
 impl Book for EpubBook {
-    fn load_from_path(path: &str) -> Result<Self> where Self: Sized {
+    fn load_from_path(path: &str) -> Result<Self>
+    where
+        Self: Sized,
+    {
         let archive = ZipArchive::new(File::open(path)?)?;
 
         let mut this = Self {
             container: AbsContainer::new(archive)?,
             package: PackageDocument::default(),
             chapter: 0,
-            root_file_dir: PathBuf::default()
+            root_file_dir: PathBuf::default(),
         };
 
         this.init()?;
@@ -166,7 +207,14 @@ impl Book for EpubBook {
     fn compute_hash(&mut self) -> Option<String> {
         let mut hasher = blake3::Hasher::new();
 
-        for href in self.package.manifest.items.iter().map(|v| v.href.clone()).collect::<Vec<_>>() {
+        for href in self
+            .package
+            .manifest
+            .items
+            .iter()
+            .map(|v| v.href.clone())
+            .collect::<Vec<_>>()
+        {
             if let Ok(asdf) = self.read_path_as_bytes(&href, None, None) {
                 hasher.update(&asdf);
             }
@@ -177,7 +225,12 @@ impl Book for EpubBook {
 
     fn find(&self, search: BookSearch<'_>) -> Option<Vec<String>> {
         match search {
-            BookSearch::CoverImage => Some(vec![self.package.manifest.get_item_by_property("cover-image")?.href.to_owned()]),
+            BookSearch::CoverImage => Some(vec![self
+                .package
+                .manifest
+                .get_item_by_property("cover-image")?
+                .href
+                .to_owned()]),
 
             _ => {
                 let tag_name = match &search {
@@ -200,19 +253,30 @@ impl Book for EpubBook {
                     BookSearch::Other(v) => *v,
                 };
 
-                let values: Vec<String> = if let Some(elements) = self.package.metadata.dcmes_elements.get(tag_name) {
-                    elements.iter()
-                        .filter_map(|v| v.value.as_ref().cloned())
-                        .collect()
-                } else {
-                    // dc terms are located in the metadata as meta items with said property names.
-                    // https://www.dublincore.org/specifications/dublin-core/dcmi-terms/
-                    let dc_tag_name = format!("dcterms:{}", tag_name);
+                let values: Vec<String> =
+                    if let Some(elements) = self.package.metadata.dcmes_elements.get(tag_name) {
+                        elements
+                            .iter()
+                            .filter_map(|v| v.value.as_ref().cloned())
+                            .collect()
+                    } else {
+                        // dc terms are located in the metadata as meta items with said property names.
+                        // https://www.dublincore.org/specifications/dublin-core/dcmi-terms/
+                        let dc_tag_name = format!("dcterms:{}", tag_name);
 
-                    self.package.metadata.meta_items.iter()
-                        .filter_map(|v| if v.property == dc_tag_name { Some(v.value.as_ref()?.to_owned()) } else { None })
-                        .collect()
-                };
+                        self.package
+                            .metadata
+                            .meta_items
+                            .iter()
+                            .filter_map(|v| {
+                                if v.property == dc_tag_name {
+                                    Some(v.value.as_ref()?.to_owned())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    };
 
                 if values.is_empty() {
                     None
@@ -229,7 +293,9 @@ impl Book for EpubBook {
             let found_id = identifier_elements
                 .iter()
                 .filter(|v| v.id.is_some() && v.value.is_some())
-                .find(|v| v.id.as_deref().unwrap() == self.package.attributes.unique_identifier.as_str())
+                .find(|v| {
+                    v.id.as_deref().unwrap() == self.package.attributes.unique_identifier.as_str()
+                })
                 .map(|v| Cow::from(v.value.as_deref().unwrap()));
 
             if let Some(found) = found_id {
@@ -256,7 +322,9 @@ impl Book for EpubBook {
             }
         }
 
-        Ok(Cow::from(self.package.attributes.unique_identifier.as_str()))
+        Ok(Cow::from(
+            self.package.attributes.unique_identifier.as_str(),
+        ))
     }
 
     fn get_root_file_dir(&self) -> &Path {
@@ -278,34 +346,32 @@ impl Book for EpubBook {
         }
     }
 
-    fn read_path_as_bytes(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
+    fn read_path_as_bytes(
+        &mut self,
+        path: &str,
+        prepend_to_urls: Option<&str>,
+        add_css: Option<&[&str]>,
+    ) -> Result<Vec<u8>> {
         if prepend_to_urls.is_some() || add_css.is_some() {
             let page_path = PathBuf::from(path);
             let input = self.get_path_contents(path)?;
 
-            self.handle_update_attributes(
-                &input,
-                page_path,
-                prepend_to_urls,
-                add_css,
-            )
+            self.handle_update_attributes(&input, page_path, prepend_to_urls, add_css)
         } else {
             self.get_path_contents(path)
         }
     }
 
-    fn read_page_as_bytes(&mut self, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>> {
+    fn read_page_as_bytes(
+        &mut self,
+        prepend_to_urls: Option<&str>,
+        add_css: Option<&[&str]>,
+    ) -> Result<Vec<u8>> {
         let page_path = self.get_page_path();
         let input = self.read_page_raw_as_bytes()?;
 
-        self.handle_update_attributes(
-            &input,
-            page_path,
-            prepend_to_urls,
-            add_css,
-        )
+        self.handle_update_attributes(&input, page_path, prepend_to_urls, add_css)
     }
-
 
     fn chapter_count(&self) -> usize {
         self.package.spine.items.len()
@@ -350,8 +416,6 @@ impl Book for EpubBook {
 // dcterms     http://purl.org/dc/terms/
 // opf     http://www.idpf.org/2007/opf
 // rendition     http://www.idpf.org/vocab/rendition/#
-
-
 
 // TODO: Tests
 

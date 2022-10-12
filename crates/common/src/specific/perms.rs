@@ -1,9 +1,11 @@
 use bitflags::bitflags;
-use serde::{Serialize, Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(feature = "backend")]
-use rusqlite::{Result, types::{FromSql, FromSqlResult, ValueRef, ToSql, ToSqlOutput}};
-
+use rusqlite::{
+    types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
+    Result,
+};
 
 bitflags! {
     #[derive(Serialize, Deserialize)]
@@ -12,7 +14,6 @@ bitflags! {
         const BASIC             = 1 << 1;
     }
 }
-
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Permissions {
@@ -39,7 +40,6 @@ impl Permissions {
         }
     }
 
-
     /// Returns true if all of the flags in other are contained within self.
     pub fn contains_group(self, value: GroupPermissions) -> bool {
         self.group.contains(value)
@@ -61,8 +61,6 @@ impl Permissions {
     }
 }
 
-
-
 #[cfg(feature = "backend")]
 impl FromSql for Permissions {
     #[inline]
@@ -70,7 +68,9 @@ impl FromSql for Permissions {
         let val = String::column_result(value)?;
 
         Ok(Self {
-            group: GroupPermissions { bits: val.parse().unwrap() },
+            group: GroupPermissions {
+                bits: val.parse().unwrap(),
+            },
         })
     }
 }
@@ -83,17 +83,24 @@ impl ToSql for Permissions {
     }
 }
 
-
 impl<'de> Deserialize<'de> for Permissions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
         Ok(Self {
-            group: GroupPermissions { bits: u64::deserialize(deserializer)? },
+            group: GroupPermissions {
+                bits: u64::deserialize(deserializer)?,
+            },
         })
     }
 }
 
 impl Serialize for Permissions {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         self.group.bits.serialize(serializer)
     }
 }

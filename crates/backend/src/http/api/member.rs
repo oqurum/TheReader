@@ -3,9 +3,12 @@ use actix_web::{get, web};
 use common::api::WrappingResponse;
 use common_local::api;
 
-use crate::{database::Database, http::{get_auth_value, JsonResponse}, WebResult, model::member::MemberModel};
-
-
+use crate::{
+    database::Database,
+    http::{get_auth_value, JsonResponse},
+    model::member::MemberModel,
+    WebResult,
+};
 
 // TODO: Add body requests for specifics
 #[get("/member")]
@@ -15,13 +18,15 @@ pub async fn load_member_self(
 ) -> WebResult<JsonResponse<api::ApiGetMemberSelfResponse>> {
     if let Some(cookie) = get_auth_value(&identity) {
         if let Some(member) = MemberModel::find_one_by_id(cookie.member_id, &db).await? {
-            return Ok(web::Json(WrappingResponse::okay(api::GetMemberSelfResponse {
-                member: Some(member.into())
-            })));
+            return Ok(web::Json(WrappingResponse::okay(
+                api::GetMemberSelfResponse {
+                    member: Some(member.into()),
+                },
+            )));
         }
     }
 
-    Ok(web::Json(WrappingResponse::okay(api::GetMemberSelfResponse {
-        member: None
-    })))
+    Ok(web::Json(WrappingResponse::okay(
+        api::GetMemberSelfResponse { member: None },
+    )))
 }

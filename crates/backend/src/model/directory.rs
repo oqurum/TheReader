@@ -1,19 +1,14 @@
 use rusqlite::params;
 
+use crate::{database::Database, Result};
 use common_local::LibraryId;
-use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
-
-
-
-
+use super::{AdvRow, TableRow};
 
 pub struct DirectoryModel {
     pub library_id: LibraryId,
     pub path: String,
 }
-
 
 impl TableRow<'_> for DirectoryModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
@@ -24,32 +19,34 @@ impl TableRow<'_> for DirectoryModel {
     }
 }
 
-
 impl DirectoryModel {
     pub async fn insert(&self, db: &Database) -> Result<()> {
         db.write().await.execute(
             r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
-            params![&self.library_id, &self.path]
+            params![&self.library_id, &self.path],
         )?;
 
         Ok(())
     }
 
     pub async fn remove_by_path(path: &str, db: &Database) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"DELETE FROM directory WHERE path = ?1"#,
-            [path]
-        )?)
+        Ok(db
+            .write()
+            .await
+            .execute(r#"DELETE FROM directory WHERE path = ?1"#, [path])?)
     }
 
     pub async fn delete_by_library_id(id: LibraryId, db: &Database) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"DELETE FROM directory WHERE library_id = ?1"#,
-            [id]
-        )?)
+        Ok(db
+            .write()
+            .await
+            .execute(r#"DELETE FROM directory WHERE library_id = ?1"#, [id])?)
     }
 
-    pub async fn find_directories_by_library_id(library_id: LibraryId, db: &Database) -> Result<Vec<DirectoryModel>> {
+    pub async fn find_directories_by_library_id(
+        library_id: LibraryId,
+        db: &Database,
+    ) -> Result<Vec<DirectoryModel>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM directory WHERE library_id = ?1")?;

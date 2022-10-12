@@ -2,8 +2,15 @@
 
 use std::path::PathBuf;
 
-use common::{component::{FileSearchComponent, FileSearchRequest, FileSearchEvent, file_search::FileInfo}, api::{WrappingResponse, ApiErrorResponse}};
-use common_local::{EditManager, setup::{SetupConfig, Config}, api::ApiGetSetupResponse};
+use common::{
+    api::{ApiErrorResponse, WrappingResponse},
+    component::{file_search::FileInfo, FileSearchComponent, FileSearchEvent, FileSearchRequest},
+};
+use common_local::{
+    api::ApiGetSetupResponse,
+    setup::{Config, SetupConfig},
+    EditManager,
+};
 use gloo_utils::window;
 use validator::{Validate, ValidationErrors};
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
@@ -11,9 +18,8 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use crate::{request, Route};
 use super::PasswordLogin;
-
+use crate::{request, Route};
 
 pub enum SetupPageMessage {
     Ignore,
@@ -122,13 +128,10 @@ impl Component for SetupPage {
             }
 
             // Admin Creation
-
-            SetupPageMessage::LoginPasswordResponse(resp) => {
-                match resp {
-                    Ok(_) => window().location().reload().unwrap_throw(),
-                    Err(e) => crate::display_error(e),
-                }
-            }
+            SetupPageMessage::LoginPasswordResponse(resp) => match resp {
+                Ok(_) => window().location().reload().unwrap_throw(),
+                Err(e) => crate::display_error(e),
+            },
         }
 
         true
@@ -195,7 +198,7 @@ impl Component for SetupPage {
                         </div>
                     </div>
                 </div>
-            }
+            },
         }
     }
 }
@@ -461,7 +464,6 @@ impl SetupPage {
         } else {
             html! {}
         }
-
     }
 
     // 3rd setup page should be external auth if previously selected.
@@ -493,9 +495,8 @@ impl SetupPage {
     // }
 }
 
-
 enum IsSetup {
     Unknown,
     Initially(Config),
-    No
+    No,
 }

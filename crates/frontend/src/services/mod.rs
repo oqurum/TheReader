@@ -1,3 +1,3 @@
 mod websocket;
 
-pub use websocket::{WsEventBus, open_websocket_conn};
+pub use websocket::{open_websocket_conn, WsEventBus};

@@ -1,14 +1,12 @@
-use chrono::{DateTime, Utc, TimeZone, NaiveDate};
-use common::{BookId, PersonId, ThumbnailStore, Source, util::serialize_naivedate_opt};
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use common::{util::serialize_naivedate_opt, BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
+use crate::{database::Database, Result};
 use common_local::{util::serialize_datetime, Person};
 use serde::Serialize;
-use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow};
-
-
+use super::{AdvRow, TableRow};
 
 #[derive(Debug)]
 pub struct NewPersonModel {
@@ -44,7 +42,6 @@ pub struct PersonModel {
     pub created_at: DateTime<Utc>,
 }
 
-
 impl TableRow<'_> for PersonModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
@@ -63,7 +60,6 @@ impl TableRow<'_> for PersonModel {
         })
     }
 }
-
 
 impl From<PersonModel> for Person {
     fn from(val: PersonModel) -> Self {
@@ -106,7 +102,6 @@ impl NewPersonModel {
     }
 }
 
-
 impl PersonModel {
     pub async fn find(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
@@ -121,23 +116,33 @@ impl PersonModel {
     pub async fn find_by_book_id(id: BookId, db: &Database) -> Result<Vec<Self>> {
         let this = db.read().await;
 
-        let mut conn = this.prepare(r#"
+        let mut conn = this.prepare(
+            r#"
             SELECT tag_person.* FROM book_person
             LEFT JOIN
                 tag_person ON tag_person.id = book_person.person_id
             WHERE book_id = ?1
-        "#)?;
+        "#,
+        )?;
 
         let map = conn.query_map([id], |v| Self::from_row(v))?;
 
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn search_by(query: &str, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+    pub async fn search_by(
+        query: &str,
+        offset: usize,
+        limit: usize,
+        db: &Database,
+    ) -> Result<Vec<Self>> {
         let mut escape_char = '\\';
         // Change our escape character if it's in the query.
         if query.contains(escape_char) {
-            for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
+            for car in [
+                '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>',
+                '<', ',',
+            ] {
                 if !query.contains(car) {
                     escape_char = car;
                     break;
@@ -147,10 +152,11 @@ impl PersonModel {
 
         let sql = format!(
             r#"SELECT * FROM tag_person WHERE name LIKE '%{}%' ESCAPE '{}' LIMIT ?1 OFFSET ?2"#,
-            query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
+            query
+                .replace('%', &format!("{}%", escape_char))
+                .replace('_', &format!("{}_", escape_char)),
             escape_char
         );
-
 
         let this = db.read().await;
 
@@ -162,11 +168,15 @@ impl PersonModel {
     }
 
     pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
-        let person = db.read().await.query_row(
-            r#"SELECT * FROM tag_person WHERE name = ?1"#,
-            params![value],
-            |v| Self::from_row(v)
-        ).optional()?;
+        let person = db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM tag_person WHERE name = ?1"#,
+                params![value],
+                |v| Self::from_row(v),
+            )
+            .optional()?;
 
         if let Some(person) = person {
             Ok(Some(person))
@@ -180,28 +190,39 @@ impl PersonModel {
     }
 
     pub async fn find_one_by_id(id: PersonId, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM tag_person WHERE id = ?1"#,
-            params![id],
-            |v| Self::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM tag_person WHERE id = ?1"#,
+                params![id],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn find_one_by_source(value: &str, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM tag_person WHERE source = ?1"#,
-            params![value],
-            |v| Self::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM tag_person WHERE source = ?1"#,
+                params![value],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn count(db: &Database) -> Result<usize> {
-        Ok(db.read().await.query_row(r#"SELECT COUNT(*) FROM tag_person"#, [], |v| v.get(0))?)
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT COUNT(*) FROM tag_person"#, [], |v| v.get(0))?)
     }
 
     pub async fn update(&self, db: &Database) -> Result<()> {
-        db.write().await
-        .execute(r#"
+        db.write().await.execute(
+            r#"
             UPDATE tag_person SET
                 source = ?2,
                 name = ?3,
@@ -213,18 +234,23 @@ impl PersonModel {
             WHERE id = ?1"#,
             params![
                 self.id,
-                self.source.to_string(), &self.name, &self.description, &self.birth_date, self.thumb_url.as_value(),
-                self.updated_at.timestamp_millis(), self.created_at.timestamp_millis()
-            ]
+                self.source.to_string(),
+                &self.name,
+                &self.description,
+                &self.birth_date,
+                self.thumb_url.as_value(),
+                self.updated_at.timestamp_millis(),
+                self.created_at.timestamp_millis()
+            ],
         )?;
 
         Ok(())
     }
 
     pub async fn delete_by_id(id: PersonId, db: &Database) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"DELETE FROM tag_person WHERE id = ?1"#,
-            params![id]
-        )?)
+        Ok(db
+            .write()
+            .await
+            .execute(r#"DELETE FROM tag_person WHERE id = ?1"#, params![id])?)
     }
 }

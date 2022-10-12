@@ -1,21 +1,19 @@
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 
+use common::{api::WrappingResponse, util::does_parent_contain_class};
 use common_local::{api::GetBookListResponse, filter::FilterContainer, ThumbnailStoreExt};
-use common::{util::does_parent_contain_class, api::WrappingResponse};
-use gloo_utils::{document, body};
-use wasm_bindgen::{JsCast, prelude::Closure};
+use gloo_utils::{body, document};
+use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::components::Link;
 
-use crate::{Route, request};
-
+use crate::{request, Route};
 
 #[derive(PartialEq, Eq, Properties)]
 pub struct Property {
     pub visible: bool,
 }
-
 
 pub enum Msg {
     Close,
@@ -42,9 +40,7 @@ impl Component for NavbarModule {
                 (Route::Dashboard, DisplayType::Icon("home", "Home")),
                 (Route::People, DisplayType::Icon("person", "Authors")),
             ],
-            right_items: vec![
-                (Route::Options, DisplayType::Icon("settings", "Settings")),
-            ],
+            right_items: vec![(Route::Options, DisplayType::Icon("settings", "Settings"))],
 
             search_results: None,
             closure: Arc::new(Mutex::new(None)),
@@ -61,25 +57,21 @@ impl Component for NavbarModule {
                 self.search_results = None;
 
                 ctx.link().send_future(async move {
-                    Msg::SearchResults(request::get_books(
-                        None,
-                        Some(0),
-                        Some(20),
-                        {
+                    Msg::SearchResults(
+                        request::get_books(None, Some(0), Some(20), {
                             let mut search = FilterContainer::default();
                             search.add_query_filter(value);
                             search
-                        }
-                    ).await)
+                        })
+                        .await,
+                    )
                 });
             }
 
-            Msg::SearchResults(resp) => {
-                match resp.ok() {
-                    Ok(res) => self.search_results = Some(res),
-                    Err(err) => crate::display_error(err),
-                }
-            }
+            Msg::SearchResults(resp) => match resp.ok() {
+                Ok(res) => self.search_results = Some(res),
+                Err(err) => crate::display_error(err),
+            },
         }
 
         true
@@ -122,7 +114,8 @@ impl Component for NavbarModule {
 
     fn rendered(&mut self, ctx: &Context<Self>, _first_render: bool) {
         if let Some(func) = (*self.closure.lock().unwrap()).take() {
-            let _ = body().remove_event_listener_with_callback("click", func.as_ref().unchecked_ref());
+            let _ =
+                body().remove_event_listener_with_callback("click", func.as_ref().unchecked_ref());
         }
 
         let closure = Arc::new(Mutex::default());
@@ -159,7 +152,7 @@ impl NavbarModule {
                 <Link<Route> to={route}>
                     <span class="material-icons" title={ *title }>{ icon }</span>
                 </Link<Route>>
-            }
+            },
         }
     }
 

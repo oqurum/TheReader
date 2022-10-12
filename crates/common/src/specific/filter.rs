@@ -1,8 +1,7 @@
 use common::PersonId;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::Result;
-
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct FilterContainer {
@@ -16,14 +15,13 @@ pub struct FilterContainer {
 
 impl FilterContainer {
     pub fn into_urlencoded_vec(self) -> Result<Vec<String>> {
-        self.filters.into_iter()
-            .map(|v| v.encode())
-            .collect()
+        self.filters.into_iter().map(|v| v.encode()).collect()
     }
 
     pub fn from_vec(value: &[String]) -> Result<Self> {
         Ok(Self {
-            filters: value.iter()
+            filters: value
+                .iter()
                 .map(|v| FilterOperator::decode(v))
                 .collect::<Result<Vec<_>>>()?,
 
@@ -31,15 +29,22 @@ impl FilterContainer {
         })
     }
 
-
     // Basic Filters
 
     pub fn add_person_filter(&mut self, id: PersonId) {
-        self.filters.push(FilterOperator::new(FilterTableType::Person, FilterModifier::Equal, FilterValue::Value(id.to_string())))
+        self.filters.push(FilterOperator::new(
+            FilterTableType::Person,
+            FilterModifier::Equal,
+            FilterValue::Value(id.to_string()),
+        ))
     }
 
     pub fn add_query_filter(&mut self, value: String) {
-        self.filters.push(FilterOperator::new(FilterTableType::Query, FilterModifier::Equal, FilterValue::Value(value)))
+        self.filters.push(FilterOperator::new(
+            FilterTableType::Query,
+            FilterModifier::Equal,
+            FilterValue::Value(value),
+        ))
     }
 
     pub fn order_by(mut self, value: FilterTableType, desc: bool) -> Self {
@@ -47,7 +52,6 @@ impl FilterContainer {
         self
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilterOperator {
@@ -72,11 +76,11 @@ impl FilterOperator {
     }
 
     pub fn decode(value: &str) -> Result<Self> {
-        Ok(serde_json::from_slice(&urlencoding::decode_binary(value.as_bytes()))?)
+        Ok(serde_json::from_slice(&urlencoding::decode_binary(
+            value.as_bytes(),
+        ))?)
     }
 }
-
-
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum FilterModifier {
@@ -93,7 +97,6 @@ pub enum FilterModifier {
     DoesNotEqual,
 }
 
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum FilterTableType {
     Id,
@@ -105,7 +108,6 @@ pub enum FilterTableType {
 
     CreatedAt,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FilterValue {
@@ -125,7 +127,6 @@ impl FilterValue {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListValue {

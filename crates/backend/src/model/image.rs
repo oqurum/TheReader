@@ -1,13 +1,12 @@
-use common::{BookId, ThumbnailStore, ImageId, PersonId, ImageType};
 use chrono::{DateTime, TimeZone, Utc};
+use common::{BookId, ImageId, ImageType, PersonId, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use common_local::{util::serialize_datetime};
-use crate::{Result, database::Database, InternalError};
+use crate::{database::Database, InternalError, Result};
+use common_local::util::serialize_datetime;
 
-use super::{TableRow, AdvRow};
-
+use super::{AdvRow, TableRow};
 
 #[derive(Debug, Serialize)]
 pub struct ImageLinkModel {
@@ -16,7 +15,6 @@ pub struct ImageLinkModel {
     pub link_id: usize,
     pub type_of: ImageType,
 }
-
 
 #[derive(Serialize)]
 pub struct NewUploadedImageModel {
@@ -36,7 +34,6 @@ pub struct UploadedImageModel {
     pub created_at: DateTime<Utc>,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct ImageWithLink {
     pub image_id: ImageId,
@@ -49,9 +46,6 @@ pub struct ImageWithLink {
     #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
 }
-
-
-
 
 impl TableRow<'_> for UploadedImageModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
@@ -73,11 +67,12 @@ impl TableRow<'_> for ImageLinkModel {
     }
 }
 
-
-
 impl NewUploadedImageModel {
     pub fn new(path: ThumbnailStore) -> Self {
-        Self { path, created_at: Utc::now() }
+        Self {
+            path,
+            created_at: Utc::now(),
+        }
     }
 
     pub async fn get_or_insert(self, db: &Database) -> Result<UploadedImageModel> {
@@ -100,14 +95,13 @@ impl NewUploadedImageModel {
 
         let conn = db.write().await;
 
-        conn.execute(r#"
+        conn.execute(
+            r#"
             INSERT OR IGNORE INTO uploaded_images (path, created_at)
             VALUES (?1, ?2)
         "#,
-        params![
-            path.as_str(),
-            self.created_at.timestamp_millis()
-        ])?;
+            params![path.as_str(), self.created_at.timestamp_millis()],
+        )?;
 
         Ok(UploadedImageModel {
             id: ImageId::from(conn.last_insert_rowid() as usize),
@@ -119,47 +113,50 @@ impl NewUploadedImageModel {
     pub async fn path_exists(path: &str, db: &Database) -> Result<bool> {
         Ok(db.read().await.query_row(
             "SELECT COUNT(*) FROM uploaded_images WHERE path = ?1",
-            [ path ],
-            |v| Ok(v.get::<_, usize>(0)? != 0)
+            [path],
+            |v| Ok(v.get::<_, usize>(0)? != 0),
         )?)
     }
 }
 
-
 impl UploadedImageModel {
     pub async fn get_by_path(value: &str, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM uploaded_images WHERE path = ?1"#,
-            [value],
-            |v| Self::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM uploaded_images WHERE path = ?1"#,
+                [value],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn get_by_id(value: ImageId, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM uploaded_images WHERE id = ?1"#,
-            [value],
-            |v| Self::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM uploaded_images WHERE id = ?1"#,
+                [value],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn remove(link_id: BookId, path: ThumbnailStore, db: &Database) -> Result<usize> {
         // TODO: Check for currently set images
         // TODO: Remove image links.
         if let Some(path) = path.into_value() {
-            Ok(db.write().await
-            .execute(r#"DELETE FROM uploaded_images WHERE link_id = ?1 AND path = ?2"#,
-                params![
-                    link_id,
-                    path,
-                ]
+            Ok(db.write().await.execute(
+                r#"DELETE FROM uploaded_images WHERE link_id = ?1 AND path = ?2"#,
+                params![link_id, path,],
             )?)
         } else {
             Ok(0)
         }
     }
 }
-
 
 impl ImageLinkModel {
     pub fn new_book(image_id: ImageId, link_id: BookId) -> Self {
@@ -178,47 +175,50 @@ impl ImageLinkModel {
         }
     }
 
-
     pub async fn insert(&self, db: &Database) -> Result<()> {
         let conn = db.write().await;
 
-        conn.execute(r#"
+        conn.execute(
+            r#"
             INSERT OR IGNORE INTO image_link (image_id, link_id, type_of)
             VALUES (?1, ?2, ?3)
         "#,
-        params![
-            self.image_id.to_string(),
-            self.link_id.to_string(),
-            self.type_of.as_num()
-        ])?;
+            params![
+                self.image_id.to_string(),
+                self.link_id.to_string(),
+                self.type_of.as_num()
+            ],
+        )?;
 
         Ok(())
     }
 
     pub async fn delete(self, db: &Database) -> Result<()> {
-        db.write().await
-        .execute(r#"DELETE FROM image_link WHERE image_id = ?1 AND link_id = ?2 AND type_of = ?3"#,
-            params![
-                self.image_id,
-                self.link_id,
-                self.type_of.as_num(),
-            ]
+        db.write().await.execute(
+            r#"DELETE FROM image_link WHERE image_id = ?1 AND link_id = ?2 AND type_of = ?3"#,
+            params![self.image_id, self.link_id, self.type_of.as_num(),],
         )?;
 
         Ok(())
     }
 
     // TODO: Place into ImageWithLink struct?
-    pub async fn find_with_link_by_link_id(id: usize, type_of: ImageType, db: &Database) -> Result<Vec<ImageWithLink>> {
+    pub async fn find_with_link_by_link_id(
+        id: usize,
+        type_of: ImageType,
+        db: &Database,
+    ) -> Result<Vec<ImageWithLink>> {
         let this = db.read().await;
 
-        let mut conn = this.prepare(r#"
+        let mut conn = this.prepare(
+            r#"
             SELECT image_link.*, uploaded_images.path, uploaded_images.created_at
             FROM image_link
             INNER JOIN uploaded_images
                 ON uploaded_images.id = image_link.image_id
             WHERE link_id = ?1 AND type_of = ?2
-        "#)?;
+        "#,
+        )?;
 
         let map = conn.query_map(params![id, type_of.as_num()], |row| {
             Ok(ImageWithLink {

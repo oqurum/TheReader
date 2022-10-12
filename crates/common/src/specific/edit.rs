@@ -1,10 +1,8 @@
-use num_enum::{IntoPrimitive, FromPrimitive};
-use serde::{Serialize, Deserialize};
+use num_enum::{FromPrimitive, IntoPrimitive};
+use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
-
 pub use book_edit::*;
-
 
 /// Allows for editing while keeping the original value.
 pub struct EditManager<D: Clone> {
@@ -51,7 +49,6 @@ impl<D: Clone> DerefMut for EditManager<D> {
     }
 }
 
-
 impl<D: Clone + PartialEq> EditManager<D> {
     pub fn has_changed(&self) -> bool {
         self.value_changed != self.value_original
@@ -63,9 +60,6 @@ impl<D: Clone + Default> Default for EditManager<D> {
         Self::new(Default::default())
     }
 }
-
-
-
 
 /// Allows for editing
 ///
@@ -143,9 +137,9 @@ impl<D: Clone + Default> Default for EditManagerState<D> {
     }
 }
 
-
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, FromPrimitive, IntoPrimitive)]
+#[derive(
+    Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, FromPrimitive, IntoPrimitive,
+)]
 #[repr(u8)]
 pub enum ModifyValuesBy {
     #[num_enum(default)]
@@ -160,10 +154,9 @@ impl Default for ModifyValuesBy {
     }
 }
 
-
 mod book_edit {
     use common::PersonId;
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
     pub struct BookEdit {
@@ -193,23 +186,27 @@ mod book_edit {
 
     impl BookEdit {
         pub fn has_changes(&self) -> bool {
-            self.title.is_none() &&
-            self.original_title.is_none() &&
-            self.description.is_none() &&
-            self.rating.is_none() &&
-            self.available_at.is_none() &&
-            self.year.is_none() &&
-            self.publisher.is_none() &&
-            self.added_people.is_none() &&
-            self.removed_people.is_none()
+            self.title.is_none()
+                && self.original_title.is_none()
+                && self.description.is_none()
+                && self.rating.is_none()
+                && self.available_at.is_none()
+                && self.year.is_none()
+                && self.publisher.is_none()
+                && self.added_people.is_none()
+                && self.removed_people.is_none()
         }
 
         pub fn insert_added_person(&mut self, value: PersonId) {
-            self.added_people.get_or_insert_with(Default::default).push(value);
+            self.added_people
+                .get_or_insert_with(Default::default)
+                .push(value);
         }
 
         pub fn insert_removed_person(&mut self, value: PersonId) {
-            self.removed_people.get_or_insert_with(Default::default).push(value);
+            self.removed_people
+                .get_or_insert_with(Default::default)
+                .push(value);
         }
 
         pub fn remove_person(&mut self, value: PersonId) {

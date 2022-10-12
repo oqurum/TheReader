@@ -1,12 +1,18 @@
-use std::{path::{PathBuf, Component, Path, MAIN_SEPARATOR}, ffi::OsStr};
+use std::{
+    ffi::OsStr,
+    path::{Component, Path, PathBuf, MAIN_SEPARATOR},
+};
 
 use actix_web::{get, web};
-use common_local::api::{self, GetDirectoryQuery};
 use common::api::{ApiErrorResponse, WrappingResponse};
+use common_local::api::{self, GetDirectoryQuery};
 
-use crate::{http::{MemberCookie, JsonResponse}, database::Database, WebResult, config::get_config, Error};
-
-
+use crate::{
+    config::get_config,
+    database::Database,
+    http::{JsonResponse, MemberCookie},
+    Error, WebResult,
+};
 
 #[get("/directory")]
 pub async fn get_directory(
@@ -47,7 +53,6 @@ pub async fn get_directory(
         }
     }
 
-
     Ok(web::Json(WrappingResponse::okay(
         api::GetDirectoryResponse {
             items: std::fs::read_dir(&path)
@@ -64,10 +69,9 @@ pub async fn get_directory(
                 .collect(),
 
             path,
-        }
+        },
     )))
 }
-
 
 fn get_path_prefix(value: &Path) -> Option<&OsStr> {
     if let Some(Component::Prefix(pc)) = value.components().next() {

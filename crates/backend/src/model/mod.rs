@@ -1,26 +1,28 @@
-use rusqlite::{Row, types::FromSql};
+use rusqlite::{types::FromSql, Row};
 
 pub mod auth;
+pub mod book;
+pub mod book_person;
 pub mod directory;
 pub mod file;
 pub mod image;
 pub mod library;
 pub mod member;
-pub mod book;
-pub mod book_person;
 pub mod note;
 pub mod person;
 pub mod person_alt;
 pub mod progress;
 
-pub trait TableRow<'a> where Self: Sized {
+pub trait TableRow<'a>
+where
+    Self: Sized,
+{
     fn create(row: &mut AdvRow<'a>) -> rusqlite::Result<Self>;
 
     fn from_row(value: &'a Row<'a>) -> rusqlite::Result<Self> {
         Self::create(&mut AdvRow::from(value))
     }
 }
-
 
 pub struct AdvRow<'a> {
     index: usize,
@@ -40,15 +42,14 @@ impl<'a> AdvRow<'a> {
     }
 
     pub fn has_next(&self) -> rusqlite::Result<bool> {
-        self.row.get::<_, Option<String>>(self.index).map(|v| v.is_some())
+        self.row
+            .get::<_, Option<String>>(self.index)
+            .map(|v| v.is_some())
     }
 }
 
 impl<'a> From<&'a Row<'a>> for AdvRow<'a> {
     fn from(row: &'a Row<'a>) -> Self {
-        AdvRow {
-            index: 0,
-            row
-        }
+        AdvRow { index: 0, row }
     }
 }

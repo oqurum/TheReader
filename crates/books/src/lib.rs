@@ -1,4 +1,7 @@
-use std::{path::{Path, PathBuf}, borrow::Cow};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 pub mod epub;
 pub mod mobi;
@@ -9,7 +12,9 @@ pub use error::*;
 // TODO: path: &str -> path: &Path
 
 pub trait Book {
-    fn load_from_path(path: &str) -> Result<Self> where Self: Sized;
+    fn load_from_path(path: &str) -> Result<Self>
+    where
+        Self: Sized;
 
     fn get_page_path(&self) -> PathBuf;
     // TODO: Optional for now. Will be a Result. Unique ID should ALWAYS exist.
@@ -24,16 +29,40 @@ pub trait Book {
     }
 
     /// Get the page with urls relative to the internal zip structure
-    fn read_page_as_bytes(&mut self, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>>;
+    fn read_page_as_bytes(
+        &mut self,
+        prepend_to_urls: Option<&str>,
+        add_css: Option<&[&str]>,
+    ) -> Result<Vec<u8>>;
 
     /// Get the page with urls relative to the internal zip structure
-    fn read_page_as_string(&mut self, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<String> {
-        Ok(String::from_utf8(self.read_page_as_bytes(prepend_to_urls, add_css)?)?)
+    fn read_page_as_string(
+        &mut self,
+        prepend_to_urls: Option<&str>,
+        add_css: Option<&[&str]>,
+    ) -> Result<String> {
+        Ok(String::from_utf8(
+            self.read_page_as_bytes(prepend_to_urls, add_css)?,
+        )?)
     }
 
-    fn read_path_as_bytes(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<Vec<u8>>;
-    fn read_path_as_string(&mut self, path: &str, prepend_to_urls: Option<&str>, add_css: Option<&[&str]>) -> Result<String> {
-        Ok(String::from_utf8(self.read_path_as_bytes(path, prepend_to_urls, add_css)?)?)
+    fn read_path_as_bytes(
+        &mut self,
+        path: &str,
+        prepend_to_urls: Option<&str>,
+        add_css: Option<&[&str]>,
+    ) -> Result<Vec<u8>>;
+    fn read_path_as_string(
+        &mut self,
+        path: &str,
+        prepend_to_urls: Option<&str>,
+        add_css: Option<&[&str]>,
+    ) -> Result<String> {
+        Ok(String::from_utf8(self.read_path_as_bytes(
+            path,
+            prepend_to_urls,
+            add_css,
+        )?)?)
     }
 
     fn chapter_count(&self) -> usize;
@@ -71,7 +100,7 @@ pub enum BookSearch<'a> {
     Subject,
     Type,
 
-    Other(&'a str)
+    Other(&'a str),
 }
 
 impl<'a> From<&'a str> for BookSearch<'a> {
@@ -80,11 +109,10 @@ impl<'a> From<&'a str> for BookSearch<'a> {
     }
 }
 
-
 pub fn load_from_path(path: &str) -> Result<Option<Box<dyn Book>>> {
     Ok(match path.rsplit_once('.').map(|v| v.1) {
         Some("epub") => Some(Box::new(epub::EpubBook::load_from_path(path)?)),
 
-        _ => None
+        _ => None,
     })
 }

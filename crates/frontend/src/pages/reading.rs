@@ -1,26 +1,39 @@
 // TODO: Handle resizing.
 
-use std::{rc::Rc, sync::{Mutex, Arc}};
+use std::{
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
-use common::{api::WrappingResponse, component::{PopupType, Popup}};
-use common_local::{MediaItem, api::{GetChaptersResponse, self}, Progression, FileId};
+use common::{
+    api::WrappingResponse,
+    component::{Popup, PopupType},
+};
+use common_local::{
+    api::{self, GetChaptersResponse},
+    FileId, MediaItem, Progression,
+};
 use gloo_timers::callback::Timeout;
 use gloo_utils::window;
-use wasm_bindgen::{JsCast, prelude::Closure, UnwrapThrowExt};
-use web_sys::{HtmlInputElement, Element};
-use yew::{prelude::*, html::Scope, context::ContextHandle};
+use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
+use web_sys::{Element, HtmlInputElement};
+use yew::{context::ContextHandle, html::Scope, prelude::*};
 
-use crate::{request, components::reader::{LoadedChapters, SectionDisplay, PageLoadType, ReaderSettings, ReaderEvent, DragType}, AppState};
-use crate::components::reader::Reader;
 use crate::components::notes::Notes;
-
+use crate::components::reader::Reader;
+use crate::{
+    components::reader::{
+        DragType, LoadedChapters, PageLoadType, ReaderEvent, ReaderSettings, SectionDisplay,
+    },
+    request, AppState,
+};
 
 const DEFAULT_DIMENSIONS: (i32, i32) = (1040, 548);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LocalPopupType {
     Notes,
-    Settings
+    Settings,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -34,7 +47,6 @@ impl DisplayToolBars {
         matches!(self, Self::Expanded)
     }
 }
-
 
 pub enum Msg {
     // Event
@@ -57,7 +69,7 @@ pub enum Msg {
 
 #[derive(Properties, PartialEq, Eq)]
 pub struct Property {
-    pub id: FileId
+    pub id: FileId,
 }
 
 pub struct ReadingBook {
@@ -70,7 +82,6 @@ pub struct ReadingBook {
     chapters: Rc<Mutex<LoadedChapters>>,
     last_grabbed_count: usize,
     // TODO: Cache pages
-
     auto_resize_cb: Option<Closure<dyn FnMut()>>,
 
     sidebar_visible: Option<LocalPopupType>,
@@ -93,19 +104,21 @@ impl Component for ReadingBook {
             .expect("context to be set");
 
         let (win_width, win_height) = (
-                window().inner_width().unwrap_throw().as_f64().unwrap(),
-                window().inner_height().unwrap_throw().as_f64().unwrap()
+            window().inner_width().unwrap_throw().as_f64().unwrap(),
+            window().inner_height().unwrap_throw().as_f64().unwrap(),
         );
 
-        let (is_fullscreen, dimensions, display_toolbar) = if win_width < 1100.0 || win_height < 720.0 {
-            state.update_nav_visibility.emit(false);
-            (true, (0, 0), DisplayToolBars::Hidden)
-        } else {
-            (false, DEFAULT_DIMENSIONS, DisplayToolBars::Expanded)
-        };
+        let (is_fullscreen, dimensions, display_toolbar) =
+            if win_width < 1100.0 || win_height < 720.0 {
+                state.update_nav_visibility.emit(false);
+                (true, (0, 0), DisplayToolBars::Hidden)
+            } else {
+                (false, DEFAULT_DIMENSIONS, DisplayToolBars::Expanded)
+            };
 
         Self {
-            state, _listener,
+            state,
+            _listener,
 
             reader_settings: ReaderSettings {
                 load_speed: 1000,
@@ -147,7 +160,8 @@ impl Component for ReadingBook {
             Msg::WindowResize => {
                 if self.reader_settings.is_fullscreen && !self.display_toolbar.is_expanded() {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
-                    self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+                    self.reader_settings.dimensions =
+                        (cont.client_width().max(0), cont.client_height().max(0));
                 } else {
                     return false;
                 }
@@ -157,17 +171,38 @@ impl Component for ReadingBook {
                 // Replace old settings with new settings.
                 let old_settings = std::mem::replace(&mut self.reader_settings, new_settings);
 
-                if self.reader_settings.is_fullscreen && old_settings.is_fullscreen != self.reader_settings.is_fullscreen {
+                if self.reader_settings.is_fullscreen
+                    && old_settings.is_fullscreen != self.reader_settings.is_fullscreen
+                {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
 
                     // TODO: client_height is incorrect since the tools is set to absolute after this update.
-                    self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+                    self.reader_settings.dimensions =
+                        (cont.client_width().max(0), cont.client_height().max(0));
 
                     self.state.update_nav_visibility.emit(false);
                 } else if !old_settings.is_fullscreen {
                     self.reader_settings.dimensions = (
-                        Some(self.reader_settings.dimensions.0).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_width().max(0)) / 2,
-                        Some(self.reader_settings.dimensions.1).filter(|v| *v > 0).unwrap_or_else(|| self.ref_book_container.cast::<Element>().unwrap().client_height().max(0)) / 2,
+                        Some(self.reader_settings.dimensions.0)
+                            .filter(|v| *v > 0)
+                            .unwrap_or_else(|| {
+                                self.ref_book_container
+                                    .cast::<Element>()
+                                    .unwrap()
+                                    .client_width()
+                                    .max(0)
+                            })
+                            / 2,
+                        Some(self.reader_settings.dimensions.1)
+                            .filter(|v| *v > 0)
+                            .unwrap_or_else(|| {
+                                self.ref_book_container
+                                    .cast::<Element>()
+                                    .unwrap()
+                                    .client_height()
+                                    .max(0)
+                            })
+                            / 2,
                     );
                 }
             }
@@ -176,41 +211,38 @@ impl Component for ReadingBook {
                 self.sidebar_visible = None;
             }
 
-            Msg::ShowPopup(type_of) => {
-                match self.sidebar_visible {
-                    Some(v) if v == type_of => { self.sidebar_visible = None; },
-                    _ => self.sidebar_visible = Some(type_of),
+            Msg::ShowPopup(type_of) => match self.sidebar_visible {
+                Some(v) if v == type_of => {
+                    self.sidebar_visible = None;
                 }
-            }
+                _ => self.sidebar_visible = Some(type_of),
+            },
 
-            Msg::RetrievePages(resp) => {
-                match resp.ok() {
-                    Ok(mut info) => {
-                        let mut chap_container = self.chapters.lock().unwrap();
+            Msg::RetrievePages(resp) => match resp.ok() {
+                Ok(mut info) => {
+                    let mut chap_container = self.chapters.lock().unwrap();
 
-                        self.last_grabbed_count = info.limit;
-                        chap_container.total = info.total;
+                    self.last_grabbed_count = info.limit;
+                    chap_container.total = info.total;
 
-                        chap_container.chapters.append(&mut info.items);
-                    },
-
-                    Err(err) => crate::display_error(err),
+                    chap_container.chapters.append(&mut info.items);
                 }
-            }
 
-            Msg::RetrieveBook(resp) => {
-                match resp.ok() {
-                    Ok(Some(resp)) => {
-                        self.book = Some(Rc::new(resp.media));
-                        *self.progress.lock().unwrap() = resp.progress;
-                        ctx.link().send_message(Msg::ReaderEvent(ReaderEvent::LoadChapters));
-                    },
+                Err(err) => crate::display_error(err),
+            },
 
-                    Ok(None) => (),
-
-                    Err(err) => crate::display_error(err),
+            Msg::RetrieveBook(resp) => match resp.ok() {
+                Ok(Some(resp)) => {
+                    self.book = Some(Rc::new(resp.media));
+                    *self.progress.lock().unwrap() = resp.progress;
+                    ctx.link()
+                        .send_message(Msg::ReaderEvent(ReaderEvent::LoadChapters));
                 }
-            }
+
+                Ok(None) => (),
+
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::ReaderEvent(event) => {
                 match event {
@@ -220,9 +252,10 @@ impl Component for ReadingBook {
                         let (start, end) = self.get_next_pages_to_load();
 
                         if end != 0 {
-                            ctx.link()
-                            .send_future(async move {
-                                Msg::RetrievePages(request::get_book_pages(book_id, start, end).await)
+                            ctx.link().send_future(async move {
+                                Msg::RetrievePages(
+                                    request::get_book_pages(book_id, start, end).await,
+                                )
                             });
                         }
                     }
@@ -230,7 +263,9 @@ impl Component for ReadingBook {
                     ReaderEvent::ViewOverlay(o_event) => {
                         if self.reader_settings.is_fullscreen && o_event.type_of == DragType::None {
                             if let Some(dur) = o_event.instant {
-                                if dur.num_milliseconds() < 500 && self.display_toolbar.is_expanded() {
+                                if dur.num_milliseconds() < 500
+                                    && self.display_toolbar.is_expanded()
+                                {
                                     self.display_toolbar = DisplayToolBars::Hidden;
                                     self.state.update_nav_visibility.emit(false);
                                 } else {
@@ -312,24 +347,23 @@ impl Component for ReadingBook {
 
             let id = ctx.props().id;
 
-            ctx.link().send_future(async move {
-                Msg::RetrieveBook(request::get_book_info(id).await)
-            });
+            ctx.link()
+                .send_future(async move { Msg::RetrieveBook(request::get_book_info(id).await) });
         }
 
         if self.reader_settings.is_fullscreen {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
-                self.reader_settings.dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+                self.reader_settings.dimensions =
+                    (cont.client_width().max(0), cont.client_height().max(0));
             }
         }
     }
 
     fn destroy(&mut self, _ctx: &Context<Self>) {
         if let Some(cb) = self.auto_resize_cb.take() {
-            window().remove_event_listener_with_callback(
-                "resize",
-                cb.as_ref().unchecked_ref()
-            ).unwrap();
+            window()
+                .remove_event_listener_with_callback("resize", cb.as_ref().unchecked_ref())
+                .unwrap();
         }
     }
 }
@@ -353,10 +387,9 @@ impl ReadingBook {
             *timeout_cloned.lock().unwrap() = Some(to);
         }) as Box<dyn FnMut()>);
 
-        window().add_event_listener_with_callback(
-            "resize",
-            handle_resize.as_ref().unchecked_ref()
-        ).unwrap();
+        window()
+            .add_event_listener_with_callback("resize", handle_resize.as_ref().unchecked_ref())
+            .unwrap();
 
         self.auto_resize_cb = Some(handle_resize);
     }
@@ -366,17 +399,24 @@ impl ReadingBook {
         let progress = self.progress.lock().unwrap();
         let chap_cont = self.chapters.lock().unwrap();
 
-        let total_sections = self.book.as_ref().map(|v| v.chapter_count).unwrap_or_default();
+        let total_sections = self
+            .book
+            .as_ref()
+            .map(|v| v.chapter_count)
+            .unwrap_or_default();
 
         // Starting index
-        let curr_section = if let Some(&Progression::Ebook{ chapter, .. }) = progress.as_ref() {
+        let curr_section = if let Some(&Progression::Ebook { chapter, .. }) = progress.as_ref() {
             chapter as usize
         } else {
             0
         };
 
-
-        let mut chapters = chap_cont.chapters.iter().map(|v| v.value).collect::<Vec<_>>();
+        let mut chapters = chap_cont
+            .chapters
+            .iter()
+            .map(|v| v.value)
+            .collect::<Vec<_>>();
         chapters.sort_unstable();
 
         match self.reader_settings.type_of {
@@ -424,8 +464,10 @@ impl ReadingBook {
                 } else {
                     // TODO: Simplify. Returns the next region of sections we need to load.
 
-                    let found_previous = curr_section != 0 && chapters.iter().any(|v| *v == curr_section - 1);
-                    let found_next = curr_section + 1 != total_sections && chapters.iter().any(|v| *v == curr_section + 1);
+                    let found_previous =
+                        curr_section != 0 && chapters.iter().any(|v| *v == curr_section - 1);
+                    let found_next = curr_section + 1 != total_sections
+                        && chapters.iter().any(|v| *v == curr_section + 1);
 
                     if !found_previous {
                         (curr_section.saturating_sub(1), curr_section)
@@ -440,8 +482,6 @@ impl ReadingBook {
     }
 }
 
-
-
 #[derive(Properties)]
 struct SettingsContainerProps {
     scope: Scope<ReadingBook>,
@@ -453,11 +493,10 @@ struct SettingsContainerProps {
 
 impl PartialEq for SettingsContainerProps {
     fn eq(&self, other: &Self) -> bool {
-        self.reader_dimensions == other.reader_dimensions &&
-        self.reader_settings == other.reader_settings
+        self.reader_dimensions == other.reader_dimensions
+            && self.reader_settings == other.reader_settings
     }
 }
-
 
 #[function_component(SettingsContainer)]
 fn _settings_cont(props: &SettingsContainerProps) -> Html {

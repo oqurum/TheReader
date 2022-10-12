@@ -1,15 +1,23 @@
-use actix_web::{get, web, post, delete};
-use common_local::{api, LibraryColl, util::take_from_and_swap};
+use actix_web::{delete, get, post, web};
 use chrono::Utc;
-use common::api::{WrappingResponse, ApiErrorResponse};
+use common::api::{ApiErrorResponse, WrappingResponse};
+use common_local::{api, util::take_from_and_swap, LibraryColl};
 
-use crate::{database::Database, WebResult, model::{library::{LibraryModel, NewLibraryModel}, directory::DirectoryModel}, http::{MemberCookie, JsonResponse}, config::{get_config, update_config, save_config}};
-
+use crate::{
+    config::{get_config, save_config, update_config},
+    database::Database,
+    http::{JsonResponse, MemberCookie},
+    model::{
+        directory::DirectoryModel,
+        library::{LibraryModel, NewLibraryModel},
+    },
+    WebResult,
+};
 
 #[get("/options")]
 async fn load_options(
     member: MemberCookie,
-    db: web::Data<Database>
+    db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetOptionsResponse>> {
     let member = member.fetch_or_error(&db).await?;
 
@@ -17,32 +25,30 @@ async fn load_options(
     let mut directories = DirectoryModel::get_all(&db).await?;
 
     Ok(web::Json(WrappingResponse::okay(api::GetOptionsResponse {
-        libraries: libraries.into_iter()
-            .map(|lib| {
-                LibraryColl {
-                    id: lib.id,
-                    name: lib.name,
-                    scanned_at: lib.scanned_at.timestamp_millis(),
-                    created_at: lib.created_at.timestamp_millis(),
-                    updated_at: lib.updated_at.timestamp_millis(),
-                    directories: take_from_and_swap(&mut directories, |v| v.library_id == lib.id)
-                        .into_iter()
-                        .map(|v| v.path)
-                        .collect()
-                }
+        libraries: libraries
+            .into_iter()
+            .map(|lib| LibraryColl {
+                id: lib.id,
+                name: lib.name,
+                scanned_at: lib.scanned_at.timestamp_millis(),
+                created_at: lib.created_at.timestamp_millis(),
+                updated_at: lib.updated_at.timestamp_millis(),
+                directories: take_from_and_swap(&mut directories, |v| v.library_id == lib.id)
+                    .into_iter()
+                    .map(|v| v.path)
+                    .collect(),
             })
             .collect(),
 
-        config: member.permissions.is_owner()
-            .then(|| {
-                let mut config = get_config();
+        config: member.permissions.is_owner().then(|| {
+            let mut config = get_config();
 
-                config.email = None;
-                config.libby.token = config.libby.token.map(|_| String::new());
-                config.server.auth_key.clear();
+            config.email = None;
+            config.libby.token = config.libby.token.map(|_| String::new());
+            config.server.auth_key.clear();
 
-                config
-            })
+            config
+        }),
     })))
 }
 
@@ -58,7 +64,10 @@ async fn update_options_add(
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let api::ModifyOptionsBody { library, libby_public_search } = modify.into_inner();
+    let api::ModifyOptionsBody {
+        library,
+        libby_public_search,
+    } = modify.into_inner();
 
     if let Some(mut library) = library {
         if let Some(name) = library.name {
@@ -67,7 +76,9 @@ async fn update_options_add(
                 created_at: Utc::now(),
                 scanned_at: Utc::now(),
                 updated_at: Utc::now(),
-            }.insert(&db).await?;
+            }
+            .insert(&db)
+            .await?;
 
             // TODO: Properly handle.
             if let Some(id) = library.id {

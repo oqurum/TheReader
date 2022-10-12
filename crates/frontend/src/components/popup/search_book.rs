@@ -1,13 +1,19 @@
-use common_local::{api::{BookSearchResponse, PostBookBody, SearchItem}, SearchType};
-use common::{BookId, component::popup::{Popup, PopupClose, PopupType}, util::{LoadingItem, truncate_on_indices}, api::WrappingResponse};
+use common::{
+    api::WrappingResponse,
+    component::popup::{Popup, PopupClose, PopupType},
+    util::{truncate_on_indices, LoadingItem},
+    BookId,
+};
+use common_local::{
+    api::{BookSearchResponse, PostBookBody, SearchItem},
+    SearchType,
+};
 use gloo_utils::document;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 use crate::request;
-
-
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
@@ -20,7 +26,6 @@ pub struct Property {
     pub input_value: String,
 }
 
-
 pub enum Msg {
     BookSearchResponse(String, WrappingResponse<BookSearchResponse>),
 
@@ -28,7 +33,6 @@ pub enum Msg {
 
     Ignore,
 }
-
 
 pub struct PopupSearchBook {
     cached_posters: Option<LoadingItem<BookSearchResponse>>,
@@ -40,7 +44,8 @@ impl Component for PopupSearchBook {
     type Properties = Property;
 
     fn create(ctx: &Context<Self>) -> Self {
-        ctx.link().send_message(Msg::SearchFor(ctx.props().input_value.clone()));
+        ctx.link()
+            .send_message(Msg::SearchFor(ctx.props().input_value.clone()));
 
         Self {
             cached_posters: None,
@@ -57,24 +62,21 @@ impl Component for PopupSearchBook {
             Msg::SearchFor(search) => {
                 self.cached_posters = Some(LoadingItem::Loading);
 
-                ctx.link()
-                .send_future(async move {
+                ctx.link().send_future(async move {
                     let resp = request::search_for(&search, SearchType::Book).await;
 
                     Msg::BookSearchResponse(search, resp)
                 });
             }
 
-            Msg::BookSearchResponse(search, resp) => {
-                match resp.ok() {
-                    Ok(resp) => {
-                        self.cached_posters = Some(LoadingItem::Loaded(resp));
-                        self.input_value = search;
-                    }
-
-                    Err(err) => crate::display_error(err),
+            Msg::BookSearchResponse(search, resp) => match resp.ok() {
+                Ok(resp) => {
+                    self.cached_posters = Some(LoadingItem::Loaded(resp));
+                    self.input_value = search;
                 }
-            }
+
+                Err(err) => crate::display_error(err),
+            },
         }
 
         true

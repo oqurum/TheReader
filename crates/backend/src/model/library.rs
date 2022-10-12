@@ -2,12 +2,10 @@ use chrono::{DateTime, TimeZone, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use common_local::{LibraryId, util::serialize_datetime};
-use crate::{Result, database::Database};
+use crate::{database::Database, Result};
+use common_local::{util::serialize_datetime, LibraryId};
 
-use super::{TableRow, AdvRow, directory::DirectoryModel};
-
-
+use super::{directory::DirectoryModel, AdvRow, TableRow};
 
 pub struct NewLibraryModel {
     pub name: String,
@@ -16,7 +14,6 @@ pub struct NewLibraryModel {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
-
 
 #[derive(Debug, Serialize)]
 pub struct LibraryModel {
@@ -32,8 +29,6 @@ pub struct LibraryModel {
     pub updated_at: DateTime<Utc>,
 }
 
-
-
 impl TableRow<'_> for LibraryModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
@@ -45,8 +40,6 @@ impl TableRow<'_> for LibraryModel {
         })
     }
 }
-
-
 
 impl NewLibraryModel {
     pub async fn insert(self, db: &Database) -> Result<LibraryModel> {
@@ -72,20 +65,21 @@ impl NewLibraryModel {
     }
 }
 
-
 impl LibraryModel {
     pub async fn delete_by_id(id: LibraryId, db: &Database) -> Result<usize> {
         DirectoryModel::delete_by_library_id(id, db).await?;
 
-        Ok(db.write().await.execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
+        Ok(db
+            .write()
+            .await
+            .execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
     }
 
     pub async fn count(db: &Database) -> Result<usize> {
-        Ok(db.read().await.query_row(
-            "SELECT COUNT(*) FROM library",
-            [],
-            |v| v.get(0)
-        )?)
+        Ok(db
+            .read()
+            .await
+            .query_row("SELECT COUNT(*) FROM library", [], |v| v.get(0))?)
     }
 
     pub async fn get_all(db: &Database) -> Result<Vec<LibraryModel>> {
@@ -99,18 +93,24 @@ impl LibraryModel {
     }
 
     pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<LibraryModel>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM library WHERE name = ?1"#,
-            params![value],
-            |v| LibraryModel::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM library WHERE name = ?1"#,
+                params![value],
+                |v| LibraryModel::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn find_one_by_id(value: LibraryId, db: &Database) -> Result<Option<LibraryModel>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM library WHERE id = ?1"#,
-            [ value ],
-            |v| LibraryModel::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT * FROM library WHERE id = ?1"#, [value], |v| {
+                LibraryModel::from_row(v)
+            })
+            .optional()?)
     }
 }

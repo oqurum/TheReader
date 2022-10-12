@@ -1,24 +1,27 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
-use rusqlite::{ToSql, types::{FromSql, ValueRef, FromSqlResult, ToSqlOutput}, Result};
-
+use rusqlite::{
+    types::{FromSql, FromSqlResult, ToSqlOutput, ValueRef},
+    Result, ToSql,
+};
 
 mod edit;
+pub mod filter;
 mod id;
 mod perms;
 pub mod setup;
-pub mod filter;
 
 pub use edit::*;
 pub use id::*;
 pub use perms::*;
 
-
 // TODO: Place this into own file.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive, Serialize, Deserialize,
+)]
 #[repr(u8)]
 pub enum MemberAuthType {
     External = 0,

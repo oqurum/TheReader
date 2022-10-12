@@ -2,11 +2,11 @@ use std::rc::Rc;
 
 use chrono::{Duration, Utc};
 use web_sys::MouseEvent;
-use yew::{function_component, Properties, html, use_node_ref, use_effect_with_deps, Callback, use_state_eq, NodeRef, UseStateHandle};
-use yew_hooks::{use_swipe, UseSwipeDirection, use_event};
-
-
-
+use yew::{
+    function_component, html, use_effect_with_deps, use_node_ref, use_state_eq, Callback, NodeRef,
+    Properties, UseStateHandle,
+};
+use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
 
 #[derive(Debug)]
 pub struct OverlayEvent {
@@ -24,17 +24,14 @@ pub enum DragType {
     None,
 }
 
-
-
 #[derive(PartialEq, Properties)]
 pub struct ViewOverlayProps {
     pub event: Callback<OverlayEvent>,
 }
 
-
 #[function_component(ViewOverlay)]
 pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
-    let node =  use_node_ref();
+    let node = use_node_ref();
     let state = use_swipe(node.clone());
     let state2 = use_mouse(node.clone());
 
@@ -42,108 +39,117 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
     let curr_event_state = use_state_eq(|| false);
 
-    { // Swipe
+    {
+        // Swipe
         let event = props.event.clone();
         let curr_event_state = curr_event_state.clone();
         let time_down = time_down.clone();
 
-        use_effect_with_deps(move |(swiping, direction, length_x, length_y)| {
-            let distance = match **direction {
-                UseSwipeDirection::Left => length_x.abs(),
-                UseSwipeDirection::Right => length_x.abs(),
-                UseSwipeDirection::Up => length_y.abs(),
-                UseSwipeDirection::Down => length_y.abs(),
-                UseSwipeDirection::None => 0,
-            } as usize;
+        use_effect_with_deps(
+            move |(swiping, direction, length_x, length_y)| {
+                let distance = match **direction {
+                    UseSwipeDirection::Left => length_x.abs(),
+                    UseSwipeDirection::Right => length_x.abs(),
+                    UseSwipeDirection::Up => length_y.abs(),
+                    UseSwipeDirection::Down => length_y.abs(),
+                    UseSwipeDirection::None => 0,
+                } as usize;
 
-            let direction = match **direction {
-                UseSwipeDirection::Left => DragType::Left(distance),
-                UseSwipeDirection::Right => DragType::Right(distance),
-                UseSwipeDirection::Up => DragType::Up(distance),
-                UseSwipeDirection::Down => DragType::Down(distance),
-                UseSwipeDirection::None => DragType::None,
-            };
+                let direction = match **direction {
+                    UseSwipeDirection::Left => DragType::Left(distance),
+                    UseSwipeDirection::Right => DragType::Right(distance),
+                    UseSwipeDirection::Up => DragType::Up(distance),
+                    UseSwipeDirection::Down => DragType::Down(distance),
+                    UseSwipeDirection::None => DragType::None,
+                };
 
-            if **swiping {
-                if !*curr_event_state {
-                    time_down.set(Utc::now());
+                if **swiping {
+                    if !*curr_event_state {
+                        time_down.set(Utc::now());
+                    }
+
+                    curr_event_state.set(true);
+
+                    event.emit(OverlayEvent {
+                        type_of: direction,
+                        dragging: true,
+                        instant: None,
+                    });
+                } else if *curr_event_state {
+                    curr_event_state.set(false);
+
+                    event.emit(OverlayEvent {
+                        type_of: direction,
+                        dragging: false,
+                        instant: Some(Utc::now().signed_duration_since(*time_down)),
+                    });
                 }
-
-                curr_event_state.set(true);
-
-                event.emit(OverlayEvent {
-                    type_of: direction,
-                    dragging: true,
-                    instant: None,
-                });
-            } else if *curr_event_state {
-                curr_event_state.set(false);
-
-                event.emit(OverlayEvent {
-                    type_of: direction,
-                    dragging: false,
-                    instant: Some(Utc::now().signed_duration_since(*time_down)),
-                });
-            }
-            || ()
-        }, (state.swiping, state.direction, state.length_x, state.length_y));
+                || ()
+            },
+            (
+                state.swiping,
+                state.direction,
+                state.length_x,
+                state.length_y,
+            ),
+        );
     }
 
-    { // Mouse
+    {
+        // Mouse
         let event = props.event.clone();
 
-        use_effect_with_deps(move |handle| {
-            let distance = match *handle.direction {
-                UseSwipeDirection::Left => handle.length_x.abs(),
-                UseSwipeDirection::Right => handle.length_x.abs(),
-                UseSwipeDirection::Up => handle.length_y.abs(),
-                UseSwipeDirection::Down => handle.length_y.abs(),
-                UseSwipeDirection::None => 0,
-            } as usize;
+        use_effect_with_deps(
+            move |handle| {
+                let distance = match *handle.direction {
+                    UseSwipeDirection::Left => handle.length_x.abs(),
+                    UseSwipeDirection::Right => handle.length_x.abs(),
+                    UseSwipeDirection::Up => handle.length_y.abs(),
+                    UseSwipeDirection::Down => handle.length_y.abs(),
+                    UseSwipeDirection::None => 0,
+                } as usize;
 
-            let direction = match *handle.direction {
-                UseSwipeDirection::Left => DragType::Left(distance),
-                UseSwipeDirection::Right => DragType::Right(distance),
-                UseSwipeDirection::Up => DragType::Up(distance),
-                UseSwipeDirection::Down => DragType::Down(distance),
-                UseSwipeDirection::None => DragType::None,
-            };
+                let direction = match *handle.direction {
+                    UseSwipeDirection::Left => DragType::Left(distance),
+                    UseSwipeDirection::Right => DragType::Right(distance),
+                    UseSwipeDirection::Up => DragType::Up(distance),
+                    UseSwipeDirection::Down => DragType::Down(distance),
+                    UseSwipeDirection::None => DragType::None,
+                };
 
-            // If we're dragging the mouse down and it's registered as moving.
-            if *handle.dragging {
-                if !*curr_event_state {
-                    time_down.set(Utc::now());
+                // If we're dragging the mouse down and it's registered as moving.
+                if *handle.dragging {
+                    if !*curr_event_state {
+                        time_down.set(Utc::now());
+                    }
+
+                    curr_event_state.set(true);
+
+                    event.emit(OverlayEvent {
+                        type_of: direction,
+                        dragging: true,
+                        instant: None,
+                    });
+                } else if !*handle.dragging && *curr_event_state {
+                    curr_event_state.set(false);
+
+                    event.emit(OverlayEvent {
+                        type_of: direction,
+                        dragging: false,
+                        instant: Some(Utc::now().signed_duration_since(*time_down)),
+                    });
                 }
 
-                curr_event_state.set(true);
-
-                event.emit(OverlayEvent {
-                    type_of: direction,
-                    dragging: true,
-                    instant: None,
-                });
-            } else if !*handle.dragging && *curr_event_state {
-                curr_event_state.set(false);
-
-                event.emit(OverlayEvent {
-                    type_of: direction,
-                    dragging: false,
-                    instant: Some(Utc::now().signed_duration_since(*time_down)),
-                });
-            }
-
-            || ()
-        }, state2);
+                || ()
+            },
+            state2,
+        );
     }
 
     html! {
         <div class="view-overlay" ref={ node } style="user-select: none;"></div>
     }
 }
-
-
-
-
 
 // Based off Swipe
 
@@ -286,7 +292,6 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
             dragging.set(false);
             direction.set(UseSwipeDirection::None);
         });
-
     }
 
     UseMouseHandle {

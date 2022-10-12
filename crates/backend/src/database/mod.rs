@@ -2,11 +2,10 @@ use std::{ops::Deref, sync::Arc};
 
 use crate::Result;
 use rusqlite::Connection;
-use tokio::sync::{RwLock, Semaphore, SemaphorePermit, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Semaphore, SemaphorePermit};
 // TODO: use tokio::task::spawn_blocking;
 
 const DATABASE_PATH: &str = "./app/database.db";
-
 
 pub async fn init() -> Result<Database> {
     let database = Database::open(5, || Ok(Connection::open(DATABASE_PATH)?))?;
@@ -28,7 +27,7 @@ pub async fn init() -> Result<Database> {
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        []
+        [],
     )?;
 
     // Directory
@@ -39,7 +38,7 @@ pub async fn init() -> Result<Database> {
 
             FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
         );"#,
-        []
+        [],
     )?;
 
     // File
@@ -67,7 +66,7 @@ pub async fn init() -> Result<Database> {
 
             FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE
         );"#,
-        []
+        [],
     )?;
 
     // Book Item
@@ -101,7 +100,7 @@ pub async fn init() -> Result<Database> {
 
             FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
         );"#,
-        []
+        [],
     )?;
 
     // Book People
@@ -115,9 +114,8 @@ pub async fn init() -> Result<Database> {
 
             UNIQUE(book_id, person_id)
         );"#,
-        []
+        [],
     )?;
-
 
     // TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
     // File Note
@@ -137,7 +135,7 @@ pub async fn init() -> Result<Database> {
 
             UNIQUE(file_id, user_id)
         );"#,
-        []
+        [],
     )?;
 
     // File Progression
@@ -163,7 +161,7 @@ pub async fn init() -> Result<Database> {
 
             UNIQUE(file_id, user_id)
         );"#,
-        []
+        [],
     )?;
 
     // File Notation
@@ -183,7 +181,7 @@ pub async fn init() -> Result<Database> {
 
             UNIQUE(file_id, user_id)
         );"#,
-        []
+        [],
     )?;
 
     // Tags People
@@ -204,7 +202,7 @@ pub async fn init() -> Result<Database> {
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        []
+        [],
     )?;
 
     // People Alt names
@@ -218,7 +216,7 @@ pub async fn init() -> Result<Database> {
 
             UNIQUE(person_id, name)
         );"#,
-        []
+        [],
     )?;
 
     // Members
@@ -240,7 +238,7 @@ pub async fn init() -> Result<Database> {
             UNIQUE(email),
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        []
+        [],
     )?;
 
     // Auths
@@ -253,9 +251,8 @@ pub async fn init() -> Result<Database> {
 
             UNIQUE(oauth_token)
         );"#,
-        []
+        [],
     )?;
-
 
     // Uploaded Images
     conn.execute(
@@ -269,7 +266,7 @@ pub async fn init() -> Result<Database> {
             UNIQUE(path),
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        []
+        [],
     )?;
 
     // Image Link
@@ -284,15 +281,13 @@ pub async fn init() -> Result<Database> {
 
             UNIQUE(image_id, link_id, type_of)
         );"#,
-        []
+        [],
     )?;
-
 
     drop(conn);
 
     Ok(database)
 }
-
 
 pub struct Database {
     // Using RwLock to engage the r/w locks.
@@ -360,7 +355,7 @@ impl Database {
         DatabaseReadGuard {
             _permit,
             _guard,
-            conn
+            conn,
         }
     }
 
@@ -369,11 +364,10 @@ impl Database {
 
         DatabaseWriteGuard {
             _guard,
-            conn: &*self.read_conns[0]
+            conn: &*self.read_conns[0],
         }
     }
 }
-
 
 pub struct DatabaseReadGuard<'a> {
     _permit: SemaphorePermit<'a>,
@@ -389,7 +383,6 @@ impl<'a> Deref for DatabaseReadGuard<'a> {
     }
 }
 
-
 pub struct DatabaseWriteGuard<'a> {
     _guard: RwLockWriteGuard<'a, ()>,
     conn: &'a Connection,
@@ -403,21 +396,18 @@ impl<'a> Deref for DatabaseWriteGuard<'a> {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use std::{thread, time::Duration};
-    use tokio::{runtime::Runtime, time::sleep, sync::Mutex};
-
+    use tokio::{runtime::Runtime, sync::Mutex, time::sleep};
 
     fn create_db() -> Result<Arc<Database>> {
-        Ok(Arc::new(Database::open(4, || Ok(Connection::open_in_memory()?))?))
+        Ok(Arc::new(Database::open(4, || {
+            Ok(Connection::open_in_memory()?)
+        })?))
     }
-
 
     #[test]
     fn write_read() -> Result<()> {
@@ -430,8 +420,7 @@ mod tests {
             let val2 = value.clone();
 
             thread::spawn(move || {
-                Runtime::new().unwrap()
-                .block_on(async {
+                Runtime::new().unwrap().block_on(async {
                     sleep(Duration::from_millis(100)).await;
 
                     let _read = db2.read().await;
@@ -441,10 +430,7 @@ mod tests {
             })
         };
 
-
-
-        Runtime::new().unwrap()
-        .block_on(async {
+        Runtime::new().unwrap().block_on(async {
             let _write = database.write().await;
 
             *value.lock().await = true;
@@ -468,8 +454,7 @@ mod tests {
                 let val2 = value.clone();
 
                 thread::spawn(move || {
-                    Runtime::new().unwrap()
-                    .block_on(async {
+                    Runtime::new().unwrap().block_on(async {
                         let _read = db2.read().await;
 
                         sleep(Duration::from_millis(100)).await;
@@ -481,8 +466,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Write
-        Runtime::new().unwrap()
-        .block_on(async {
+        Runtime::new().unwrap().block_on(async {
             sleep(Duration::from_millis(150)).await;
 
             let _write = database.write().await;
@@ -495,8 +479,7 @@ mod tests {
         }
 
         // Read again
-        Runtime::new().unwrap()
-        .block_on(async {
+        Runtime::new().unwrap().block_on(async {
             let _read = database.read().await;
 
             assert!(*value.lock().await);

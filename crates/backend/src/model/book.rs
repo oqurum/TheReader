@@ -1,15 +1,16 @@
-use chrono::{Utc, DateTime, TimeZone};
-use common::{BookId, Source, ThumbnailStore, PersonId};
+use chrono::{DateTime, TimeZone, Utc};
+use common::{BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
-use common_local::{LibraryId, BookItemCached, DisplayBookItem, util::{serialize_datetime, serialize_datetime_opt}, filter::{FilterContainer, FilterTableType, FilterModifier}, BookEdit};
+use crate::{database::Database, Result};
+use common_local::{
+    filter::{FilterContainer, FilterModifier, FilterTableType},
+    util::{serialize_datetime, serialize_datetime_opt},
+    BookEdit, BookItemCached, DisplayBookItem, LibraryId,
+};
 use serde::Serialize;
-use crate::{Result, database::Database};
 
-use super::{TableRow, AdvRow, book_person::BookPersonModel};
-
-
-
+use super::{book_person::BookPersonModel, AdvRow, TableRow};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BookModel {
@@ -42,9 +43,8 @@ pub struct BookModel {
     pub available_at: Option<i64>,
     pub year: Option<i64>,
 
-    pub hash: String
+    pub hash: String,
 }
-
 
 impl From<BookModel> for DisplayBookItem {
     fn from(val: BookModel) -> Self {
@@ -70,7 +70,6 @@ impl From<BookModel> for DisplayBookItem {
     }
 }
 
-
 impl TableRow<'_> for BookModel {
     fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
@@ -84,7 +83,8 @@ impl TableRow<'_> for BookModel {
             rating: row.next()?,
             thumb_path: ThumbnailStore::from(row.next_opt::<String>()?),
             all_thumb_urls: Vec::new(),
-            cached: row.next_opt::<String>()?
+            cached: row
+                .next_opt::<String>()?
                 .map(|v| BookItemCached::from_string(&v))
                 .unwrap_or_default(),
             available_at: row.next()?,
@@ -93,11 +93,10 @@ impl TableRow<'_> for BookModel {
             created_at: Utc.timestamp_millis(row.next()?),
             updated_at: Utc.timestamp_millis(row.next()?),
             deleted_at: row.next_opt()?.map(|v| Utc.timestamp_millis(v)),
-            hash: row.next()?
+            hash: row.next()?,
         })
     }
 }
-
 
 impl BookModel {
     pub async fn insert_or_increment(&self, db: &Database) -> Result<Self> {
@@ -108,8 +107,8 @@ impl BookModel {
         };
 
         if table_book.is_none() {
-            db.write().await
-            .execute(r#"
+            db.write().await.execute(
+                r#"
                 INSERT INTO book (
                     library_id, source, file_item_count,
                     title, original_title, description, rating, thumb_url,
@@ -120,26 +119,35 @@ impl BookModel {
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
                 params![
-                    self.library_id, self.source.to_string(), &self.file_item_count,
-                    &self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
+                    self.library_id,
+                    self.source.to_string(),
+                    &self.file_item_count,
+                    &self.title,
+                    &self.original_title,
+                    &self.description,
+                    &self.rating,
+                    self.thumb_path.as_value(),
                     &self.cached.as_string_optional(),
-                    &self.available_at, &self.year,
-                    &self.refreshed_at.timestamp_millis(), &self.created_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
+                    &self.available_at,
+                    &self.year,
+                    &self.refreshed_at.timestamp_millis(),
+                    &self.created_at.timestamp_millis(),
+                    &self.updated_at.timestamp_millis(),
                     self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
                     &self.hash
-                ]
+                ],
             )?;
 
             return Ok(Self::find_one_by_source(&self.source, db).await?.unwrap());
         } else if self.id != 0 {
-            db.write().await
-            .execute(r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
-                params![self.id]
+            db.write().await.execute(
+                r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
+                params![self.id],
             )?;
         } else {
-            db.write().await
-            .execute(r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
-                params![self.source.to_string()]
+            db.write().await.execute(
+                r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
+                params![self.source.to_string()],
             )?;
         }
 
@@ -149,8 +157,8 @@ impl BookModel {
     pub async fn update(&mut self, db: &Database) -> Result<()> {
         self.updated_at = Utc::now();
 
-        db.write().await
-        .execute(r#"
+        db.write().await.execute(
+            r#"
             UPDATE book SET
                 library_id = ?2, source = ?3, file_item_count = ?4,
                 title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
@@ -161,14 +169,22 @@ impl BookModel {
             WHERE id = ?1"#,
             params![
                 self.id,
-                self.library_id, self.source.to_string(), &self.file_item_count,
-                &self.title, &self.original_title, &self.description, &self.rating, self.thumb_path.as_value(),
+                self.library_id,
+                self.source.to_string(),
+                &self.file_item_count,
+                &self.title,
+                &self.original_title,
+                &self.description,
+                &self.rating,
+                self.thumb_path.as_value(),
                 &self.cached.as_string_optional(),
-                &self.available_at, &self.year,
-                &self.refreshed_at.timestamp_millis(), &self.updated_at.timestamp_millis(),
+                &self.available_at,
+                &self.year,
+                &self.refreshed_at.timestamp_millis(),
+                &self.updated_at.timestamp_millis(),
                 self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
                 &self.hash
-            ]
+            ],
         )?;
 
         Ok(())
@@ -177,17 +193,14 @@ impl BookModel {
     pub async fn delete_or_decrement(id: BookId, db: &Database) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count < 1 {
-                db.write().await
-                .execute(
+                db.write().await.execute(
                     r#"UPDATE book SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-                    params![id]
+                    params![id],
                 )?;
             } else {
-                db.write().await
-                .execute(
-                    r#"DELETE FROM book WHERE id = ?1"#,
-                    params![id]
-                )?;
+                db.write()
+                    .await
+                    .execute(r#"DELETE FROM book WHERE id = ?1"#, params![id])?;
             }
         }
 
@@ -197,10 +210,9 @@ impl BookModel {
     pub async fn decrement(id: BookId, db: &Database) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count > 0 {
-                db.write().await
-                .execute(
+                db.write().await.execute(
                     r#"UPDATE book SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-                    params![id]
+                    params![id],
                 )?;
             }
         }
@@ -209,10 +221,9 @@ impl BookModel {
     }
 
     pub async fn set_file_count(id: BookId, file_count: usize, db: &Database) -> Result<()> {
-        db.write().await
-        .execute(
+        db.write().await.execute(
             r#"UPDATE book SET file_item_count = ?2 WHERE id = ?1"#,
-            params![id, file_count]
+            params![id, file_count],
         )?;
 
         Ok(())
@@ -220,40 +231,58 @@ impl BookModel {
 
     // TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
     pub async fn find_one_by_source(source: &Source, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM book WHERE source = ?1"#,
-            params![source.to_string()],
-            |v| BookModel::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                r#"SELECT * FROM book WHERE source = ?1"#,
+                params![source.to_string()],
+                |v| BookModel::from_row(v),
+            )
+            .optional()?)
     }
 
     pub async fn find_one_by_id(id: BookId, db: &Database) -> Result<Option<Self>> {
-        Ok(db.read().await.query_row(
-            r#"SELECT * FROM book WHERE id = ?1"#,
-            params![id],
-            |v| BookModel::from_row(v)
-        ).optional()?)
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT * FROM book WHERE id = ?1"#, params![id], |v| {
+                BookModel::from_row(v)
+            })
+            .optional()?)
     }
 
     pub async fn delete_by_id(id: BookId, db: &Database) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"DELETE FROM book WHERE id = ?1"#,
-            params![id]
-        )?)
+        Ok(db
+            .write()
+            .await
+            .execute(r#"DELETE FROM book WHERE id = ?1"#, params![id])?)
     }
 
-    pub async fn find_by(library: Option<LibraryId>, offset: usize, limit: usize, person_id: Option<PersonId>, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by(
+        library: Option<LibraryId>,
+        offset: usize,
+        limit: usize,
+        person_id: Option<PersonId>,
+        db: &Database,
+    ) -> Result<Vec<Self>> {
         let this = db.read().await;
 
-        let insert_where = (library.is_some() || person_id.is_some()).then_some("WHERE").unwrap_or_default();
-        let insert_and = (library.is_some() && person_id.is_some()).then_some("AND").unwrap_or_default();
+        let insert_where = (library.is_some() || person_id.is_some())
+            .then_some("WHERE")
+            .unwrap_or_default();
+        let insert_and = (library.is_some() && person_id.is_some())
+            .then_some("AND")
+            .unwrap_or_default();
 
         let lib_id = library
             .map(|v| format!("library_id={v}"))
             .unwrap_or_default();
 
         let inner_query = person_id
-            .map(|pid| format!(r#"id IN (SELECT book_id FROM book_person WHERE person_id = {pid})"#))
+            .map(|pid| {
+                format!(r#"id IN (SELECT book_id FROM book_person WHERE person_id = {pid})"#)
+            })
             .unwrap_or_default();
 
         let mut conn = this.prepare(&format!(r#"SELECT * FROM book {insert_where} {lib_id} {insert_and} {inner_query} LIMIT ?1 OFFSET ?2"#))?;
@@ -266,10 +295,7 @@ impl BookModel {
     pub async fn edit_book_by_id(book_id: BookId, edit: BookEdit, db: &Database) -> Result<usize> {
         let mut items = Vec::new();
 
-        let mut values = vec![
-            &book_id as &dyn rusqlite::ToSql
-        ];
-
+        let mut values = vec![&book_id as &dyn rusqlite::ToSql];
 
         if let Some(value) = edit.title.as_ref() {
             items.push("title");
@@ -307,7 +333,9 @@ impl BookModel {
 
         if let Some(ids) = edit.added_people {
             for person_id in ids {
-                BookPersonModel { book_id, person_id }.insert_or_ignore(db).await?;
+                BookPersonModel { book_id, person_id }
+                    .insert_or_ignore(db)
+                    .await?;
             }
         }
 
@@ -317,26 +345,23 @@ impl BookModel {
             }
         }
 
-
         if items.is_empty() {
             return Ok(0);
         }
 
-
-        Ok(db.write().await
-        .execute(
+        Ok(db.write().await.execute(
             &format!(
                 "UPDATE book SET {} WHERE id = ?1",
-                items.iter()
+                items
+                    .iter()
                     .enumerate()
                     .map(|(i, v)| format!("{v} = ?{}", 2 + i))
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            rusqlite::params_from_iter(values.iter())
+            rusqlite::params_from_iter(values.iter()),
         )?)
     }
-
 
     // Search
     fn gen_search_query(filter: &FilterContainer, library: Option<LibraryId>) -> String {
@@ -350,36 +375,48 @@ impl BookModel {
             f_comp.push(format!("library_id={} ", library));
         }
 
-
         for fil in &filter.filters {
             match fil.type_of {
                 FilterTableType::Id => todo!(),
 
                 FilterTableType::CreatedAt => todo!(),
 
-                FilterTableType::Source => for query in fil.value.values() {
-                    f_comp.push(format!("source {} '{}%' ", get_modifier(fil.type_of, fil.modifier), query));
+                FilterTableType::Source => {
+                    for query in fil.value.values() {
+                        f_comp.push(format!(
+                            "source {} '{}%' ",
+                            get_modifier(fil.type_of, fil.modifier),
+                            query
+                        ));
+                    }
                 }
 
-                FilterTableType::Query => for query in fil.value.values() {
-                    let mut escape_char = '\\';
-                    // Change our escape character if it's in the query.
-                    if query.contains(escape_char) {
-                        for car in [ '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`', '/', '?', '>', '<', ',' ] {
-                            if !query.contains(car) {
-                                escape_char = car;
-                                break;
+                FilterTableType::Query => {
+                    for query in fil.value.values() {
+                        let mut escape_char = '\\';
+                        // Change our escape character if it's in the query.
+                        if query.contains(escape_char) {
+                            for car in [
+                                '!', '@', '#', '$', '^', '&', '*', '-', '=', '+', '|', '~', '`',
+                                '/', '?', '>', '<', ',',
+                            ] {
+                                if !query.contains(car) {
+                                    escape_char = car;
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    // TODO: Utilize title > original_title > description, and sort
-                    f_comp.push(format!(
-                        "title {} '%{}%' ESCAPE '{}' ",
-                        get_modifier(fil.type_of, fil.modifier),
-                        query.replace('%', &format!("{}%", escape_char)).replace('_', &format!("{}_", escape_char)),
-                        escape_char
-                    ));
+                        // TODO: Utilize title > original_title > description, and sort
+                        f_comp.push(format!(
+                            "title {} '%{}%' ESCAPE '{}' ",
+                            get_modifier(fil.type_of, fil.modifier),
+                            query
+                                .replace('%', &format!("{}%", escape_char))
+                                .replace('_', &format!("{}_", escape_char)),
+                            escape_char
+                        ));
+                    }
                 }
 
                 FilterTableType::Person => {
@@ -421,7 +458,10 @@ impl BookModel {
                 FilterTableType::Person => todo!(),
             };
 
-            sql += &format!(" ORDER BY {field_name} {} ", if is_desc { "DESC" } else { "ASC" });
+            sql += &format!(
+                " ORDER BY {field_name} {} ",
+                if is_desc { "DESC" } else { "ASC" }
+            );
         }
 
         if sql.len() == orig_len {
@@ -431,7 +471,13 @@ impl BookModel {
         }
     }
 
-    pub async fn search_by(filter: &FilterContainer, library: Option<LibraryId>, offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+    pub async fn search_by(
+        filter: &FilterContainer,
+        library: Option<LibraryId>,
+        offset: usize,
+        limit: usize,
+        db: &Database,
+    ) -> Result<Vec<Self>> {
         let mut sql = Self::gen_search_query(filter, library);
 
         sql += "LIMIT ?1 OFFSET ?2";
@@ -445,20 +491,21 @@ impl BookModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn count_search_by(filter: &FilterContainer, library: Option<LibraryId>, db: &Database) -> Result<usize> {
+    pub async fn count_search_by(
+        filter: &FilterContainer,
+        library: Option<LibraryId>,
+        db: &Database,
+    ) -> Result<usize> {
         let sql = Self::gen_search_query(filter, library).replace("SELECT *", "SELECT COUNT(*)");
 
         Ok(db.read().await.query_row(&sql, [], |v| v.get(0))?)
     }
 }
 
-
-
-
 fn get_modifier(type_of: FilterTableType, modi: FilterModifier) -> &'static str {
     match (type_of, modi) {
-        (FilterTableType::Source, FilterModifier::Equal) |
-        (FilterTableType::Query, FilterModifier::Equal) => "LIKE",
+        (FilterTableType::Source, FilterModifier::Equal)
+        | (FilterTableType::Query, FilterModifier::Equal) => "LIKE",
 
         (_, FilterModifier::IsNull) => "IS NULL",
         (_, FilterModifier::IsNotNull) => "IS NOT NULL",

@@ -1,10 +1,13 @@
+use common::{
+    api::WrappingResponse,
+    component::popup::{Popup, PopupType},
+};
 use common_local::{api, BasicLibrary, LibraryId};
-use common::{component::popup::{Popup, PopupType}, api::WrappingResponse};
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 use yew_hooks::use_list;
 
-use crate::{request, get_member_self};
+use crate::{get_member_self, request};
 
 pub enum Msg {
     // Request Results
@@ -35,15 +38,13 @@ impl Component for OptionsPage {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::OptionsResults(resp) => {
-                match resp.ok() {
-                    Ok(resp) => {
-                        self.resp = Some(resp);
-                        self.visible_popup = None;
-                    },
-                    Err(err) => crate::display_error(err),
+            Msg::OptionsResults(resp) => match resp.ok() {
+                Ok(resp) => {
+                    self.resp = Some(resp);
+                    self.visible_popup = None;
                 }
-            }
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::DisplayPopup(popup, index) => {
                 self.visible_popup = Some((popup, index));
@@ -205,9 +206,7 @@ impl Component for OptionsPage {
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
             ctx.link()
-            .send_future(async {
-                Msg::OptionsResults(request::get_options().await)
-            });
+                .send_future(async { Msg::OptionsResults(request::get_options().await) });
         }
     }
 }
@@ -228,16 +227,13 @@ impl OptionsPage {
                     <NewLibraryDirectory callback={ ctx.link().callback(|v| v) } library_id={ item_index } />
                 },
 
-                _ => html! {}
+                _ => html! {},
             }
-
         } else {
             html! {}
         }
     }
 }
-
-
 
 #[derive(Properties, PartialEq)]
 pub struct NewLibraryProps {
@@ -262,20 +258,22 @@ fn new_library(props: &NewLibraryProps) -> Html {
                         name: Some(name.to_string()),
                         directories: Some(dirs.current().to_vec()),
                     }),
-                    .. Default::default()
-                }
+                    ..Default::default()
+                },
             )
         })
     };
 
     let on_new_dir_path = {
         let dirs = directories.clone();
-        Callback::from(move |e: KeyboardEvent| if e.key() == "Enter" {
-            let input = e.target_unchecked_into::<HtmlInputElement>();
+        Callback::from(move |e: KeyboardEvent| {
+            if e.key() == "Enter" {
+                let input = e.target_unchecked_into::<HtmlInputElement>();
 
-            dirs.push(input.value());
+                dirs.push(input.value());
 
-            input.set_value("");
+                input.set_value("");
+            }
         })
     };
 
@@ -286,7 +284,6 @@ fn new_library(props: &NewLibraryProps) -> Html {
             name.set(e.target_unchecked_into::<HtmlInputElement>().value());
         })
     };
-
 
     html! {
         <Popup
@@ -333,8 +330,6 @@ fn new_library(props: &NewLibraryProps) -> Html {
     }
 }
 
-
-
 #[derive(Properties, PartialEq)]
 pub struct NewLibraryDirectoryProps {
     pub callback: Callback<Msg>,
@@ -359,8 +354,8 @@ fn new_library_dir(props: &NewLibraryDirectoryProps) -> Html {
                         name: None,
                         directories: Some(vec![directory.to_string()]),
                     }),
-                    .. Default::default()
-                }
+                    ..Default::default()
+                },
             )
         })
     };
@@ -372,7 +367,6 @@ fn new_library_dir(props: &NewLibraryDirectoryProps) -> Html {
             directory.set(e.target_unchecked_into::<HtmlInputElement>().value());
         })
     };
-
 
     html! {
         <Popup

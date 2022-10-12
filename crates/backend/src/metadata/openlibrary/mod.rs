@@ -1,18 +1,20 @@
 // https://openlibrary.org/developers/api
 
-use crate::{Result, model::file::FileModel};
+use crate::{model::file::FileModel, Result};
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use self::book::BookSearchType;
 
-use super::{Metadata, SearchItem, MetadataReturned, SearchFor, AuthorInfo, FoundItem, FoundImageLocation};
+use super::{
+    AuthorInfo, FoundImageLocation, FoundItem, Metadata, MetadataReturned, SearchFor, SearchItem,
+};
 
-pub mod book;
 pub mod author;
+pub mod book;
 
 use book::BookId;
 
@@ -24,17 +26,20 @@ impl Metadata for OpenLibraryMetadata {
         Agent::new_static("openlibrary")
     }
 
-    async fn get_metadata_from_files(&mut self, files: &[FileModel]) -> Result<Option<MetadataReturned>> {
+    async fn get_metadata_from_files(
+        &mut self,
+        files: &[FileModel],
+    ) -> Result<Option<MetadataReturned>> {
         for file in files {
             if let Some(isbn) = file.identifier.clone() {
                 let id = match BookId::make_assumptions(isbn) {
                     Some(v) => v,
-                    None => continue
+                    None => continue,
                 };
 
                 match self.request(id).await {
                     Ok(Some(v)) => return Ok(Some(v)),
-                    a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a)
+                    a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a),
                 }
             }
         }
@@ -45,7 +50,7 @@ impl Metadata for OpenLibraryMetadata {
     async fn get_metadata_by_source_id(&mut self, value: &str) -> Result<Option<MetadataReturned>> {
         let id = match BookId::make_assumptions(value.to_string()) {
             Some(v) => v,
-            None => return Ok(None)
+            None => return Ok(None),
         };
 
         match self.request(id).await {
@@ -58,7 +63,6 @@ impl Metadata for OpenLibraryMetadata {
         }
     }
 
-
     async fn get_person_by_source_id(&mut self, value: &str) -> Result<Option<AuthorInfo>> {
         match author::get_author_from_url(value).await? {
             Some(author) => {
@@ -68,16 +72,17 @@ impl Metadata for OpenLibraryMetadata {
                     other_names: author.alternate_names,
                     description: author.bio.map(|v| v.into_content()),
                     // Using value since it should always be value "OLXXXXXA" which is Olid
-                    cover_image_url: Some(FoundImageLocation::Url(self::CoverId::Olid(value.to_string()).get_author_cover_url())),
+                    cover_image_url: Some(FoundImageLocation::Url(
+                        self::CoverId::Olid(value.to_string()).get_author_cover_url(),
+                    )),
                     birth_date: author.birth_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                     death_date: author.death_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                 }))
             }
 
-            None => Ok(None)
+            None => Ok(None),
         }
     }
-
 
     async fn search(&mut self, value: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
         match search_for {
@@ -88,7 +93,9 @@ impl Metadata for OpenLibraryMetadata {
                     for item in found.items {
                         authors.push(SearchItem::Author(AuthorInfo {
                             source: self.prefix_text(item.key.as_deref().unwrap()).try_into()?,
-                            cover_image_url: Some(FoundImageLocation::Url(self::CoverId::Olid(item.key.unwrap()).get_author_cover_url())),
+                            cover_image_url: Some(FoundImageLocation::Url(
+                                self::CoverId::Olid(item.key.unwrap()).get_author_cover_url(),
+                            )),
                             name: item.name.unwrap(),
                             other_names: item.alternate_names,
                             description: None,
@@ -106,8 +113,7 @@ impl Metadata for OpenLibraryMetadata {
             SearchFor::Book(specifically) => {
                 let type_of_search = match specifically {
                     SearchForBooksBy::AuthorName => BookSearchType::Author,
-                    SearchForBooksBy::Contents |
-                    SearchForBooksBy::Query => BookSearchType::Query,
+                    SearchForBooksBy::Contents | SearchForBooksBy::Query => BookSearchType::Query,
                     SearchForBooksBy::Title => BookSearchType::Title,
                 };
 
@@ -115,14 +121,25 @@ impl Metadata for OpenLibraryMetadata {
                     let mut books = Vec::new();
 
                     for item in found.items {
-                        books.push(SearchItem::Book(FoundItem { // TODO: Move .replace
-                            source: format!("{}:{}", self.get_agent(), &item.key.replace("/works/", "").replace("/books/", "")).try_into()?,
+                        books.push(SearchItem::Book(FoundItem {
+                            // TODO: Move .replace
+                            source: format!(
+                                "{}:{}",
+                                self.get_agent(),
+                                &item.key.replace("/works/", "").replace("/books/", "")
+                            )
+                            .try_into()?,
                             title: item.title.clone(),
                             description: None,
                             rating: 0.0,
-                            thumb_locations: item.cover_edition_key.map(|v|
-                                vec![FoundImageLocation::Url(CoverId::Olid(v).get_book_cover_url())]
-                            ).unwrap_or_default(),
+                            thumb_locations: item
+                                .cover_edition_key
+                                .map(|v| {
+                                    vec![FoundImageLocation::Url(
+                                        CoverId::Olid(v).get_book_cover_url(),
+                                    )]
+                                })
+                                .unwrap_or_default(),
                             cached: BookItemCached::default(),
                             available_at: None,
                             year: item.first_publish_year,
@@ -146,13 +163,13 @@ impl OpenLibraryMetadata {
             return Ok(None);
         };
 
-
         // Find Authors.
         let authors_rfd = author::get_authors_from_book_by_rfd(&id).await?;
 
         // Now authors are just Vec< OL00000A >
         let authors_found = if let Some(authors) = book_info.authors.take() {
-            let mut author_paths: Vec<String> = authors.into_iter()
+            let mut author_paths: Vec<String> = authors
+                .into_iter()
                 .map(|v| strip_url_or_path(v.author_key()))
                 .collect();
 
@@ -166,7 +183,8 @@ impl OpenLibraryMetadata {
 
             author_paths
         } else {
-            authors_rfd.into_iter()
+            authors_rfd
+                .into_iter()
                 .map(|auth| strip_url_or_path(auth.about))
                 .collect()
         };
@@ -184,7 +202,9 @@ impl OpenLibraryMetadata {
                         name: author.name.clone(),
                         other_names: author.alternate_names,
                         description: author.bio.map(|v| v.into_content()),
-                        cover_image_url: Some(FoundImageLocation::Url(self::CoverId::Olid(author.key).get_author_cover_url())),
+                        cover_image_url: Some(FoundImageLocation::Url(
+                            self::CoverId::Olid(author.key).get_author_cover_url(),
+                        )),
                         birth_date: author.birth_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                         death_date: author.death_date.and_then(|v| v.parse::<NaiveDate>().ok()),
                     });
@@ -198,10 +218,12 @@ impl OpenLibraryMetadata {
 
         // TODO: Parse record.publish_date | Millions of different variations. No specifics' were followed.
 
-        let source_id = match book_info.isbn_13.as_ref()
-            .and_then(|v| v.first().or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first()))) {
+        let source_id = match book_info.isbn_13.as_ref().and_then(|v| {
+            v.first()
+                .or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first()))
+        }) {
             Some(v) => v,
-            None => return Ok(None)
+            None => return Ok(None),
         };
 
         Ok(Some(MetadataReturned {
@@ -211,17 +233,24 @@ impl OpenLibraryMetadata {
             meta: FoundItem {
                 source: format!("{}:{}", self.get_agent(), source_id).try_into()?,
                 title: Some(book_info.title.clone()),
-                description: book_info.description.as_ref().map(|v| v.content().to_owned()),
+                description: book_info
+                    .description
+                    .as_ref()
+                    .map(|v| v.content().to_owned()),
                 rating: 0.0,
-                thumb_locations: book_info.covers.into_iter()
+                thumb_locations: book_info
+                    .covers
+                    .into_iter()
                     .flatten()
                     .filter(|v| *v != -1)
-                    .map(|id| FoundImageLocation::Url(CoverId::Id(id.to_string()).get_book_cover_url()))
+                    .map(|id| {
+                        FoundImageLocation::Url(CoverId::Id(id.to_string()).get_book_cover_url())
+                    })
                     .collect(),
                 cached: BookItemCached::default(),
                 available_at: None,
                 year: None,
-            }
+            },
         }))
     }
 }
@@ -238,17 +267,25 @@ pub enum CoverId {
     Olid(String),
 
     Goodreads(String),
-    LibraryThing(String)
+    LibraryThing(String),
 }
 
 impl CoverId {
     pub fn get_book_cover_url(&self) -> String {
-        format!("https://covers.openlibrary.org/b/{}/{}-L.jpg", self.key(), self.value())
+        format!(
+            "https://covers.openlibrary.org/b/{}/{}-L.jpg",
+            self.key(),
+            self.value()
+        )
     }
 
     // TODO: Ensure we only use id, olid
     pub fn get_author_cover_url(&self) -> String {
-        format!("https://covers.openlibrary.org/a/{}/{}-L.jpg", self.key(), self.value())
+        format!(
+            "https://covers.openlibrary.org/a/{}/{}-L.jpg",
+            self.key(),
+            self.value()
+        )
     }
 
     pub fn key(&self) -> &str {
@@ -271,14 +308,14 @@ impl CoverId {
             Self::Lccn(v) => v.as_str(),
             Self::Olid(v) => v.as_str(),
             Self::Goodreads(v) => v.as_str(),
-            Self::LibraryThing(v) => v.as_str()
+            Self::LibraryThing(v) => v.as_str(),
         }
     }
 }
 
-
 fn strip_url_or_path<V: AsRef<str>>(value: V) -> String {
-    value.as_ref()
+    value
+        .as_ref()
         .rsplit('/')
         .find(|v| !v.is_empty())
         .unwrap()
@@ -291,25 +328,22 @@ Types
     /type/datetime = "2021-09-30T16:27:03.066859" (used in: create, last_modified)
 */
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct KeyItem {
-    key: String
+    key: String,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeValueItem {
     r#type: String, // TODO: Handle Types
-    value: String
+    value: String,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RecordDescription {
     Text(String),
-    SpecificType(TypeValueItem)
+    SpecificType(TypeValueItem),
 }
 
 impl RecordDescription {
@@ -328,7 +362,6 @@ impl RecordDescription {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use tokio::runtime::Runtime;
@@ -340,7 +373,9 @@ mod tests {
         let rt = Runtime::new().unwrap();
 
         rt.block_on(async {
-            book::get_book_by_id(&BookId::Edition(String::from("OL7353617M"))).await.unwrap();
+            book::get_book_by_id(&BookId::Edition(String::from("OL7353617M")))
+                .await
+                .unwrap();
         });
     }
 }

@@ -5,7 +5,6 @@ use lazy_static::lazy_static;
 
 use crate::Result;
 
-
 pub static CONFIG_PATH: &str = "./app/config.toml";
 
 pub static IS_SETUP: Mutex<bool> = Mutex::new(false);
@@ -43,15 +42,10 @@ pub fn update_config<F: FnOnce(&mut Config) -> Result<()>>(value: F) -> Result<(
     Ok(())
 }
 
-
-
 pub async fn save_config() -> Result<()> {
     let config = get_config();
 
-    tokio::fs::write(
-        CONFIG_PATH,
-        toml_edit::ser::to_string_pretty(&config)?,
-    ).await?;
+    tokio::fs::write(CONFIG_PATH, toml_edit::ser::to_string_pretty(&config)?).await?;
 
     *CONFIG_FILE.lock().unwrap() = config;
 

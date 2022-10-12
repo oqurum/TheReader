@@ -1,22 +1,29 @@
 #![allow(clippy::let_unit_value)]
 
-use std::{sync::{Arc, Mutex}, mem::MaybeUninit, rc::Rc};
+use std::{
+    mem::MaybeUninit,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
-use common::{BookId, PersonId, api::{WrappingResponse, ApiErrorResponse}, component::popup::{Popup, PopupType}};
-use common_local::{api, Member, FileId, LibraryId};
+use common::{
+    api::{ApiErrorResponse, WrappingResponse},
+    component::popup::{Popup, PopupType},
+    BookId, PersonId,
+};
+use common_local::{api, FileId, LibraryId, Member};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
-use yew::{prelude::*, html::Scope};
+use yew::{html::Scope, prelude::*};
 use yew_router::prelude::*;
 
 use components::NavbarModule;
 
-mod util;
+mod components;
 mod pages;
 mod request;
 mod services;
-mod components;
-
+mod util;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
@@ -24,11 +31,8 @@ pub struct AppState {
     pub update_nav_visibility: Callback<bool>,
 }
 
-
-
 lazy_static! {
     pub static ref MEMBER_SELF: Arc<Mutex<Option<Member>>> = Arc::new(Mutex::new(None));
-
     static ref ERROR_POPUP: Arc<Mutex<Option<ApiErrorResponse>>> = Arc::new(Mutex::new(None));
 }
 
@@ -44,19 +48,15 @@ pub fn is_signed_in() -> bool {
     get_member_self().is_some()
 }
 
-
 pub fn request_member_self() {
     MAIN_MODEL.with(|v| unsafe {
         let lock = v.lock().unwrap();
 
         let scope = lock.assume_init_ref();
 
-        scope.send_future(async {
-            Msg::LoadMemberSelf(request::get_member_self().await)
-        });
+        scope.send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
     });
 }
-
 
 pub fn display_error(value: ApiErrorResponse) {
     {
@@ -72,7 +72,6 @@ pub fn display_error(value: ApiErrorResponse) {
     });
 }
 
-
 fn remove_error() {
     {
         *ERROR_POPUP.lock().unwrap() = None;
@@ -87,19 +86,18 @@ fn remove_error() {
     });
 }
 
-
 enum Msg {
     LoadMemberSelf(WrappingResponse<api::GetMemberSelfResponse>),
 
     UpdateNavVis(bool),
 
-    Update
+    Update,
 }
 
 struct Model {
     state: Rc<AppState>,
 
-    has_loaded_member: bool
+    has_loaded_member: bool,
 }
 
 impl Component for Model {
@@ -111,9 +109,7 @@ impl Component for Model {
         MAIN_MODEL.with(move |v| *v.lock().unwrap() = MaybeUninit::new(scope));
 
         ctx.link()
-        .send_future(async {
-            Msg::LoadMemberSelf(request::get_member_self().await)
-        });
+            .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
 
         Self {
             state: Rc::new(AppState {
@@ -189,7 +185,6 @@ impl Component for Model {
     }
 }
 
-
 #[derive(Routable, PartialEq, Eq, Clone, Debug)]
 pub enum Route {
     #[at("/login")]
@@ -220,9 +215,8 @@ pub enum Route {
     Setup,
 
     #[at("/")]
-    Dashboard
+    Dashboard,
 }
-
 
 fn switch(route: &Route) -> Html {
     log::info!("{:?}", route);
@@ -273,7 +267,6 @@ fn switch(route: &Route) -> Html {
         }
     }
 }
-
 
 fn main() {
     wasm_logger::init(wasm_logger::Config::default());

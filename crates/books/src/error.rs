@@ -1,10 +1,10 @@
 use std::{io, string::FromUtf8Error};
 
-use thiserror::Error as ThisError;
 use binstall_zip::result::ZipError;
-use serde_xml_rs::Error as SerdeXmlError;
-use xml::reader::Error as XmlReaderError;
 use mobi::MobiError;
+use serde_xml_rs::Error as SerdeXmlError;
+use thiserror::Error as ThisError;
+use xml::reader::Error as XmlReaderError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -32,5 +32,5 @@ pub enum Error {
     MissingValueFor(&'static str),
 
     #[error("Missing Unique ID")]
-    MissingUniqueId
+    MissingUniqueId,
 }

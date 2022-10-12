@@ -17,7 +17,8 @@ impl Component for LogoutPage {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         Timeout::new(2_000, || {
             let _ = window().location().set_href("/auth/logout");
-        }).forget();
+        })
+        .forget();
 
         if is_signed_in() {
             html! {

@@ -1,11 +1,10 @@
 use common::api::ApiErrorResponse;
 use common_local::filter::FilterContainer;
 use gloo_utils::window;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::MouseEvent;
 use yew::{html::Scope, Callback, Component};
-
 
 pub fn as_local_path_without_http(value: &str) -> String {
     let loc = window().location();
@@ -22,13 +21,13 @@ pub fn as_local_path_without_http(value: &str) -> String {
     )
 }
 
-
 /// A Callback which calls "prevent_default" and "stop_propagation"
 ///
 /// Also will prevent any more same events downstream from activating
 pub fn on_click_prevdef_stopprop<S>(scope: &Scope<S>, msg: S::Message) -> Callback<MouseEvent>
-    where S: Component,
-        S::Message: Clone
+where
+    S: Component,
+    S::Message: Clone,
 {
     scope.callback(move |e: MouseEvent| {
         e.prevent_default();
@@ -39,17 +38,15 @@ pub fn on_click_prevdef_stopprop<S>(scope: &Scope<S>, msg: S::Message) -> Callba
 
 /// A Callback which calls "prevent_default"
 pub fn on_click_prevdef<S>(scope: &Scope<S>, msg: S::Message) -> Callback<MouseEvent>
-    where S: Component,
-        S::Message: Clone
+where
+    S: Component,
+    S::Message: Clone,
 {
     scope.callback(move |e: MouseEvent| {
         e.prevent_default();
         msg.clone()
     })
 }
-
-
-
 
 pub fn update_query<F: FnOnce(&mut SearchQuery)>(value: F) {
     let mut query = SearchQuery::load();
@@ -58,7 +55,6 @@ pub fn update_query<F: FnOnce(&mut SearchQuery)>(value: F) {
 
     query.save();
 }
-
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SearchQuery {
@@ -84,7 +80,9 @@ impl SearchQuery {
             match serde_qs::from_str(&q[1..]) {
                 Ok(v) => v,
                 Err(e) => {
-                    crate::display_error(ApiErrorResponse { description: e.to_string() });
+                    crate::display_error(ApiErrorResponse {
+                        description: e.to_string(),
+                    });
 
                     Self::default()
                 }

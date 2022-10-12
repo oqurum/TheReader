@@ -1,11 +1,20 @@
-use common::{component::{multi_select::{MultiSelectItem, MultiSelectModule, MultiSelectEvent}, popup::{Popup, PopupType}}, PersonId, Either, api::WrappingResponse};
-use common_local::{api::{GetBookResponse, GetPostersResponse, ApiGetPeopleResponse, PostBookBody}, Person, BookEdit};
+use common::{
+    api::WrappingResponse,
+    component::{
+        multi_select::{MultiSelectEvent, MultiSelectItem, MultiSelectModule},
+        popup::{Popup, PopupType},
+    },
+    Either, PersonId,
+};
+use common_local::{
+    api::{ApiGetPeopleResponse, GetBookResponse, GetPostersResponse, PostBookBody},
+    BookEdit, Person,
+};
 use gloo_timers::callback::Timeout;
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::prelude::*;
 
 use crate::request;
-
 
 #[derive(Clone, Copy)]
 pub enum TabDisplay {
@@ -13,7 +22,6 @@ pub enum TabDisplay {
     Poster,
     Info,
 }
-
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
@@ -24,7 +32,6 @@ pub struct Property {
 
     pub media_resp: GetBookResponse,
 }
-
 
 pub enum Msg {
     RetrievePostersResponse(WrappingResponse<GetPostersResponse>),
@@ -43,7 +50,6 @@ pub enum Msg {
 
     Ignore,
 }
-
 
 pub struct PopupEditBook {
     tab_display: TabDisplay,
@@ -97,30 +103,26 @@ impl Component for PopupEditBook {
                 self.cached_posters = None;
             }
 
-            Msg::RetrievePostersResponse(resp) => {
-                match resp.ok() {
-                    Ok(resp) => self.cached_posters = Some(resp),
-                    Err(err) => crate::display_error(err),
+            Msg::RetrievePostersResponse(resp) => match resp.ok() {
+                Ok(resp) => self.cached_posters = Some(resp),
+                Err(err) => crate::display_error(err),
+            },
+
+            Msg::RetrievePeopleResponse(resp) => match resp.ok() {
+                Ok(resp) => {
+                    self.person_search_cache = resp.items;
+
+                    self.person_search_cache
+                        .sort_unstable_by(|a, b| a.name.cmp(&b.name));
                 }
-            }
 
-            Msg::RetrievePeopleResponse(resp) => {
-                match resp.ok() {
-                    Ok(resp) => {
-                        self.person_search_cache = resp.items;
-
-                        self.person_search_cache.sort_unstable_by(|a, b| a.name.cmp(&b.name));
-                    }
-
-                    Err(err) => crate::display_error(err),
-                }
-            }
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::UpdatedPoster => {
                 let meta_id = ctx.props().media_resp.book.id;
 
-                ctx.link()
-                .send_future(async move {
+                ctx.link().send_future(async move {
                     Msg::RetrievePostersResponse(request::get_posters_for_book(meta_id).await)
                 });
 
@@ -131,7 +133,9 @@ impl Component for PopupEditBook {
                 let scope = ctx.link().clone();
                 self.search_timeout = Some(Timeout::new(250, move || {
                     scope.send_future(async move {
-                        Msg::RetrievePeopleResponse(request::get_people(Some(&text), None, None).await)
+                        Msg::RetrievePeopleResponse(
+                            request::get_people(Some(&text), None, None).await,
+                        )
                     });
                 }));
 
@@ -168,8 +172,7 @@ impl Component for PopupEditBook {
                 let id = ctx.props().media_resp.book.id;
                 let close = ctx.props().on_close.clone();
 
-                ctx.link()
-                .send_future(async move {
+                ctx.link().send_future(async move {
                     let resp = request::update_book(id, &PostBookBody::Edit(edit)).await;
 
                     if let Err(err) = resp.ok() {
@@ -224,18 +227,16 @@ impl PopupEditBook {
                 if self.cached_posters.is_none() {
                     let book_id = ctx.props().media_resp.book.id;
 
-                    ctx.link()
-                    .send_future(async move {
+                    ctx.link().send_future(async move {
                         Msg::RetrievePostersResponse(request::get_posters_for_book(book_id).await)
                     });
                 }
 
                 self.render_tab_poster(ctx)
-            },
+            }
             TabDisplay::Info => self.render_tab_info(ctx.props()),
         }
     }
-
 
     fn render_tab_general(&self, ctx: &Context<Self>) -> Html {
         let resp = &ctx.props().media_resp;

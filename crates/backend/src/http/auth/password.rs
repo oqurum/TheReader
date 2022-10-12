@@ -1,22 +1,19 @@
 // TODO: Better security. Simple Proof of Concept.
 
-
 use actix_identity::Identity;
+use actix_web::web;
 use actix_web::HttpMessage;
 use actix_web::HttpRequest;
-use actix_web::web;
 
-use common_local::MemberAuthType;
-use common_local::Permissions;
 use chrono::Utc;
 use common::api::ApiErrorResponse;
 use common::api::WrappingResponse;
-use rand::Rng;
+use common_local::MemberAuthType;
+use common_local::Permissions;
 use rand::prelude::ThreadRng;
-use serde::{Serialize, Deserialize};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 
-use crate::Error;
-use crate::WebResult;
 use crate::config::get_config;
 use crate::config::save_config;
 use crate::config::update_config;
@@ -24,10 +21,10 @@ use crate::database::Database;
 use crate::http::JsonResponse;
 use crate::model::member::MemberModel;
 use crate::model::member::NewMemberModel;
-
+use crate::Error;
+use crate::WebResult;
 
 pub static PASSWORD_PATH: &str = "/auth/password";
-
 
 #[derive(Serialize, Deserialize)]
 pub struct PostPasswordCallback {
@@ -51,7 +48,10 @@ pub async fn post_password_oauth(
     // Create or Update User.
     let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
         if value.type_of != MemberAuthType::Password {
-            return Err(ApiErrorResponse::new("Invalid Member. Member does not have a local password associated with it.").into());
+            return Err(ApiErrorResponse::new(
+                "Invalid Member. Member does not have a local password associated with it.",
+            )
+            .into());
         }
 
         if bcrypt::verify(&password, value.password.as_ref().unwrap()).map_err(Error::from)? {
@@ -73,14 +73,12 @@ pub async fn post_password_oauth(
             updated_at: Utc::now(),
         };
 
-
         let has_admin_account = get_config().has_admin_account;
 
         // Check to see if we don't have the admin account created yet.
         if !has_admin_account {
             new_member.permissions = Permissions::owner();
         }
-
 
         let inserted = new_member.insert(&db).await?;
 
