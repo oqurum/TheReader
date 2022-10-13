@@ -92,9 +92,11 @@ fn create_incoming_reader(
                     log::error!("Websocket: {:?}", e);
                     send_back.close_channel();
 
-                    TimeoutFuture::new(3_000).await;
+                    TimeoutFuture::new(10_000).await;
 
                     open_websocket_conn();
+
+                    break;
                 }
             }
         }
