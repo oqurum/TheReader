@@ -70,6 +70,7 @@ impl From<FileModel> for MediaItem {
             chapter_count: file.chapter_count as usize,
 
             identifier: file.identifier,
+            hash: file.hash,
 
             modified_at: file.modified_at.timestamp_millis(),
             accessed_at: file.accessed_at.timestamp_millis(),

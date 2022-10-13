@@ -129,7 +129,7 @@ impl MediaView {
             people,
             book,
             media,
-            progress,
+            progress: _,
         }) = self.media.as_ref()
         {
             let book_id = book.id;
@@ -143,7 +143,21 @@ impl MediaView {
                 })
             });
 
-            let media_prog = media.iter().zip(progress.iter());
+
+            // TODO: Use once stable. - group_by(|a, b| a.hash == b.hash);
+            let media_grouped = media.iter()
+            .fold(
+                Vec::<(&MediaItem, usize)>::new(),
+                |mut list, media| {
+                    if let Some(stored) = list.iter_mut().find(|v| v.0.hash == media.hash) {
+                        stored.1 += 1;
+                    } else {
+                        list.push((media, 1));
+                    }
+
+                    list
+                }
+            );
 
             html! {
                 <div class="item-view-container">
@@ -186,12 +200,21 @@ impl MediaView {
                         <h2>{ "Files" }</h2>
                         <div class="files-container">
                             {
-                                for media_prog.map(|(media, _prog)| {
+                                for media_grouped.into_iter().map(|(media, count)| {
                                     html! {
-                                        <Link<Route> to={Route::ReadBook { book_id: media.id }} classes={ classes!("file-item") }>
+                                        <Link<Route> to={ Route::ReadBook { book_id: media.id } } classes={ classes!("file-item") }>
                                             <h5>{ media.file_name.clone() }</h5>
                                             <div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
                                             <div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
+                                            { // TODO: How to handle duplicates
+                                                if count > 1 {
+                                                    html! {
+                                                        <div><b>{ "Duplicates: " }</b>{ count }</div>
+                                                    }
+                                                } else {
+                                                    html! {}
+                                                }
+                                            }
                                         </Link<Route>>
                                     }
                                 })
