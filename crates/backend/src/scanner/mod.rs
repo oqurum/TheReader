@@ -19,7 +19,7 @@ use common::parse_book_id;
 use common_local::LibraryId;
 use tokio::fs;
 
-pub static WHITELISTED_FILE_TYPES: [&str; 1] = ["epub"];
+pub static WHITELISTED_FILE_TYPES: [&str; 2] = ["epub", "cbz"];
 
 pub async fn library_scan(
     library: &LibraryModel,

@@ -6,7 +6,7 @@ use std::{
 
 use common::{
     api::WrappingResponse,
-    component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupClose, PopupType},
+    component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupType},
     BookId,
 };
 use common_local::{
@@ -25,7 +25,7 @@ use crate::{
     },
     request,
     services::WsEventBus,
-    util::{on_click_prevdef, on_click_prevdef_stopprop, SearchQuery},
+    util::SearchQuery,
 };
 
 #[derive(Properties, PartialEq, Eq)]

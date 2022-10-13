@@ -1,10 +1,7 @@
-use std::io::Read;
-
 use actix_files::NamedFile;
 use actix_web::http::header::ContentDisposition;
 use actix_web::{delete, get, post, web, HttpResponse};
 
-use bookie::Book;
 use common::api::WrappingResponse;
 use common_local::{api, Chapter, FileId, Progression};
 use futures::TryStreamExt;
@@ -15,7 +12,7 @@ use crate::http::{JsonResponse, MemberCookie};
 use crate::model::file::FileModel;
 use crate::model::note::FileNoteModel;
 use crate::model::progress::FileProgressionModel;
-use crate::{Error, Result, WebResult};
+use crate::{Result, WebResult};
 
 // Load Book Resources
 
@@ -32,8 +29,8 @@ pub async fn load_file_resource(
     let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
     // TODO: Check if we're loading a section
-    if res.configure_pages {
-        let body = match book.read_path_as_bytes(
+    let body = if res.configure_pages {
+        match book.read_path_as_bytes(
             &resource_path,
             Some(&format!("/api/file/{}/res", file_id)),
             Some(&[include_str!("../../../../../app/book_stylings.css")]),
@@ -43,22 +40,24 @@ pub async fn load_file_resource(
                 eprintln!("{}", e);
                 Vec::new()
             }
-        };
-
-        Ok(HttpResponse::Ok()
-            .insert_header(("Content-Type", "application/xhtml+xml"))
-            .body(body))
+        }
     } else {
-        let body = match book.read_path_as_bytes(&resource_path, None, None) {
+        match book.read_path_as_bytes(&resource_path, None, None) {
             Ok(v) => v,
             Err(e) => {
                 eprintln!("{}", e);
                 Vec::new()
             }
-        };
+        }
+    };
 
-        Ok(HttpResponse::Ok().body(body))
+    let mut ok = HttpResponse::Ok();
+
+    if resource_path.ends_with("xhtml") {
+        ok.insert_header(("Content-Type", "application/xhtml+xml"));
     }
+
+    Ok(ok.body(body))
 }
 
 #[get("/file/{id}/pages/{pages}")]
@@ -168,33 +167,19 @@ pub async fn load_file_debug(
 ) -> WebResult<HttpResponse> {
     if let Some(file) = FileModel::find_one_by_id(web_path.0, &db).await? {
         if web_path.1.is_empty() {
-            let book = bookie::epub::EpubBook::load_from_path(&file.path)?;
-
-            let mut files = book
-                .container
-                .file_names_in_archive()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>();
-            files.sort_unstable();
+            let book = bookie::load_from_path(&file.path)?.unwrap();
 
             Ok(HttpResponse::Ok().body(
-                files
+                book.get_files()
                     .into_iter()
                     .map(|v| format!("<a href=\"{}\">{}</a>", v, v))
                     .collect::<Vec<_>>()
                     .join("<br/>"),
             ))
         } else {
-            // TODO: Make bookie::load_from_path(&file.path).unwrap();
-            let mut book = bookie::epub::EpubBook::load_from_path(&file.path)?;
+            let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
-            // Init Package Document
-            let mut file = book.container.archive.by_name(&web_path.1).unwrap();
-
-            let mut data = Vec::new();
-            file.read_to_end(&mut data).map_err(Error::from)?;
-
-            Ok(HttpResponse::Ok().body(data))
+            Ok(HttpResponse::Ok().body(book.read_path_as_bytes(&web_path.1, None, None)?))
         }
     } else {
         Ok(HttpResponse::Ok().body("Unable to find file from ID"))
