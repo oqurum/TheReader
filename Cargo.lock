@@ -584,6 +584,7 @@ dependencies = [
  "blake3",
  "log",
  "mobi",
+ "regex",
  "serde",
  "serde-xml-rs",
  "thiserror",

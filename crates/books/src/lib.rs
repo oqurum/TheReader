@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod cb;
 pub mod epub;
 pub mod mobi;
 
@@ -65,6 +66,10 @@ pub trait Book {
         )?)?)
     }
 
+    fn get_files(&self) -> Vec<String> {
+        Vec::new()
+    }
+
     fn chapter_count(&self) -> usize;
     fn get_chapter(&self) -> usize;
 
@@ -111,6 +116,7 @@ impl<'a> From<&'a str> for BookSearch<'a> {
 
 pub fn load_from_path(path: &str) -> Result<Option<Box<dyn Book>>> {
     Ok(match path.rsplit_once('.').map(|v| v.1) {
+        Some("cbz") => Some(Box::new(cb::ComicBook::load_from_path(path)?)),
         Some("epub") => Some(Box::new(epub::EpubBook::load_from_path(path)?)),
 
         _ => None,

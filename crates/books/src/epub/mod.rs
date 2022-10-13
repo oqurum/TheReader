@@ -327,6 +327,17 @@ impl Book for EpubBook {
         ))
     }
 
+    fn get_files(&self) -> Vec<String> {
+        let mut files = self
+            .container
+            .file_names_in_archive()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>();
+        files.sort_unstable();
+
+        files
+    }
+
     fn get_root_file_dir(&self) -> &Path {
         self.root_file_dir.as_path()
     }
