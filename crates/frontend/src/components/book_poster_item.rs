@@ -206,7 +206,8 @@ pub enum PosterItem {
     // Popup Events
     UpdateBookById(BookId),
 
-    // Popup Events
+    UnMatch(BookId),
+
     UpdateBookByFiles(BookId),
 }
 
@@ -256,6 +257,7 @@ impl PartialEq for DisplayOverlayItem {
 pub enum DropdownInfoPopupEvent {
     Closed,
     RefreshMetadata,
+    UnMatchBook,
     SearchFor,
     Info,
 }
@@ -266,6 +268,7 @@ pub struct DropdownInfoPopupProps {
     pub pos_y: i32,
 
     pub book_id: BookId,
+    pub is_matched: bool,
 
     pub event: Callback<DropdownInfoPopupEvent>,
 }
@@ -278,6 +281,19 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
         <Popup type_of={ PopupType::AtPoint(props.pos_x, props.pos_y) } on_close={ props.event.reform(|_| DropdownInfoPopupEvent::Closed) }>
             <div class="menu-list">
                 // <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
+
+                {
+                    if props.is_matched {
+                        html! {
+                            <PopupClose class="menu-item" onclick={ on_click_prevdef(
+                                props.event.clone(),
+                                |cb, _| cb.emit(DropdownInfoPopupEvent::UnMatchBook)
+                            ) }>{ "Unmatch Book" }</PopupClose>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
 
                 <PopupClose class="menu-item" onclick={ on_click_prevdef(
                     props.event.clone(),

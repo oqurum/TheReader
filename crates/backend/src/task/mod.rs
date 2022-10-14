@@ -226,6 +226,8 @@ pub enum UpdatingBook {
         library_id: LibraryId,
         agent: String,
     },
+    /// Updates all books with specified agent by files.
+    UnMatch(BookId),
 }
 
 pub struct TaskUpdateInvalidBook {
@@ -242,6 +244,24 @@ impl TaskUpdateInvalidBook {
 impl Task for TaskUpdateInvalidBook {
     async fn run(&mut self, task_id: UniqueId, db: &Database) -> Result<()> {
         match self.state.clone() {
+            UpdatingBook::UnMatch(book_id) => {
+                println!("UnMatch Book ID: {}", book_id);
+
+                let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
+
+                Self::update_book_by_files(
+                    fm_book,
+                    &ActiveAgents {
+                        local: true,
+                        google: false,
+                        libby: false,
+                        openlib: false,
+                    },
+                    db,
+                )
+                .await?;
+            }
+
             // TODO: Remove at some point. Currently inside of scanner.
             UpdatingBook::AutoMatchInvalid => {
                 for file in FileModel::find_by_missing_book(db).await? {
@@ -747,25 +767,29 @@ async fn overwrite_book_with_new_metadata(
     // Update New Book with old one
     new_book_model.id = curr_book_model.id;
     new_book_model.library_id = curr_book_model.library_id;
-    new_book_model.rating = curr_book_model.rating;
     new_book_model.deleted_at = curr_book_model.deleted_at;
     new_book_model.file_item_count = curr_book_model.file_item_count;
 
-    // Overwrite prev with new and replace new with prev.
-    curr_book_model.cached.overwrite_with(new_book_model.cached);
-    new_book_model.cached = curr_book_model.cached;
+    // If we're not replacing the metadata with local then we'll make sure everything is filled in.
+    if new_book_model.source.agent.as_ref() != "local" {
+        new_book_model.rating = curr_book_model.rating;
 
-    if curr_book_model.title != curr_book_model.original_title {
-        new_book_model.title = curr_book_model.title;
-    }
+        // Overwrite prev with new and replace new with prev.
+        curr_book_model.cached.overwrite_with(new_book_model.cached);
+        new_book_model.cached = curr_book_model.cached;
 
-    // No new thumb, but we have an old one. Set old one as new one.
-    if new_book_model.thumb_path.is_none() && curr_book_model.thumb_path.is_some() {
-        new_book_model.thumb_path = curr_book_model.thumb_path;
-    }
+        if curr_book_model.title != curr_book_model.original_title {
+            new_book_model.title = curr_book_model.title;
+        }
 
-    if curr_book_model.description.is_some() {
-        new_book_model.description = curr_book_model.description;
+        // No new thumb, but we have an old one. Set old one as new one.
+        if new_book_model.thumb_path.is_none() && curr_book_model.thumb_path.is_some() {
+            new_book_model.thumb_path = curr_book_model.thumb_path;
+        }
+
+        if curr_book_model.description.is_some() {
+            new_book_model.description = curr_book_model.description;
+        }
     }
 
     // TODO: Only if book exists and IS the same source.
@@ -782,6 +806,8 @@ async fn overwrite_book_with_new_metadata(
     new_book_model.refreshed_at = Utc::now();
 
     new_book_model.update(db).await?;
+
+    BookPersonModel::delete_by_book_id(new_book_model.id, db).await?;
 
     for person_id in author_ids {
         BookPersonModel {

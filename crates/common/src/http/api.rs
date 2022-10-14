@@ -277,6 +277,8 @@ pub struct GetBookResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum PostBookBody {
+    UnMatch,
+
     AutoMatchBookId,
     AutoMatchBookIdByFiles,
 

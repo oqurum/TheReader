@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{model::file::FileModel, Result};
 use async_trait::async_trait;
 use bookie::BookSearch;
@@ -28,7 +30,14 @@ impl Metadata for LocalMetadata {
 
                 let source = self.prefix_text(book.get_unique_id()?);
 
-                let title = book.find(BookSearch::Title).map(|mut v| v.remove(0));
+                let title = book
+                    .find(BookSearch::Title)
+                    .map(|mut v| v.remove(0))
+                    .or_else(|| {
+                        let path = PathBuf::from(&file.path);
+                        Some(path.file_name()?.to_str()?.to_string())
+                    });
+
                 let thumb_file_data = book
                     .find(BookSearch::CoverImage)
                     .map(|mut v| v.remove(0))

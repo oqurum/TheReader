@@ -269,6 +269,14 @@ impl Component for LibraryPage {
                         });
                     }
 
+                    PosterItem::UnMatch(book_id) => {
+                        ctx.link().send_future(async move {
+                            request::update_book(book_id, &api::PostBookBody::UnMatch).await;
+
+                            Msg::Ignore
+                        });
+                    }
+
                     PosterItem::UpdateBookByFiles(book_id) => {
                         ctx.link().send_future(async move {
                             request::update_book(
@@ -352,15 +360,20 @@ impl LibraryPage {
                                     }
 
                                     &DisplayOverlayItem::More { book_id, mouse_pos: (pos_x, pos_y) } => {
+                                        let is_matched = true;//items.iter().any(|b| b.source.agent.as_ref() == "local");
+
                                         html! {
                                             <DropdownInfoPopup
                                                 { pos_x }
                                                 { pos_y }
+
                                                 { book_id }
+                                                { is_matched }
 
                                                 event={ ctx.link().callback(move |e| {
                                                     match e {
                                                         DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
+                                                        DropdownInfoPopupEvent::UnMatchBook => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UnMatch(book_id))),
                                                         DropdownInfoPopupEvent::RefreshMetadata => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id))),
                                                         DropdownInfoPopupEvent::SearchFor => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }))),
                                                         DropdownInfoPopupEvent::Info => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id }))),

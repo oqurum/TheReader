@@ -6,13 +6,16 @@ use common::{
 use common_local::{
     api::{self, GetBookResponse},
     util::file_size_bytes_to_readable_string,
-    ThumbnailStoreExt,
+    MediaItem, ThumbnailStoreExt,
 };
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 use crate::{
-    components::{DropdownInfoPopup, DropdownInfoPopupEvent, PopupEditBook, PopupSearchBook},
+    components::{
+        book_poster_item::DisplayOverlayItem, DropdownInfoPopup, DropdownInfoPopupEvent,
+        PopupEditBook, PopupSearchBook, Sidebar,
+    },
     request, Route,
 };
 
@@ -22,12 +25,13 @@ pub enum Msg {
     RetrieveMediaView(Box<WrappingResponse<GetBookResponse>>),
 
     // Events
-    ShowPopup(DisplayOverlay),
+    ShowPopup(DisplayOverlayItem),
     ClosePopup,
 
     // TODO: Replace with book_poster_item::PosterItem
     // Popup Events
     UpdateBook(BookId),
+    UnMatchBook(BookId),
 
     Ignore,
 }
@@ -40,7 +44,7 @@ pub struct Property {
 pub struct MediaView {
     media: Option<GetBookResponse>,
 
-    media_popup: Option<DisplayOverlay>,
+    media_popup: Option<DisplayOverlayItem>,
 }
 
 impl Component for MediaView {
@@ -86,6 +90,14 @@ impl Component for MediaView {
                     Msg::Ignore
                 });
             }
+
+            Msg::UnMatchBook(book_id) => {
+                ctx.link().send_future(async move {
+                    request::update_book(book_id, &api::PostBookBody::UnMatch).await;
+
+                    Msg::Ignore
+                });
+            }
         }
 
         true
@@ -94,7 +106,7 @@ impl Component for MediaView {
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div class="outer-view-container">
-                <div class="sidebar-container"></div>
+                <Sidebar />
                 <div class="view-container">
                     { self.render_main(ctx) }
                 </div>
@@ -137,27 +149,25 @@ impl MediaView {
                 e.prevent_default();
                 e.stop_propagation();
 
-                Msg::ShowPopup(DisplayOverlay::More {
+                Msg::ShowPopup(DisplayOverlayItem::More {
                     book_id,
                     mouse_pos: (e.page_x(), e.page_y()),
                 })
             });
 
-
             // TODO: Use once stable. - group_by(|a, b| a.hash == b.hash);
-            let media_grouped = media.iter()
-            .fold(
-                Vec::<(&MediaItem, usize)>::new(),
-                |mut list, media| {
-                    if let Some(stored) = list.iter_mut().find(|v| v.0.hash == media.hash) {
-                        stored.1 += 1;
-                    } else {
-                        list.push((media, 1));
-                    }
+            let media_grouped =
+                media
+                    .iter()
+                    .fold(Vec::<(&MediaItem, usize)>::new(), |mut list, media| {
+                        if let Some(stored) = list.iter_mut().find(|v| v.0.hash == media.hash) {
+                            stored.1 += 1;
+                        } else {
+                            list.push((media, 1));
+                        }
 
-                    list
-                }
-            );
+                        list
+                    });
 
             html! {
                 <div class="item-view-container">
@@ -175,7 +185,7 @@ impl MediaView {
                                         let resp = request::get_media_view(book_id).await;
 
                                         match resp.ok() {
-                                            Ok(resp) => Msg::ShowPopup(DisplayOverlay::Edit(Box::new(resp))),
+                                            Ok(resp) => Msg::ShowPopup(DisplayOverlayItem::Edit(Box::new(resp))),
                                             Err(err) => {
                                                 crate::display_error(err);
 
@@ -241,7 +251,7 @@ impl MediaView {
                     {
                         if let Some(overlay_type) = self.media_popup.as_ref() {
                             match overlay_type {
-                                DisplayOverlay::Info { book_id: _ } => {
+                                DisplayOverlayItem::Info { book_id: _ } => {
                                     html! {
                                         <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
                                             <h1>{"Info"}</h1>
@@ -249,26 +259,31 @@ impl MediaView {
                                     }
                                 }
 
-                                &DisplayOverlay::More { book_id, mouse_pos: (pos_x, pos_y) } => {
+                                &DisplayOverlayItem::More { book_id, mouse_pos: (pos_x, pos_y) } => {
+                                    let is_matched = book.source.agent.as_ref() != "local";
+
                                     html! {
                                         <DropdownInfoPopup
                                             { pos_x }
                                             { pos_y }
+
                                             { book_id }
+                                            { is_matched }
 
                                             event={ ctx.link().callback(move |e| {
                                                 match e {
                                                     DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
                                                     DropdownInfoPopupEvent::RefreshMetadata => Msg::UpdateBook(book_id),
-                                                    DropdownInfoPopupEvent::SearchFor => Msg::ShowPopup(DisplayOverlay::SearchForBook { book_id, input_value: None }),
-                                                    DropdownInfoPopupEvent::Info => Msg::ShowPopup(DisplayOverlay::Info { book_id }),
+                                                    DropdownInfoPopupEvent::UnMatchBook => Msg::UnMatchBook(book_id),
+                                                    DropdownInfoPopupEvent::SearchFor => Msg::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }),
+                                                    DropdownInfoPopupEvent::Info => Msg::ShowPopup(DisplayOverlayItem::Info { book_id }),
                                                 }
                                             }) }
                                         />
                                     }
                                 }
 
-                                DisplayOverlay::Edit(resp) => {
+                                DisplayOverlayItem::Edit(resp) => {
                                     html! {
                                         <PopupEditBook
                                             on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
@@ -278,7 +293,7 @@ impl MediaView {
                                     }
                                 }
 
-                                &DisplayOverlay::SearchForBook { book_id, ref input_value } => {
+                                &DisplayOverlayItem::SearchForBook { book_id, ref input_value } => {
                                     let input_value = if let Some(v) = input_value {
                                         v.to_string()
                                     } else {
@@ -306,48 +321,6 @@ impl MediaView {
             html! {
                 <h1>{ "Loading..." }</h1>
             }
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum DisplayOverlay {
-    Info {
-        book_id: BookId,
-    },
-
-    Edit(Box<api::GetBookResponse>),
-
-    More {
-        book_id: BookId,
-        mouse_pos: (i32, i32),
-    },
-
-    SearchForBook {
-        book_id: BookId,
-        input_value: Option<String>,
-    },
-}
-
-impl PartialEq for DisplayOverlay {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Info { book_id: l_id }, Self::Info { book_id: r_id }) => l_id == r_id,
-            (Self::More { book_id: l_id, .. }, Self::More { book_id: r_id, .. }) => l_id == r_id,
-            (
-                Self::SearchForBook {
-                    book_id: l_id,
-                    input_value: l_val,
-                    ..
-                },
-                Self::SearchForBook {
-                    book_id: r_id,
-                    input_value: r_val,
-                    ..
-                },
-            ) => l_id == r_id && l_val == r_val,
-
-            _ => false,
         }
     }
 }

@@ -181,6 +181,8 @@ impl Component for AuthorView {
                 BookPosterItemMsg::AddOrRemoveItemFromEditing(_, _) => (),
 
                 BookPosterItemMsg::PosterItem(item) => match item {
+                    PosterItem::UnMatch(_) => (),
+
                     PosterItem::ShowPopup(new_disp) => {
                         if let Some(old_disp) = self.media_popup.as_mut() {
                             if *old_disp == new_disp {

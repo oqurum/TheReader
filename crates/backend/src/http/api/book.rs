@@ -225,6 +225,12 @@ pub async fn update_book_info(
     }
 
     match body.into_inner() {
+        api::PostBookBody::UnMatch => {
+            queue_task(task::TaskUpdateInvalidBook::new(
+                task::UpdatingBook::UnMatch(book_id),
+            ));
+        }
+
         api::PostBookBody::AutoMatchBookIdByFiles => {
             queue_task(task::TaskUpdateInvalidBook::new(
                 task::UpdatingBook::AutoUpdateBookIdByFiles(book_id),
