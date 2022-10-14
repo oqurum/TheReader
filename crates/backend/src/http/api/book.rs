@@ -287,10 +287,8 @@ pub async fn download_book(
                     r#"attachment; filename="{}.{}""#,
                     file_model.file_name.replace('"', ""), // Shouldn't have " in the file_name but just in-case.
                     file_model.file_type,
-                ))
-                .unwrap(),
-            )
-            .expect("ContentDisposition::from_raw"),
+                ))?,
+            )?,
         ))
 }
 

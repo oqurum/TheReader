@@ -1,4 +1,5 @@
 use common::api::{ApiErrorResponse, WrappingResponse};
+use reqwest::header::InvalidHeaderValue;
 use std::fmt::Write;
 
 use std::io::Error as IoError;
@@ -24,7 +25,7 @@ use serde_xml_rs::Error as XmlError;
 use toml_edit::{de::Error as TomlDeError, ser::Error as TomlSerError};
 
 use actix_multipart::MultipartError;
-use actix_web::error::PayloadError;
+use actix_web::error::{PayloadError, ParseError};
 use actix_web::Error as ActixError;
 use actix_web::ResponseError;
 
@@ -41,6 +42,11 @@ pub enum WebError {
     Multipart(#[from] MultipartError),
     #[error("Payload Error: {0}")]
     Payload(#[from] PayloadError),
+    #[error("Http Parse Error: {0}")]
+    HttpParse(#[from] ParseError),
+
+    #[error("Invalid Header Value Error: {0}")]
+    ReqwestInvalidHeader(#[from] InvalidHeaderValue),
 
     #[error(transparent)]
     All(#[from] Error),
