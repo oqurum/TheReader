@@ -13,7 +13,7 @@ use yew_router::prelude::Link;
 
 use crate::{
     request,
-    util::{on_click_prevdef, on_click_prevdef_stopprop},
+    util::{on_click_prevdef_scope, on_click_prevdef_stopprop_scope},
     Route,
 };
 
@@ -224,17 +224,17 @@ impl AuthorListPage {
                                             <div class="menu-list">
                                                 <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
-                                                    on_click_prevdef(ctx.link(), Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
+                                                    on_click_prevdef_scope(ctx.link().clone(), move |_| Msg::PosterItem(PosterItem::UpdatePerson(person_id)))
                                                 }>{ "Refresh Person" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
-                                                    on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
+                                                    on_click_prevdef_stopprop_scope(ctx.link().clone(), move |_| Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::SearchForPerson { person_id, input_value: None, response: None })))
                                                 }>{ "Search For Person" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
-                                                    on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
+                                                    on_click_prevdef_stopprop_scope(ctx.link().clone(), move |_| Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::CombinePersonWith { person_id, input_value: None, response: None })))
                                                 } title="Join Person into Another">{ "Join Into Person" }</PopupClose>
                                                 <PopupClose class="menu-item">{ "Delete" }</PopupClose>
                                                 <PopupClose class="menu-item" onclick={
-                                                    on_click_prevdef_stopprop(ctx.link(), Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
+                                                    on_click_prevdef_stopprop_scope(ctx.link().clone(), move |_| Msg::PosterItem(PosterItem::ShowPopup(DisplayOverlay::Info { person_id })))
                                                 }>{ "Show Info" }</PopupClose>
                                             </div>
                                         </Popup>

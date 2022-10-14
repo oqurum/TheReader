@@ -7,7 +7,7 @@ use web_sys::{HtmlElement, HtmlInputElement, MouseEvent};
 use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast};
 use yew_router::prelude::Link;
 
-use crate::{request, Route};
+use crate::{request, Route, util::{on_click_prevdef_cb, on_click_prevdef_stopprop_cb}};
 
 #[derive(Properties)]
 pub struct BookPosterItemProps {
@@ -285,7 +285,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                 {
                     if props.is_matched {
                         html! {
-                            <PopupClose class="menu-item" onclick={ on_click_prevdef(
+                            <PopupClose class="menu-item" onclick={ on_click_prevdef_cb(
                                 props.event.clone(),
                                 |cb, _| cb.emit(DropdownInfoPopupEvent::UnMatchBook)
                             ) }>{ "Unmatch Book" }</PopupClose>
@@ -295,7 +295,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     }
                 }
 
-                <PopupClose class="menu-item" onclick={ on_click_prevdef(
+                <PopupClose class="menu-item" onclick={ on_click_prevdef_cb(
                     props.event.clone(),
                     |cb, _| cb.emit(DropdownInfoPopupEvent::RefreshMetadata)
                 ) }>{ "Refresh Metadata" }</PopupClose>
@@ -320,45 +320,18 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     }
                 }
 
-                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop(
+                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_cb(
                     props.event.clone(),
                     |cb, _| cb.emit(DropdownInfoPopupEvent::SearchFor)
                 ) }>{ "Search For Book" }</PopupClose>
 
                 // <PopupClose class="menu-item">{ "Delete" }</PopupClose>
 
-                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop(
+                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_cb(
                     props.event.clone(),
                     |cb, _| cb.emit(DropdownInfoPopupEvent::Info)
                 ) }>{ "Show Info" }</PopupClose>
             </div>
         </Popup>
     }
-}
-
-/// A Callback which calls "prevent_default" and "stop_propagation"
-///
-/// Also will prevent any more same events downstream from activating
-pub fn on_click_prevdef_stopprop<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(
-    cb: Callback<S>,
-    func: F,
-) -> Callback<MouseEvent> {
-    Callback::from(move |e: MouseEvent| {
-        e.prevent_default();
-        e.stop_propagation();
-
-        func(&cb, e);
-    })
-}
-
-/// A Callback which calls "prevent_default"
-pub fn on_click_prevdef<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(
-    cb: Callback<S>,
-    func: F,
-) -> Callback<MouseEvent> {
-    Callback::from(move |e: MouseEvent| {
-        e.prevent_default();
-
-        func(&cb, e);
-    })
 }

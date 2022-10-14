@@ -21,30 +21,68 @@ pub fn as_local_path_without_http(value: &str) -> String {
     )
 }
 
+
 /// A Callback which calls "prevent_default" and "stop_propagation"
 ///
 /// Also will prevent any more same events downstream from activating
-pub fn on_click_prevdef_stopprop<S>(scope: &Scope<S>, msg: S::Message) -> Callback<MouseEvent>
-where
-    S: Component,
-    S::Message: Clone,
-{
-    scope.callback(move |e: MouseEvent| {
+pub fn on_click_prevdef_stopprop_cb<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(
+    cb: Callback<S>,
+    func: F,
+) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
         e.prevent_default();
         e.stop_propagation();
-        msg.clone()
+
+        func(&cb, e);
     })
 }
 
 /// A Callback which calls "prevent_default"
-pub fn on_click_prevdef<S>(scope: &Scope<S>, msg: S::Message) -> Callback<MouseEvent>
+pub fn on_click_prevdef_cb<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static>(
+    cb: Callback<S>,
+    func: F,
+) -> Callback<MouseEvent> {
+    Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+
+        func(&cb, e);
+    })
+}
+
+
+
+/// A Callback which calls "prevent_default" and "stop_propagation"
+///
+/// Also will prevent any more same events downstream from activating
+pub fn on_click_prevdef_stopprop_scope<S, F>(
+    cb: Scope<S>,
+    func: F,
+) -> Callback<MouseEvent>
 where
     S: Component,
-    S::Message: Clone,
+    F: (Fn(MouseEvent) -> S::Message) + 'static,
 {
-    scope.callback(move |e: MouseEvent| {
+    Callback::from(move |e: MouseEvent| {
         e.prevent_default();
-        msg.clone()
+        e.stop_propagation();
+
+        cb.send_message(func(e));
+    })
+}
+
+/// A Callback which calls "prevent_default"
+pub fn on_click_prevdef_scope<S, F>(
+    cb: Scope<S>,
+    func: F,
+) -> Callback<MouseEvent>
+where
+    S: Component,
+    F: (Fn(MouseEvent) -> S::Message) + 'static,
+{
+    Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+
+        cb.send_message(func(e));
     })
 }
 

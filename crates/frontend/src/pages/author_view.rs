@@ -23,7 +23,7 @@ use crate::{
         PopupEditBook,
     },
     request,
-    util::{on_click_prevdef, on_click_prevdef_stopprop},
+    util::{on_click_prevdef_scope, on_click_prevdef_stopprop_scope},
 };
 
 #[derive(Clone)]
@@ -446,19 +446,23 @@ impl Component for AuthorView {
                                             <Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
                                                 <div class="menu-list">
                                                     <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id))))
-                                                    }>{ "Refresh Metadata" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }))))
-                                                    }>{ "Search For Book" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookByFiles(book_id))))
-                                                    }>{ "Quick Search By Files" }</PopupClose>
+                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_scope(
+                                                        ctx.link().clone(),
+                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id)))
+                                                    ) }>{ "Refresh Metadata" }</PopupClose>
+                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_scope(
+                                                        ctx.link().clone(),
+                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None })))
+                                                    ) }>{ "Search For Book" }</PopupClose>
+                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_scope(
+                                                        ctx.link().clone(),
+                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookByFiles(book_id)))
+                                                    ) }>{ "Quick Search By Files" }</PopupClose>
                                                     <PopupClose class="menu-item" >{ "Delete" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={
-                                                        on_click_prevdef_stopprop(ctx.link(), Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id }))))
-                                                    }>{ "Show Info" }</PopupClose>
+                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_scope(
+                                                        ctx.link().clone(),
+                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id })))
+                                                    ) }>{ "Show Info" }</PopupClose>
                                                 </div>
                                             </Popup>
                                         }
