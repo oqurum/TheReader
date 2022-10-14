@@ -73,7 +73,7 @@ impl Component for AuthorView {
             let resp = request::get_books(None, None, None, {
                 let mut search = FilterContainer::default();
                 search.add_person_filter(person_id);
-                search
+                Some(search)
             })
             .await;
 

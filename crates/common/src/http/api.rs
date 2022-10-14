@@ -172,11 +172,11 @@ pub struct GetBookListResponse {
 #[derive(Serialize, Deserialize)]
 pub struct BookListQuery {
     pub library: Option<LibraryId>,
+
     pub offset: Option<usize>,
     pub limit: Option<usize>,
-    /// `SearchQuery`
-    #[serde(default)]
-    pub filters: FilterContainer,
+
+    pub filters: Option<FilterContainer>,
 }
 
 impl BookListQuery {
@@ -184,7 +184,7 @@ impl BookListQuery {
         library: Option<LibraryId>,
         offset: Option<usize>,
         limit: Option<usize>,
-        filters: FilterContainer,
+        filters: Option<FilterContainer>,
     ) -> Result<Self> {
         Ok(Self {
             library,
@@ -195,7 +195,9 @@ impl BookListQuery {
     }
 
     pub fn has_query(&self) -> bool {
-        !self.filters.filters.is_empty()
+        self.filters.as_ref()
+            .map(|v| !v.filters.is_empty())
+            .unwrap_or_default()
     }
 }
 

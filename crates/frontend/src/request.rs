@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use common::{
-    api::{ApiErrorResponse, DeletionResponse, WrappingResponse},
+    api::{ApiErrorResponse, WrappingResponse},
     BookId, Either, ImageId, ImageIdType, PersonId,
 };
 use gloo_utils::{format::JsValueSerdeExt, window};
@@ -111,30 +111,6 @@ pub async fn update_person_thumbnail(
     .unwrap_or_else(def)
 }
 
-// Person Book Link
-
-pub async fn add_person_to_book(book_id: BookId, person_id: PersonId) -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        &format!("/api/book/{book_id}/person/{person_id}"),
-        Option::<&()>::None,
-    )
-    .await
-    .unwrap_or_else(def)
-}
-
-pub async fn delete_person_from_book(
-    book_id: BookId,
-    person_id: PersonId,
-) -> WrappingResponse<DeletionResponse> {
-    fetch(
-        "DELETE",
-        &format!("/api/book/{book_id}/person/{person_id}"),
-        Option::<&()>::None,
-    )
-    .await
-    .unwrap_or_else(def)
-}
 
 // Books
 
@@ -181,7 +157,7 @@ pub async fn get_books(
     library: Option<LibraryId>,
     offset: Option<usize>,
     limit: Option<usize>,
-    search: FilterContainer,
+    search: Option<FilterContainer>,
 ) -> WrappingResponse<ApiGetBookListResponse> {
     let url = format!(
         "/api/books?{}",
@@ -312,15 +288,6 @@ pub async fn update_book_notes(book_id: FileId, data: String) -> WrappingRespons
         .unwrap_or_else(def)
 }
 
-pub async fn remove_book_notes(book_id: FileId) -> WrappingResponse<String> {
-    fetch(
-        "DELETE",
-        &format!("/api/file/{}/notes", book_id),
-        Option::<&()>::None,
-    )
-    .await
-    .unwrap_or_else(def)
-}
 
 // Image
 

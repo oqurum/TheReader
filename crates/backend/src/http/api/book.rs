@@ -38,13 +38,17 @@ pub async fn load_book_list(
     query: QsQuery<api::BookListQuery>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookListResponse>> {
-    let count = BookModel::count_search_by(&query.filters, query.library, &db).await?;
+    let query = query.into_inner();
+
+    let filters = query.filters.unwrap_or_default();
+
+    let count = BookModel::count_search_by(&filters, query.library, &db).await?;
 
     let items = if count == 0 {
         Vec::new()
     } else {
         BookModel::search_by(
-            &query.filters,
+            &filters,
             query.library,
             query.offset.unwrap_or(0),
             query.limit.unwrap_or(50),

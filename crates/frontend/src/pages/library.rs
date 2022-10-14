@@ -25,7 +25,7 @@ use crate::{
     },
     request,
     services::WsEventBus,
-    util::SearchQuery,
+    util::build_book_filter_query,
 };
 
 #[derive(Properties, PartialEq, Eq)]
@@ -201,7 +201,7 @@ impl Component for LibraryPage {
                             Some(library),
                             offset,
                             None,
-                            SearchQuery::load().filters,
+                            Some(build_book_filter_query()),
                         )
                         .await,
                     )

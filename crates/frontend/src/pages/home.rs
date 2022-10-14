@@ -174,7 +174,7 @@ impl HomePage {
                             Some(lib_id),
                             None,
                             Some(25),
-                            FilterContainer::default().order_by(FilterTableType::CreatedAt, true),
+                            Some(FilterContainer::default().order_by(FilterTableType::CreatedAt, true)),
                         )
                         .await,
                     )

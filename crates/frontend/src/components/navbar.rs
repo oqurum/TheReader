@@ -61,7 +61,7 @@ impl Component for NavbarModule {
                         request::get_books(None, Some(0), Some(20), {
                             let mut search = FilterContainer::default();
                             search.add_query_filter(value);
-                            search
+                            Some(search)
                         })
                         .await,
                     )

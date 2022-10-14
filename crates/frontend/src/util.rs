@@ -1,7 +1,6 @@
 use common::api::ApiErrorResponse;
 use common_local::filter::FilterContainer;
 use gloo_utils::window;
-use serde::{Deserialize, Serialize};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::MouseEvent;
 use yew::{html::Scope, Callback, Component};
@@ -86,44 +85,20 @@ where
     })
 }
 
-pub fn update_query<F: FnOnce(&mut SearchQuery)>(value: F) {
-    let mut query = SearchQuery::load();
+pub fn build_book_filter_query() -> FilterContainer {
+    let q = gloo_utils::window().location().search().unwrap_throw();
 
-    value(&mut query);
+    if q.is_empty() {
+        FilterContainer::default()
+    } else {
+        match serde_qs::from_str(&q[1..]) {
+            Ok(v) => v,
+            Err(e) => {
+                crate::display_error(ApiErrorResponse {
+                    description: e.to_string(),
+                });
 
-    query.save();
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct SearchQuery {
-    pub filters: FilterContainer,
-}
-
-impl SearchQuery {
-    pub fn save(&self) {
-        let s = serde_qs::to_string(self).unwrap_throw();
-
-        gloo_utils::window()
-            .location()
-            .set_search(&s)
-            .unwrap_throw();
-    }
-
-    pub fn load() -> Self {
-        let q = gloo_utils::window().location().search().unwrap_throw();
-
-        if q.is_empty() {
-            Self::default()
-        } else {
-            match serde_qs::from_str(&q[1..]) {
-                Ok(v) => v,
-                Err(e) => {
-                    crate::display_error(ApiErrorResponse {
-                        description: e.to_string(),
-                    });
-
-                    Self::default()
-                }
+                FilterContainer::default()
             }
         }
     }
