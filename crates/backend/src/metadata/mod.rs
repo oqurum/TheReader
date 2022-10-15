@@ -467,7 +467,6 @@ impl From<FoundItem> for BookModel {
             deleted_at: None,
             available_at: val.available_at,
             year: val.year,
-            hash: String::new(),
         }
     }
 }

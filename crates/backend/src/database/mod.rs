@@ -94,8 +94,6 @@ pub async fn init() -> Result<Database> {
             "updated_at"          DATETIME,
             "deleted_at"          DATETIME,
 
-            "hash"                TEXT,
-
             PRIMARY KEY("id" AUTOINCREMENT),
 
             FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE

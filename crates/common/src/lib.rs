@@ -161,8 +161,6 @@ pub struct DisplayBookItem {
 
     pub available_at: Option<i64>,
     pub year: Option<i64>,
-
-    pub hash: String,
 }
 
 impl DisplayBookItem {
@@ -197,7 +195,6 @@ impl Default for DisplayBookItem {
             deleted_at: Default::default(),
             available_at: Default::default(),
             year: Default::default(),
-            hash: Default::default(),
         }
     }
 }

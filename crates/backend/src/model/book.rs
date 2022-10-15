@@ -42,8 +42,6 @@ pub struct BookModel {
 
     pub available_at: Option<i64>,
     pub year: Option<i64>,
-
-    pub hash: String,
 }
 
 impl From<BookModel> for DisplayBookItem {
@@ -65,7 +63,6 @@ impl From<BookModel> for DisplayBookItem {
             deleted_at: val.deleted_at,
             available_at: val.available_at,
             year: val.year,
-            hash: val.hash,
         }
     }
 }
@@ -93,7 +90,6 @@ impl TableRow<'_> for BookModel {
             created_at: Utc.timestamp_millis(row.next()?),
             updated_at: Utc.timestamp_millis(row.next()?),
             deleted_at: row.next_opt()?.map(|v| Utc.timestamp_millis(v)),
-            hash: row.next()?,
         })
     }
 }
@@ -114,10 +110,9 @@ impl BookModel {
                     title, original_title, description, rating, thumb_url,
                     cached,
                     available_at, year,
-                    refreshed_at, created_at, updated_at, deleted_at,
-                    hash
+                    refreshed_at, created_at, updated_at, deleted_at
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)"#,
                 params![
                     self.library_id,
                     self.source.to_string(),
@@ -134,7 +129,6 @@ impl BookModel {
                     &self.created_at.timestamp_millis(),
                     &self.updated_at.timestamp_millis(),
                     self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
-                    &self.hash
                 ],
             )?;
 
@@ -164,8 +158,7 @@ impl BookModel {
                 title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
                 cached = ?10,
                 available_at = ?11, year = ?12,
-                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15,
-                hash = ?16
+                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15
             WHERE id = ?1"#,
             params![
                 self.id,
@@ -183,7 +176,6 @@ impl BookModel {
                 &self.refreshed_at.timestamp_millis(),
                 &self.updated_at.timestamp_millis(),
                 self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
-                &self.hash
             ],
         )?;
 
