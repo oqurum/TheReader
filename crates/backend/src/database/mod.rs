@@ -56,11 +56,12 @@ pub async fn init() -> Result<Database> {
             "chapter_count"    INTEGER,
 
             "identifier"       TEXT,
-            "hash"             TEXT,
+            "hash"             TEXT NOT NULL UNIQUE,
 
             "modified_at"      DATETIME NOT NULL,
             "accessed_at"      DATETIME NOT NULL,
             "created_at"       DATETIME NOT NULL,
+            "deleted_at"       DATETIME,
 
             PRIMARY KEY("id" AUTOINCREMENT),
 
@@ -170,6 +171,7 @@ pub async fn init() -> Result<Database> {
 
             "data"          TEXT NOT NULL,
             "data_size"     INTEGER NOT NULL,
+            "version"       INTEGER NOT NULL,
 
             "updated_at"    DATETIME NOT NULL,
             "created_at"    DATETIME NOT NULL,

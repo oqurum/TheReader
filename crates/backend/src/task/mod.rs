@@ -43,11 +43,7 @@ use crate::{
 
 lazy_static! {
     pub static ref TASKS_QUEUED: Mutex<VecDeque<Box<dyn Task>>> = Mutex::new(VecDeque::new());
-    static ref TASK_INTERVALS: Mutex<Vec<TaskInterval>> = Mutex::new(vec![TaskInterval {
-        last_ran: None,
-        interval: Duration::from_secs(60 * 60),
-        task: || Box::new(TaskFileHashSetter)
-    },]);
+    static ref TASK_INTERVALS: Mutex<Vec<TaskInterval>> = Mutex::new(vec![]);
 }
 
 struct TaskInterval {
@@ -133,48 +129,49 @@ pub fn start_task_manager(db: web::Data<Database>) {
     });
 }
 
-pub struct TaskFileHashSetter;
+// TODO: Now unused. Change into a Unused Image Deletion task.
+// pub struct TaskFileHashSetter;
 
-#[async_trait]
-impl Task for TaskFileHashSetter {
-    async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
-        const LIMIT: usize = 250;
+// #[async_trait]
+// impl Task for TaskFileHashSetter {
+//     async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
+//         const LIMIT: usize = 250;
 
-        let total = FileModel::count_by_missing_hash(db).await?;
+//         let total = FileModel::count_by_missing_hash(db).await?;
 
-        for _ in (0..total).step_by(LIMIT) {
-            // send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType));
+//         for _ in (0..total).step_by(LIMIT) {
+//             // send_message_to_clients(WebsocketNotification::new_task(task_id, TaskType));
 
-            let models = FileModel::find_by_missing_hash(0, LIMIT, db).await?;
+//             let models = FileModel::find_by_missing_hash(0, LIMIT, db).await?;
 
-            let mut updates = Vec::new();
+//             let mut updates = Vec::new();
 
-            for model in models {
-                if let Ok(Some(mut book)) = bookie::load_from_path(&model.path) {
-                    if let Some(hash) = book.compute_hash() {
-                        updates.push([hash, model.path]);
-                    }
-                }
-            }
+//             for model in models {
+//                 if let Ok(Some(mut book)) = bookie::load_from_path(&model.path) {
+//                     if let Some(hash) = book.compute_hash() {
+//                         updates.push([hash, model.path]);
+//                     }
+//                 }
+//             }
 
-            let write = db.write().await;
+//             let write = db.write().await;
 
-            let mut stmt = write
-                .prepare("UPDATE file SET hash = ?1 WHERE path = ?2")
-                .unwrap();
+//             let mut stmt = write
+//                 .prepare("UPDATE file SET hash = ?1 WHERE path = ?2")
+//                 .unwrap();
 
-            for update in updates {
-                stmt.execute(update).unwrap();
-            }
-        }
+//             for update in updates {
+//                 stmt.execute(update).unwrap();
+//             }
+//         }
 
-        Ok(())
-    }
+//         Ok(())
+//     }
 
-    fn name(&self) -> &'static str {
-        "File Hash Setter"
-    }
-}
+//     fn name(&self) -> &'static str {
+//         "File Hash Setter"
+//     }
+// }
 
 pub struct TaskLibraryScan {
     pub library_id: LibraryId,

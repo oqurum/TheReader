@@ -1,5 +1,5 @@
 use chrono::{DateTime, TimeZone, Utc};
-use common::BookId;
+use common::{util::serialize_datetime_opt, BookId};
 use rusqlite::{params, OptionalExtension};
 
 use crate::{database::Database, Result};
@@ -22,11 +22,12 @@ pub struct NewFileModel {
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
-    pub hash: Option<String>,
+    pub hash: String,
 
     pub modified_at: DateTime<Utc>,
     pub accessed_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -44,7 +45,7 @@ pub struct FileModel {
     pub chapter_count: i64,
 
     pub identifier: Option<String>,
-    pub hash: Option<String>,
+    pub hash: String,
 
     #[serde(serialize_with = "serialize_datetime")]
     pub modified_at: DateTime<Utc>,
@@ -52,6 +53,8 @@ pub struct FileModel {
     pub accessed_at: DateTime<Utc>,
     #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
+    #[serde(serialize_with = "serialize_datetime_opt")]
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 impl From<FileModel> for MediaItem {
@@ -75,6 +78,7 @@ impl From<FileModel> for MediaItem {
             modified_at: file.modified_at.timestamp_millis(),
             accessed_at: file.accessed_at.timestamp_millis(),
             created_at: file.created_at.timestamp_millis(),
+            deleted_at: file.deleted_at.map(|v| v.timestamp_millis()),
         }
     }
 }
@@ -100,6 +104,7 @@ impl TableRow<'_> for FileModel {
             modified_at: Utc.timestamp_millis(row.next()?),
             accessed_at: Utc.timestamp_millis(row.next()?),
             created_at: Utc.timestamp_millis(row.next()?),
+            deleted_at: row.next_opt()?.map(|v| Utc.timestamp_millis(v)),
         })
     }
 }
@@ -120,6 +125,7 @@ impl NewFileModel {
             modified_at: self.modified_at,
             accessed_at: self.accessed_at,
             created_at: self.created_at,
+            deleted_at: self.deleted_at,
         }
     }
 
@@ -133,7 +139,7 @@ impl NewFileModel {
         params![
             &self.path, &self.file_type, &self.file_name, self.file_size,
             self.modified_at.timestamp_millis(), self.accessed_at.timestamp_millis(), self.created_at.timestamp_millis(),
-            self.identifier.as_deref(), self.hash.as_deref(),
+            self.identifier.as_deref(), &self.hash,
             self.library_id, self.book_id, self.chapter_count
         ])?;
 
@@ -142,13 +148,12 @@ impl NewFileModel {
 }
 
 impl FileModel {
-    pub async fn path_exists(path: &str, db: &Database) -> Result<bool> {
-        Ok(db
-            .read()
-            .await
-            .query_row(r#"SELECT id FROM file WHERE path = ?1"#, [path], |_| Ok(1))
-            .optional()?
-            .is_some())
+    pub async fn exists(path: &str, hash: &str, db: &Database) -> Result<bool> {
+        Ok(db.read().await.query_row(
+            r#"EXISTS(SELECT id FROM file WHERE path = ?1 OR hash = ?2)"#,
+            [path, hash],
+            |v| v.get::<_, bool>(0),
+        )?)
     }
 
     pub async fn find_by(

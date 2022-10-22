@@ -50,7 +50,7 @@ pub async fn library_scan(
                 };
 
                 if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) {
-                    let file_size = fs::metadata(&path).await?.len(); // TODO: Remove fs::read
+                    let file_size = fs::metadata(&path).await?.len();
 
                     let (chapter_count, identifier, hash) =
                         match bookie::load_from_path(&path.to_string_lossy()) {
@@ -72,7 +72,8 @@ pub async fn library_scan(
 
                                     (book.chapter_count() as i64, identifier, book.compute_hash())
                                 } else {
-                                    (0, None, None)
+                                    eprintln!("library_scane: Unable to find book from path");
+                                    continue;
                                 }
                             }
 
@@ -81,6 +82,14 @@ pub async fn library_scan(
                                 continue;
                             }
                         };
+
+                    let hash = match hash {
+                        Some(v) => v,
+                        None => {
+                            eprintln!("library_scan: Unable to compute hash");
+                            continue;
+                        }
+                    };
 
                     let file = NewFileModel {
                         path: path.to_str().unwrap().replace('\\', "/"),
@@ -105,11 +114,10 @@ pub async fn library_scan(
                         created_at: Utc.timestamp_millis(
                             meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
                         ),
+                        deleted_at: None,
                     };
 
-                    // TODO: How to handle duplicate hashes?
-
-                    if !FileModel::path_exists(&file.path, db).await? {
+                    if !FileModel::exists(&file.path, &file.hash, db).await? {
                         let file = file.insert(db).await?;
                         let file_id = file.id;
 

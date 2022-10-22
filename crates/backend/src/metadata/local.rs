@@ -80,23 +80,6 @@ impl Metadata for LocalMetadata {
                 )
             };
 
-            // TODO:
-            // meta.all_thumbnail_urls = match opt_thumb_url {
-            //     Some(book_file_path) => {
-            //         let image = book_file_path?;
-
-            //         match crate::store_image(ThumbnailType::Local, image).await {
-            //             Ok(path) => path.into(),
-            //             Err(e) => {
-            //                 eprintln!("store_image: {}", e);
-            //                 ThumbnailPath::default()
-            //             }
-            //         }
-            //     }
-
-            //     None => ThumbnailPath::default(),
-            // };
-
             return Ok(Some(MetadataReturned {
                 authors,
                 publisher,

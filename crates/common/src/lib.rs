@@ -216,11 +216,12 @@ pub struct MediaItem {
     pub chapter_count: usize,
 
     pub identifier: Option<String>,
-    pub hash: Option<String>,
+    pub hash: String,
 
     pub modified_at: i64,
     pub accessed_at: i64,
     pub created_at: i64,
+    pub deleted_at: Option<i64>,
 }
 
 impl PartialEq for MediaItem {
