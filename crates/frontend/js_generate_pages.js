@@ -102,6 +102,8 @@ function flattenVerticalList(tableElement) {
 	return items;
 }
 
+// Extreme Cost - At least one on one Book (Modern X86 Assembly Language Programming)
+// shrinkVerticalMargins would utilize 50% - specifically paddingTop > Styles
 /**
  * @param {HTMLElement} element
  * @param {number} max_margins
@@ -168,14 +170,23 @@ function canFlattenElement(element, bodyWidth) {
 	) {
 		return true;
 	} else {
-		let max_x = 0;
+		// TODO: Temporarily(?) disabled
+		// Extreme Cost - At least one on one Book (Modern X86 Assembly Language Programming)
+		// offsetLeft would take ~5 seconds and cause Reflows
 
-		for (let i = 0; i < element.children.length; i++) {
-			const child = element.children[i];
-			max_x = Math.max(max_x, child.offsetLeft + child.offsetWidth);
-		}
+		// let max_x = 0;
 
-		return max_x > bodyWidth;
+		// for (let i = 0; i < element.children.length; i++) {
+		// 	const child = element.children[i];
+
+		// 	max_x = Math.max(max_x, child.offsetLeft + child.offsetWidth);
+
+		// 	if (max_x > bodyWidth) {
+		// 		return true;
+		// 	}
+		// }
+
+		return false;
 	}
 }
 
@@ -195,6 +206,8 @@ const LOAD_JS = [
 **/
 export function js_update_iframe_after_load(iframe, chapter, handle_redirect_click) {
 	let document = iframe.contentDocument;
+
+	let started_at = Date.now();
 
 	document.querySelectorAll('a[href]')
 	.forEach(element => {
@@ -221,6 +234,8 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 		document.body.appendChild(external);
 	}
 
+	// Caching width here removes a second of render time. Caused by Reflow - width also shouldn't change.
+	let document_width = document.body.clientWidth;
 
 	for(let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
@@ -229,10 +244,11 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 		child.style = STYLE;
 		applyToChildren(child);
 
-		shrinkVerticalMargins(child, 18);
+		// TODO: Optimize shrinkVerticalMargins
+		// shrinkVerticalMargins(child, 18);
 		// TODO: addHorizontalMargins(child, 10);
 
-		if (canFlattenElement(child, document.body.clientWidth) &&
+		if (canFlattenElement(child, document_width) &&
 			!doesContainAnyText(child)
 		) {
 			while (child.firstChild != null) {
@@ -267,6 +283,8 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 			element.style.maxWidth = '100%';
 		}
 	});
+
+	console.log(`Rendered Frame: ${ (Date.now() - started_at)/1000 }sec`);
 }
 
 // FIX: For some reason the inline CSS will not be the top priority.
