@@ -147,15 +147,13 @@ pub async fn download_file(
     Ok(NamedFile::open_async(file_model.path)
         .await
         .map_err(crate::Error::from)?
-        .set_content_disposition(
-            ContentDisposition::from_raw(
-                &HeaderValue::from_str(&format!(
-                    r#"attachment; filename="{}.{}""#,
-                    file_model.file_name.replace('"', ""), // Shouldn't have " in the file_name but just in-case.
-                    file_model.file_type,
-                ))?,
-            )?,
-        ))
+        .set_content_disposition(ContentDisposition::from_raw(&HeaderValue::from_str(
+            &format!(
+                r#"attachment; filename="{}.{}""#,
+                file_model.file_name.replace('"', ""), // Shouldn't have " in the file_name but just in-case.
+                file_model.file_type,
+            ),
+        )?)?))
 }
 
 #[get("/file/{id}/debug/{tail:.*}")]

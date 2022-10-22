@@ -7,7 +7,11 @@ use web_sys::{HtmlElement, HtmlInputElement, MouseEvent};
 use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast};
 use yew_router::prelude::Link;
 
-use crate::{request, Route, util::{on_click_prevdef_cb, on_click_prevdef_stopprop_cb}};
+use crate::{
+    request,
+    util::{on_click_prevdef_cb, on_click_prevdef_stopprop_cb},
+    Route,
+};
 
 #[derive(Properties)]
 pub struct BookPosterItemProps {

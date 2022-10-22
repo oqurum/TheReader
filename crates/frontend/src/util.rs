@@ -20,7 +20,6 @@ pub fn as_local_path_without_http(value: &str) -> String {
     )
 }
 
-
 /// A Callback which calls "prevent_default" and "stop_propagation"
 ///
 /// Also will prevent any more same events downstream from activating
@@ -48,15 +47,10 @@ pub fn on_click_prevdef_cb<S: 'static, F: Fn(&Callback<S>, MouseEvent) + 'static
     })
 }
 
-
-
 /// A Callback which calls "prevent_default" and "stop_propagation"
 ///
 /// Also will prevent any more same events downstream from activating
-pub fn on_click_prevdef_stopprop_scope<S, F>(
-    cb: Scope<S>,
-    func: F,
-) -> Callback<MouseEvent>
+pub fn on_click_prevdef_stopprop_scope<S, F>(cb: Scope<S>, func: F) -> Callback<MouseEvent>
 where
     S: Component,
     F: (Fn(MouseEvent) -> S::Message) + 'static,
@@ -70,10 +64,7 @@ where
 }
 
 /// A Callback which calls "prevent_default"
-pub fn on_click_prevdef_scope<S, F>(
-    cb: Scope<S>,
-    func: F,
-) -> Callback<MouseEvent>
+pub fn on_click_prevdef_scope<S, F>(cb: Scope<S>, func: F) -> Callback<MouseEvent>
 where
     S: Component,
     F: (Fn(MouseEvent) -> S::Message) + 'static,

@@ -111,7 +111,6 @@ pub async fn update_person_thumbnail(
     .unwrap_or_else(def)
 }
 
-
 // Books
 
 pub async fn update_books(value: &MassEditBooks) -> WrappingResponse<String> {
@@ -287,7 +286,6 @@ pub async fn update_book_notes(book_id: FileId, data: String) -> WrappingRespons
         .await
         .unwrap_or_else(def)
 }
-
 
 // Image
 

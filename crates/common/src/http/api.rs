@@ -195,7 +195,8 @@ impl BookListQuery {
     }
 
     pub fn has_query(&self) -> bool {
-        self.filters.as_ref()
+        self.filters
+            .as_ref()
             .map(|v| !v.filters.is_empty())
             .unwrap_or_default()
     }
