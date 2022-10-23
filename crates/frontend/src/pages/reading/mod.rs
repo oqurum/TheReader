@@ -19,8 +19,8 @@ use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::Element;
 use yew::{context::ContextHandle, prelude::*};
 
-use crate::components::notes::Notes;
 use crate::components::reader::Reader;
+use crate::components::{notes::Notes, reader::OverlayEvent};
 use crate::{
     components::reader::{
         DragType, LoadedChapters, PageLoadType, ReaderEvent, ReaderSettings, SectionDisplay,
@@ -270,16 +270,21 @@ impl Component for ReadingBook {
                     }
 
                     ReaderEvent::ViewOverlay(o_event) => {
-                        if self.reader_settings.is_fullscreen && o_event.type_of == DragType::None {
-                            if let Some(dur) = o_event.instant {
-                                if dur.num_milliseconds() < 500
-                                    && self.display_toolbar.is_expanded()
-                                {
-                                    self.display_toolbar = DisplayToolBars::Hidden;
-                                    self.state.update_nav_visibility.emit(false);
-                                } else {
-                                    self.display_toolbar = DisplayToolBars::Expanded;
-                                    self.state.update_nav_visibility.emit(true);
+                        if let OverlayEvent::Swipe {
+                            type_of, instant, ..
+                        } = o_event
+                        {
+                            if self.reader_settings.is_fullscreen && type_of == DragType::None {
+                                if let Some(dur) = instant {
+                                    if dur.num_milliseconds() < 500
+                                        && self.display_toolbar.is_expanded()
+                                    {
+                                        self.display_toolbar = DisplayToolBars::Hidden;
+                                        self.state.update_nav_visibility.emit(false);
+                                    } else {
+                                        self.display_toolbar = DisplayToolBars::Expanded;
+                                        self.state.update_nav_visibility.emit(true);
+                                    }
                                 }
                             }
                         }

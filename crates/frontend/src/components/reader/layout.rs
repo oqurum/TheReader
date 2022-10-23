@@ -3,7 +3,7 @@ use std::{cell::Cell, rc::Rc};
 use chrono::Utc;
 use gloo_timers::callback::Timeout;
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue, UnwrapThrowExt};
-use web_sys::{Document, EventTarget, HtmlElement, HtmlIFrameElement, WheelEvent};
+use web_sys::{Document, EventTarget, HtmlElement, HtmlIFrameElement, MouseEvent, WheelEvent};
 use yew::Context;
 
 use super::{section::SectionContents, DragType, OverlayEvent, Reader, ReaderMsg};
@@ -348,15 +348,17 @@ impl ScrollDisplay {
                 press_duration2.set(Utc::now());
             }) as Box<dyn FnMut()>);
 
-            let function_mu = Closure::wrap(Box::new(move || {
+            let function_mu = Closure::wrap(Box::new(move |e: MouseEvent| {
                 let duration = Utc::now().signed_duration_since(press_duration.get());
 
-                link.send_message(ReaderMsg::HandleViewOverlay(OverlayEvent {
+                link.send_message(ReaderMsg::HandleViewOverlay(OverlayEvent::Swipe {
                     type_of: DragType::None,
                     dragging: false,
                     instant: Some(duration),
+                    coords_start: (e.x(), e.y()),
+                    coords_end: (e.x(), e.y()),
                 }))
-            }) as Box<dyn FnMut()>);
+            }) as Box<dyn FnMut(MouseEvent)>);
 
             self._events.push(ElementEvent::link(
                 body.clone().unchecked_into(),

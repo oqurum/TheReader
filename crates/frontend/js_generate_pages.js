@@ -455,3 +455,27 @@ export function js_set_page_display_style(iframe, display) {
 			break;
 	}
 }
+
+/**
+ * @param {HTMLIFrameElement} iframe
+ * @param {boolean} is_vscroll
+ * @returns {DomRect[]}
+**/
+export function js_get_visible_links(iframe, is_vscroll) {
+	let document = iframe.contentDocument;
+
+	let rendering = [];
+
+	for (let element of document.querySelectorAll('a[href]')) {
+		let rect = element.getBoundingClientRect();
+
+		if (is_vscroll && rect.y >= 0 && rect.y < document.body.clientHeight) {
+			// TODO
+			// rendering.push(rect);
+		} else if (!is_vscroll && rect.x >= 0 && rect.x < document.body.clientWidth) {
+			rendering.push(rect);
+		}
+	}
+
+	return rendering;
+}

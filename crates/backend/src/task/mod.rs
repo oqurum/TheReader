@@ -38,6 +38,7 @@ use crate::{
     sort_by_similarity, Result,
 };
 
+// TODO: Sort into smaller functions. There's lots of redundant code.
 // TODO: A should stop boolean
 // TODO: Store what's currently running
 

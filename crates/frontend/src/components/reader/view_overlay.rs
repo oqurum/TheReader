@@ -1,21 +1,31 @@
 use std::rc::Rc;
 
 use chrono::{Duration, Utc};
-use web_sys::MouseEvent;
+use wasm_bindgen::UnwrapThrowExt;
+use web_sys::{DomRect, HtmlElement, MouseEvent};
 use yew::{
-    function_component, html, use_effect_with_deps, use_node_ref, use_state_eq, Callback, NodeRef,
-    Properties, UseStateHandle,
+    function_component, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state_eq,
+    Callback, NodeRef, Properties, UseStateHandle,
 };
 use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
 
 #[derive(Debug)]
-pub struct OverlayEvent {
-    pub type_of: DragType,
-    pub dragging: bool,
-    pub instant: Option<Duration>,
+pub enum OverlayEvent {
+    MouseMove {
+        x: i32,
+        y: i32,
+    },
+
+    Swipe {
+        type_of: DragType,
+        dragging: bool,
+        instant: Option<Duration>,
+        coords_start: (i32, i32),
+        coords_end: (i32, i32),
+    },
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DragType {
     Up(usize),
     Right(usize),
@@ -46,7 +56,7 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
         let time_down = time_down.clone();
 
         use_effect_with_deps(
-            move |(swiping, direction, length_x, length_y)| {
+            move |(swiping, direction, length_x, length_y, coords_start, coords_end)| {
                 let distance = match **direction {
                     UseSwipeDirection::Left => length_x.abs(),
                     UseSwipeDirection::Right => length_x.abs(),
@@ -70,18 +80,22 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
                     curr_event_state.set(true);
 
-                    event.emit(OverlayEvent {
+                    event.emit(OverlayEvent::Swipe {
                         type_of: direction,
                         dragging: true,
                         instant: None,
+                        coords_start: **coords_start,
+                        coords_end: **coords_end,
                     });
                 } else if *curr_event_state {
                     curr_event_state.set(false);
 
-                    event.emit(OverlayEvent {
+                    event.emit(OverlayEvent::Swipe {
                         type_of: direction,
                         dragging: false,
                         instant: Some(Utc::now().signed_duration_since(*time_down)),
+                        coords_start: **coords_start,
+                        coords_end: **coords_end,
                     });
                 }
                 || ()
@@ -91,6 +105,8 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                 state.direction,
                 state.length_x,
                 state.length_y,
+                state.coords_start,
+                state.coords_end,
             ),
         );
     }
@@ -101,42 +117,53 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
         use_effect_with_deps(
             move |handle| {
-                let distance = match *handle.direction {
-                    UseSwipeDirection::Left => handle.length_x.abs(),
-                    UseSwipeDirection::Right => handle.length_x.abs(),
-                    UseSwipeDirection::Up => handle.length_y.abs(),
-                    UseSwipeDirection::Down => handle.length_y.abs(),
-                    UseSwipeDirection::None => 0,
-                } as usize;
+                if *handle.dragging || *curr_event_state {
+                    let distance = match *handle.direction {
+                        UseSwipeDirection::Left => handle.length_x.abs(),
+                        UseSwipeDirection::Right => handle.length_x.abs(),
+                        UseSwipeDirection::Up => handle.length_y.abs(),
+                        UseSwipeDirection::Down => handle.length_y.abs(),
+                        UseSwipeDirection::None => 0,
+                    } as usize;
 
-                let direction = match *handle.direction {
-                    UseSwipeDirection::Left => DragType::Left(distance),
-                    UseSwipeDirection::Right => DragType::Right(distance),
-                    UseSwipeDirection::Up => DragType::Up(distance),
-                    UseSwipeDirection::Down => DragType::Down(distance),
-                    UseSwipeDirection::None => DragType::None,
-                };
+                    let direction = match *handle.direction {
+                        UseSwipeDirection::Left => DragType::Left(distance),
+                        UseSwipeDirection::Right => DragType::Right(distance),
+                        UseSwipeDirection::Up => DragType::Up(distance),
+                        UseSwipeDirection::Down => DragType::Down(distance),
+                        UseSwipeDirection::None => DragType::None,
+                    };
 
-                // If we're dragging the mouse down and it's registered as moving.
-                if *handle.dragging {
-                    if !*curr_event_state {
-                        time_down.set(Utc::now());
+                    // If we're dragging the mouse down and it's registered as moving.
+                    if *handle.dragging {
+                        if !*curr_event_state {
+                            time_down.set(Utc::now());
+                        }
+
+                        curr_event_state.set(true);
+
+                        event.emit(OverlayEvent::Swipe {
+                            type_of: direction,
+                            dragging: true,
+                            instant: None,
+                            coords_start: *handle.coords_start,
+                            coords_end: handle.coords_end.unwrap_or_default(),
+                        });
+                    } else if *curr_event_state {
+                        curr_event_state.set(false);
+
+                        event.emit(OverlayEvent::Swipe {
+                            type_of: direction,
+                            dragging: false,
+                            instant: Some(Utc::now().signed_duration_since(*time_down)),
+                            coords_start: *handle.coords_start,
+                            coords_end: handle.coords_end.unwrap_or_default(),
+                        });
                     }
-
-                    curr_event_state.set(true);
-
-                    event.emit(OverlayEvent {
-                        type_of: direction,
-                        dragging: true,
-                        instant: None,
-                    });
-                } else if !*handle.dragging && *curr_event_state {
-                    curr_event_state.set(false);
-
-                    event.emit(OverlayEvent {
-                        type_of: direction,
-                        dragging: false,
-                        instant: Some(Utc::now().signed_duration_since(*time_down)),
+                } else {
+                    event.emit(OverlayEvent::MouseMove {
+                        x: handle.coords_start.0,
+                        y: handle.coords_start.1,
                     });
                 }
 
@@ -146,8 +173,10 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
         );
     }
 
+    // TODO: Implement Mouse Move
+
     html! {
-        <div class="view-overlay" ref={ node } style="user-select: none;"></div>
+        <canvas class="view-overlay" ref={ node } style="user-select: none;" />
     }
 }
 
@@ -182,6 +211,7 @@ impl Clone for UseMouseHandle {
 }
 
 pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
+    let node_bb = use_mut_ref(|| DomRect::new().unwrap_throw());
     let dragging = use_state_eq(|| false);
     let moving = use_state_eq(|| false);
     let direction = use_state_eq(|| UseSwipeDirection::None);
@@ -226,21 +256,29 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
     };
 
     {
-        let coords_start = coords_start.clone();
+        let node_bb = node_bb.clone();
+        let node = node.clone();
+
+        use_event(node.clone(), "mouseenter", move |_: MouseEvent| {
+            *node_bb.borrow_mut() = node
+                .cast::<HtmlElement>()
+                .unwrap_throw()
+                .get_bounding_client_rect();
+        });
+    }
+
+    {
         let coords_end = coords_end.clone();
         let dragging = dragging.clone();
 
-        use_event(node.clone(), "mousedown", move |e: MouseEvent| {
-            let x = e.x();
-            let y = e.y();
-
-            coords_start.set((x, y));
+        use_event(node.clone(), "mousedown", move |_: MouseEvent| {
             coords_end.set(None);
             dragging.set(true);
         });
     }
 
     {
+        let coords_start = coords_start.clone();
         let coords_end = coords_end.clone();
         let moving = moving.clone();
         let length_x = length_x.clone();
@@ -249,35 +287,37 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
         let dragging = dragging.clone();
 
         use_event(node.clone(), "mousemove", move |e: MouseEvent| {
-            // TODO: Should I keep. This prevents one-time clicks from changing the page.
+            let node_bb = node_bb.borrow();
+
+            let x = e.x() - node_bb.left() as i32;
+            let y = e.y() - node_bb.top() as i32;
+
             if !*dragging {
-                return;
-            }
-
-            let x = e.x();
-            let y = e.y();
-
-            coords_end.set(Some((x, y)));
-
-            length_x.set(diff_x());
-            length_y.set(diff_y());
-
-            if !*moving && threshold_exceeded() {
-                moving.set(true);
-            }
-
-            if !threshold_exceeded() {
-                direction.set(UseSwipeDirection::None);
-            } else if diff_x().abs() > diff_y().abs() {
-                if diff_x() > 0 {
-                    direction.set(UseSwipeDirection::Left);
-                } else {
-                    direction.set(UseSwipeDirection::Right);
-                }
-            } else if diff_y() > 0 {
-                direction.set(UseSwipeDirection::Up);
+                coords_start.set((x, y));
+                coords_end.set(None);
             } else {
-                direction.set(UseSwipeDirection::Down);
+                coords_end.set(Some((x, y)));
+
+                length_x.set(diff_x());
+                length_y.set(diff_y());
+
+                if !*moving && threshold_exceeded() {
+                    moving.set(true);
+                }
+
+                if !threshold_exceeded() {
+                    direction.set(UseSwipeDirection::None);
+                } else if diff_x().abs() > diff_y().abs() {
+                    if diff_x() > 0 {
+                        direction.set(UseSwipeDirection::Left);
+                    } else {
+                        direction.set(UseSwipeDirection::Right);
+                    }
+                } else if diff_y() > 0 {
+                    direction.set(UseSwipeDirection::Up);
+                } else {
+                    direction.set(UseSwipeDirection::Down);
+                }
             }
         });
     }
@@ -287,7 +327,20 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
         let direction = direction.clone();
         let dragging = dragging.clone();
 
-        use_event(node, "mouseup", move |_: MouseEvent| {
+        use_event(node.clone(), "mouseup", move |_: MouseEvent| {
+            moving.set(false);
+            dragging.set(false);
+            direction.set(UseSwipeDirection::None);
+        });
+    }
+
+    {
+        // Copy of mouseup
+        let moving = moving.clone();
+        let direction = direction.clone();
+        let dragging = dragging.clone();
+
+        use_event(node, "mouseleave", move |_: MouseEvent| {
             moving.set(false);
             dragging.set(false);
             direction.set(UseSwipeDirection::None);

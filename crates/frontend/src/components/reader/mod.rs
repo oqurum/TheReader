@@ -2,11 +2,12 @@ use std::{path::PathBuf, rc::Rc, sync::Mutex};
 
 use common_local::{api, Chapter, FileId, MediaItem, Progression};
 use gloo_timers::callback::Timeout;
+use gloo_utils::body;
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
-    JsCast,
+    JsCast, UnwrapThrowExt,
 };
-use web_sys::{HtmlElement, HtmlIFrameElement};
+use web_sys::{DomRect, Element, HtmlElement, HtmlIFrameElement};
 use yew::{html::Scope, prelude::*};
 
 use crate::request;
@@ -40,6 +41,8 @@ extern "C" {
         handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>,
     );
     fn js_set_page_display_style(iframe: &HtmlIFrameElement, display: u8);
+
+    fn js_get_visible_links(iframe: &HtmlIFrameElement, is_vscroll: bool) -> Vec<DomRect>;
 }
 
 macro_rules! get_current_section_mut {
@@ -135,6 +138,7 @@ pub enum ReaderMsg {
     // Event
     HandleJsRedirect(usize, String, Option<String>),
 
+    PageTransitionEnd,
     UpdateDragDistance,
 
     HandleScrollChangePage(DragType),
@@ -161,6 +165,8 @@ pub struct Reader {
     viewing_chapter: usize,
 
     handle_js_redirect_clicks: Closure<dyn FnMut(usize, String)>,
+    cursor_type: &'static str,
+    visible_redirect_rects: Vec<DomRect>,
 
     drag_distance: isize,
 
@@ -193,6 +199,9 @@ impl Component for Reader {
             viewing_chapter: 0,
             drag_distance: 0,
 
+            cursor_type: "default",
+            visible_redirect_rects: Vec::new(),
+
             scroll_change_page_timeout: None,
 
             handle_js_redirect_clicks,
@@ -203,7 +212,19 @@ impl Component for Reader {
         match msg {
             ReaderMsg::Ignore => return false,
 
+            ReaderMsg::PageTransitionEnd => {
+                // TODO: Check if we we changed pages to being with.
+
+                log::info!("transition");
+
+                self.after_page_change();
+
+                return self.update(ctx, ReaderMsg::UploadProgress);
+            }
+
             ReaderMsg::HandleJsRedirect(_chapter, file_path, _id_name) => {
+                log::debug!("ReaderMsg::HandleJsRedirect(chapter: {_chapter}, file_path: {file_path:?}, id_name: {_id_name:?})");
+
                 let file_path = PathBuf::from(file_path);
 
                 let chaps = ctx.props().chapters.lock().unwrap();
@@ -223,46 +244,141 @@ impl Component for Reader {
             }
 
             ReaderMsg::HandleViewOverlay(event) => {
-                match event.type_of {
-                    DragType::Up(_distance) => (),
-                    DragType::Down(_distance) => (),
+                match event {
+                    // Changes users' cursor if they're currently hovering over a redirect.
+                    OverlayEvent::MouseMove { x, y } => {
+                        if !self.cached_display.is_scroll() {
+                            let (x, y) = (x as f64, y as f64);
 
-                    // Previous Page
-                    DragType::Right(distance) => {
-                        if event.dragging {
-                            self.drag_distance = distance as isize;
+                            let mut was_found = false;
 
-                            if let Some(section) = self.get_current_section() {
-                                section.transitioning_page(self.drag_distance);
+                            for bb in &self.visible_redirect_rects {
+                                if bb.x() <= x
+                                    && bb.x() + bb.width() >= x
+                                    && bb.y() <= y
+                                    && bb.y() + bb.height() >= y
+                                {
+                                    if self.cursor_type == "default" {
+                                        self.cursor_type = "pointer";
+                                        body()
+                                            .style()
+                                            .set_property("cursor", self.cursor_type)
+                                            .unwrap_throw();
+                                    }
+
+                                    was_found = true;
+
+                                    break;
+                                }
                             }
-                        } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
-                            return self.update(ctx, ReaderMsg::PreviousPage);
-                        } else if let Some(section) = self.get_current_section() {
-                            section.transitioning_page(0);
-                            self.drag_distance = 0;
+
+                            if !was_found && self.cursor_type != "default" {
+                                self.cursor_type = "default";
+                                body()
+                                    .style()
+                                    .set_property("cursor", self.cursor_type)
+                                    .unwrap_throw();
+                            }
+
+                            return false;
                         }
                     }
 
-                    // Next Page
-                    DragType::Left(distance) => {
-                        if event.dragging {
-                            self.drag_distance = -(distance as isize);
+                    OverlayEvent::Swipe {
+                        type_of,
+                        dragging,
+                        instant,
+                        coords_start,
+                        ..
+                    } => {
+                        match type_of {
+                            DragType::Up(_distance) => (),
+                            DragType::Down(_distance) => (),
 
-                            if let Some(section) = self.get_current_section() {
-                                section.transitioning_page(self.drag_distance);
+                            // Previous Page
+                            DragType::Right(distance) => {
+                                if dragging {
+                                    self.drag_distance = distance as isize;
+
+                                    if let Some(section) = self.get_current_section() {
+                                        section.transitioning_page(self.drag_distance);
+                                    }
+                                } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
+                                    return self.update(ctx, ReaderMsg::PreviousPage);
+                                } else if let Some(section) = self.get_current_section() {
+                                    section.transitioning_page(0);
+                                    self.drag_distance = 0;
+                                }
                             }
-                        } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
-                            return self.update(ctx, ReaderMsg::NextPage);
-                        } else if let Some(section) = self.get_current_section() {
-                            section.transitioning_page(0);
-                            self.drag_distance = 0;
-                        }
-                    }
 
-                    DragType::None => (),
+                            // Next Page
+                            DragType::Left(distance) => {
+                                if dragging {
+                                    self.drag_distance = -(distance as isize);
+
+                                    if let Some(section) = self.get_current_section() {
+                                        section.transitioning_page(self.drag_distance);
+                                    }
+                                } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
+                                    return self.update(ctx, ReaderMsg::NextPage);
+                                } else if let Some(section) = self.get_current_section() {
+                                    section.transitioning_page(0);
+                                    self.drag_distance = 0;
+                                }
+                            }
+
+                            // Clicked on a[href]
+                            DragType::None => {
+                                if type_of == DragType::None {
+                                    if let Some(dur) = instant {
+                                        if dur.num_milliseconds() < 500 {
+                                            if let Some(section) = self.get_current_section() {
+                                                let frame = section.get_iframe();
+                                                let document =
+                                                    frame.content_document().unwrap_throw();
+                                                let bb = frame.get_bounding_client_rect();
+
+                                                let (x, y) = (
+                                                    coords_start.0 as f64 - bb.x(),
+                                                    coords_start.1 as f64 - bb.y(),
+                                                );
+
+                                                if let Some(element) =
+                                                    document.element_from_point(x as f32, y as f32)
+                                                {
+                                                    fn contains_a_href(
+                                                        element: Element,
+                                                    ) -> Option<HtmlElement>
+                                                    {
+                                                        if element.local_name() == "a"
+                                                            && element.has_attribute("href")
+                                                        {
+                                                            Some(element.unchecked_into())
+                                                        } else if let Some(element) =
+                                                            element.parent_element()
+                                                        {
+                                                            contains_a_href(element)
+                                                        } else {
+                                                            None
+                                                        }
+                                                    }
+
+                                                    if let Some(element) = contains_a_href(element)
+                                                    {
+                                                        element.click();
+                                                        return false;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        ctx.props().event.emit(ReaderEvent::ViewOverlay(event));
+                    }
                 }
-
-                ctx.props().event.emit(ReaderEvent::ViewOverlay(event));
             }
 
             ReaderMsg::HandleScrollChangePage(type_of) => {
@@ -425,6 +541,26 @@ impl Component for Reader {
 
                     js_set_page_display_style(section.get_iframe(), self.cached_display.as_u8());
                     update_iframe_size(Some(ctx.props().settings.dimensions), section.get_iframe());
+
+                    let body = section
+                        .get_iframe()
+                        .content_document()
+                        .unwrap_throw()
+                        .body()
+                        .unwrap_throw();
+
+                    let scope = ctx.link().clone();
+                    let cb: Closure<dyn FnMut()> =
+                        Closure::new(move || scope.send_message(ReaderMsg::PageTransitionEnd));
+
+                    body.add_event_listener_with_callback(
+                        "transitionend",
+                        cb.as_ref().unchecked_ref(),
+                    )
+                    .unwrap_throw();
+
+                    // TODO: Memory Leak
+                    cb.forget();
                 }
 
                 let loading_count = self.sections.iter().filter(|v| v.is_loading()).count();
@@ -493,8 +629,8 @@ impl Component for Reader {
                     <div
                         class={ frame_class }
                         style={ frame_style }
-                        // Frame changes use a transition. After the transition ends we'll upload the progress.
-                        ontransitionend={ Callback::from(move|_| link.send_message(ReaderMsg::UploadProgress)) }
+                        // Frame changes use a transition.
+                        ontransitionend={ Callback::from(move|_| link.send_message(ReaderMsg::PageTransitionEnd)) }
                     >
                         {
                             for (0..section_count)
@@ -836,6 +972,13 @@ impl Reader {
             true
         } else {
             false
+        }
+    }
+
+    fn after_page_change(&mut self) {
+        if let Some(section) = self.get_current_section() {
+            self.visible_redirect_rects =
+                js_get_visible_links(section.get_iframe(), self.cached_display.is_scroll());
         }
     }
 
