@@ -242,10 +242,20 @@ impl Component for ReadingBook {
 
             Msg::RetrieveBook(resp) => match resp.ok() {
                 Ok(Some(resp)) => {
+                    // Get Chapters.
+
+                    let file_id = resp.media.id;
+
+                    let end = resp.media.chapter_count;
+
+                    if end != 0 {
+                        ctx.link().send_future(async move {
+                            Msg::RetrievePages(request::get_book_pages(file_id, 0, end).await)
+                        });
+                    }
+
                     self.book = Some(Rc::new(resp.media));
                     *self.progress.lock().unwrap() = resp.progress;
-                    ctx.link()
-                        .send_message(Msg::ReaderEvent(ReaderEvent::LoadChapters));
                 }
 
                 Ok(None) => (),
@@ -255,20 +265,6 @@ impl Component for ReadingBook {
 
             Msg::ReaderEvent(event) => {
                 match event {
-                    ReaderEvent::LoadChapters => {
-                        let book_id = self.book.as_ref().unwrap().id;
-
-                        let (start, end) = self.get_next_pages_to_load();
-
-                        if end != 0 {
-                            ctx.link().send_future(async move {
-                                Msg::RetrievePages(
-                                    request::get_book_pages(book_id, start, end).await,
-                                )
-                            });
-                        }
-                    }
-
                     ReaderEvent::ViewOverlay(o_event) => {
                         if let OverlayEvent::Swipe {
                             type_of, instant, ..
@@ -410,92 +406,5 @@ impl ReadingBook {
             .unwrap();
 
         self.auto_resize_cb = Some(handle_resize);
-    }
-
-    // TODO: Use Option instead of returning (0, 0)
-    fn get_next_pages_to_load(&self) -> (usize, usize) {
-        let progress = self.progress.lock().unwrap();
-        let chap_cont = self.chapters.lock().unwrap();
-
-        let total_sections = self
-            .book
-            .as_ref()
-            .map(|v| v.chapter_count)
-            .unwrap_or_default();
-
-        // Starting index
-        let curr_section = if let Some(&Progression::Ebook { chapter, .. }) = progress.as_ref() {
-            chapter as usize
-        } else {
-            0
-        };
-
-        let mut chapters = chap_cont
-            .chapters
-            .iter()
-            .map(|v| v.value)
-            .collect::<Vec<_>>();
-        chapters.sort_unstable();
-
-        match self.reader_settings.type_of {
-            PageLoadType::All => {
-                if chap_cont.chapters.is_empty() {
-                    (curr_section.saturating_sub(2), curr_section + 3)
-                } else {
-                    let mut start_pos = 0;
-                    let mut end_pos = 0;
-
-                    // TODO: Simplify. Returns the next region of sections we need to load.
-
-                    for section in chapters {
-                        // If end_pos == 0 that means we haven't found a valid section to load.
-                        if end_pos == 0 {
-                            // We already loaded this section
-                            if start_pos == section {
-                                start_pos += 1;
-
-                                if start_pos == total_sections {
-                                    return (0, 0);
-                                }
-                            } else {
-                                end_pos = start_pos + 1;
-                            }
-                        } else if end_pos == section || end_pos - start_pos == 4 {
-                            break;
-                        } else {
-                            end_pos += 1;
-                        }
-                    }
-
-                    // If end_pos is still 0 then we've reached the end of the array.
-                    if start_pos != 0 && end_pos == 0 {
-                        end_pos = start_pos + 3;
-                    }
-
-                    (start_pos, end_pos)
-                }
-            }
-
-            PageLoadType::Select => {
-                if chap_cont.chapters.is_empty() {
-                    (curr_section.saturating_sub(2), curr_section + 3)
-                } else {
-                    // TODO: Simplify. Returns the next region of sections we need to load.
-
-                    let found_previous =
-                        curr_section != 0 && chapters.iter().any(|v| *v == curr_section - 1);
-                    let found_next = curr_section + 1 != total_sections
-                        && chapters.iter().any(|v| *v == curr_section + 1);
-
-                    if !found_previous {
-                        (curr_section.saturating_sub(1), curr_section)
-                    } else if !found_next {
-                        (curr_section + 1, curr_section + 2)
-                    } else {
-                        (0, 0)
-                    }
-                }
-            }
-        }
     }
 }

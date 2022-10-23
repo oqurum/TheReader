@@ -108,7 +108,6 @@ impl LoadedChapters {
 }
 
 pub enum ReaderEvent {
-    LoadChapters,
     ViewOverlay(OverlayEvent),
 }
 
@@ -237,7 +236,9 @@ impl Component for Reader {
                     .chapters
                     .iter()
                     .find(|v| v.file_path.ends_with(&file_path))
+                    .cloned()
                 {
+                    drop(chaps);
                     self.set_section(chap.value, ctx);
                     // TODO: Handle id_name
                 }
@@ -563,8 +564,6 @@ impl Component for Reader {
                     cb.forget();
                 }
 
-                let loading_count = self.sections.iter().filter(|v| v.is_loading()).count();
-
                 if self.are_all_sections_generated() {
                     self.on_all_frames_generated(ctx);
                 }
@@ -576,10 +575,6 @@ impl Component for Reader {
                 // Make sure the previous section is on the last page for better page turning on initial load.
                 if let Some(prev_sect) = get_previous_section_mut!(self) {
                     self.cached_display.set_last_page(prev_sect)
-                }
-
-                if loading_count == 0 {
-                    ctx.props().event.emit(ReaderEvent::LoadChapters);
                 }
             }
         }
@@ -687,27 +682,38 @@ impl Component for Reader {
             self.update_cached_pages();
         }
 
-        // TODO: Move to Msg::GenerateIFrameLoaded so it's only in a single place.
-        self.use_progression(*props.progress.lock().unwrap(), ctx);
+        match props.settings.type_of {
+            PageLoadType::All => {
+                let chapter_count = props.book.chapter_count;
 
-        // Continue loading chapters
-        let chaps = props.chapters.lock().unwrap();
+                // Reverse iterator since for some reason chapter "generation" works from LIFO
+                for chapter in (0..chapter_count).rev() {
+                    self.load_chapter(chapter, ctx);
+                }
+            }
 
-        // Reverse iterator since for some reason chapter "generation" works from LIFO
-        for chap in chaps.chapters.iter().rev() {
-            let sec = &mut self.sections[chap.value];
+            PageLoadType::Select => {
+                let start_chapter = {
+                    if let Some(Progression::Ebook { chapter, .. }) =
+                        *props.progress.lock().unwrap()
+                    {
+                        chapter
+                    } else {
+                        0
+                    }
+                };
 
-            if sec.is_waiting() {
-                log::info!("Generating Chapter {}", chap.value + 1);
+                // Continue loading chapters
+                let start = (start_chapter - 2).max(0) as usize;
 
-                *sec = SectionLoadProgress::Loading(generate_pages(
-                    Some(props.settings.dimensions),
-                    props.book.id,
-                    chap.clone(),
-                    ctx.link().clone(),
-                ));
+                // Reverse iterator since for some reason chapter "generation" works from LIFO
+                for chapter in (start..start + 5).rev() {
+                    self.load_chapter(chapter, ctx);
+                }
             }
         }
+
+        self.use_progression(*props.progress.lock().unwrap(), ctx);
 
         true
     }
@@ -801,11 +807,15 @@ impl Reader {
     }
 
     fn use_progression(&mut self, prog: Option<Progression>, ctx: &Context<Self>) {
+        log::info!("{:?}", prog);
+
         if let Some(prog) = prog {
             match prog {
                 Progression::Ebook {
                     chapter, char_pos, ..
-                } if self.viewing_chapter == 0 => {
+                } if self.viewing_chapter != chapter as usize => {
+                    log::debug!("use_progression - set section: {chapter}");
+
                     // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
                     self.set_section(chapter as usize, ctx);
 
@@ -826,6 +836,8 @@ impl Reader {
                                     section.get_iframe(),
                                     char_pos as usize,
                                 );
+
+                                log::debug!("use_progression - set page: {:?}", page);
 
                                 if let Some(page) = page {
                                     self.cached_display.set_page(page, section);
@@ -958,7 +970,26 @@ impl Reader {
         false
     }
 
-    fn set_section(&mut self, next_section: usize, _ctx: &Context<Self>) -> bool {
+    fn set_section(&mut self, next_section: usize, ctx: &Context<Self>) -> bool {
+        if self.sections[next_section].is_waiting() {
+            log::info!("Next Section is not loaded - {}", next_section + 1);
+
+            self.load_chapter(next_section, ctx);
+
+            if let Some(Progression::Ebook {
+                chapter,
+                char_pos,
+                page,
+            }) = &mut *ctx.props().progress.lock().unwrap()
+            {
+                *chapter = next_section as i64;
+                *char_pos = 0;
+                *page = 0;
+            }
+
+            return false;
+        }
+
         if let Some(section) = self.get_current_section() {
             self.cached_display.on_stop_viewing(section);
         }
@@ -1014,8 +1045,6 @@ impl Reader {
     fn upload_progress_and_emit(&self, ctx: &Context<Self>) {
         if let Some(chap) = self.get_current_section() {
             self.upload_progress(chap.get_iframe(), ctx);
-
-            ctx.props().event.emit(ReaderEvent::LoadChapters);
         }
     }
 
@@ -1072,6 +1101,29 @@ impl Reader {
 
             ReaderMsg::Ignore
         });
+    }
+
+    fn load_chapter(&mut self, chapter: usize, ctx: &Context<Self>) {
+        let chaps = ctx.props().chapters.lock().unwrap();
+
+        if chaps.chapters.len() <= chapter {
+            return;
+        }
+
+        let chap = &chaps.chapters[chapter];
+
+        let sec = &mut self.sections[chap.value];
+
+        if sec.is_waiting() {
+            log::info!("Generating Chapter {}", chap.value + 1);
+
+            *sec = SectionLoadProgress::Loading(generate_pages(
+                Some(ctx.props().settings.dimensions),
+                ctx.props().book.id,
+                chap.clone(),
+                ctx.link().clone(),
+            ));
+        }
     }
 }
 
