@@ -1,10 +1,10 @@
-use wasm_bindgen::{prelude::Closure, UnwrapThrowExt};
+use wasm_bindgen::prelude::Closure;
 use web_sys::{HtmlElement, HtmlIFrameElement};
 use yew::Context;
 
 use super::{
     js_update_iframe_after_load, update_iframe_size, CachedPage, Reader,
-    SectionDisplay,
+    SectionDisplay, color::SectionColor,
 };
 
 pub enum SectionLoadProgress {
@@ -146,7 +146,7 @@ impl SectionContents {
         handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>,
         ctx: &Context<Reader>,
     ) {
-        self.get_iframe_body().unwrap_throw().class_list().add_1("color-black").unwrap_throw();
+        SectionColor::Black.on_load(self);
 
         js_update_iframe_after_load(self.get_iframe(), self.chapter, handle_js_redirect_clicks);
 

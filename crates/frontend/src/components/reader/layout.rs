@@ -135,14 +135,6 @@ impl SectionDisplay {
     pub fn is_scroll(&self) -> bool {
         matches!(self, Self::Scroll(_))
     }
-
-    pub fn as_u8(&self) -> u8 {
-        match self {
-            SectionDisplay::Single(_) => 0,
-            SectionDisplay::Double(_) => 1,
-            SectionDisplay::Scroll(_) => 2,
-        }
-    }
 }
 
 impl From<u8> for SectionDisplay {

@@ -12,6 +12,7 @@ use yew::{html::Scope, prelude::*};
 
 use crate::request;
 
+pub mod color;
 pub mod layout;
 pub mod section;
 pub mod view_overlay;

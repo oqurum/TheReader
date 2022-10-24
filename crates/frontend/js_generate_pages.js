@@ -206,7 +206,6 @@ const LOAD_JS = [
 **/
 export function js_update_iframe_after_load(iframe, chapter, handle_redirect_click) {
 	let document = iframe.contentDocument;
-	let is_color_black = document.body.classList.contains('color-black');
 
 	let started_at = Date.now();
 
@@ -240,12 +239,6 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 
 	for(let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
-
-		if (is_color_black) {
-			// FIX: For some reason the inline CSS will not be the top priority.
-			child.style = STYLE;
-			applyToChildren(child);
-		}
 
 		// TODO: Optimize shrinkVerticalMargins
 		// shrinkVerticalMargins(child, 18);
@@ -289,18 +282,6 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 
 	console.log(`Rendered Frame: ${ (Date.now() - started_at)/1000 }sec`);
 }
-
-// FIX: For some reason the inline CSS will not be the top priority.
-function applyToChildren(element) {
-	for(let i = 0; i < element.children.length; i++) {
-		let child = element.children[i];
-		child.style = STYLE;
-		applyToChildren(child);
-	}
-}
-
-const STYLE = "background: none !important; font-family: 'Roboto', sans-serif !important; color: #c9c9c9 !important;";
-
 
 /**
  * @param {HTMLIFrameElement} iframe
