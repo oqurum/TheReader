@@ -206,13 +206,14 @@ const LOAD_JS = [
 **/
 export function js_update_iframe_after_load(iframe, chapter, handle_redirect_click) {
 	let document = iframe.contentDocument;
+	let is_color_black = document.body.classList.contains('color-black');
 
 	let started_at = Date.now();
 
 	document.querySelectorAll('a[href]')
 	.forEach(element => {
 		const path = element.getAttribute('href');
-		element.href = 'javascript:;';
+
 		// TODO: Use single listener for whole iframe.
 		element.addEventListener('click', event => {
 			event.preventDefault();
@@ -240,9 +241,11 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 	for(let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
 
-		// FIX: For some reason the inline CSS will not be the top priority.
-		child.style = STYLE;
-		applyToChildren(child);
+		if (is_color_black) {
+			// FIX: For some reason the inline CSS will not be the top priority.
+			child.style = STYLE;
+			applyToChildren(child);
+		}
 
 		// TODO: Optimize shrinkVerticalMargins
 		// shrinkVerticalMargins(child, 18);
@@ -420,40 +423,6 @@ export function js_get_element_from_byte_position(iframe, position) {
 	}
 
 	return findTextPos(document.body);
-}
-
-
-const PAGE_DISPLAY = [
-	'single-page',
-	'double-page',
-	'scrolling-page'
-];
-
-/**
- * @param {HTMLIFrameElement} iframe
- * @param {number} display
-**/
-export function js_set_page_display_style(iframe, display) {
-	let document = iframe.contentDocument;
-
-	PAGE_DISPLAY.forEach(v => document.body.classList.remove(v));
-
-	switch (display) {
-		// Single Page
-		case 0:
-			document.body.classList.add('single-page');
-			break;
-
-		// Double Page
-		case 1:
-			document.body.classList.add('double-page');
-			break;
-
-		// Scrolling Page
-		case 2:
-			document.body.classList.add('scrolling-page');
-			break;
-	}
 }
 
 /**

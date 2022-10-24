@@ -40,7 +40,6 @@ extern "C" {
         chapter: usize,
         handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>,
     );
-    fn js_set_page_display_style(iframe: &HtmlIFrameElement, display: u8);
 
     fn js_get_visible_links(iframe: &HtmlIFrameElement, is_vscroll: bool) -> Vec<DomRect>;
 }
@@ -525,43 +524,17 @@ impl Component for Reader {
 
             // Called after iframe is loaded.
             ReaderMsg::GenerateIFrameLoaded(page) => {
-                js_update_iframe_after_load(
-                    &page.iframe,
-                    page.chapter.value,
-                    &self.handle_js_redirect_clicks,
-                );
-
                 self.sections[page.chapter.value].convert_to_loaded();
 
-                self.cached_display.add_to_iframe(&page.iframe, ctx);
-
-                // Update newly iframe with styling and size.
+                // Call on_load for the newly loaded frame.
                 if let SectionLoadProgress::Loaded(section) = &mut self.sections[page.chapter.value]
                 {
-                    self.cached_display.on_stop_viewing(section);
-
-                    js_set_page_display_style(section.get_iframe(), self.cached_display.as_u8());
-                    update_iframe_size(Some(ctx.props().settings.dimensions), section.get_iframe());
-
-                    let body = section
-                        .get_iframe()
-                        .content_document()
-                        .unwrap_throw()
-                        .body()
-                        .unwrap_throw();
-
-                    let scope = ctx.link().clone();
-                    let cb: Closure<dyn FnMut()> =
-                        Closure::new(move || scope.send_message(ReaderMsg::PageTransitionEnd));
-
-                    body.add_event_listener_with_callback(
-                        "transitionend",
-                        cb.as_ref().unchecked_ref(),
-                    )
-                    .unwrap_throw();
-
-                    // TODO: Memory Leak
-                    cb.forget();
+                    section.on_load(
+                        &mut self.cached_display,
+                        ctx.props().settings.dimensions,
+                        &self.handle_js_redirect_clicks,
+                        ctx,
+                    );
                 }
 
                 if self.are_all_sections_generated() {
@@ -672,7 +645,6 @@ impl Component for Reader {
             // Refresh all page styles and sizes.
             for prog in &self.sections {
                 if let SectionLoadProgress::Loaded(section) = prog {
-                    js_set_page_display_style(section.get_iframe(), self.cached_display.as_u8());
                     update_iframe_size(Some(props.settings.dimensions), section.get_iframe());
 
                     self.cached_display.add_to_iframe(section.get_iframe(), ctx);
@@ -688,7 +660,7 @@ impl Component for Reader {
 
                 // Reverse iterator since for some reason chapter "generation" works from LIFO
                 for chapter in (0..chapter_count).rev() {
-                    self.load_chapter(chapter, ctx);
+                    self.load_section(chapter, ctx);
                 }
             }
 
@@ -708,7 +680,7 @@ impl Component for Reader {
 
                 // Reverse iterator since for some reason chapter "generation" works from LIFO
                 for chapter in (start..start + 5).rev() {
-                    self.load_chapter(chapter, ctx);
+                    self.load_section(chapter, ctx);
                 }
             }
         }
@@ -974,7 +946,7 @@ impl Reader {
         if self.sections[next_section].is_waiting() {
             log::info!("Next Section is not loaded - {}", next_section + 1);
 
-            self.load_chapter(next_section, ctx);
+            self.load_section(next_section, ctx);
 
             if let Some(Progression::Ebook {
                 chapter,
@@ -1103,14 +1075,37 @@ impl Reader {
         });
     }
 
-    fn load_chapter(&mut self, chapter: usize, ctx: &Context<Self>) {
+    fn refresh_section(&mut self, chapter: usize, ctx: &Context<Self>) {
         let chaps = ctx.props().chapters.lock().unwrap();
 
         if chaps.chapters.len() <= chapter {
             return;
         }
 
-        let chap = &chaps.chapters[chapter];
+        let chap = chaps.chapters[chapter].clone();
+
+        let sec = &mut self.sections[chap.value];
+
+        if let SectionLoadProgress::Loaded(sec) = sec {
+            sec.get_iframe().remove();
+        }
+
+        *sec = SectionLoadProgress::Loading(generate_pages(
+            Some(ctx.props().settings.dimensions),
+            ctx.props().book.id,
+            chap,
+            ctx.link().clone(),
+        ));
+    }
+
+    fn load_section(&mut self, chapter: usize, ctx: &Context<Self>) {
+        let chaps = ctx.props().chapters.lock().unwrap();
+
+        if chaps.chapters.len() <= chapter {
+            return;
+        }
+
+        let chap = chaps.chapters[chapter].clone();
 
         let sec = &mut self.sections[chap.value];
 
@@ -1120,7 +1115,7 @@ impl Reader {
             *sec = SectionLoadProgress::Loading(generate_pages(
                 Some(ctx.props().settings.dimensions),
                 ctx.props().book.id,
-                chap.clone(),
+                chap,
                 ctx.link().clone(),
             ));
         }

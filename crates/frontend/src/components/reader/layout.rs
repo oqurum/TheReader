@@ -11,6 +11,13 @@ use super::{section::SectionContents, DragType, OverlayEvent, Reader, ReaderMsg}
 type Destructor =
     Box<dyn FnOnce(&EventTarget, &js_sys::Function) -> std::result::Result<(), JsValue>>;
 
+static PAGE_DISPLAYS: [&str; 3] = [
+    "single-page",
+    "double-page",
+    "scrolling-page"
+];
+
+/// Allows for easier creation and destruction of functions.
 pub struct ElementEvent {
     element: EventTarget,
     function: Box<dyn AsRef<JsValue>>,
@@ -57,15 +64,15 @@ pub enum SectionDisplay {
 
 impl SectionDisplay {
     pub fn new_single() -> Self {
-        Self::Single(PageDisplay::new(1))
+        Self::Single(PageDisplay::new(1, "single-page"))
     }
 
     pub fn new_double() -> Self {
-        Self::Double(PageDisplay::new(2))
+        Self::Double(PageDisplay::new(2, "double-page"))
     }
 
     pub fn new_scroll() -> Self {
-        Self::Scroll(ScrollDisplay::new())
+        Self::Scroll(ScrollDisplay::new("scrolling-page"))
     }
 
     pub fn add_to_iframe(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Reader>) {
@@ -173,14 +180,16 @@ pub struct PageDisplay {
     /// Total pages Being displayed at once.
     #[allow(dead_code)]
     count: usize,
+    class_name: &'static str,
 
     _events: Vec<ElementEvent>,
 }
 
 impl PageDisplay {
-    pub fn new(count: usize) -> Self {
+    pub fn new(count: usize, class_name: &'static str) -> Self {
         Self {
             count,
+            class_name,
 
             _events: Vec::new(),
         }
@@ -195,11 +204,17 @@ impl PageDisplay {
             .unwrap_throw()
             .body()
             .unwrap_throw();
+
+        PAGE_DISPLAYS.into_iter().for_each(|v| { let _ = body.class_list().remove_1(v); });
+        body.class_list().add_1(self.class_name).unwrap_throw();
+
         let link = ctx.link().clone();
 
-        let function = Closure::wrap(
-            Box::new(move || link.send_message(ReaderMsg::UploadProgress)) as Box<dyn FnMut()>,
-        );
+        let function =
+            Closure::wrap(
+                Box::new(move || link.send_message(ReaderMsg::PageTransitionEnd))
+                    as Box<dyn FnMut()>,
+            );
 
         self._events.push(ElementEvent::link(
             body.unchecked_into(),
@@ -218,12 +233,7 @@ impl PageDisplay {
 
         section.viewing_page = index;
 
-        let body = section
-            .get_iframe()
-            .content_document()
-            .unwrap_throw()
-            .body()
-            .unwrap_throw();
+        let body = section.get_iframe_body().unwrap_throw();
 
         body.style()
             .set_property("transition", "left 0.5s ease 0s")
@@ -268,6 +278,7 @@ impl Clone for PageDisplay {
     fn clone(&self) -> Self {
         Self {
             count: self.count,
+            class_name: self.class_name,
             _events: Vec::new(),
         }
     }
@@ -284,22 +295,32 @@ impl std::fmt::Debug for PageDisplay {
 // Scroll Display
 
 pub struct ScrollDisplay {
+    class_name: &'static str,
+
     change_page_timeout: Option<Timeout>,
 
     _events: Vec<ElementEvent>,
 }
 
 impl ScrollDisplay {
-    pub fn new() -> Self {
+    pub fn new(class_name: &'static str) -> Self {
         Self {
-            change_page_timeout: None,
+            class_name,
 
+            change_page_timeout: None,
             _events: Vec::new(),
         }
     }
 
     pub fn add_to_iframe(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Reader>) {
+        // TODO: name is `body` but  we're in the Document.
         let body = iframe.content_document().unwrap();
+
+        {
+            let body = body.body().unwrap_throw();
+            PAGE_DISPLAYS.into_iter().for_each(|v| { let _ = body.class_list().remove_1(v); });
+            body.class_list().add_1(self.class_name).unwrap_throw();
+        }
 
         {
             // Scroll Display - Used to handle section changing with the scroll wheel.
@@ -443,6 +464,7 @@ impl ScrollDisplay {
 impl Clone for ScrollDisplay {
     fn clone(&self) -> Self {
         Self {
+            class_name: self.class_name,
             change_page_timeout: None,
             _events: Vec::new(),
         }

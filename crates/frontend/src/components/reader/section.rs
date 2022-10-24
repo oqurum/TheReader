@@ -1,7 +1,11 @@
-use wasm_bindgen::prelude::Closure;
-use web_sys::HtmlIFrameElement;
+use wasm_bindgen::{prelude::Closure, UnwrapThrowExt};
+use web_sys::{HtmlElement, HtmlIFrameElement};
+use yew::Context;
 
-use super::CachedPage;
+use super::{
+    js_update_iframe_after_load, update_iframe_size, CachedPage, Reader,
+    SectionDisplay,
+};
 
 pub enum SectionLoadProgress {
     Waiting,
@@ -12,10 +16,6 @@ pub enum SectionLoadProgress {
 impl SectionLoadProgress {
     pub fn is_waiting(&self) -> bool {
         matches!(self, Self::Waiting)
-    }
-
-    pub fn is_loading(&self) -> bool {
-        matches!(self, Self::Loading(_))
     }
 
     pub fn is_loaded(&self) -> bool {
@@ -83,6 +83,10 @@ impl SectionContents {
         &self.iframe
     }
 
+    pub fn get_iframe_body(&self) -> Option<HtmlElement> {
+        self.get_iframe().content_document()?.body()
+    }
+
     pub fn set_cached_pages(&mut self, value: Vec<CachedPage>) {
         self.cached_pages = value;
     }
@@ -133,6 +137,23 @@ impl SectionContents {
                 ),
             )
             .unwrap();
+    }
+
+    pub fn on_load(
+        &mut self,
+        cached_display: &mut SectionDisplay,
+        dimensions: (i32, i32),
+        handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>,
+        ctx: &Context<Reader>,
+    ) {
+        self.get_iframe_body().unwrap_throw().class_list().add_1("color-black").unwrap_throw();
+
+        js_update_iframe_after_load(self.get_iframe(), self.chapter, handle_js_redirect_clicks);
+
+        cached_display.add_to_iframe(self.get_iframe(), ctx);
+        cached_display.on_stop_viewing(self);
+
+        update_iframe_size(Some(dimensions), self.get_iframe());
     }
 }
 
