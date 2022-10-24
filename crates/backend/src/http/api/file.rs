@@ -28,7 +28,6 @@ pub async fn load_file_resource(
 
     let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
-    // TODO: Check if we're loading a section
     let body = if res.configure_pages {
         match book.read_path_as_bytes(
             &resource_path,
@@ -37,22 +36,26 @@ pub async fn load_file_resource(
         ) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("{}", e);
-                Vec::new()
+                eprintln!(
+                    "read_path_as_bytes[configured]: {}, path: {}",
+                    e, resource_path
+                );
+                return Ok(HttpResponse::NotFound().finish());
             }
         }
     } else {
         match book.read_path_as_bytes(&resource_path, None, None) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("{}", e);
-                Vec::new()
+                eprintln!("read_path_as_bytes: {} | path: {}", e, resource_path);
+                return Ok(HttpResponse::NotFound().finish());
             }
         }
     };
 
     let mut ok = HttpResponse::Ok();
 
+    // TODO: Determine if needed.
     if resource_path.ends_with("xhtml") {
         ok.insert_header(("Content-Type", "application/xhtml+xml"));
     }

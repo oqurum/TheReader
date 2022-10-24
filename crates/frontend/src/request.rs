@@ -195,13 +195,13 @@ pub async fn get_book_info(id: FileId) -> WrappingResponse<ApiGetFileByIdRespons
 }
 
 pub async fn get_book_pages(
-    book_id: FileId,
+    file_id: FileId,
     start: usize,
     end: usize,
 ) -> WrappingResponse<ApiGetFilePagesByIdResponse> {
     fetch(
         "GET",
-        &format!("/api/file/{}/pages/{}-{}", book_id, start, end),
+        &format!("/api/file/{file_id}/pages/{start}-{end}"),
         Option::<&()>::None,
     )
     .await
@@ -209,13 +209,12 @@ pub async fn get_book_pages(
 }
 
 pub fn compile_book_resource_path(
-    book_id: FileId,
+    file_id: FileId,
     location: &Path,
     query: LoadResourceQuery,
 ) -> String {
     format!(
-        "/api/file/{}/res/{}?{}",
-        book_id,
+        "/api/file/{file_id}/res/{}?{}",
         location.to_str().unwrap(),
         serde_qs::to_string(&query).unwrap_or_default()
     )
