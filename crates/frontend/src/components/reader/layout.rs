@@ -2,54 +2,15 @@ use std::{cell::Cell, rc::Rc};
 
 use chrono::Utc;
 use gloo_timers::callback::Timeout;
-use wasm_bindgen::{prelude::Closure, JsCast, JsValue, UnwrapThrowExt};
-use web_sys::{Document, EventTarget, HtmlElement, HtmlIFrameElement, MouseEvent, WheelEvent};
+use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
+use web_sys::{Document, HtmlElement, HtmlIFrameElement, MouseEvent, WheelEvent};
 use yew::Context;
+
+use crate::util::ElementEvent;
 
 use super::{section::SectionContents, DragType, OverlayEvent, Reader, ReaderMsg};
 
-type Destructor =
-    Box<dyn FnOnce(&EventTarget, &js_sys::Function) -> std::result::Result<(), JsValue>>;
-
 static PAGE_DISPLAYS: [&str; 3] = ["single-page", "double-page", "scrolling-page"];
-
-/// Allows for easier creation and destruction of functions.
-pub struct ElementEvent {
-    element: EventTarget,
-    function: Box<dyn AsRef<JsValue>>,
-
-    destructor: Option<Destructor>,
-}
-
-impl ElementEvent {
-    pub fn link<
-        C: AsRef<JsValue> + 'static,
-        F: FnOnce(&EventTarget, &js_sys::Function) -> std::result::Result<(), JsValue>,
-    >(
-        element: EventTarget,
-        function: C,
-        creator: F,
-        destructor: Destructor,
-    ) -> Self {
-        let this = Self {
-            element,
-            function: Box::new(function),
-            destructor: Some(destructor),
-        };
-
-        creator(&this.element, (*this.function).as_ref().unchecked_ref()).unwrap_throw();
-
-        this
-    }
-}
-
-impl Drop for ElementEvent {
-    fn drop(&mut self) {
-        if let Some(dest) = self.destructor.take() {
-            dest(&self.element, (*self.function).as_ref().unchecked_ref()).unwrap_throw();
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum SectionDisplay {

@@ -2,7 +2,7 @@ use std::{path::PathBuf, rc::Rc, sync::Mutex};
 
 use common_local::{api, Chapter, FileId, MediaItem, Progression};
 use gloo_timers::callback::Timeout;
-use gloo_utils::body;
+use gloo_utils::{body, window};
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
     JsCast, UnwrapThrowExt,
@@ -10,7 +10,7 @@ use wasm_bindgen::{
 use web_sys::{DomRect, Element, HtmlElement, HtmlIFrameElement};
 use yew::{html::Scope, prelude::*};
 
-use crate::request;
+use crate::{request, util::ElementEvent};
 
 pub mod color;
 pub mod layout;
@@ -164,6 +164,7 @@ pub struct Reader {
     /// The Chapter we're in
     viewing_chapter: usize,
 
+    _handle_keyboard: ElementEvent,
     handle_js_redirect_clicks: Closure<dyn FnMut(usize, String)>,
     cursor_type: &'static str,
     visible_redirect_rects: Vec<DomRect>,
@@ -179,15 +180,40 @@ impl Component for Reader {
 
     fn create(ctx: &Context<Self>) -> Self {
         let link = ctx.link().clone();
-        let handle_js_redirect_clicks =
-            Closure::wrap(Box::new(move |chapter: usize, path: String| {
+        let handle_js_redirect_clicks: Closure<dyn FnMut(usize, String)> =
+            Closure::new(move |chapter: usize, path: String| {
                 let (file_path, id_value) = path
                     .split_once('#')
                     .map(|(a, b)| (a.to_string(), Some(b.to_string())))
                     .unwrap_or((path, None));
 
                 link.send_message(ReaderMsg::HandleJsRedirect(chapter, file_path, id_value));
-            }) as Box<dyn FnMut(usize, String)>);
+            });
+
+        let link = ctx.link().clone();
+        let handle_keyboard: Closure<dyn FnMut(KeyboardEvent)> =
+            Closure::new(move |event: KeyboardEvent| {
+                if event.repeat() {
+                    return;
+                }
+
+                match (event.shift_key(), event.code().as_str()) {
+                    (false, "ArrowRight") => link.send_message(ReaderMsg::NextPage),
+                    (false, "ArrowLeft") => link.send_message(ReaderMsg::PreviousPage),
+
+                    // TODO: Skip sections.
+                    // (true, "ArrowRight") => link.send_message(ReaderMsg::NextPage),
+                    // (true, "ArrowLeft") => link.send_message(ReaderMsg::PreviousPage),
+                    _ => (),
+                }
+            });
+
+        let link = ElementEvent::link(
+            window().unchecked_into(),
+            handle_keyboard,
+            |e, f| e.add_event_listener_with_callback("keydown", f),
+            Box::new(|e, f| e.remove_event_listener_with_callback("keydown", f)),
+        );
 
         Self {
             cached_display: ctx.props().settings.display.clone(),
@@ -205,6 +231,7 @@ impl Component for Reader {
             scroll_change_page_timeout: None,
 
             handle_js_redirect_clicks,
+            _handle_keyboard: link,
         }
     }
 
@@ -529,8 +556,7 @@ impl Component for Reader {
                 self.sections[chapter.value].convert_to_loaded();
 
                 // Call on_load for the newly loaded frame.
-                if let SectionLoadProgress::Loaded(section) = &mut self.sections[chapter.value]
-                {
+                if let SectionLoadProgress::Loaded(section) = &mut self.sections[chapter.value] {
                     section.on_load(
                         &mut self.cached_display,
                         ctx.props().settings.dimensions,

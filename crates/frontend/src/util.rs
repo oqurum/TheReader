@@ -1,9 +1,50 @@
 use common::api::ApiErrorResponse;
 use common_local::filter::FilterContainer;
 use gloo_utils::window;
-use wasm_bindgen::UnwrapThrowExt;
-use web_sys::MouseEvent;
+use js_sys::Function;
+use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
+use web_sys::{EventTarget, MouseEvent};
 use yew::{html::Scope, Callback, Component};
+
+type Destructor = Box<dyn FnOnce(&EventTarget, &Function) -> std::result::Result<(), JsValue>>;
+
+/// Allows for easier creation and destruction of event listener functions.
+pub struct ElementEvent {
+    element: EventTarget,
+    function: Box<dyn AsRef<JsValue>>,
+
+    destructor: Option<Destructor>,
+}
+
+impl ElementEvent {
+    pub fn link<
+        C: AsRef<JsValue> + 'static,
+        F: FnOnce(&EventTarget, &Function) -> std::result::Result<(), JsValue>,
+    >(
+        element: EventTarget,
+        function: C,
+        creator: F,
+        destructor: Destructor,
+    ) -> Self {
+        let this = Self {
+            element,
+            function: Box::new(function),
+            destructor: Some(destructor),
+        };
+
+        creator(&this.element, (*this.function).as_ref().unchecked_ref()).unwrap_throw();
+
+        this
+    }
+}
+
+impl Drop for ElementEvent {
+    fn drop(&mut self) {
+        if let Some(dest) = self.destructor.take() {
+            dest(&self.element, (*self.function).as_ref().unchecked_ref()).unwrap_throw();
+        }
+    }
+}
 
 pub fn as_local_path_without_http(value: &str) -> String {
     let loc = window().location();

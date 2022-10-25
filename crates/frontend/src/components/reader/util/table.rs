@@ -194,18 +194,6 @@ impl Table {
         }
     }
 
-    fn append(&self, node: &Node) {
-        if self.contains_body() {
-            if self.contains_multiple_bodies() {
-                log::error!("Currently not handling multiple bodies.");
-            } else if let Some(body) = self.items.iter().find(|v| v.local_name() == "tbody") {
-                body.append_child(node).unwrap_throw();
-            }
-        } else {
-            log::error!("Doesn't contain body");
-        }
-    }
-
     fn prepend(&self, node: &Node) {
         if self.contains_body() {
             if self.contains_multiple_bodies() {
