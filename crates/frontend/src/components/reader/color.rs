@@ -1,11 +1,8 @@
-use wasm_bindgen::{UnwrapThrowExt, JsCast};
-use web_sys::HtmlElement;
+use wasm_bindgen::UnwrapThrowExt;
 
-use super::section::SectionContents;
-
+use super::{section::SectionContents, util::for_each_child};
 
 const STYLE: &str = "background: none !important; font-family: 'Roboto', sans-serif !important; color: #c9c9c9 !important;";
-
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SectionColor {
@@ -28,20 +25,5 @@ impl SectionColor {
                 for_each_child(&body, &|v| v.style().set_css_text(STYLE));
             }
         }
-    }
-}
-
-
-
-pub fn for_each_child<V: Fn(&HtmlElement)>(element: &HtmlElement, func: &V) {
-    let children = element.children();
-
-    for i in 0..children.length() {
-        let child = children.item(i).unwrap_throw();
-        let child: HtmlElement = child.unchecked_into();
-
-        func(&child);
-
-        for_each_child(&child, func);
     }
 }

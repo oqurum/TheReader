@@ -15,6 +15,7 @@ use crate::request;
 pub mod color;
 pub mod layout;
 pub mod section;
+pub mod util;
 pub mod view_overlay;
 
 pub use self::layout::SectionDisplay;
