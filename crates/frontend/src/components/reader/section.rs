@@ -1,10 +1,12 @@
-use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::{prelude::Closure, UnwrapThrowExt};
 use web_sys::{HtmlElement, HtmlIFrameElement};
 use yew::Context;
 
 use super::{
-    js_update_iframe_after_load, update_iframe_size, CachedPage, Reader,
-    SectionDisplay, color::SectionColor,
+    color::SectionColor,
+    js_update_iframe_after_load, update_iframe_size,
+    util::{for_each_child_map, table::TableContainer},
+    CachedPage, Reader, SectionDisplay,
 };
 
 pub enum SectionLoadProgress {
@@ -65,6 +67,8 @@ pub struct SectionContents {
     pub gpi: usize,
 
     pub viewing_page: usize,
+
+    cached_tables: Vec<TableContainer>,
 }
 
 impl SectionContents {
@@ -76,6 +80,7 @@ impl SectionContents {
             chapter,
             gpi: 0,
             viewing_page: 0,
+            cached_tables: Vec::new(),
         }
     }
 
@@ -147,6 +152,18 @@ impl SectionContents {
         ctx: &Context<Reader>,
     ) {
         SectionColor::Black.on_load(self);
+
+        // Shrink Tables
+        self.cached_tables = for_each_child_map(&self.get_iframe_body().unwrap_throw(), &|v| {
+            if v.local_name() == "table" {
+                let mut v = TableContainer::from(v);
+                v.update_if_needed(dimensions.1 as usize);
+
+                Some(v)
+            } else {
+                None
+            }
+        });
 
         js_update_iframe_after_load(self.get_iframe(), self.chapter, handle_js_redirect_clicks);
 

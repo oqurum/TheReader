@@ -133,7 +133,7 @@ impl PartialEq for Property {
 }
 
 pub enum ReaderMsg {
-    GenerateIFrameLoaded(GenerateChapter),
+    GenerateIFrameLoaded(Chapter),
 
     // Event
     HandleJsRedirect(usize, String, Option<String>),
@@ -525,11 +525,11 @@ impl Component for Reader {
             ReaderMsg::UploadProgress => self.upload_progress_and_emit(ctx),
 
             // Called after iframe is loaded.
-            ReaderMsg::GenerateIFrameLoaded(page) => {
-                self.sections[page.chapter.value].convert_to_loaded();
+            ReaderMsg::GenerateIFrameLoaded(chapter) => {
+                self.sections[chapter.value].convert_to_loaded();
 
                 // Call on_load for the newly loaded frame.
-                if let SectionLoadProgress::Loaded(section) = &mut self.sections[page.chapter.value]
+                if let SectionLoadProgress::Loaded(section) = &mut self.sections[chapter.value]
                 {
                     section.on_load(
                         &mut self.cached_display,
@@ -1164,10 +1164,7 @@ fn generate_pages(
     let f = Closure::wrap(Box::new(move || {
         let chapter = chapter.clone();
 
-        scope.send_message(ReaderMsg::GenerateIFrameLoaded(GenerateChapter {
-            iframe: iframe.clone(),
-            chapter,
-        }));
+        scope.send_message(ReaderMsg::GenerateIFrameLoaded(chapter));
     }) as Box<dyn FnMut()>);
 
     new_frame.set_onload(Some(f.as_ref().unchecked_ref()));
@@ -1193,9 +1190,4 @@ fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameEl
         .style()
         .set_property("height", &format!("{}px", height))
         .unwrap();
-}
-
-pub struct GenerateChapter {
-    iframe: HtmlIFrameElement,
-    chapter: Chapter,
 }

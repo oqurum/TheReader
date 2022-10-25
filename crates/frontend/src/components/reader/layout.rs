@@ -11,11 +11,7 @@ use super::{section::SectionContents, DragType, OverlayEvent, Reader, ReaderMsg}
 type Destructor =
     Box<dyn FnOnce(&EventTarget, &js_sys::Function) -> std::result::Result<(), JsValue>>;
 
-static PAGE_DISPLAYS: [&str; 3] = [
-    "single-page",
-    "double-page",
-    "scrolling-page"
-];
+static PAGE_DISPLAYS: [&str; 3] = ["single-page", "double-page", "scrolling-page"];
 
 /// Allows for easier creation and destruction of functions.
 pub struct ElementEvent {
@@ -197,7 +193,9 @@ impl PageDisplay {
             .body()
             .unwrap_throw();
 
-        PAGE_DISPLAYS.into_iter().for_each(|v| { let _ = body.class_list().remove_1(v); });
+        PAGE_DISPLAYS.into_iter().for_each(|v| {
+            let _ = body.class_list().remove_1(v);
+        });
         body.class_list().add_1(self.class_name).unwrap_throw();
 
         let link = ctx.link().clone();
@@ -310,7 +308,9 @@ impl ScrollDisplay {
 
         {
             let body = body.body().unwrap_throw();
-            PAGE_DISPLAYS.into_iter().for_each(|v| { let _ = body.class_list().remove_1(v); });
+            PAGE_DISPLAYS.into_iter().for_each(|v| {
+                let _ = body.class_list().remove_1(v);
+            });
             body.class_list().add_1(self.class_name).unwrap_throw();
         }
 

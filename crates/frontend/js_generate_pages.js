@@ -14,94 +14,6 @@ export function get_iframe_page_count(iframe) {
 }
 
 
-
-
-var tableContainerNames = ['tbody', 'thead', 'tfoot'];
-var tableRowNames = ['tr'];
-
-/**
- * @param tableElement {HTMLElement}
- * @returns {HTMLDivElement[]}
-**/
-function flattenAndReplaceTableList(tableElement) {
-	if (tableElement.localName != 'table') return [];
-
-	let items = flattenVerticalList(tableElement);
-
-	if (items.length != 0) {
-		tableElement.after(...items);
-		tableElement.remove();
-	} else {
-		// TODO: Horizontal list.
-	}
-
-	return items;
-}
-
-/**
- * @param tableElement {HTMLElement}
- * @returns {HTMLDivElement[]}
-**/
-function flattenVerticalList(tableElement) {
-	let items = [];
-
-	let is_inside_section = false;
-
-	let currentSection = tableElement;
-
-	for (let i = 0; i < currentSection.children.length; i++) {
-		let child = currentSection.children[i];
-
-		// If we're looking at a section container
-		if (tableContainerNames.indexOf(child.localName) != -1) {
-			// If we have multiple of them, this is an actual table, not a table-list, return false.
-			if (currentSection.children.length != 1) {
-				items = [];
-				break;
-			}
-			// Only this child inside table. We're inside a table section now.
-			else {
-				is_inside_section = true;
-				currentSection = child;
-				i = -1;
-			}
-		}
-
-		// If we're inside a section OR the children are rows.
-		else if (is_inside_section || tableRowNames.indexOf(child.localName) != -1) {
-			// Here incase we don't have a tbody/thead/tfoot
-			if (!is_inside_section) is_inside_section = true;
-			if (currentSection.children.length == 1) return [];
-
-			// TODO: ensure we only have one column type.
-			// TODO: Ensure it's actually vertical. We're not checking for it right now. Utilize child.clientLeft;
-
-			// Going through rows (<tr>)
-
-			// Only should be one td inside a row
-			if (child.children.length == 1) {
-				let td = child.firstElementChild;
-				// No child? Continue to next row.
-				if (td == null || td.localName != 'td') continue;
-
-				let cont = document.createElement('div');
-				td.childNodes.forEach(v => cont.appendChild(v.cloneNode(true)));
-				items.push(cont);
-			} else {
-				items = [];
-				break;
-			}
-		}
-
-		// TODO: Neither or, log for now.
-		else {
-			console.log('Unknown:', child);
-		}
-	}
-
-	return items;
-}
-
 // Extreme Cost - At least one on one Book (Modern X86 Assembly Language Programming)
 // shrinkVerticalMargins would utilize 50% - specifically paddingTop > Styles
 /**
@@ -254,13 +166,6 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 			child.remove();
 
 			i--; // Go back once since we remove this child from the array.
-		} else {
-			let flat_list = flattenAndReplaceTableList(child);
-
-			if (flat_list.length != 0) {
-				flat_list.forEach(v => v.style.width = '50%');
-				i--;
-			}
 		}
 	}
 
