@@ -14,35 +14,56 @@ use actix_web::{
 use chrono::Utc;
 use common::{api::ApiErrorResponse, MemberId};
 use futures::{future::LocalBoxFuture, FutureExt};
+use rand::{rngs::ThreadRng, Rng};
 use serde::{Deserialize, Serialize};
 
-use crate::{database::Database, model::member::MemberModel, InternalError, Result, WebError};
+use crate::{
+    database::Database,
+    model::{auth::AuthModel, member::MemberModel},
+    InternalError, Result, WebError,
+};
 
 pub mod password;
 pub mod passwordless;
 
 #[derive(Serialize, Deserialize)]
 pub struct CookieAuth {
+    /// Our member id. Mainly here just for redundancy.
     pub member_id: MemberId,
+
+    /// The Secret Auth Token used to verify we still have access
+    pub token_secret: String,
+    /// The last time we updated the Auth Model.
+    ///
+    /// Used to keep track in the DB when the user last accessed the pages.
+    pub last_updated: i64,
+
+    /// How long we've had this cached in our browser.
     pub stored_since: i64,
 }
 
-pub fn get_auth_value(identity: &Identity) -> Option<CookieAuth> {
+fn get_auth_value(identity: Identity) -> Option<(Identity, CookieAuth)> {
     let ident = identity.id().ok()?;
-    serde_json::from_str(&ident).ok()
+
+    if let Ok(v) = serde_json::from_str(&ident) {
+        Some((identity, v))
+    } else {
+        // Invalid Data? Logout.
+        identity.logout();
+
+        None
+    }
 }
 
-pub async fn get_auth_member(identity: &Identity, db: &Database) -> Option<MemberModel> {
-    let store = get_auth_value(identity)?;
-    MemberModel::find_one_by_id(store.member_id, db)
-        .await
-        .ok()
-        .flatten()
-}
-
-pub fn remember_member_auth(ext: &Extensions, member_id: MemberId) -> Result<()> {
+pub fn remember_member_auth(
+    ext: &Extensions,
+    member_id: MemberId,
+    token_secret: String,
+) -> Result<()> {
     let value = serde_json::to_string(&CookieAuth {
         member_id,
+        token_secret,
+        last_updated: Utc::now().timestamp_millis(),
         stored_since: Utc::now().timestamp_millis(),
     })?;
 
@@ -51,7 +72,7 @@ pub fn remember_member_auth(ext: &Extensions, member_id: MemberId) -> Result<()>
     Ok(())
 }
 
-// Retrive Member from Identity
+// Retrieve Member from Identity
 pub struct MemberCookie(CookieAuth);
 
 impl MemberCookie {
@@ -59,8 +80,18 @@ impl MemberCookie {
         self.0.member_id
     }
 
+    pub fn token_secret(&self) -> &str {
+        self.0.token_secret.as_str()
+    }
+
     pub async fn fetch(&self, db: &Database) -> Result<Option<MemberModel>> {
+        // Not needed now. Checked in the "LoginRequired" Middleware
+
+        // if AuthModel::find_by_token(self.token_secret(), db).await?.is_some() {
         MemberModel::find_one_by_id(self.member_id(), db).await
+        // } else {
+        //     Ok(None)
+        // }
     }
 
     pub async fn fetch_or_error(&self, db: &Database) -> Result<MemberModel> {
@@ -80,7 +111,7 @@ impl FromRequest for MemberCookie {
         let fut = Identity::from_request(req, pl);
 
         Box::pin(async move {
-            if let Some(id) = get_auth_value(&fut.await?) {
+            if let Some((_, id)) = get_auth_value(fut.await?) {
                 Ok(MemberCookie(id))
             } else {
                 Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")))
@@ -141,15 +172,35 @@ where
 
             let identity = Identity::from_request(&r, &mut pl).await?;
 
-            if get_auth_value(&identity).is_some() {
-                // HttpRequest contains an Rc so we need to drop identity to free the cloned one.
-                drop(identity);
+            if let Some((identity, cookie)) = get_auth_value(identity) {
+                let db = actix_web::web::Data::<Database>::from_request(&r, &mut pl).await?;
 
-                Ok(srv.call(ServiceRequest::from_parts(r, pl)).await?)
-            } else {
-                Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")).into())
+                // TODO: Handle Result
+                if AuthModel::find_by_token(&cookie.token_secret, &db)
+                    .await
+                    .ok()
+                    .flatten()
+                    .is_some()
+                {
+                    // HttpRequest contains an Rc so we need to drop identity to free the cloned ones.
+                    drop(db);
+                    drop(identity);
+
+                    return srv.call(ServiceRequest::from_parts(r, pl)).await;
+                } else {
+                    // Remove Cookie if we can't find the token anymore.
+                    identity.logout();
+                }
             }
+            Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")).into())
         }
         .boxed_local()
     }
+}
+
+pub fn gen_sample_alphanumeric(amount: usize, rng: &mut ThreadRng) -> String {
+    rng.sample_iter(rand::distributions::Alphanumeric)
+        .take(amount)
+        .map(char::from)
+        .collect()
 }

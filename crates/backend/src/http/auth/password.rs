@@ -10,8 +10,6 @@ use common::api::ApiErrorResponse;
 use common::api::WrappingResponse;
 use common_local::MemberAuthType;
 use common_local::Permissions;
-use rand::prelude::ThreadRng;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::config::get_config;
@@ -19,6 +17,7 @@ use crate::config::save_config;
 use crate::config::update_config;
 use crate::database::Database;
 use crate::http::JsonResponse;
+use crate::model::auth::AuthModel;
 use crate::model::member::MemberModel;
 use crate::model::member::NewMemberModel;
 use crate::Error;
@@ -43,7 +42,14 @@ pub async fn post_password_oauth(
         return Err(ApiErrorResponse::new("Already logged in").into());
     }
 
-    let PostPasswordCallback { email, password } = query.into_inner();
+    let PostPasswordCallback {
+        mut email,
+        password,
+    } = query.into_inner();
+    email = email.trim().to_string();
+
+    // TODO: Verify that's is a proper email address.
+    // let _ = email.parse::<Address>()?;
 
     // Create or Update User.
     let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
@@ -95,14 +101,11 @@ pub async fn post_password_oauth(
         inserted
     };
 
-    super::remember_member_auth(&request.extensions(), member.id)?;
+    let model = AuthModel::new(Some(member.id));
+
+    model.insert(&db).await?;
+
+    super::remember_member_auth(&request.extensions(), member.id, model.oauth_token_secret)?;
 
     Ok(web::Json(WrappingResponse::okay(String::from("success"))))
-}
-
-pub fn gen_sample_alphanumeric(amount: usize, rng: &mut ThreadRng) -> String {
-    rng.sample_iter(rand::distributions::Alphanumeric)
-        .take(amount)
-        .map(char::from)
-        .collect()
 }

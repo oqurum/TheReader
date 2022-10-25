@@ -9,7 +9,6 @@ use common_local::{
     api,
     setup::{Config, LibraryConnection, SetupConfig},
 };
-use rand::distributions::{Alphanumeric, DistString};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use serde_qs::actix::QsQuery;
@@ -149,16 +148,9 @@ pub async fn post_setup_agent(
         location_uri.to_string()
     };
 
-    let state = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-
     // TODO: Should I store it in AuthModel?
-    AuthModel {
-        oauth_token: state.clone(),
-        oauth_token_secret: String::new(),
-        created_at: Utc::now(),
-    }
-    .insert(&db)
-    .await?;
+    let auth_model = AuthModel::new(None);
+    auth_model.insert(&db).await?;
 
     let mut location_uri = Url::parse(&config.libby.url).unwrap();
     location_uri.set_path("authorize");
@@ -168,7 +160,7 @@ pub async fn post_setup_agent(
             server_name: Some(config.server.name),
             server_id: None,
             redirect_uri,
-            state,
+            state: auth_model.oauth_token.unwrap(),
             scope: Scope::ServerRegister,
         })
         .unwrap(),
@@ -181,7 +173,6 @@ pub async fn post_setup_agent(
 
 #[get("/setup/agent/verify")]
 pub async fn get_setup_agent_verify(
-    _req: HttpRequest,
     query: QsQuery<VerifyAgentQuery>,
     member: MemberCookie,
     db: web::Data<Database>,
@@ -199,7 +190,9 @@ pub async fn get_setup_agent_verify(
         return Ok(HttpResponse::NotAcceptable().body("Agent is already setup"));
     }
 
-    if AuthModel::remove_by_oauth_token(&query.state, &db).await? {
+    if let Some(auth_model) = AuthModel::find_by_token(&query.state, &db).await? {
+        AuthModel::remove_by_token_secret(&auth_model.oauth_token_secret, &db).await?;
+
         let mut location_uri = Url::parse(&config.libby.url).unwrap();
         location_uri.set_path("auth/handshake");
         location_uri.set_query(Some(

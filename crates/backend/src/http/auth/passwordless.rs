@@ -19,8 +19,6 @@ use lettre::message::header::ContentType;
 use lettre::message::{MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
-use rand::prelude::ThreadRng;
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::database::Database;
@@ -38,7 +36,7 @@ pub async fn post_passwordless_oauth(
     query: web::Json<PostPasswordlessCallback>,
     identity: Option<Identity>,
     db: web::Data<Database>,
-) -> WebResult<JsonResponse<String>> {
+) -> WebResult<JsonResponse<&'static str>> {
     if identity.is_some() || !is_setup() {
         return Err(ApiErrorResponse::new("Already logged in").into());
     }
@@ -63,13 +61,13 @@ pub async fn post_passwordless_oauth(
         "http"
     };
 
-    let oauth_token = gen_sample_alphanumeric(32, &mut rand::thread_rng());
+    let auth_model = AuthModel::new(None);
 
     let auth_callback_url = format!(
         "{proto}://{host}{}?{}",
         PASSWORDLESS_PATH_CB,
         serde_urlencoded::to_string(QueryCallback {
-            oauth_token: oauth_token.clone(),
+            oauth_token: auth_model.oauth_token.clone().unwrap(),
             email: query.email.clone()
         })
         .map_err(Error::from)?
@@ -77,18 +75,11 @@ pub async fn post_passwordless_oauth(
 
     let main_html = render_email(proto, host, &email_config.display_name, &auth_callback_url);
 
-    AuthModel {
-        oauth_token,
-        // TODO:
-        oauth_token_secret: String::new(),
-        created_at: Utc::now(),
-    }
-    .insert(&db)
-    .await?;
+    auth_model.insert(&db).await?;
 
     send_auth_email(query.0.email, auth_callback_url, main_html, &email_config)?;
 
-    Ok(web::Json(WrappingResponse::okay(String::from("success"))))
+    Ok(web::Json(WrappingResponse::okay("success")))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -111,7 +102,7 @@ pub async fn get_passwordless_oauth_callback(
 
     let QueryCallback { oauth_token, email } = query.into_inner();
 
-    if AuthModel::remove_by_oauth_token(&oauth_token, &db).await? {
+    if let Some(auth) = AuthModel::find_by_token(&oauth_token, &db).await? {
         // Create or Update User.
         let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
             value
@@ -149,7 +140,9 @@ pub async fn get_passwordless_oauth_callback(
             inserted
         };
 
-        super::remember_member_auth(&request.extensions(), member.id)?;
+        AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &db).await?;
+
+        super::remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
     }
 
     Ok(HttpResponse::Found()
@@ -218,13 +211,6 @@ pub fn send_auth_email(
     mailer.send(&email)?;
 
     Ok(())
-}
-
-pub fn gen_sample_alphanumeric(amount: usize, rng: &mut ThreadRng) -> String {
-    rng.sample_iter(rand::distributions::Alphanumeric)
-        .take(amount)
-        .map(char::from)
-        .collect()
 }
 
 // TODO: Change. Based off of peakdesign's passwordless email.

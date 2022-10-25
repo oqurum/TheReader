@@ -241,15 +241,18 @@ pub async fn init() -> Result<Database> {
         [],
     )?;
 
-    // Auths
+    // Auth
     conn.execute(
-        r#"CREATE TABLE IF NOT EXISTS "auths" (
-            "oauth_token"           TEXT NOT NULL,
-            "oauth_token_secret"    TEXT NOT NULL,
+        r#"CREATE TABLE IF NOT EXISTS "auth" (
+            "oauth_token"           TEXT UNIQUE,
+            "oauth_token_secret"    TEXT NOT NULL UNIQUE,
+
+            "member_id"             INTEGER,
 
             "created_at"            DATETIME NOT NULL,
+            "updated_at"            DATETIME NOT NULL,
 
-            UNIQUE(oauth_token)
+            FOREIGN KEY("member_id") REFERENCES members("id") ON DELETE CASCADE
         );"#,
         [],
     )?;
