@@ -428,7 +428,7 @@ impl Component for Reader {
 
                             if self.drag_distance / height == 5 {
                                 self.drag_distance = 0;
-                                self.previous_page();
+                                self.previous_page(ctx);
                             } else {
                                 // After 500 ms of no scroll activity reset position ( self.drag_distance ?? ) to ZERO.
                                 let link = ctx.link().clone();
@@ -449,7 +449,7 @@ impl Component for Reader {
 
                             if self.drag_distance.abs() / height == 5 {
                                 self.drag_distance = 0;
-                                self.previous_page();
+                                self.previous_page(ctx);
                             } else {
                                 // After 500 ms of no scroll activity reset position ( self.drag_distance ?? ) to ZERO.
                                 let link = ctx.link().clone();
@@ -471,10 +471,10 @@ impl Component for Reader {
                 if self.drag_distance.abs() / height >= 3 {
                     if self.drag_distance.is_positive() {
                         self.drag_distance = 0;
-                        self.previous_page();
+                        self.previous_page(ctx);
                     } else {
                         self.drag_distance = 0;
-                        self.next_page();
+                        self.next_page(ctx);
                     }
                 } else {
                     self.drag_distance = 0;
@@ -502,7 +502,7 @@ impl Component for Reader {
                             return false;
                         }
 
-                        self.next_page();
+                        self.next_page(ctx);
                     }
 
                     SectionDisplay::Scroll(_) => {
@@ -520,7 +520,7 @@ impl Component for Reader {
                             return false;
                         }
 
-                        self.previous_page();
+                        self.previous_page(ctx);
                     }
 
                     SectionDisplay::Scroll(_) => {
@@ -686,6 +686,12 @@ impl Component for Reader {
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
         let props = ctx.props();
 
+        if let Some(Progression::Ebook { chapter, .. }) =
+            *ctx.props().progress.lock().unwrap()
+        {
+            self.viewing_chapter = chapter as usize;
+        }
+
         if self.cached_display != props.settings.display
             || self.cached_dimensions != Some(props.settings.dimensions)
         {
@@ -704,9 +710,19 @@ impl Component for Reader {
             self.update_cached_pages();
         }
 
-        match props.settings.type_of {
+        self.load_surrounding_sections(ctx);
+
+        self.use_progression(*props.progress.lock().unwrap(), ctx);
+
+        true
+    }
+}
+
+impl Reader {
+    fn load_surrounding_sections(&mut self, ctx: &Context<Self>) {
+        match ctx.props().settings.type_of {
             PageLoadType::All => {
-                let chapter_count = props.book.chapter_count;
+                let chapter_count = ctx.props().book.chapter_count;
 
                 // Reverse iterator since for some reason chapter "generation" works from LIFO
                 for chapter in (0..chapter_count).rev() {
@@ -715,15 +731,7 @@ impl Component for Reader {
             }
 
             PageLoadType::Select => {
-                let start_chapter = {
-                    if let Some(Progression::Ebook { chapter, .. }) =
-                        *props.progress.lock().unwrap()
-                    {
-                        chapter
-                    } else {
-                        0
-                    }
-                };
+                let start_chapter = self.viewing_chapter;
 
                 // Continue loading chapters
                 let start = (start_chapter - 2).max(0) as usize;
@@ -734,14 +742,8 @@ impl Component for Reader {
                 }
             }
         }
-
-        self.use_progression(*props.progress.lock().unwrap(), ctx);
-
-        true
     }
-}
 
-impl Reader {
     fn render_navbar(&self, ctx: &Context<Self>) -> Html {
         let page_count = self.page_count(ctx);
         let section_count = ctx.props().book.chapter_count;
@@ -913,7 +915,7 @@ impl Reader {
         self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
     }
 
-    fn next_page(&mut self) -> bool {
+    fn next_page(&mut self, ctx: &Context<Self>) -> bool {
         let viewing_chapter = self.viewing_chapter;
         let section_count = self.sections.len();
 
@@ -935,6 +937,8 @@ impl Reader {
                     self.cached_display.on_start_viewing(next_sect);
                 }
 
+                self.load_surrounding_sections(ctx);
+
                 return true;
             }
         }
@@ -942,7 +946,7 @@ impl Reader {
         false
     }
 
-    fn previous_page(&mut self) -> bool {
+    fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.previous_page(curr_sect) {
                 return true;
@@ -960,6 +964,8 @@ impl Reader {
                     self.cached_display.set_last_page(next_sect);
                     self.cached_display.on_start_viewing(next_sect);
                 }
+
+                self.load_surrounding_sections(ctx);
 
                 return true;
             }
@@ -983,6 +989,8 @@ impl Reader {
                     self.viewing_chapter = section.chapter();
 
                     self.cached_display.set_page(local_page, section);
+
+                    self.load_surrounding_sections(ctx);
 
                     return true;
                 }
@@ -1021,6 +1029,8 @@ impl Reader {
 
             self.cached_display.set_page(0, section);
             self.cached_display.on_start_viewing(section);
+
+            self.load_surrounding_sections(ctx);
 
             true
         } else {
@@ -1205,8 +1215,6 @@ fn generate_pages(
 
     update_iframe_size(book_dimensions, &iframe);
 
-    let new_frame = iframe.clone();
-
     let chap_value = chapter.value;
 
     let f = Closure::wrap(Box::new(move || {
@@ -1215,9 +1223,9 @@ fn generate_pages(
         scope.send_message(ReaderMsg::GenerateIFrameLoaded(chapter));
     }) as Box<dyn FnMut()>);
 
-    new_frame.set_onload(Some(f.as_ref().unchecked_ref()));
+    iframe.set_onload(Some(f.as_ref().unchecked_ref()));
 
-    SectionContents::new(chap_value, new_frame, f)
+    SectionContents::new(chap_value, iframe, f)
 }
 
 fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameElement) {
