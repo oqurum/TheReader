@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use common::{BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
@@ -40,7 +40,8 @@ pub struct BookModel {
     #[serde(serialize_with = "serialize_datetime_opt")]
     pub deleted_at: Option<DateTime<Utc>>,
 
-    pub available_at: Option<i64>,
+    #[serde(serialize_with = "serialize_datetime_opt")]
+    pub available_at: Option<DateTime<Utc>>,
     pub year: Option<i64>,
 }
 
@@ -61,7 +62,7 @@ impl From<BookModel> for DisplayBookItem {
             created_at: val.created_at,
             updated_at: val.updated_at,
             deleted_at: val.deleted_at,
-            available_at: val.available_at,
+            available_at: val.available_at.map(|v| v.timestamp_millis()),
             year: val.year,
         }
     }
@@ -86,10 +87,10 @@ impl TableRow<'_> for BookModel {
                 .unwrap_or_default(),
             available_at: row.next()?,
             year: row.next()?,
-            refreshed_at: Utc.timestamp_millis(row.next()?),
-            created_at: Utc.timestamp_millis(row.next()?),
-            updated_at: Utc.timestamp_millis(row.next()?),
-            deleted_at: row.next_opt()?.map(|v| Utc.timestamp_millis(v)),
+            refreshed_at: row.next()?,
+            created_at: row.next()?,
+            updated_at: row.next()?,
+            deleted_at: row.next_opt()?,
         })
     }
 }
@@ -125,10 +126,10 @@ impl BookModel {
                     &self.cached.as_string_optional(),
                     &self.available_at,
                     &self.year,
-                    &self.refreshed_at.timestamp_millis(),
-                    &self.created_at.timestamp_millis(),
-                    &self.updated_at.timestamp_millis(),
-                    self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
+                    self.refreshed_at,
+                    self.created_at,
+                    self.updated_at,
+                    self.deleted_at,
                 ],
             )?;
 
@@ -173,9 +174,9 @@ impl BookModel {
                 &self.cached.as_string_optional(),
                 &self.available_at,
                 &self.year,
-                &self.refreshed_at.timestamp_millis(),
-                &self.updated_at.timestamp_millis(),
-                self.deleted_at.as_ref().map(|v| v.timestamp_millis()),
+                self.refreshed_at,
+                self.updated_at,
+                self.deleted_at,
             ],
         )?;
 

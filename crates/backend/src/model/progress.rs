@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use common::{BookId, MemberId};
 use rusqlite::{params, OptionalExtension};
 
@@ -97,8 +97,8 @@ impl TableRow<'_> for FileProgressionModel {
 
             seek_pos: row.next()?,
 
-            updated_at: Utc.timestamp_millis(row.next()?),
-            created_at: Utc.timestamp_millis(row.next()?),
+            updated_at: row.next()?,
+            created_at: row.next()?,
         })
     }
 }
@@ -137,12 +137,12 @@ impl FileProgressionModel {
         if Self::find_one(member_id, file_id, db).await?.is_some() {
             db.write().await.execute(
                 r#"UPDATE file_progression SET chapter = ?1, char_pos = ?2, page = ?3, seek_pos = ?4, updated_at = ?5 WHERE book_id = ?6 AND file_id = ?7 AND user_id = ?8"#,
-                params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.book_id, prog.file_id, prog.user_id]
+                params![prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.book_id, prog.file_id, prog.user_id]
             )?;
         } else {
             db.write().await.execute(
                 r#"INSERT INTO file_progression (book_id, file_id, user_id, type_of, chapter, char_pos, page, seek_pos, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"#,
-                params![prog.book_id, prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at.timestamp_millis(), prog.created_at.timestamp_millis()]
+                params![prog.book_id, prog.file_id, prog.user_id, prog.type_of, prog.chapter, prog.char_pos, prog.page, prog.seek_pos, prog.updated_at, prog.created_at]
             )?;
         }
 

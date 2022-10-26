@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use common::{BookId, ImageId, ImageType, PersonId, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
@@ -52,7 +52,7 @@ impl TableRow<'_> for UploadedImageModel {
         Ok(Self {
             id: row.next()?,
             path: ThumbnailStore::from(row.next::<String>()?),
-            created_at: Utc.timestamp_millis(row.next()?),
+            created_at: row.next()?,
         })
     }
 }
@@ -100,7 +100,7 @@ impl NewUploadedImageModel {
             INSERT OR IGNORE INTO uploaded_images (path, created_at)
             VALUES (?1, ?2)
         "#,
-            params![path.as_str(), self.created_at.timestamp_millis()],
+            params![path.as_str(), self.created_at],
         )?;
 
         Ok(UploadedImageModel {
@@ -226,7 +226,7 @@ impl ImageLinkModel {
                 link_id: row.get(1)?,
                 type_of: ImageType::from_number(row.get(2)?).unwrap(),
                 path: ThumbnailStore::from(row.get::<_, String>(3)?),
-                created_at: Utc.timestamp_millis(row.get(4)?),
+                created_at: row.get(4)?,
             })
         })?;
 

@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
@@ -26,8 +26,8 @@ impl TableRow<'_> for AuthModel {
             oauth_token: row.next_opt()?,
             oauth_token_secret: row.next()?,
             member_id: row.next_opt()?,
-            created_at: Utc.timestamp_millis(row.next()?),
-            updated_at: Utc.timestamp_millis(row.next()?),
+            created_at: row.next()?,
+            updated_at: row.next()?,
         })
     }
 }
@@ -53,8 +53,8 @@ impl AuthModel {
                 &self.oauth_token,
                 &self.oauth_token_secret,
                 self.member_id,
-                self.created_at.timestamp_millis(),
-                self.updated_at.timestamp_millis(),
+                self.created_at,
+                self.updated_at,
             ],
         )?;
 

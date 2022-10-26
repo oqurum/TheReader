@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
@@ -45,8 +45,8 @@ impl TableRow<'_> for FileNoteModel {
 
             data_size: row.next()?,
 
-            updated_at: Utc.timestamp_millis(row.next()?),
-            created_at: Utc.timestamp_millis(row.next()?),
+            updated_at: row.next()?,
+            created_at: row.next()?,
         })
     }
 }
@@ -59,12 +59,12 @@ impl FileNoteModel {
         {
             db.write().await.execute(
                 r#"UPDATE file_note SET data = ?1, data_size = ?2, updated_at = ?3 WHERE file_id = ?4 AND user_id = ?5"#,
-                params![self.data, self.data_size, self.updated_at.timestamp_millis(), self.file_id, self.member_id]
+                params![self.data, self.data_size, self.updated_at, self.file_id, self.member_id]
             )?;
         } else {
             db.write().await.execute(
                 r#"INSERT INTO file_note (file_id, user_id, data, data_size, updated_at, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
-                params![self.file_id, self.member_id, self.data, self.data_size, self.updated_at.timestamp_millis(), self.created_at.timestamp_millis()]
+                params![self.file_id, self.member_id, self.data, self.data_size, self.updated_at, self.created_at]
             )?;
         }
 

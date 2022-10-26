@@ -14,7 +14,7 @@ use crate::{
     util, Result,
 };
 use async_trait::async_trait;
-use chrono::{NaiveDate, Utc};
+use chrono::{NaiveDate, Utc, TimeZone};
 use common::{Agent, BookId, Either, PersonId, Source, ThumbnailStore};
 use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;
@@ -465,7 +465,7 @@ impl From<FoundItem> for BookModel {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             deleted_at: None,
-            available_at: val.available_at,
+            available_at: val.available_at.map(|v| Utc.timestamp_millis(v)),
             year: val.year,
         }
     }

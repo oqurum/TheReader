@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use common::{util::serialize_datetime_opt, BookId};
 use rusqlite::{params, OptionalExtension};
 
@@ -101,10 +101,10 @@ impl TableRow<'_> for FileModel {
             identifier: row.next()?,
             hash: row.next()?,
 
-            modified_at: Utc.timestamp_millis(row.next()?),
-            accessed_at: Utc.timestamp_millis(row.next()?),
-            created_at: Utc.timestamp_millis(row.next()?),
-            deleted_at: row.next_opt()?.map(|v| Utc.timestamp_millis(v)),
+            modified_at: row.next()?,
+            accessed_at: row.next()?,
+            created_at: row.next()?,
+            deleted_at: row.next_opt()?,
         })
     }
 }
@@ -138,7 +138,7 @@ impl NewFileModel {
         "#,
         params![
             &self.path, &self.file_type, &self.file_name, self.file_size,
-            self.modified_at.timestamp_millis(), self.accessed_at.timestamp_millis(), self.created_at.timestamp_millis(),
+            self.modified_at, self.accessed_at, self.created_at,
             self.identifier.as_deref(), &self.hash,
             self.library_id, self.book_id, self.chapter_count
         ])?;

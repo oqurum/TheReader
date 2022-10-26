@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use common::{util::serialize_naivedate_opt, BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
@@ -55,8 +55,8 @@ impl TableRow<'_> for PersonModel {
 
             thumb_url: ThumbnailStore::from(row.next_opt::<String>()?),
 
-            created_at: Utc.timestamp_millis(row.next()?),
-            updated_at: Utc.timestamp_millis(row.next()?),
+            created_at: row.next()?,
+            updated_at: row.next()?,
         })
     }
 }
@@ -86,7 +86,7 @@ impl NewPersonModel {
         "#,
         params![
             self.source.to_string(), &self.name, &self.description, &self.birth_date, self.thumb_url.as_value(),
-            self.updated_at.timestamp_millis(), self.created_at.timestamp_millis()
+            self.updated_at, self.created_at
         ])?;
 
         Ok(PersonModel {
@@ -239,8 +239,8 @@ impl PersonModel {
                 &self.description,
                 &self.birth_date,
                 self.thumb_url.as_value(),
-                self.updated_at.timestamp_millis(),
-                self.created_at.timestamp_millis()
+                self.updated_at,
+                self.created_at
             ],
         )?;
 

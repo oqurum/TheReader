@@ -21,9 +21,9 @@ pub async fn init() -> Result<Database> {
 
             "name"               TEXT UNIQUE,
 
-            "scanned_at"         DATETIME NOT NULL,
-            "created_at"         DATETIME NOT NULL,
-            "updated_at"         DATETIME NOT NULL,
+            "scanned_at"         TEXT NOT NULL,
+            "created_at"         TEXT NOT NULL,
+            "updated_at"         TEXT NOT NULL,
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
@@ -58,10 +58,10 @@ pub async fn init() -> Result<Database> {
             "identifier"       TEXT,
             "hash"             TEXT NOT NULL UNIQUE,
 
-            "modified_at"      DATETIME NOT NULL,
-            "accessed_at"      DATETIME NOT NULL,
-            "created_at"       DATETIME NOT NULL,
-            "deleted_at"       DATETIME,
+            "modified_at"      TEXT NOT NULL,
+            "accessed_at"      TEXT NOT NULL,
+            "created_at"       TEXT NOT NULL,
+            "deleted_at"       TEXT,
 
             PRIMARY KEY("id" AUTOINCREMENT),
 
@@ -87,13 +87,13 @@ pub async fn init() -> Result<Database> {
 
             "cached"              TEXT,
 
-            "available_at"        DATETIME,
+            "available_at"        TEXT,
             "year"                INTEGER,
 
-            "refreshed_at"        DATETIME,
-            "created_at"          DATETIME,
-            "updated_at"          DATETIME,
-            "deleted_at"          DATETIME,
+            "refreshed_at"        TEXT,
+            "created_at"          TEXT,
+            "updated_at"          TEXT,
+            "deleted_at"          TEXT,
 
             PRIMARY KEY("id" AUTOINCREMENT),
 
@@ -126,8 +126,8 @@ pub async fn init() -> Result<Database> {
             "data"          TEXT NOT NULL,
             "data_size"     INTEGER NOT NULL,
 
-            "updated_at"    DATETIME NOT NULL,
-            "created_at"    DATETIME NOT NULL,
+            "updated_at"    TEXT NOT NULL,
+            "created_at"    TEXT NOT NULL,
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
@@ -151,8 +151,8 @@ pub async fn init() -> Result<Database> {
             "char_pos"      INTEGER,
             "seek_pos"      INTEGER,
 
-            "updated_at"    DATETIME NOT NULL,
-            "created_at"    DATETIME NOT NULL,
+            "updated_at"    TEXT NOT NULL,
+            "created_at"    TEXT NOT NULL,
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
@@ -173,8 +173,8 @@ pub async fn init() -> Result<Database> {
             "data_size"     INTEGER NOT NULL,
             "version"       INTEGER NOT NULL,
 
-            "updated_at"    DATETIME NOT NULL,
-            "created_at"    DATETIME NOT NULL,
+            "updated_at"    TEXT NOT NULL,
+            "created_at"    TEXT NOT NULL,
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
@@ -197,8 +197,8 @@ pub async fn init() -> Result<Database> {
 
             "thumb_url"      TEXT,
 
-            "updated_at"     DATETIME NOT NULL,
-            "created_at"     DATETIME NOT NULL,
+            "updated_at"     TEXT NOT NULL,
+            "created_at"     TEXT NOT NULL,
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
@@ -232,8 +232,8 @@ pub async fn init() -> Result<Database> {
 
             "permissions"    TEXT NOT NULL,
 
-            "created_at"     DATETIME NOT NULL,
-            "updated_at"     DATETIME NOT NULL,
+            "created_at"     TEXT NOT NULL,
+            "updated_at"     TEXT NOT NULL,
 
             UNIQUE(email),
             PRIMARY KEY("id" AUTOINCREMENT)
@@ -249,8 +249,8 @@ pub async fn init() -> Result<Database> {
 
             "member_id"             INTEGER,
 
-            "created_at"            DATETIME NOT NULL,
-            "updated_at"            DATETIME NOT NULL,
+            "created_at"            TEXT NOT NULL,
+            "updated_at"            TEXT NOT NULL,
 
             FOREIGN KEY("member_id") REFERENCES members("id") ON DELETE CASCADE
         );"#,
@@ -264,7 +264,7 @@ pub async fn init() -> Result<Database> {
 
             "path"          TEXT NOT NULL,
 
-            "created_at"    DATETIME NOT NULL,
+            "created_at"    TEXT NOT NULL,
 
             UNIQUE(path),
             PRIMARY KEY("id" AUTOINCREMENT)

@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
@@ -34,9 +34,9 @@ impl TableRow<'_> for LibraryModel {
         Ok(Self {
             id: row.next()?,
             name: row.next()?,
-            scanned_at: Utc.timestamp_millis(row.next()?),
-            created_at: Utc.timestamp_millis(row.next()?),
-            updated_at: Utc.timestamp_millis(row.next()?),
+            scanned_at: row.next()?,
+            created_at: row.next()?,
+            updated_at: row.next()?,
         })
     }
 }
@@ -49,9 +49,9 @@ impl NewLibraryModel {
             r#"INSERT INTO library (name, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)"#,
             params![
                 &self.name,
-                self.scanned_at.timestamp_millis(),
-                self.created_at.timestamp_millis(),
-                self.updated_at.timestamp_millis()
+                self.scanned_at,
+                self.created_at,
+                self.updated_at,
             ]
         )?;
 

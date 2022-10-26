@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
@@ -80,8 +80,8 @@ impl TableRow<'_> for MemberModel {
             type_of: row.next()?,
             permissions: row.next()?,
 
-            created_at: Utc.timestamp_millis(row.next()?),
-            updated_at: Utc.timestamp_millis(row.next()?),
+            created_at: row.next()?,
+            updated_at: row.next()?,
         })
     }
 }
@@ -96,7 +96,7 @@ impl NewMemberModel {
         "#,
         params![
             &self.name, self.email.as_ref(), self.password.as_ref(), self.type_of, self.permissions,
-            self.created_at.timestamp_millis(), self.updated_at.timestamp_millis()
+            self.created_at, self.updated_at
         ])?;
 
         Ok(self.into_member(MemberId::from(conn.last_insert_rowid() as usize)))
