@@ -149,6 +149,10 @@ pub enum ReaderMsg {
     PreviousPage,
     SetPage(usize),
 
+    NextSection,
+    PreviousSection,
+    SetSection(usize),
+
     Ignore,
 }
 
@@ -201,9 +205,8 @@ impl Component for Reader {
                     (false, "ArrowRight") => link.send_message(ReaderMsg::NextPage),
                     (false, "ArrowLeft") => link.send_message(ReaderMsg::PreviousPage),
 
-                    // TODO: Skip sections.
-                    // (true, "ArrowRight") => link.send_message(ReaderMsg::NextPage),
-                    // (true, "ArrowLeft") => link.send_message(ReaderMsg::PreviousPage),
+                    (true, "ArrowRight") => link.send_message(ReaderMsg::NextSection),
+                    (true, "ArrowLeft") => link.send_message(ReaderMsg::PreviousSection),
                     _ => (),
                 }
             });
@@ -478,6 +481,7 @@ impl Component for Reader {
                 }
             }
 
+
             ReaderMsg::SetPage(new_page) => {
                 match self.cached_display {
                     SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
@@ -486,17 +490,7 @@ impl Component for Reader {
                     }
 
                     SectionDisplay::Scroll(_) => {
-                        if self.set_section(
-                            new_page.min(ctx.props().book.chapter_count.saturating_sub(1)),
-                            ctx,
-                        ) {
-                            self.upload_progress_and_emit(ctx);
-
-                            return true;
-                        } else {
-                            // We couldn't set the chapter which means we have to load it.
-                            // TODO: Should we do anything here? Chapter should be requested and starting to load at this point.
-                        }
+                        return self.update(ctx, ReaderMsg::SetSection(new_page));
                     }
                 }
             }
@@ -512,13 +506,7 @@ impl Component for Reader {
                     }
 
                     SectionDisplay::Scroll(_) => {
-                        if self.viewing_chapter + 1 == self.sections.len() {
-                            return false;
-                        }
-
-                        self.set_section(self.viewing_chapter + 1, ctx);
-
-                        self.upload_progress_and_emit(ctx);
+                        return self.update(ctx, ReaderMsg::NextSection);
                     }
                 }
 
@@ -536,18 +524,52 @@ impl Component for Reader {
                     }
 
                     SectionDisplay::Scroll(_) => {
-                        if self.viewing_chapter == 0 {
-                            return false;
-                        }
-
-                        self.set_section(self.viewing_chapter - 1, ctx);
-
-                        self.upload_progress_and_emit(ctx);
+                        return self.update(ctx, ReaderMsg::PreviousSection);
                     }
                 }
 
                 self.drag_distance = 0;
             }
+
+
+            ReaderMsg::SetSection(new_section) => {
+                if self.set_section(
+                    new_section.min(ctx.props().book.chapter_count.saturating_sub(1)),
+                    ctx,
+                ) {
+                    self.upload_progress_and_emit(ctx);
+
+                    return true;
+                } else {
+                    // We couldn't set the chapter which means we have to load it.
+                    // TODO: Should we do anything here? Chapter should be requested and starting to load at this point.
+                }
+            }
+
+            ReaderMsg::NextSection => {
+                if self.viewing_chapter + 1 == self.sections.len() {
+                    return false;
+                }
+
+                self.set_section(self.viewing_chapter + 1, ctx);
+
+                self.upload_progress_and_emit(ctx);
+
+                self.drag_distance = 0;
+            }
+
+            ReaderMsg::PreviousSection => {
+                if self.viewing_chapter == 0 {
+                    return false;
+                }
+
+                self.set_section(self.viewing_chapter - 1, ctx);
+
+                self.upload_progress_and_emit(ctx);
+
+                self.drag_distance = 0;
+            }
+
 
             ReaderMsg::UploadProgress => self.upload_progress_and_emit(ctx),
 
