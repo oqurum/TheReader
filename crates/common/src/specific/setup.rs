@@ -99,7 +99,7 @@ impl Default for Authenticators {
         Self {
             email_pass: true,
             email_no_pass: false,
-            main_server: true,
+            main_server: false,
         }
     }
 }
