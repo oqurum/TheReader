@@ -14,7 +14,7 @@ use crate::{
     util, Result,
 };
 use async_trait::async_trait;
-use chrono::{NaiveDate, Utc, TimeZone};
+use chrono::{NaiveDate, TimeZone, Utc};
 use common::{Agent, BookId, Either, PersonId, Source, ThumbnailStore};
 use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;

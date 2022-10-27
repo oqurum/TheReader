@@ -18,7 +18,7 @@ use chrono::Utc;
 use lettre::message::header::ContentType;
 use lettre::message::{MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport, Address};
+use lettre::{Address, Message, SmtpTransport, Transport};
 use serde::{Deserialize, Serialize};
 
 use crate::database::Database;

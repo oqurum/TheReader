@@ -481,19 +481,16 @@ impl Component for Reader {
                 }
             }
 
-
-            ReaderMsg::SetPage(new_page) => {
-                match self.cached_display {
-                    SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
-                        return self
-                            .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)), ctx);
-                    }
-
-                    SectionDisplay::Scroll(_) => {
-                        return self.update(ctx, ReaderMsg::SetSection(new_page));
-                    }
+            ReaderMsg::SetPage(new_page) => match self.cached_display {
+                SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
+                    return self
+                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)), ctx);
                 }
-            }
+
+                SectionDisplay::Scroll(_) => {
+                    return self.update(ctx, ReaderMsg::SetSection(new_page));
+                }
+            },
 
             ReaderMsg::NextPage => {
                 match self.cached_display {
@@ -530,7 +527,6 @@ impl Component for Reader {
 
                 self.drag_distance = 0;
             }
-
 
             ReaderMsg::SetSection(new_section) => {
                 if self.set_section(
@@ -569,7 +565,6 @@ impl Component for Reader {
 
                 self.drag_distance = 0;
             }
-
 
             ReaderMsg::UploadProgress => self.upload_progress_and_emit(ctx),
 
@@ -686,9 +681,7 @@ impl Component for Reader {
     fn changed(&mut self, ctx: &Context<Self>) -> bool {
         let props = ctx.props();
 
-        if let Some(Progression::Ebook { chapter, .. }) =
-            *ctx.props().progress.lock().unwrap()
-        {
+        if let Some(Progression::Ebook { chapter, .. }) = *ctx.props().progress.lock().unwrap() {
             self.viewing_chapter = chapter as usize;
         }
 

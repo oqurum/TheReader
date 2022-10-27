@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use common::{
     api::{ApiErrorResponse, WrappingResponse},
-    component::{file_search::FileInfo, FileSearchComponent, FileSearchEvent, FileSearchRequest},
+    component::{file_search::FileInfo, FileSearchComponent, FileSearchEvent},
 };
 use common_local::{
     api::ApiGetSetupResponse,
@@ -25,7 +25,7 @@ pub enum SetupPageMessage {
     Ignore,
 
     AfterSentConfigSuccess,
-    AfterSentConfigError(String),
+    AfterSentConfigError(ApiErrorResponse),
 
     LoginPasswordResponse(std::result::Result<String, ApiErrorResponse>),
 
@@ -73,7 +73,11 @@ impl Component for SetupPage {
             SetupPageMessage::IsAlreadySetupResponse(resp) => {
                 match resp.ok() {
                     Ok(config) => {
-                        self.initial_config = config.map(IsSetup::Initially).unwrap_or(IsSetup::No);
+                        // TODO: Improve. The only way we know if we've started setup is based off of if the server name is empty or not.
+                        self.initial_config = Some(config)
+                            .filter(|c| !c.server.name.is_empty())
+                            .map(IsSetup::Initially)
+                            .unwrap_or(IsSetup::No);
 
                         if self.is_fully_setup() {
                             // TODO: Add a delay + reason.
@@ -91,10 +95,11 @@ impl Component for SetupPage {
                 history.push(Route::Dashboard);
             }
 
-            SetupPageMessage::AfterSentConfigError(resp) => {
+            SetupPageMessage::AfterSentConfigError(err) => {
                 self.is_waiting_for_resp = false;
-                log::error!("{}", resp);
-                // TODO: Show Error.
+                log::error!("{}", err.description);
+                // TODO: Temporary way to show errors.
+                crate::display_error(err);
             }
 
             SetupPageMessage::Finish => {
@@ -105,6 +110,7 @@ impl Component for SetupPage {
 
                     // Ensure config is valid.
                     if let Err(e) = config.validate() {
+                        self.is_waiting_for_resp = false;
                         self.current_errors = e;
 
                         return true;
@@ -115,7 +121,7 @@ impl Component for SetupPage {
                     ctx.link().send_future(async move {
                         match request::finish_setup(config).await.ok() {
                             Ok(_) => SetupPageMessage::AfterSentConfigSuccess,
-                            Err(e) => SetupPageMessage::AfterSentConfigError(e.description),
+                            Err(e) => SetupPageMessage::AfterSentConfigError(e),
                         }
                     });
                 }
@@ -186,7 +192,7 @@ impl Component for SetupPage {
                                             <div class="label red" style="white-space: pre-wrap;">
                                                 // TODO: Fix. We should show errors on each input.
                                                 // ISSUE: Display: Struct/List aren't properly writeln'd so it will not newline
-                                                // https://github.com/Keats/validator/blob/master/validator/src/display_impl.rs#L49
+                                                // https://github.com/Keats/validator/pull/235
                                                 { self.current_errors.clone() }
                                             </div>
                                         }
@@ -220,6 +226,7 @@ impl SetupPage {
                         { "Server Info" }
                     </div>
                 </div>
+
                 <div class="form-container">
                     <label for="our-name">{ "Server Name" }</label>
                     <input
@@ -266,7 +273,7 @@ impl SetupPage {
                                 FileSearchEvent::Submit(directory) => {
                                     SetupPageMessage::UpdateInput(
                                         Box::new(|e, v| { e.directories = vec![v]; }),
-                                        directory.display().to_string().replace("\\", "/"),
+                                        directory.display().to_string().replace('\\', "/"),
                                     )
                                 }
                             }
@@ -319,7 +326,7 @@ impl SetupPage {
                     </div>
 
                     <div class="row">
-                        <input type="checkbox" id="our-external-auth" disabled=true checked={ self.config.authenticators.main_server }
+                        <input type="checkbox" id="our-external-auth" disabled=true// checked={ self.config.authenticators.main_server }
                             onchange={
                                 ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
                                     Box::new(|e, _| { e.authenticators.main_server = !e.authenticators.main_server; }),
@@ -478,7 +485,7 @@ impl SetupPage {
         }
     }
 
-    fn part_2_external_authentication(&self, ctx: &Context<Self>) -> Html {
+    fn part_2_external_authentication(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <>
                 <h2>{ "Setup External Authentication" }</h2>

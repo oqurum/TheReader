@@ -50,7 +50,7 @@ pub async fn get_configg(
     config.libby.token = config.libby.token.map(|_| String::new());
     config.server.auth_key.clear();
 
-    Ok(web::Json(WrappingResponse::okay(Some(config))))
+    Ok(web::Json(WrappingResponse::okay(config)))
 }
 
 #[post("/setup")]
@@ -75,6 +75,11 @@ pub async fn save_initial_setup(
         if !test_connection(email_config)? {
             return Ok(web::Json(WrappingResponse::error("Test Connection Failed")));
         }
+    }
+
+    let name_trim = config.server.name.trim();
+    if name_trim.len() < 3 || name_trim.len() > 32 {
+        return Ok(web::Json(WrappingResponse::error("Invalid Server Name")));
     }
 
     let mut library_count = LibraryModel::count(&db).await?;

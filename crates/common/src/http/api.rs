@@ -91,7 +91,7 @@ pub type ApiPostRunTaskResponse = ();
 
 // Setup
 /// GET     /setup
-pub type ApiGetSetupResponse = Option<Config>;
+pub type ApiGetSetupResponse = Config;
 /// POST    /setup
 pub type ApiPostSetupResponse = ();
 
