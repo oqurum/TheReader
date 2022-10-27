@@ -18,7 +18,7 @@ use chrono::Utc;
 use lettre::message::header::ContentType;
 use lettre::message::{MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport};
+use lettre::{Message, SmtpTransport, Transport, Address};
 use serde::{Deserialize, Serialize};
 
 use crate::database::Database;
@@ -40,6 +40,9 @@ pub async fn post_passwordless_oauth(
     if identity.is_some() || !is_setup() {
         return Err(ApiErrorResponse::new("Already logged in").into());
     }
+
+    // Verify that's is a proper email address.
+    let _ = query.email.parse::<Address>().map_err(Error::from)?;
 
     let config = get_config();
 
@@ -102,14 +105,16 @@ pub async fn get_passwordless_oauth_callback(
 
     let QueryCallback { oauth_token, email } = query.into_inner();
 
+    // Verify that's is a proper email address.
+    let address = email.parse::<Address>().map_err(Error::from)?;
+
     if let Some(auth) = AuthModel::find_by_token(&oauth_token, &db).await? {
         // Create or Update User.
         let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
             value
         } else {
             let mut new_member = NewMemberModel {
-                // TODO: Strip email
-                name: email.clone(),
+                name: address.user().to_string(),
                 email: Some(email),
                 password: None,
                 type_of: MemberAuthType::Passwordless,

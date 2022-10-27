@@ -10,6 +10,7 @@ use common::api::ApiErrorResponse;
 use common::api::WrappingResponse;
 use common_local::MemberAuthType;
 use common_local::Permissions;
+use lettre::Address;
 use serde::{Deserialize, Serialize};
 
 use crate::config::get_config;
@@ -43,16 +44,16 @@ pub async fn post_password_oauth(
     }
 
     let PostPasswordCallback {
-        mut email,
+        email: mut email_str,
         password,
     } = query.into_inner();
-    email = email.trim().to_string();
+    email_str = email_str.trim().to_string();
 
-    // TODO: Verify that's is a proper email address.
-    // let _ = email.parse::<Address>()?;
+    // Verify that's is a proper email address.
+    let address = email_str.parse::<Address>().map_err(Error::from)?;
 
     // Create or Update User.
-    let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
+    let member = if let Some(value) = MemberModel::find_one_by_email(&email_str, &db).await? {
         if value.type_of != MemberAuthType::Password {
             return Err(ApiErrorResponse::new(
                 "Invalid Member. Member does not have a local password associated with it.",
@@ -69,9 +70,8 @@ pub async fn post_password_oauth(
         let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
         let mut new_member = NewMemberModel {
-            // TODO: Strip email
-            name: email.clone(),
-            email: Some(email),
+            name: address.user().to_string(),
+            email: Some(email_str),
             password: Some(hash),
             type_of: MemberAuthType::Password,
             permissions: Permissions::basic(),
