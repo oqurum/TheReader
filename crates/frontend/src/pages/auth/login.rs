@@ -11,22 +11,14 @@ pub enum Msg {
     LoginPasswordlessResponse(std::result::Result<String, ApiErrorResponse>),
 }
 
-pub struct LoginPage {
-    password_response: Option<std::result::Result<String, ApiErrorResponse>>,
-    passwordless_response: Option<std::result::Result<String, ApiErrorResponse>>,
-    // prevent_submit: bool,
-}
+pub struct LoginPage;
 
 impl Component for LoginPage {
     type Message = Msg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-            password_response: None,
-            passwordless_response: None,
-            // prevent_submit: false,
-        }
+        Self
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -38,8 +30,6 @@ impl Component for LoginPage {
                     let history = ctx.link().history().unwrap();
                     history.push(Route::Dashboard);
                 }
-
-                self.password_response = Some(resp);
             }
 
             Msg::LoginPasswordlessResponse(resp) => {
@@ -49,12 +39,10 @@ impl Component for LoginPage {
                     let history = ctx.link().history().unwrap();
                     history.push(Route::Dashboard);
                 }
-
-                self.passwordless_response = Some(resp);
             }
         }
 
-        true
+        false
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -84,6 +72,8 @@ impl PartialEq for InnerProps {
 
 #[function_component(PasswordlessLogin)]
 pub fn _passwordless(props: &InnerProps) -> Html {
+    let response_error = use_state_eq(|| Option::<String>::None);
+
     let passless_email = use_state(String::new);
 
     let on_change_passless_email = {
@@ -102,9 +92,12 @@ pub fn _passwordless(props: &InnerProps) -> Html {
 
     let async_resp = submit_passless.clone();
     let callback = props.cb.clone();
+    let data_resp_error = response_error.setter();
     use_effect_with_deps(
         move |loading| {
             if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+                data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
+
                 callback.emit(
                     async_resp
                         .data
@@ -126,6 +119,16 @@ pub fn _passwordless(props: &InnerProps) -> Html {
                 <input type="email" name="email" id="emailpassless" onchange={ on_change_passless_email } />
 
                 <input type="submit" value="Log in" class="button" onclick={ Callback::from(move |_| submit_passless.run()) } />
+
+                {
+                    if let Some(error) = response_error.as_ref() {
+                        html! {
+                            <div class="label red">{ error.clone() }</div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
             </div>
         </>
     }
@@ -133,6 +136,8 @@ pub fn _passwordless(props: &InnerProps) -> Html {
 
 #[function_component(PasswordLogin)]
 pub fn _password(props: &InnerProps) -> Html {
+    let response_error = use_state_eq(|| Option::<String>::None);
+
     let pass_email = use_state(String::new);
     let pass_pass = use_state(String::new);
 
@@ -160,9 +165,12 @@ pub fn _password(props: &InnerProps) -> Html {
 
     let async_resp = submit_pass.clone();
     let callback = props.cb.clone();
+    let data_resp_error = response_error.setter();
     use_effect_with_deps(
         move |loading| {
             if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+                data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
+
                 callback.emit(
                     async_resp
                         .data
@@ -187,6 +195,16 @@ pub fn _password(props: &InnerProps) -> Html {
                 <input type="password" name="password" id="password" onchange={ on_change_pass_pass } />
 
                 <input type="submit" value="Log in" class="button" onclick={ Callback::from(move |_| submit_pass.run()) } />
+
+                {
+                    if let Some(error) = response_error.as_ref() {
+                        html! {
+                            <div class="label red">{ error.clone() }</div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
             </div>
         </>
     }
