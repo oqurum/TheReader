@@ -32,7 +32,9 @@ pub struct Config {
 
 impl Config {
     pub fn is_fully_setup(&self) -> bool {
-        self.has_admin_account
+        self.has_admin_account &&
+        // TODO: Remove. Used for second setup location.
+        !self.server.name.trim().is_empty()
         // TODO: self.authenticators.main_server
     }
 }
