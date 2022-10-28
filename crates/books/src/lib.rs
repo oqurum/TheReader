@@ -12,7 +12,7 @@ pub use error::*;
 
 // TODO: path: &str -> path: &Path
 
-pub trait Book {
+pub trait Book: Send {
     fn load_from_path(path: &str) -> Result<Self>
     where
         Self: Sized;

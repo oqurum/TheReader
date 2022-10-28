@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, io::Read, rc::Rc};
+use std::{collections::HashMap, io::Read, sync::{Arc, Mutex}};
 
 use xml::{
     attribute::OwnedAttribute, name::OwnedName, namespace::Namespace, reader::XmlEvent, EventReader,
@@ -26,8 +26,8 @@ impl PackageDocument {
 
         let mut reader = EventReader::new(value);
 
-        let mut root_package: Option<Rc<RefCell<XmlElement>>> = None;
-        let mut appending_to: Vec<Rc<RefCell<XmlElement>>> = Vec::new();
+        let mut root_package: Option<Arc<Mutex<XmlElement>>> = None;
+        let mut appending_to: Vec<Arc<Mutex<XmlElement>>> = Vec::new();
 
         loop {
             match reader.next()? {
@@ -39,7 +39,7 @@ impl PackageDocument {
                     attributes,
                     namespace,
                 } => {
-                    let this_item = Rc::new(RefCell::new(XmlElement {
+                    let this_item = Arc::new(Mutex::new(XmlElement {
                         name,
                         attributes,
                         namespace,
@@ -48,7 +48,7 @@ impl PackageDocument {
                     }));
 
                     if let Some(parent) = appending_to.last() {
-                        parent.borrow_mut().children.push(this_item.clone());
+                        parent.lock().unwrap().children.push(this_item.clone());
                         appending_to.push(this_item);
                     } else if root_package.is_none() {
                         root_package = Some(this_item.clone());
@@ -62,7 +62,7 @@ impl PackageDocument {
 
                 XmlEvent::Characters(v) => {
                     if let Some(parent) = appending_to.last() {
-                        parent.borrow_mut().value = Some(v);
+                        parent.lock().unwrap().value = Some(v);
                     }
                 }
 
@@ -73,7 +73,7 @@ impl PackageDocument {
         }
 
         let package = root_package.ok_or(Error::MissingValueFor("Root Package"))?;
-        let mut package = Rc::try_unwrap(package).unwrap().into_inner();
+        let mut package = Arc::try_unwrap(package).unwrap().into_inner().unwrap();
 
         let package_children = package.take_inner_children();
 
@@ -105,14 +105,14 @@ pub struct XmlElement {
     pub attributes: Vec<OwnedAttribute>,
     pub namespace: Namespace,
     pub value: Option<String>,
-    pub children: Vec<Rc<RefCell<XmlElement>>>,
+    pub children: Vec<Arc<Mutex<XmlElement>>>,
 }
 
 impl XmlElement {
     fn take_inner_children(&mut self) -> Vec<XmlElement> {
         self.children
             .drain(..)
-            .map(|this| Rc::try_unwrap(this).unwrap().into_inner())
+            .map(|this| Arc::try_unwrap(this).unwrap().into_inner().unwrap())
             .collect()
     }
 }
