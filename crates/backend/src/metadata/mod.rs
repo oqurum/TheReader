@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    config::get_config,
     model::{
         book::BookModel,
         book_person::BookPersonModel,
@@ -11,7 +12,7 @@ use crate::{
         person::{NewPersonModel, PersonModel},
         person_alt::PersonAltModel,
     },
-    util, Result, config::get_config,
+    util, Result,
 };
 use async_trait::async_trait;
 use chrono::{NaiveDate, TimeZone, Utc};
@@ -139,8 +140,13 @@ pub async fn get_metadata_from_files(
 
 /// Doesn't check local
 pub async fn get_metadata_by_source(source: &Source) -> Result<Option<MetadataReturned>> {
+    let config = get_config();
+
     match &source.agent {
-        v if v == &LibbyMetadata.get_agent() => {
+        v if v == &LibbyMetadata.get_agent()
+            && config.authenticators.main_server
+            && config.libby.token.is_some() =>
+        {
             LibbyMetadata.get_metadata_by_source_id(&source.value).await
         }
         v if v == &OpenLibraryMetadata.get_agent() => {
@@ -164,7 +170,9 @@ pub async fn search_and_return_first_valid_agent(
     search_for: SearchFor,
     agent: &ActiveAgents,
 ) -> Result<Vec<SearchItem>> {
-    if agent.libby {
+    let config = get_config();
+
+    if agent.libby && config.authenticators.main_server && config.libby.token.is_some() {
         return_if_found_vec!(LibbyMetadata.search(query, search_for).await);
     }
 
@@ -185,6 +193,8 @@ pub async fn search_all_agents(
     search_for: SearchFor,
     agent: &ActiveAgents,
 ) -> Result<SearchResults> {
+    let config = get_config();
+
     let mut map = HashMap::new();
 
     // Checks to see if we can use get_metadata_by_source (source:id)
@@ -215,7 +225,10 @@ pub async fn search_all_agents(
         GoogleBooksMetadata.get_agent(),
     ];
     let asdf = futures::future::join_all([
-        search_or_ignore(agent.libby, LibbyMetadata.search(search, search_for)),
+        search_or_ignore(
+            agent.libby && config.authenticators.main_server && config.libby.token.is_some(),
+            LibbyMetadata.search(search, search_for),
+        ),
         search_or_ignore(
             agent.openlib,
             OpenLibraryMetadata.search(search, search_for),
@@ -241,8 +254,13 @@ pub async fn search_all_agents(
 
 /// Searches all agents except for local.
 pub async fn get_person_by_source(source: &Source) -> Result<Option<AuthorInfo>> {
+    let config = get_config();
+
     match &source.agent {
-        v if v == &LibbyMetadata.get_agent() => {
+        v if v == &LibbyMetadata.get_agent()
+            && config.authenticators.main_server
+            && config.libby.token.is_some() =>
+        {
             LibbyMetadata.get_person_by_source_id(&source.value).await
         }
         v if v == &OpenLibraryMetadata.get_agent() => {
