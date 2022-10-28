@@ -11,7 +11,7 @@ use crate::{
         person::{NewPersonModel, PersonModel},
         person_alt::PersonAltModel,
     },
-    util, Result,
+    util, Result, config::get_config,
 };
 use async_trait::async_trait;
 use chrono::{NaiveDate, TimeZone, Utc};
@@ -115,7 +115,9 @@ pub async fn get_metadata_from_files(
     files: &[FileModel],
     agent: &ActiveAgents,
 ) -> Result<Option<MetadataReturned>> {
-    if agent.libby {
+    let config = get_config();
+
+    if agent.libby && config.authenticators.main_server && config.libby.token.is_some() {
         return_if_found!(LibbyMetadata.get_metadata_from_files(files).await);
     }
 
