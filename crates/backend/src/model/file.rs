@@ -134,7 +134,7 @@ impl NewFileModel {
 
         conn.execute(r#"
             INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, hash, library_id, book_id, chapter_count)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
         "#,
         params![
             &self.path, &self.file_type, &self.file_name, self.file_size,
@@ -150,7 +150,7 @@ impl NewFileModel {
 impl FileModel {
     pub async fn exists(path: &str, hash: &str, db: &Database) -> Result<bool> {
         Ok(db.read().await.query_row(
-            r#"EXISTS(SELECT id FROM file WHERE path = ?1 OR hash = ?2)"#,
+            r#"SELECT EXISTS(SELECT id FROM file WHERE path = ?1 OR hash = ?2)"#,
             [path, hash],
             |v| v.get::<_, bool>(0),
         )?)
