@@ -65,8 +65,8 @@ pub async fn save_initial_setup(
         if !member.permissions.is_owner() {
             return Err(ApiErrorResponse::new("Not owner").into());
         }
-    } else if !iss_setup() {
-        return Err(ApiErrorResponse::new("Not owner").into());
+    } else if iss_setup() {
+        return Err(ApiErrorResponse::new("already setup").into());
     }
 
     let config = body.into_inner();
@@ -85,6 +85,10 @@ pub async fn save_initial_setup(
     let mut library_count = LibraryModel::count(&db).await?;
 
     for path in &config.directories {
+        if tokio::fs::metadata(path).await.is_err() {
+            return Ok(web::Json(WrappingResponse::error(format!("Invalid Directory: {path:?}"))));
+        }
+
         let now = Utc::now();
 
         let lib = NewLibraryModel {
@@ -97,12 +101,15 @@ pub async fn save_initial_setup(
         .await?;
 
         // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
+        // Initial directory when doing the library scan task.
         DirectoryModel {
             library_id: lib.id,
             path: path.clone(),
         }
         .insert(&db)
         .await?;
+
+        crate::task::queue_task(crate::task::TaskLibraryScan { library_id: lib.id, });
 
         library_count += 1;
     }
