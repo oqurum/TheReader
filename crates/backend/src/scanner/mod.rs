@@ -31,6 +31,8 @@ pub async fn library_scan(
         .map(|v| PathBuf::from(&v.path))
         .collect::<VecDeque<_>>();
 
+    let (mut checked_items, mut imported_items) = (0, 0);
+
     while let Some(path) = folders.pop_front() {
         let mut dir = fs::read_dir(path).await?;
 
@@ -52,47 +54,84 @@ pub async fn library_scan(
                 if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) {
                     let file_size = fs::metadata(&path).await?.len();
 
-                    let (chapter_count, identifier, hash) =
-                        match bookie::load_from_path(&path.to_string_lossy()) {
-                            Ok(book) => {
-                                if let Some(mut book) = book {
-                                    let identifier =
-                                        if let Some(found) = book.find(BookSearch::Identifier) {
-                                            let parsed = found
-                                                .into_iter()
-                                                .map(|v| parse_book_id(&v))
-                                                .collect::<Vec<_>>();
+                    checked_items += 1;
 
-                                            parsed.iter().find_map(|v| v.as_isbn_13()).or_else(
-                                                || parsed.iter().find_map(|v| v.as_isbn_10()),
-                                            )
-                                        } else {
-                                            None
-                                        };
-
-                                    (book.chapter_count() as i64, identifier, book.compute_hash())
-                                } else {
-                                    eprintln!("library_scane: Unable to find book from path");
-                                    continue;
-                                }
-                            }
-
-                            Err(e) => {
-                                eprintln!("library_scan: {:?}", e);
+                    let mut book = match bookie::load_from_path(&path.to_string_lossy()) {
+                        Ok(book) => {
+                            if let Some(book) = book {
+                                book
+                            } else {
+                                eprintln!("library_scan: Unable to find book from path ({path:?})");
                                 continue;
                             }
-                        };
+                        }
 
-                    let hash = match hash {
-                        Some(v) => v,
-                        None => {
-                            eprintln!("library_scan: Unable to compute hash");
+                        Err(e) => {
+                            eprintln!("library_scan: {:?} ({path:?})", e);
                             continue;
                         }
                     };
 
+                    let path = path.to_str().unwrap().replace('\\', "/");
+
+                    let hash = match book.compute_hash() {
+                        Some(v) => v,
+                        None => {
+                            eprintln!("library_scan: Unable to compute hash (\"{path}\")");
+                            continue;
+                        }
+                    };
+
+                    let chapter_count = book.chapter_count() as i64;
+
+                    // If file exists, check to see if the one in the database is valid.
+                    if let Some(mut model) = FileModel::find_one_by_hash_or_path(&path, &hash, db).await? {
+                        // We found it by path, no need to verify anything since it exists.
+                        // Update stored model with the new one that matched the hash.
+                        // TODO: Optimize? I don't want to check the FS for EVERY SINGLE FILE.
+                        if model.path != path && tokio::fs::metadata(&path).await.is_err() {
+                            model.path = path;
+                            model.file_name = file_name;
+                            model.file_type = file_type;
+                            model.file_size = file_size as i64;
+                            model.library_id = library.id;
+                            model.chapter_count = chapter_count;
+                            model.hash = hash;
+
+                            model.modified_at = Utc.timestamp_millis(
+                                meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                            );
+                            model.accessed_at = Utc.timestamp_millis(
+                                meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                            );
+                            model.created_at = Utc.timestamp_millis(
+                                meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                            );
+                            model.deleted_at = None;
+
+                            model.update(db).await?;
+                        }
+
+                        continue;
+                    }
+
+
+                    let identifier =
+                        if let Some(found) = book.find(BookSearch::Identifier) {
+                            let parsed = found
+                                .into_iter()
+                                .map(|v| parse_book_id(&v))
+                                .collect::<Vec<_>>();
+
+                            parsed.iter().find_map(|v| v.as_isbn_13()).or_else(
+                                || parsed.iter().find_map(|v| v.as_isbn_10()),
+                            )
+                        } else {
+                            None
+                        };
+
                     let file = NewFileModel {
-                        path: path.to_str().unwrap().replace('\\', "/"),
+                        path,
 
                         file_name,
                         file_type,
@@ -117,23 +156,23 @@ pub async fn library_scan(
                         deleted_at: None,
                     };
 
-                    if !FileModel::exists(&file.path, &file.hash, db).await? {
-                        let file = file.insert(db).await?;
-                        let file_id = file.id;
+                    let file = file.insert(db).await?;
+                    let file_id = file.id;
 
-                        // TODO: Run Concurrently.
-                        if let Err(e) = file_match_or_create_book(file, library.id, db).await {
-                            eprintln!("File #{file_id} file_match_or_create_metadata Error: {e}");
-                        }
+                    imported_items += 1;
+
+                    // TODO: Run Concurrently.
+                    if let Err(e) = file_match_or_create_book(file, library.id, db).await {
+                        eprintln!("File #{file_id} file_match_or_create_metadata Error: {e}");
                     }
                 } else {
-                    log::info!("Skipping File {:?}. Not a whitelisted file type.", path);
+                    // log::info!("Skipping File {:?}. Not a whitelisted file type.", path);
                 }
             }
         }
     }
 
-    println!("Found {} Files", FileModel::count(db).await?);
+    println!("Checked {checked_items} Files, Imported {imported_items} Files");
 
     Ok(())
 }

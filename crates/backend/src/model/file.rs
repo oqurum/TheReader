@@ -205,6 +205,14 @@ impl FileModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
+    pub async fn find_one_by_hash_or_path(path: &str, hash: &str, db: &Database) -> Result<Option<Self>> {
+        Ok(db
+            .read()
+            .await
+            .query_row(r#"SELECT * FROM file WHERE path = ?1 OR hash = ?2"#, [path, hash], |v| Self::from_row(v))
+            .optional()?)
+    }
+
     pub async fn find_one_by_id(id: FileId, db: &Database) -> Result<Option<Self>> {
         Ok(db
             .read()
@@ -274,6 +282,34 @@ impl FileModel {
         db.write().await.execute(
             r#"UPDATE file SET book_id = ?1 WHERE id = ?2"#,
             params![book_id, file_id],
+        )?;
+
+        Ok(())
+    }
+
+    pub async fn update(&self, db: &Database) -> Result<()> {
+        db.write().await.execute(
+            r#"
+            UPDATE file SET
+                path = ?2, file_name = ?3, file_type = ?4, file_size = ?5,
+                library_id = ?6, book_id = ?7, chapter_count = ?8, identifier = ?9,
+                modified_at = ?10, accessed_at = ?11, created_at = ?12, deleted_at = ?13
+            WHERE id = ?1"#,
+            params![
+                self.id,
+                self.path,
+                &self.file_name,
+                &self.file_type,
+                self.file_size,
+                self.library_id,
+                self.book_id,
+                self.chapter_count,
+                self.identifier,
+                self.modified_at,
+                self.accessed_at,
+                self.created_at,
+                self.deleted_at,
+            ],
         )?;
 
         Ok(())
