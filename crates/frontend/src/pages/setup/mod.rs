@@ -42,8 +42,6 @@ pub struct SetupPage {
     is_waiting_for_resp: bool,
 
     current_errors: ValidationErrors,
-
-    password_response: Option<std::result::Result<String, ApiErrorResponse>>,
 }
 
 impl Component for SetupPage {
@@ -61,8 +59,6 @@ impl Component for SetupPage {
             initial_config: IsSetup::Unknown,
 
             current_errors: ValidationErrors::new(),
-
-            password_response: None,
         }
     }
 
@@ -173,6 +169,7 @@ impl Component for SetupPage {
                 </div>
             },
 
+            // TODO: Remove "No" - We will always have a Config File.
             IsSetup::No => html! {
                 <div class={ "view-container setup-view-container" }>
                     <div class="center-normal">

@@ -86,7 +86,9 @@ pub async fn save_initial_setup(
 
     for path in &config.directories {
         if tokio::fs::metadata(path).await.is_err() {
-            return Ok(web::Json(WrappingResponse::error(format!("Invalid Directory: {path:?}"))));
+            return Ok(web::Json(WrappingResponse::error(format!(
+                "Invalid Directory: {path:?}"
+            ))));
         }
 
         let now = Utc::now();
@@ -109,7 +111,7 @@ pub async fn save_initial_setup(
         .insert(&db)
         .await?;
 
-        crate::task::queue_task(crate::task::TaskLibraryScan { library_id: lib.id, });
+        crate::task::queue_task(crate::task::TaskLibraryScan { library_id: lib.id });
 
         library_count += 1;
     }
