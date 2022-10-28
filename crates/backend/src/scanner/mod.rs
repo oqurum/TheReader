@@ -109,6 +109,8 @@ pub async fn library_scan(
                             );
                             model.deleted_at = None;
 
+                            println!("Overwriting Missing File ID: {}", model.id);
+
                             model.update(db).await?;
                         }
 
