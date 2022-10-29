@@ -6,6 +6,7 @@ use common::api::WrappingResponse;
 use common_local::{api, Chapter, FileId, Progression};
 use futures::TryStreamExt;
 use reqwest::header::HeaderValue;
+use tracing::error;
 
 use crate::database::Database;
 use crate::http::{JsonResponse, MemberCookie};
@@ -36,9 +37,9 @@ pub async fn load_file_resource(
         ) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!(
-                    "read_path_as_bytes[configured]: {}, path: {}",
-                    e, resource_path
+                error!(
+                    error = ?e, path = resource_path,
+                    "read_path_as_bytes[configured]",
                 );
                 return Ok(HttpResponse::NotFound().finish());
             }
@@ -47,7 +48,10 @@ pub async fn load_file_resource(
         match book.read_path_as_bytes(&resource_path, None, None) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("read_path_as_bytes: {} | path: {}", e, resource_path);
+                error!(
+                    error = ?e, path = resource_path,
+                    "read_path_as_bytes",
+                );
                 return Ok(HttpResponse::NotFound().finish());
             }
         }

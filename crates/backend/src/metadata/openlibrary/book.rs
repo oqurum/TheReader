@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::Result;
 use common::parse_book_id;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use super::{KeyItem, RecordDescription, TypeValueItem};
 
@@ -24,7 +25,7 @@ pub async fn search_for_books(
 ) -> Result<Option<BookSearchContainer>> {
     let url = type_of.get_api_url(query);
 
-    println!("[METADATA][OPEN LIBRARY]: Search URL: {}", url);
+    info!(url, "Searching");
 
     let resp = reqwest::get(url).await?;
 

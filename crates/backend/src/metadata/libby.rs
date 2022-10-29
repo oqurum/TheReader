@@ -16,6 +16,8 @@ use common::{
 };
 use common_local::{BookItemCached, SearchFor};
 
+use tracing::{error, info};
+
 use super::{FoundImageLocation, FoundItem, Metadata, MetadataReturned};
 
 pub struct LibbyMetadata;
@@ -34,7 +36,8 @@ impl Metadata for LibbyMetadata {
             if let Some(isbn) = file.identifier.clone() {
                 match self.request_book_query(isbn).await {
                     Ok(Some(v)) => return Ok(Some(v)),
-                    a => eprintln!("LibbyMetadata::get_metadata_from_files {:?}", a),
+                    Ok(None) => info!("Unable to find by isbn"),
+                    Err(error) => error!(?error),
                 }
             }
         }
@@ -45,8 +48,13 @@ impl Metadata for LibbyMetadata {
     async fn get_metadata_by_source_id(&mut self, value: &str) -> Result<Option<MetadataReturned>> {
         match self.request_singular_book_id(value).await {
             Ok(Some(v)) => Ok(Some(v)),
-            a => {
-                eprintln!("LibbyMetadata::get_metadata_by_source_id {:?}", a);
+            Ok(None) => {
+                info!("Unable to find by ID");
+
+                Ok(None)
+            }
+            Err(error) => {
+                error!(?error);
 
                 Ok(None)
             }
@@ -69,8 +77,8 @@ impl Metadata for LibbyMetadata {
                 }
             }
 
-            WrappingResponse::Error(err) => {
-                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+            WrappingResponse::Error(error) => {
+                error!(?error, "Person Response");
             }
         }
 
@@ -90,7 +98,7 @@ impl Metadata for LibbyMetadata {
                     !libby.public_only
                 );
 
-                println!("[METADATA][LIBBY]: Search URL: {}", url);
+                info!(url, "Searching");
 
                 match request_authors(&url).await? {
                     WrappingResponse::Resp(resp) => {
@@ -113,8 +121,9 @@ impl Metadata for LibbyMetadata {
                         Ok(books)
                     }
 
-                    WrappingResponse::Error(err) => {
-                        eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                    WrappingResponse::Error(error) => {
+                        error!(?error, "Search Response");
+
                         Ok(Vec::new())
                     }
                 }
@@ -129,7 +138,7 @@ impl Metadata for LibbyMetadata {
                     !libby.public_only
                 );
 
-                println!("[METADATA][LIBBY]: Search URL: {}", url);
+                info!(url, "Searching");
 
                 match request_books(&url).await? {
                     WrappingResponse::Resp(resp) => {
@@ -158,8 +167,9 @@ impl Metadata for LibbyMetadata {
                         Ok(books)
                     }
 
-                    WrappingResponse::Error(err) => {
-                        eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+                    WrappingResponse::Error(error) => {
+                        error!(?error, "Search Response Error");
+
                         Ok(Vec::new())
                     }
                 }
@@ -180,7 +190,7 @@ impl LibbyMetadata {
             !libby.public_only
         );
 
-        println!("[METADATA][LIBBY]: Req Query: {}", url);
+        info!(url, "Requesting Book Query");
 
         let book = match request_books(&url).await? {
             WrappingResponse::Resp(resp) => match resp {
@@ -195,8 +205,8 @@ impl LibbyMetadata {
                 _ => return Ok(None),
             },
 
-            WrappingResponse::Error(err) => {
-                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+            WrappingResponse::Error(error) => {
+                error!(?error, "Response");
                 return Ok(None);
             }
         };
@@ -214,7 +224,7 @@ impl LibbyMetadata {
             urlencoding::encode(&libby.token.unwrap()),
         );
 
-        println!("[METADATA][LIBBY]: Get Single Author URL: {url}");
+        info!(url, "Requesting Single Author");
 
         match request_authors(&url).await? {
             WrappingResponse::Resp(resp) => match resp {
@@ -230,8 +240,8 @@ impl LibbyMetadata {
                 _ => Ok(None),
             },
 
-            WrappingResponse::Error(err) => {
-                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+            WrappingResponse::Error(error) => {
+                error!(?error, "Response");
                 Ok(None)
             }
         }
@@ -247,7 +257,7 @@ impl LibbyMetadata {
             urlencoding::encode(&libby.token.unwrap()),
         );
 
-        println!("[METADATA][LIBBY]: Get Single Book URL: {url}");
+        info!(url, "Requesting Single Book");
 
         match request_books(&url).await? {
             WrappingResponse::Resp(resp) => match resp {
@@ -255,8 +265,8 @@ impl LibbyMetadata {
                 _ => Ok(None),
             },
 
-            WrappingResponse::Error(err) => {
-                eprintln!("[METADATA][LIBBY]: Response Error: {}", err);
+            WrappingResponse::Error(error) => {
+                error!(?error, "Response");
                 Ok(None)
             }
         }

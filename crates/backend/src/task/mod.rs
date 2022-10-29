@@ -16,6 +16,7 @@ use common_local::{
 };
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
+use tracing::{debug, error, info};
 
 use crate::{
     database::Database,
@@ -112,15 +113,15 @@ pub fn start_task_manager(db: web::Data<Database>) {
 
                     let task_id = UniqueId::default();
 
-                    println!("Task {:?} Started - ID: {task_id}", task.name());
+                    info!(id = ?task_id, name = task.name(), "Task Started");
 
                     match task.run(task_id, &db).await {
-                        Ok(_) => println!(
-                            "Task {:?} Finished Successfully. Took: {:?}",
-                            task.name(),
-                            start_time.elapsed()
+                        Ok(_) => info!(
+                            name = task.name(),
+                            elapsed = ?start_time.elapsed(),
+                            "Task Finished Successfully.",
                         ),
-                        Err(e) => eprintln!("Task {:?} Error: {e}", task.name()),
+                        Err(e) => error!(task = task.name(), ?e),
                     }
 
                     send_message_to_clients(WebsocketNotification::TaskEnd(task_id));
@@ -243,7 +244,7 @@ impl Task for TaskUpdateInvalidBook {
     async fn run(&mut self, task_id: UniqueId, db: &Database) -> Result<()> {
         match self.state.clone() {
             UpdatingBook::UnMatch(book_id) => {
-                println!("UnMatch Book ID: {}", book_id);
+                info!(id = ?book_id, "Unmatching Book By Id");
 
                 let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
@@ -318,8 +319,8 @@ impl Task for TaskUpdateInvalidBook {
                                 }
                             }
 
-                            Err(e) => {
-                                eprintln!("metadata::get_metadata: {:?}", e);
+                            Err(error) => {
+                                error!(?error, "Auto Match Invalid");
                             }
                         }
                     }
@@ -327,7 +328,8 @@ impl Task for TaskUpdateInvalidBook {
             }
 
             UpdatingBook::AutoUpdateBookIdByFiles(book_id) => {
-                println!("Auto Update Metadata ID by Files: {}", book_id);
+                info!(id = ?book_id, "Auto Update Metadata ID by Files");
+
                 send_message_to_clients(WebsocketNotification::new_task(
                     task_id,
                     TaskType::UpdatingBook(book_id),
@@ -339,15 +341,14 @@ impl Task for TaskUpdateInvalidBook {
             }
 
             UpdatingBook::AutoUpdateBookId(book_id) => {
-                println!("Auto Update Metadata ID by Source: {}", book_id);
+                info!(id = ?book_id, "Auto Update By Title");
+
                 send_message_to_clients(WebsocketNotification::new_task(
                     task_id,
                     TaskType::UpdatingBook(book_id),
                 ));
 
                 let book_model = BookModel::find_one_by_id(book_id, db).await?.unwrap();
-
-                println!("Updating by title");
 
                 // Step 1
                 let search_query = book_model
@@ -371,7 +372,7 @@ impl Task for TaskUpdateInvalidBook {
                         .into_iter()
                         .find(|&(score, ref item)| match item {
                             SearchItem::Book(book) => {
-                                println!("Score: {score} | {:?} | {}", book.title, book.source);
+                                // info!("Score: {score} | {:?} | {}", book.title, book.source);
                                 score > 0.75 && !book.thumb_locations.is_empty()
                             }
                             _ => false,
@@ -388,7 +389,7 @@ impl Task for TaskUpdateInvalidBook {
                                     return Ok(());
                                 }
 
-                                None => eprintln!("Book Grabber Error: UNABLE TO FIND"),
+                                None => info!("Unable to find by source"),
                             }
                         }
                     }
@@ -402,10 +403,12 @@ impl Task for TaskUpdateInvalidBook {
                 book_id: old_book_id,
                 source,
             } => {
-                println!(
-                    "UpdatingMetadata::SpecificMatchSingleMetaId {{ book_id: {:?}, source: {:?} }}",
-                    old_book_id, source
+                info!(
+                    id = ?old_book_id,
+                    ?source,
+                    "Update Book By Source",
                 );
+
                 send_message_to_clients(WebsocketNotification::new_task(
                     task_id,
                     TaskType::UpdatingBook(old_book_id),
@@ -415,9 +418,10 @@ impl Task for TaskUpdateInvalidBook {
                     // If the metadata already exists we move the old metadata files to the new one and completely remove old metadata.
                     Some(book_item) => {
                         if book_item.id != old_book_id {
-                            println!(
-                                "Changing Current File Metadata ({}) to New File Metadata ({})",
-                                old_book_id, book_item.id
+                            info!(
+                                ?old_book_id,
+                                new_book_id = ?book_item.id,
+                                "Converting File Metadata to New File Metadata",
                             );
 
                             // Change file metas'from old to new meta
@@ -443,7 +447,7 @@ impl Task for TaskUpdateInvalidBook {
                             // Update existing metadata.
                             // TODO: Check how long it has been since we've refreshed meta: new_meta if auto-ran.
 
-                            println!("Updating File Metadata.");
+                            info!("Updating existing File Metadata.");
 
                             if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
                                 let mut current_book =
@@ -517,7 +521,7 @@ impl Task for TaskUpdateInvalidBook {
                                     .await?;
                                 }
                             } else {
-                                println!("Unable to get book metadata from source {:?}", source);
+                                info!(?source, "Unable to find metadata");
                                 // TODO: Error since this shouldn't have happened.
                             }
                         }
@@ -526,7 +530,11 @@ impl Task for TaskUpdateInvalidBook {
                     // No metadata source. Lets scrape it and update our current one with the new one.
                     None => {
                         if let Some(mut new_meta) = get_metadata_by_source(&source).await? {
-                            println!("Grabbed New Book from Source {:?}, updating old Book ({}) with it.", source, old_book_id);
+                            info!(
+                                ?source,
+                                ?old_book_id,
+                                "Grabbed New Book from Source, updating old Book with it."
+                            );
 
                             let old_book =
                                 BookModel::find_one_by_id(old_book_id, db).await?.unwrap();
@@ -595,7 +603,7 @@ impl Task for TaskUpdateInvalidBook {
                                 .await?;
                             }
                         } else {
-                            println!("Unable to get metadata from source {:?}", source);
+                            info!(?source, "Unable to get metadata");
                             // TODO: Error since this shouldn't have happened.
                         }
                     }
@@ -671,7 +679,7 @@ impl TaskUpdateInvalidBook {
         Ok(match get_metadata_from_files(&files, agent).await? {
             None => {
                 if let Some(title) = book_model.title.as_deref() {
-                    // TODO: Seperate
+                    // TODO: Separate
                     // Check by "title - author" secondly.
                     let search = format!(
                         "{} {}",
@@ -693,7 +701,7 @@ impl TaskUpdateInvalidBook {
                         .into_iter()
                         .find(|&(score, ref item)| match item {
                             SearchItem::Book(book) => {
-                                println!("Score: {score} | {:?} | {}", book.title, book.source);
+                                // info!("Score: {score} | {:?} | {}", book.title, book.source);
                                 score > 0.75 && !book.thumb_locations.is_empty()
                             }
                             _ => false,
@@ -727,7 +735,7 @@ impl TaskUpdateInvalidBook {
             Some(metadata) => {
                 overwrite_book_with_new_metadata(curr_book_model, metadata, db).await?
             }
-            None => eprintln!("Book Grabber Error: UNABLE TO FIND"),
+            None => info!("Unable to find by files"),
         }
 
         Ok(())
@@ -870,7 +878,7 @@ impl TaskUpdatePeople {
         if let Some(new_person) = get_person_by_source(source).await? {
             // TODO: Need to make sure it doesn't conflict with alt names or normal names if different.
             if old_person.name != new_person.name {
-                println!(
+                debug!(
                     "TODO: Old Name {:?} != New Name {:?}",
                     old_person.name, new_person.name
                 );
@@ -888,14 +896,14 @@ impl TaskUpdatePeople {
             if let Some(alts) = new_person.other_names {
                 for name in alts {
                     // Ignore errors. Errors should just be UNIQUE constraint failed
-                    if let Err(e) = (PersonAltModel {
+                    if let Err(error) = (PersonAltModel {
                         person_id: old_person.id,
                         name,
                     })
                     .insert(db)
                     .await
                     {
-                        eprintln!("[TASK]: Add Alt Name Error: {e}");
+                        error!(?error, "Adding Alt Name");
                     }
                 }
             }
@@ -909,7 +917,7 @@ impl TaskUpdatePeople {
 
             // TODO: Update Book cache
         } else {
-            println!("[TASK] Unable to find person to auto-update");
+            info!("Unable to find person to update");
         }
 
         Ok(())

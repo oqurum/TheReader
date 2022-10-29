@@ -10,6 +10,7 @@ use actix_web::{get, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use common_local::ws::{WebsocketNotification, WebsocketResponse};
 use lazy_static::lazy_static;
+use tracing::{info, trace};
 
 lazy_static! {
     // TODO: Change lock type.
@@ -39,7 +40,7 @@ impl MyWs {
     fn hb(&self, ctx: &mut <Self as Actor>::Context) {
         ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
-                log::debug!("Websocket Client heartbeat failed, disconnecting!");
+                trace!("Websocket Client heartbeat failed, disconnecting!");
 
                 ctx.stop();
 
@@ -80,12 +81,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWs {
                 if resp.is_pong() {
                     self.hb = Instant::now();
                 } else {
-                    println!("WS Unknown: {:?}", resp);
+                    info!("WS Unknown: {:?}", resp);
                 }
             }
 
             Ok(ws::Message::Binary(bin)) => {
-                println!("WS Binary: {:?}", bin);
+                info!("WS Binary: {:?}", bin);
             }
 
             _ => (),

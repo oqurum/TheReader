@@ -19,6 +19,7 @@ use chrono::{NaiveDate, TimeZone, Utc};
 use common::{Agent, BookId, Either, PersonId, Source, ThumbnailStore};
 use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;
+use tracing::error;
 
 use crate::database::Database;
 
@@ -34,13 +35,13 @@ pub mod openlibrary;
 
 // "source" column: [prefix]:[id]
 
-/// Simple return if found, println if error.
+/// Simple return if found, If error then log it.
 macro_rules! return_if_found {
     ($v: expr) => {
         match $v {
             Ok(Some(v)) => return Ok(Some(v)),
             Ok(None) => (),
-            Err(e) => eprintln!("metadata::get_metadata: {}", e),
+            Err(error) => error!(?error),
         }
     };
 }
@@ -50,7 +51,7 @@ macro_rules! return_if_found_vec {
         match $v {
             Ok(v) if v.is_empty() => (),
             Ok(v) => return Ok(v),
-            Err(e) => eprintln!("metadata::get_metadata: {}", e),
+            Err(error) => error!(?error),
         }
     };
 }
@@ -245,7 +246,7 @@ pub async fn search_all_agents(
                 }
             }
 
-            Err(e) => eprintln!("{:?}", e),
+            Err(error) => error!(?error),
         }
     }
 
@@ -417,7 +418,7 @@ impl MetadataReturned {
                         .insert(db)
                         .await
                         {
-                            eprintln!("[OL]: Add Alt Name Error: {e}");
+                            error!("[OL]: Add Alt Name Error: {e}");
                         }
                     }
                 }
@@ -544,7 +545,7 @@ impl FoundImageLocation {
 
                 match crate::store_image(resp.to_vec(), db).await {
                     Ok(model) => *self = Self::Local(model.path),
-                    Err(e) => eprintln!("FoundImageLocation::download: {}", e),
+                    Err(e) => error!("FoundImageLocation::download: {}", e),
                 }
             }
 

@@ -18,6 +18,7 @@ use chrono::{TimeZone, Utc};
 use common::parse_book_id;
 use common_local::LibraryId;
 use tokio::fs;
+use tracing::{error, info, trace};
 
 pub static WHITELISTED_FILE_TYPES: [&str; 2] = ["epub", "cbz"];
 
@@ -61,13 +62,13 @@ pub async fn library_scan(
                             if let Some(book) = book {
                                 book
                             } else {
-                                eprintln!("library_scan: Unable to find book from path ({path:?})");
+                                error!(target: "scanner", file = ?path, "Unable to find book from path");
                                 continue;
                             }
                         }
 
                         Err(e) => {
-                            eprintln!("library_scan: {:?} ({path:?})", e);
+                            error!(target: "scanner", error = ?e, file = ?path);
                             continue;
                         }
                     };
@@ -77,7 +78,7 @@ pub async fn library_scan(
                     let hash = match book.compute_hash() {
                         Some(v) => v,
                         None => {
-                            eprintln!("library_scan: Unable to compute hash (\"{path}\")");
+                            error!(target: "scanner", file = path, "Unable to compute hash");
                             continue;
                         }
                     };
@@ -111,7 +112,7 @@ pub async fn library_scan(
                             );
                             model.deleted_at = None;
 
-                            println!("Overwriting Missing File ID: {}", model.id);
+                            info!(target: "scanner", id = ?model.id, "Overwriting Missing File");
 
                             overwritten_files += 1;
 
@@ -168,16 +169,16 @@ pub async fn library_scan(
 
                     // TODO: Run Concurrently.
                     if let Err(e) = file_match_or_create_book(file, library.id, db).await {
-                        eprintln!("File #{file_id} file_match_or_create_metadata Error: {e}");
+                        error!(error = ?e, "File #{file_id} file_match_or_create_metadata");
                     }
                 } else {
-                    // log::info!("Skipping File {:?}. Not a whitelisted file type.", path);
+                    trace!(file = ?path, "Skipping File. Not a whitelisted file type.");
                 }
             }
         }
     }
 
-    println!("Checked {checked_items} Files, Imported {imported_items} Files, Overwritten {overwritten_files} Files");
+    info!("Checked {checked_items} Files, Imported {imported_items} Files, Overwritten {overwritten_files} Files");
 
     Ok(())
 }

@@ -11,6 +11,7 @@ use common_local::{BookItemCached, SearchForBooksBy};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
 
 use super::{Metadata, MetadataReturned, SearchFor, SearchItem};
 use crate::metadata::{FoundImageLocation, FoundItem};
@@ -35,7 +36,8 @@ impl Metadata for GoogleBooksMetadata {
             if let Some(isbn) = file.identifier.clone() {
                 match self.request_query(isbn).await {
                     Ok(Some(v)) => return Ok(Some(v)),
-                    a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a),
+                    Ok(None) => info!("Unable to find book by isbn."),
+                    Err(error) => error!(?error),
                 }
             }
         }
@@ -46,8 +48,14 @@ impl Metadata for GoogleBooksMetadata {
     async fn get_metadata_by_source_id(&mut self, value: &str) -> Result<Option<MetadataReturned>> {
         match self.request_singular_id(value).await {
             Ok(Some(v)) => Ok(Some(v)),
-            a => {
-                eprintln!("GoogleBooksMetadata::get_metadata_by_source_id {:?}", a);
+            Ok(None) => {
+                info!("Unable to find book by id.");
+
+                Ok(None)
+            }
+
+            Err(error) => {
+                error!(?error);
 
                 Ok(None)
             }
@@ -71,7 +79,7 @@ impl Metadata for GoogleBooksMetadata {
                     }
                 );
 
-                println!("[METADATA][GOOGLE BOOKS]: Search URL: {}", url);
+                info!(url, "Searching");
 
                 let resp = reqwest::get(url).await?;
 

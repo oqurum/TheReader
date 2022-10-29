@@ -8,6 +8,7 @@ use actix_web::http::header;
 use actix_web::HttpResponse;
 use actix_web::{cookie::SameSite, web, App, HttpServer};
 use common::api::WrappingResponse;
+use tracing_actix_web::TracingLogger;
 
 use crate::config::{get_config, is_setup};
 use crate::database::Database;
@@ -62,6 +63,7 @@ pub async fn register_http_service(
     HttpServer::new(move || {
         App::new()
             .app_data(db_data.clone())
+            .wrap(TracingLogger::default())
             .wrap(
                 IdentityMiddleware::builder()
                     .login_deadline(Some(Duration::from_secs(60 * 60 * 24 * 365)))

@@ -6,6 +6,7 @@ use chrono::NaiveDate;
 use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
 
 use self::book::BookSearchType;
 
@@ -39,7 +40,8 @@ impl Metadata for OpenLibraryMetadata {
 
                 match self.request(id).await {
                     Ok(Some(v)) => return Ok(Some(v)),
-                    a => eprintln!("GoogleBooksMetadata::get_metadata_from_files {:?}", a),
+                    Ok(None) => info!("Unable to find book by isbn."),
+                    Err(error) => error!(?error),
                 }
             }
         }
@@ -55,8 +57,14 @@ impl Metadata for OpenLibraryMetadata {
 
         match self.request(id).await {
             Ok(Some(v)) => Ok(Some(v)),
-            a => {
-                eprintln!("OpenLibraryMetadata::get_metadata_by_source_id {:?}", a);
+            Ok(None) => {
+                info!("Unable to find book by id.");
+
+                Ok(None)
+            }
+
+            Err(error) => {
+                error!(?error);
 
                 Ok(None)
             }
@@ -192,13 +200,13 @@ impl OpenLibraryMetadata {
         let mut authors = Vec::new();
 
         // Now we'll grab the Authors.
-        for auth_id in authors_found {
-            println!("[OL]: Grabbing Author: {}", auth_id);
+        for author_id in authors_found {
+            info!(author_id, "Acquiring Author");
 
-            match author::get_author_from_url(&auth_id).await {
+            match author::get_author_from_url(&author_id).await {
                 Ok(Some(author)) => {
                     authors.push(AuthorInfo {
-                        source: self.prefix_text(auth_id).try_into()?,
+                        source: self.prefix_text(author_id).try_into()?,
                         name: author.name.clone(),
                         other_names: author.alternate_names,
                         description: author.bio.map(|v| v.into_content()),
@@ -210,9 +218,9 @@ impl OpenLibraryMetadata {
                     });
                 }
 
-                Ok(None) => eprintln!("[METADATA][OL]: Unable to find Author"),
-
-                Err(e) => eprintln!("[METADATA][OL]: OpenLibrary Error: {}", e),
+                // TODO: Should this be an error? I believe yes since the website says they should have it.
+                Ok(None) => info!("Unable to find Author"),
+                Err(error) => error!(?error),
             }
         }
 

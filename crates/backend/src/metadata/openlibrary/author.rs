@@ -1,5 +1,7 @@
 // https://www.w3.org/RDF/
 
+use tracing::info;
+
 use crate::Result;
 
 use super::book::BookId;
@@ -50,7 +52,7 @@ pub async fn search_for_authors(value: &str) -> Result<Option<json::AuthorSearch
         urlencoding::encode(value)
     );
 
-    println!("[METADATA][OPEN LIBRARY]: Search URL: {}", url);
+    info!(url, "Searching");
 
     let resp = reqwest::get(url).await?;
 

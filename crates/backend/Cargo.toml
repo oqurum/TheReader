@@ -34,6 +34,10 @@ toml_edit = { version = "0.14", features = ["easy"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 
+tracing-subscriber = "0.3"
+tracing-actix-web = "0.6"
+tracing = "0.1"
+
 bcrypt = "0.13"
 sha2 = "0.10"
 strsim = "0.10"
@@ -42,7 +46,6 @@ clap = { version = "4.0", features = ["derive"] }
 chrono = { workspace = true }
 image = "0.24"
 lazy_static = "1.4"
-log = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 urlencoding = { workspace = true }

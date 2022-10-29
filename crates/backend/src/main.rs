@@ -8,6 +8,8 @@
 
 use actix_web::web;
 use clap::Parser;
+use tracing::{info, subscriber::set_global_default, Level};
+use tracing_subscriber::FmtSubscriber;
 
 pub mod cli;
 pub mod database;
@@ -26,6 +28,15 @@ pub use util::*;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::DEBUG)
+        .with_file(false)
+        .with_line_number(true)
+        .finish();
+
+    #[allow(clippy::expect_used)]
+    set_global_default(subscriber).expect("setting default subscriber failed");
+
     let cli_args = CliArgs::parse();
 
     // Save Config - Otherwise it'll be lazily loaded whenever this fn is first called.
@@ -37,7 +48,11 @@ async fn main() -> Result<()> {
 
     task::start_task_manager(db_data.clone());
 
-    println!("Starting HTTP Server on port {}", cli_args.port);
+    info!(
+        port = cli_args.port,
+        host = cli_args.host,
+        "Starting HTTP Server"
+    );
 
     http::register_http_service(&cli_args, db_data).await?;
 
