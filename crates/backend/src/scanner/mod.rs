@@ -31,7 +31,7 @@ pub async fn library_scan(
         .map(|v| PathBuf::from(&v.path))
         .collect::<VecDeque<_>>();
 
-    let (mut checked_items, mut imported_items) = (0, 0);
+    let (mut checked_items, mut imported_items, mut overwritten_files) = (0, 0, 0);
 
     while let Some(path) = folders.pop_front() {
         let mut dir = fs::read_dir(path).await?;
@@ -91,7 +91,7 @@ pub async fn library_scan(
                         // We found it by path, no need to verify anything since it exists.
                         // Update stored model with the new one that matched the hash.
                         // TODO: Optimize? I don't want to check the FS for EVERY SINGLE FILE.
-                        if model.path != path && tokio::fs::metadata(&path).await.is_err() {
+                        if model.path != path && tokio::fs::metadata(&model.path).await.is_err() {
                             model.path = path;
                             model.file_name = file_name;
                             model.file_type = file_type;
@@ -112,6 +112,8 @@ pub async fn library_scan(
                             model.deleted_at = None;
 
                             println!("Overwriting Missing File ID: {}", model.id);
+
+                            overwritten_files += 1;
 
                             model.update(db).await?;
                         }
@@ -175,7 +177,7 @@ pub async fn library_scan(
         }
     }
 
-    println!("Checked {checked_items} Files, Imported {imported_items} Files");
+    println!("Checked {checked_items} Files, Imported {imported_items} Files, Overwritten {overwritten_files} Files");
 
     Ok(())
 }
