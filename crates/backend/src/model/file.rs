@@ -205,11 +205,19 @@ impl FileModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_one_by_hash_or_path(path: &str, hash: &str, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_hash_or_path(
+        path: &str,
+        hash: &str,
+        db: &Database,
+    ) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
-            .query_row(r#"SELECT * FROM file WHERE path = ?1 OR hash = ?2"#, [path, hash], |v| Self::from_row(v))
+            .query_row(
+                r#"SELECT * FROM file WHERE path = ?1 OR hash = ?2"#,
+                [path, hash],
+                |v| Self::from_row(v),
+            )
             .optional()?)
     }
 

@@ -85,7 +85,9 @@ pub async fn library_scan(
                     let chapter_count = book.chapter_count() as i64;
 
                     // If file exists, check to see if the one in the database is valid.
-                    if let Some(mut model) = FileModel::find_one_by_hash_or_path(&path, &hash, db).await? {
+                    if let Some(mut model) =
+                        FileModel::find_one_by_hash_or_path(&path, &hash, db).await?
+                    {
                         // We found it by path, no need to verify anything since it exists.
                         // Update stored model with the new one that matched the hash.
                         // TODO: Optimize? I don't want to check the FS for EVERY SINGLE FILE.
@@ -117,20 +119,19 @@ pub async fn library_scan(
                         continue;
                     }
 
+                    let identifier = if let Some(found) = book.find(BookSearch::Identifier) {
+                        let parsed = found
+                            .into_iter()
+                            .map(|v| parse_book_id(&v))
+                            .collect::<Vec<_>>();
 
-                    let identifier =
-                        if let Some(found) = book.find(BookSearch::Identifier) {
-                            let parsed = found
-                                .into_iter()
-                                .map(|v| parse_book_id(&v))
-                                .collect::<Vec<_>>();
-
-                            parsed.iter().find_map(|v| v.as_isbn_13()).or_else(
-                                || parsed.iter().find_map(|v| v.as_isbn_10()),
-                            )
-                        } else {
-                            None
-                        };
+                        parsed
+                            .iter()
+                            .find_map(|v| v.as_isbn_13())
+                            .or_else(|| parsed.iter().find_map(|v| v.as_isbn_10()))
+                    } else {
+                        None
+                    };
 
                     let file = NewFileModel {
                         path,

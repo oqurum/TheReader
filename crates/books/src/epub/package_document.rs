@@ -1,4 +1,8 @@
-use std::{collections::HashMap, io::Read, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    io::Read,
+    sync::{Arc, Mutex},
+};
 
 use xml::{
     attribute::OwnedAttribute, name::OwnedName, namespace::Namespace, reader::XmlEvent, EventReader,
