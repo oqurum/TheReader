@@ -724,10 +724,8 @@ impl Reader {
             }
 
             PageLoadType::Select => {
-                let start_chapter = self.viewing_chapter;
-
                 // Continue loading chapters
-                let start = (start_chapter - 2).max(0) as usize;
+                let start = self.viewing_chapter.saturating_sub(2);
 
                 // Reverse iterator since for some reason chapter "generation" works from LIFO
                 for chapter in (start..start + 5).rev() {
