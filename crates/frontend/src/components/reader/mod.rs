@@ -138,6 +138,7 @@ pub enum ReaderMsg {
     // Event
     HandleJsRedirect(usize, String, Option<String>),
 
+    PageTransitionStart,
     PageTransitionEnd,
     UpdateDragDistance,
 
@@ -176,6 +177,9 @@ pub struct Reader {
     drag_distance: isize,
 
     scroll_change_page_timeout: Option<Timeout>,
+
+    /// Are we switching Pages?
+    is_transitioning: bool,
 }
 
 impl Component for Reader {
@@ -228,6 +232,7 @@ impl Component for Reader {
             viewing_chapter: 0,
             drag_distance: 0,
 
+            // TODO: Move both into own struct
             cursor_type: "default",
             visible_redirect_rects: Vec::new(),
 
@@ -235,6 +240,7 @@ impl Component for Reader {
 
             handle_js_redirect_clicks,
             _handle_keyboard: link,
+            is_transitioning: false,
         }
     }
 
@@ -242,7 +248,13 @@ impl Component for Reader {
         match msg {
             ReaderMsg::Ignore => return false,
 
+            ReaderMsg::PageTransitionStart => {
+                self.is_transitioning = true;
+            }
+
             ReaderMsg::PageTransitionEnd => {
+                self.is_transitioning = false;
+
                 // TODO: Check if we we changed pages to being with.
 
                 log::info!("transition");
@@ -572,6 +584,8 @@ impl Component for Reader {
             ReaderMsg::GenerateIFrameLoaded(chapter) => {
                 self.sections[chapter.value].convert_to_loaded();
 
+                log::debug!("Generated Chapter {}", chapter.value + 1);
+
                 // Call on_load for the newly loaded frame.
                 if let SectionLoadProgress::Loaded(section) = &mut self.sections[chapter.value] {
                     section.on_load(
@@ -624,6 +638,7 @@ impl Component for Reader {
         let (frame_class, frame_style) = self.get_frame_class_and_style();
 
         let link = ctx.link().clone();
+        let link2 = ctx.link().clone();
 
         html! {
             <div class="reader">
@@ -643,6 +658,7 @@ impl Component for Reader {
                         class={ frame_class }
                         style={ frame_style }
                         // Frame changes use a transition.
+                        ontransitionstart={ Callback::from(move|_| link2.send_message(ReaderMsg::PageTransitionStart)) }
                         ontransitionend={ Callback::from(move|_| link.send_message(ReaderMsg::PageTransitionEnd)) }
                     >
                         {
@@ -822,6 +838,11 @@ impl Reader {
     }
 
     fn use_progression(&mut self, prog: Option<Progression>, ctx: &Context<Self>) {
+        // Only update progression if we're not changing pages/chapters.
+        if self.is_transitioning {
+            return;
+        }
+
         log::info!("{:?}", prog);
 
         if let Some(prog) = prog {
@@ -1060,17 +1081,23 @@ impl Reader {
     }
 
     fn get_current_section(&self) -> Option<&SectionContents> {
-        self.sections
-            .get(self.viewing_chapter)
-            .and_then(|v| v.as_chapter())
+        self.sections[self.viewing_chapter].as_chapter()
     }
 
+    // TODO: Move to SectionLoadProgress and combine into upload_progress
     fn upload_progress_and_emit(&self, ctx: &Context<Self>) {
-        if let Some(chap) = self.get_current_section() {
+        // Ensure our current chapter is fully loaded AND NOT loading.
+        // FIX: For first load of the reader. js_get_current_byte_pos needs the frame body to be loaded. Otherwise error.
+        // Could remove once we optimize the upload requests.
+        if let Some(chap) = self
+            .get_current_section()
+            .filter(|_| self.sections[self.viewing_chapter].is_loaded())
+        {
             self.upload_progress(chap.get_iframe(), ctx);
         }
     }
 
+    // TODO: Move to SectionLoadProgress
     fn upload_progress(&self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = (
             self.viewing_chapter,
@@ -1126,6 +1153,7 @@ impl Reader {
         });
     }
 
+    // TODO: Move to SectionLoadProgress
     fn refresh_section(&mut self, chapter: usize, ctx: &Context<Self>) {
         let chaps = ctx.props().chapters.lock().unwrap();
 
@@ -1149,6 +1177,7 @@ impl Reader {
         ));
     }
 
+    // TODO: Move to SectionLoadProgress
     fn load_section(&mut self, chapter: usize, ctx: &Context<Self>) {
         let chaps = ctx.props().chapters.lock().unwrap();
 

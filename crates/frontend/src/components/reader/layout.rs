@@ -168,11 +168,28 @@ impl PageDisplay {
             );
 
         self._events.push(ElementEvent::link(
-            body.unchecked_into(),
+            body.clone().unchecked_into(),
             function,
             |element, func| element.add_event_listener_with_callback("transitionend", func),
             Box::new(|element, func| {
                 element.remove_event_listener_with_callback("transitionend", func)
+            }),
+        ));
+
+        let link = ctx.link().clone();
+
+        let function =
+            Closure::wrap(
+                Box::new(move || link.send_message(ReaderMsg::PageTransitionStart))
+                    as Box<dyn FnMut()>,
+            );
+
+        self._events.push(ElementEvent::link(
+            body.unchecked_into(),
+            function,
+            |element, func| element.add_event_listener_with_callback("transitionstart", func),
+            Box::new(|element, func| {
+                element.remove_event_listener_with_callback("transitionstart", func)
             }),
         ));
     }
