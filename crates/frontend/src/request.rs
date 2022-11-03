@@ -55,6 +55,18 @@ pub async fn get_libraries() -> WrappingResponse<ApiGetLibrariesResponse> {
         .unwrap_or_else(def)
 }
 
+pub async fn get_library(id: LibraryId) -> WrappingResponse<ApiGetLibraryIdResponse> {
+    fetch("GET", &format!("/api/library/{id}"), Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
+}
+
+pub async fn update_library(id: LibraryId, value: &UpdateLibrary) -> WrappingResponse<String> {
+    fetch("POST", &format!("/api/library/{id}"), Some(value))
+        .await
+        .unwrap_or_else(def)
+}
+
 // People
 
 pub async fn update_person(id: PersonId, value: &PostPersonBody) -> WrappingResponse<String> {

@@ -1,21 +1,26 @@
 use common::{
     api::WrappingResponse,
-    component::popup::{button::ButtonWithPopup, PopupClose},
+    component::popup::{button::ButtonWithPopup, Popup, PopupType, PopupClose},
 };
-use common_local::{api, LibraryColl};
+use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
 use yew_router::{prelude::Link, scope_ext::RouterScopeExt};
 
-use crate::{request, Route};
+use crate::{components::edit::library::LibraryEdit, request, Route};
 
 pub enum Msg {
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
+
+    EditLibrary(LibraryId),
+    HideEdit,
 
     Ignore,
 }
 
 pub struct Sidebar {
     library_items: Option<Vec<LibraryColl>>,
+
+    library_editing: Option<LibraryId>,
 }
 
 impl Component for Sidebar {
@@ -28,12 +33,21 @@ impl Component for Sidebar {
 
         Self {
             library_items: None,
+            library_editing: None,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::Ignore => return false,
+
+            Msg::HideEdit => {
+                self.library_editing = None;
+            }
+
+            Msg::EditLibrary(id) => {
+                self.library_editing = Some(id);
+            }
 
             Msg::LibraryListResults(resp) => match resp.ok() {
                 Ok(resp) => self.library_items = Some(resp.items),
@@ -49,6 +63,18 @@ impl Component for Sidebar {
             html! {
                 <div class="sidebar-container">
                     { for items.iter().map(|item| Self::render_sidebar_library_item(item, ctx.link())) }
+
+                    {
+                        if let Some(id) = self.library_editing {
+                            html! {
+                                <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::HideEdit) }>
+                                    <LibraryEdit {id} />
+                                </Popup>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
                 </div>
             }
         } else {
@@ -103,6 +129,14 @@ impl Sidebar {
                             }
                         }) }>
                             { "Library Scan" }
+                        </PopupClose>
+
+                        <PopupClose class="menu-item" onclick={ scope.callback(move |e: MouseEvent| {
+                            e.prevent_default();
+
+                            Msg::EditLibrary(library_id)
+                        }) }>
+                            { "Edit Library" }
                         </PopupClose>
                     </ButtonWithPopup>
                 </div>

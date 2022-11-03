@@ -70,6 +70,8 @@ pub fn api_route() -> Scope<
         .service(options::update_options_remove)
         // Library
         .service(library::load_library_list)
+        .service(library::load_library_id)
+        .service(library::update_library_id)
         // Task
         .service(task::run_task)
         // Storage

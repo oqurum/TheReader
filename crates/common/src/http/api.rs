@@ -43,6 +43,8 @@ pub type ApiGetImageTypeByIdResponse = Vec<u8>;
 // Libraries
 /// GET     /libraries
 pub type ApiGetLibrariesResponse = self::GetLibrariesResponse;
+/// GET     /library/{id}
+pub type ApiGetLibraryIdResponse = LibraryColl;
 
 // Members
 /// GET     /member
@@ -140,6 +142,12 @@ pub struct GetMemberSelfResponse {
 pub struct GetLibrariesResponse {
     pub items: Vec<LibraryColl>,
 }
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct UpdateLibrary {
+    pub name: Option<String>,
+}
+
 
 // Book
 #[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]

@@ -1,8 +1,8 @@
-use actix_web::{get, web};
+use actix_web::{get, web, post};
 use common::api::WrappingResponse;
-use common_local::{api, LibraryColl};
+use common_local::{api, LibraryColl, LibraryId};
 
-use crate::{database::Database, http::JsonResponse, model::library::LibraryModel, WebResult};
+use crate::{database::Database, http::JsonResponse, model::{library::LibraryModel, directory::DirectoryModel}, WebResult};
 
 #[get("/libraries")]
 async fn load_library_list(
@@ -27,4 +27,58 @@ async fn load_library_list(
                 .collect(),
         },
     )))
+}
+
+#[get("/library/{id}")]
+async fn load_library_id(
+    id: web::Path<LibraryId>,
+    db: web::Data<Database>,
+) -> WebResult<JsonResponse<api::ApiGetLibraryIdResponse>> {
+    let model = LibraryModel::find_one_by_id(*id, &db)
+        .await?.ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
+
+    let directories = DirectoryModel::find_directories_by_library_id(*id, &db).await?;
+
+    let library = LibraryColl {
+        id: model.id,
+
+        name: model.name,
+
+        created_at: model.created_at.timestamp_millis(),
+        scanned_at: model.scanned_at.timestamp_millis(),
+        updated_at: model.updated_at.timestamp_millis(),
+
+        directories: directories.into_iter().map(|v| v.path).collect(),
+    };
+
+    Ok(web::Json(WrappingResponse::okay(library)))
+}
+
+#[post("/library/{id}")]
+async fn update_library_id(
+    id: web::Path<LibraryId>,
+    body: web::Json<api::UpdateLibrary>,
+    db: web::Data<Database>,
+) -> WebResult<JsonResponse<&'static str>> {
+    let body = body.into_inner();
+
+    let mut model = LibraryModel::find_one_by_id(*id, &db)
+        .await?.ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
+
+    let mut is_updated = false;
+
+    // TODO: Update Directories.
+
+    if let Some(name) = body.name {
+        // TODO: Add Checks
+        model.name = name;
+        is_updated = true;
+    }
+
+
+    if is_updated {
+        model.update(&db).await?;
+    }
+
+    Ok(web::Json(WrappingResponse::okay("ok")))
 }

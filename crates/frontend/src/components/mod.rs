@@ -1,4 +1,5 @@
 pub mod book_poster_item;
+pub mod edit;
 pub mod mass_selector_bar;
 pub mod navbar;
 pub mod notes;

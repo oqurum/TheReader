@@ -113,4 +113,21 @@ impl LibraryModel {
             })
             .optional()?)
     }
+
+    pub async fn update(&mut self, db: &Database) -> Result<usize> {
+        self.updated_at = Utc::now();
+
+        let write = db
+            .write()
+            .await;
+
+        Ok(write.execute(
+            "UPDATE library SET name = ?2, updated_at = ?3 WHERE id = ?1",
+            params![
+                self.id,
+                &self.name,
+                self.updated_at,
+            ]
+        )?)
+    }
 }
