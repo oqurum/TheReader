@@ -10,7 +10,7 @@ async fn load_library_list(
 ) -> WebResult<JsonResponse<api::ApiGetLibrariesResponse>> {
     Ok(web::Json(WrappingResponse::okay(
         api::GetLibrariesResponse {
-            items: LibraryModel::get_all(&db)
+            items: LibraryModel::get_all(&db.basic())
                 .await?
                 .into_iter()
                 .map(|file| LibraryColl {
@@ -34,10 +34,10 @@ async fn load_library_id(
     id: web::Path<LibraryId>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetLibraryIdResponse>> {
-    let model = LibraryModel::find_one_by_id(*id, &db)
+    let model = LibraryModel::find_one_by_id(*id, &db.basic())
         .await?.ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
-    let directories = DirectoryModel::find_directories_by_library_id(*id, &db).await?;
+    let directories = DirectoryModel::find_directories_by_library_id(*id, &db.basic()).await?;
 
     let library = LibraryColl {
         id: model.id,
@@ -62,7 +62,7 @@ async fn update_library_id(
 ) -> WebResult<JsonResponse<&'static str>> {
     let body = body.into_inner();
 
-    let mut model = LibraryModel::find_one_by_id(*id, &db)
+    let mut model = LibraryModel::find_one_by_id(*id, &db.basic())
         .await?.ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
     let mut is_updated = false;
@@ -77,7 +77,7 @@ async fn update_library_id(
 
 
     if is_updated {
-        model.update(&db).await?;
+        model.update(&db.basic()).await?;
     }
 
     Ok(web::Json(WrappingResponse::okay("ok")))

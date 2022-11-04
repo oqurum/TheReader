@@ -2,7 +2,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use common::{util::serialize_naivedate_opt, BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::{util::serialize_datetime, Person};
 use serde::Serialize;
 
@@ -77,7 +77,7 @@ impl From<PersonModel> for Person {
 }
 
 impl NewPersonModel {
-    pub async fn insert(self, db: &Database) -> Result<PersonModel> {
+    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<PersonModel> {
         let conn = db.write().await;
 
         conn.execute(r#"
@@ -103,7 +103,7 @@ impl NewPersonModel {
 }
 
 impl PersonModel {
-    pub async fn find(offset: usize, limit: usize, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find(offset: usize, limit: usize, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare(r#"SELECT * FROM tag_person LIMIT ?1 OFFSET ?2"#)?;
@@ -113,7 +113,7 @@ impl PersonModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_by_book_id(id: BookId, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_book_id(id: BookId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare(
@@ -134,7 +134,7 @@ impl PersonModel {
         query: &str,
         offset: usize,
         limit: usize,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<Self>> {
         let mut escape_char = '\\';
         // Change our escape character if it's in the query.
@@ -167,7 +167,7 @@ impl PersonModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_name(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         let person = db
             .read()
             .await
@@ -189,7 +189,7 @@ impl PersonModel {
         // }
     }
 
-    pub async fn find_one_by_id(id: PersonId, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_id(id: PersonId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -201,7 +201,7 @@ impl PersonModel {
             .optional()?)
     }
 
-    pub async fn find_one_by_source(value: &str, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_source(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -213,14 +213,14 @@ impl PersonModel {
             .optional()?)
     }
 
-    pub async fn count(db: &Database) -> Result<usize> {
+    pub async fn count(db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .read()
             .await
             .query_row(r#"SELECT COUNT(*) FROM tag_person"#, [], |v| v.get(0))?)
     }
 
-    pub async fn update(&self, db: &Database) -> Result<()> {
+    pub async fn update(&self, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"
             UPDATE tag_person SET
@@ -247,7 +247,7 @@ impl PersonModel {
         Ok(())
     }
 
-    pub async fn delete_by_id(id: PersonId, db: &Database) -> Result<usize> {
+    pub async fn delete_by_id(id: PersonId, db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .write()
             .await

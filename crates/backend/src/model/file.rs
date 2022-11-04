@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::{util::serialize_datetime_opt, BookId};
 use rusqlite::{params, OptionalExtension};
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::{util::serialize_datetime, FileId, LibraryId, MediaItem};
 use serde::Serialize;
 
@@ -129,7 +129,7 @@ impl NewFileModel {
         }
     }
 
-    pub async fn insert(self, db: &Database) -> Result<FileModel> {
+    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<FileModel> {
         let conn = db.write().await;
 
         conn.execute(r#"
@@ -148,7 +148,7 @@ impl NewFileModel {
 }
 
 impl FileModel {
-    pub async fn exists(path: &str, hash: &str, db: &Database) -> Result<bool> {
+    pub async fn exists(path: &str, hash: &str, db: &dyn DatabaseAccess) -> Result<bool> {
         Ok(db.read().await.query_row(
             r#"SELECT EXISTS(SELECT id FROM file WHERE path = ?1 OR hash = ?2)"#,
             [path, hash],
@@ -160,7 +160,7 @@ impl FileModel {
         library: usize,
         offset: usize,
         limit: usize,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<Self>> {
         let this = db.read().await;
 
@@ -176,7 +176,7 @@ impl FileModel {
         library: usize,
         offset: usize,
         limit: usize,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<FileWithBook>> {
         let this = db.read().await;
 
@@ -195,7 +195,7 @@ impl FileModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_by_missing_book(db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_missing_book(db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM file WHERE book_id = 0 OR book_id = NULL")?;
@@ -208,7 +208,7 @@ impl FileModel {
     pub async fn find_one_by_hash_or_path(
         path: &str,
         hash: &str,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Option<Self>> {
         Ok(db
             .read()
@@ -221,7 +221,7 @@ impl FileModel {
             .optional()?)
     }
 
-    pub async fn find_one_by_id(id: FileId, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_id(id: FileId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -233,7 +233,7 @@ impl FileModel {
 
     pub async fn find_one_by_id_with_book(
         id: FileId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Option<FileWithBook>> {
         Ok(db
             .read()
@@ -246,7 +246,7 @@ impl FileModel {
             .optional()?)
     }
 
-    pub async fn find_by_book_id(book_id: BookId, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by_book_id(book_id: BookId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM file WHERE book_id=?1")?;
@@ -259,7 +259,7 @@ impl FileModel {
     pub async fn find_by_missing_hash(
         offset: usize,
         limit: usize,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<Self>> {
         let this = db.read().await;
 
@@ -270,7 +270,7 @@ impl FileModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn count_by_missing_hash(db: &Database) -> Result<usize> {
+    pub async fn count_by_missing_hash(db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .read()
             .await
@@ -279,14 +279,14 @@ impl FileModel {
             })?)
     }
 
-    pub async fn count(db: &Database) -> Result<usize> {
+    pub async fn count(db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .read()
             .await
             .query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
     }
 
-    pub async fn update_book_id(file_id: FileId, book_id: BookId, db: &Database) -> Result<()> {
+    pub async fn update_book_id(file_id: FileId, book_id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"UPDATE file SET book_id = ?1 WHERE id = ?2"#,
             params![book_id, file_id],
@@ -295,7 +295,7 @@ impl FileModel {
         Ok(())
     }
 
-    pub async fn update(&self, db: &Database) -> Result<()> {
+    pub async fn update(&self, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"
             UPDATE file SET
@@ -326,7 +326,7 @@ impl FileModel {
     pub async fn transfer_book_id(
         old_book_id: BookId,
         new_book_id: BookId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<usize> {
         Ok(db.write().await.execute(
             r#"UPDATE file SET book_id = ?1 WHERE book_id = ?2"#,

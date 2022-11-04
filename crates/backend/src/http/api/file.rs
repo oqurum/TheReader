@@ -25,7 +25,7 @@ pub async fn load_file_resource(
 ) -> WebResult<HttpResponse> {
     let (file_id, resource_path) = path.into_inner();
 
-    let file = FileModel::find_one_by_id(file_id, &db).await?.unwrap();
+    let file = FileModel::find_one_by_id(file_id, &db.basic()).await?.unwrap();
 
     let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -74,7 +74,7 @@ pub async fn load_file_pages(
 ) -> WebResult<JsonResponse<api::ApiGetFilePagesByIdResponse>> {
     let (file_id, chapters) = path.into_inner();
 
-    let file = FileModel::find_one_by_id(file_id, &db).await?.unwrap();
+    let file = FileModel::find_one_by_id(file_id, &db.basic()).await?.unwrap();
 
     let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -128,9 +128,9 @@ pub async fn load_file(
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<Option<api::GetFileByIdResponse>>> {
     Ok(web::Json(WrappingResponse::okay(
-        if let Some(file) = FileModel::find_one_by_id(*file_id, &db).await? {
+        if let Some(file) = FileModel::find_one_by_id(*file_id, &db.basic()).await? {
             Some(api::GetFileByIdResponse {
-                progress: FileProgressionModel::find_one(member.member_id(), *file_id, &db)
+                progress: FileProgressionModel::find_one(member.member_id(), *file_id, &db.basic())
                     .await?
                     .map(|v| v.into()),
 
@@ -147,7 +147,7 @@ pub async fn download_file(
     file_id: web::Path<FileId>,
     db: web::Data<Database>,
 ) -> WebResult<NamedFile> {
-    let file_model = FileModel::find_one_by_id(*file_id, &db)
+    let file_model = FileModel::find_one_by_id(*file_id, &db.basic())
         .await?
         .ok_or(crate::Error::Internal(crate::InternalError::ItemMissing))?;
 
@@ -168,7 +168,7 @@ pub async fn load_file_debug(
     web_path: web::Path<(FileId, String)>,
     db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
-    if let Some(file) = FileModel::find_one_by_id(web_path.0, &db).await? {
+    if let Some(file) = FileModel::find_one_by_id(web_path.0, &db.basic()).await? {
         if web_path.1.is_empty() {
             let book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -198,7 +198,7 @@ pub async fn progress_file_add(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    if let Some(book_id) = FileModel::find_one_by_id(*file_id, &db)
+    if let Some(book_id) = FileModel::find_one_by_id(*file_id, &db.basic())
         .await?
         .and_then(|v| v.book_id)
     {
@@ -207,7 +207,7 @@ pub async fn progress_file_add(
             book_id,
             *file_id,
             body.into_inner(),
-            &db,
+            &db.basic(),
         )
         .await?;
     }
@@ -221,7 +221,7 @@ pub async fn progress_file_delete(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    FileProgressionModel::delete_one(member.member_id(), *file_id, &db).await?;
+    FileProgressionModel::delete_one(member.member_id(), *file_id, &db.basic()).await?;
     Ok(web::Json(WrappingResponse::okay("success")))
 }
 
@@ -233,7 +233,7 @@ pub async fn notes_file_get(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetFileNotesByIdResponse>> {
-    let v = FileNoteModel::find_one(*file_id, member.member_id(), &db).await?;
+    let v = FileNoteModel::find_one(*file_id, member.member_id(), &db.basic()).await?;
     Ok(web::Json(WrappingResponse::okay(v.map(|v| v.data))))
 }
 
@@ -252,7 +252,7 @@ pub async fn notes_file_add(
     let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
 
     FileNoteModel::new(*file_id, member.member_id(), data)
-        .insert_or_update(&db)
+        .insert_or_update(&db.basic())
         .await?;
 
     Ok(web::Json(WrappingResponse::okay("success")))
@@ -264,7 +264,7 @@ pub async fn notes_file_delete(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    FileNoteModel::delete_one(*file_id, member.member_id(), &db).await?;
+    FileNoteModel::delete_one(*file_id, member.member_id(), &db.basic()).await?;
 
     Ok(web::Json(WrappingResponse::okay("success")))
 }

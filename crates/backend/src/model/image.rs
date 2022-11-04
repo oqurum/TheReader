@@ -3,7 +3,7 @@ use common::{BookId, ImageId, ImageType, PersonId, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use crate::{database::Database, InternalError, Result};
+use crate::{DatabaseAccess, InternalError, Result};
 use common_local::util::serialize_datetime;
 
 use super::{AdvRow, TableRow};
@@ -75,7 +75,7 @@ impl NewUploadedImageModel {
         }
     }
 
-    pub async fn get_or_insert(self, db: &Database) -> Result<UploadedImageModel> {
+    pub async fn get_or_insert(self, db: &dyn DatabaseAccess) -> Result<UploadedImageModel> {
         if let Some(path) = self.path.as_value() {
             if let Some(value) = UploadedImageModel::get_by_path(path, db).await? {
                 Ok(value)
@@ -87,7 +87,7 @@ impl NewUploadedImageModel {
         }
     }
 
-    pub async fn insert(self, db: &Database) -> Result<UploadedImageModel> {
+    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<UploadedImageModel> {
         let path = match self.path.into_value() {
             Some(v) => v,
             None => return Err(InternalError::InvalidModel.into()),
@@ -110,7 +110,7 @@ impl NewUploadedImageModel {
         })
     }
 
-    pub async fn path_exists(path: &str, db: &Database) -> Result<bool> {
+    pub async fn path_exists(path: &str, db: &dyn DatabaseAccess) -> Result<bool> {
         Ok(db.read().await.query_row(
             "SELECT COUNT(*) FROM uploaded_images WHERE path = ?1",
             [path],
@@ -120,7 +120,7 @@ impl NewUploadedImageModel {
 }
 
 impl UploadedImageModel {
-    pub async fn get_by_path(value: &str, db: &Database) -> Result<Option<Self>> {
+    pub async fn get_by_path(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -132,7 +132,7 @@ impl UploadedImageModel {
             .optional()?)
     }
 
-    pub async fn get_by_id(value: ImageId, db: &Database) -> Result<Option<Self>> {
+    pub async fn get_by_id(value: ImageId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -144,7 +144,7 @@ impl UploadedImageModel {
             .optional()?)
     }
 
-    pub async fn remove(link_id: BookId, path: ThumbnailStore, db: &Database) -> Result<usize> {
+    pub async fn remove(link_id: BookId, path: ThumbnailStore, db: &dyn DatabaseAccess) -> Result<usize> {
         // TODO: Check for currently set images
         // TODO: Remove image links.
         if let Some(path) = path.into_value() {
@@ -175,7 +175,7 @@ impl ImageLinkModel {
         }
     }
 
-    pub async fn insert(&self, db: &Database) -> Result<()> {
+    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<()> {
         let conn = db.write().await;
 
         conn.execute(
@@ -193,7 +193,7 @@ impl ImageLinkModel {
         Ok(())
     }
 
-    pub async fn delete(self, db: &Database) -> Result<()> {
+    pub async fn delete(self, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"DELETE FROM image_link WHERE image_id = ?1 AND link_id = ?2 AND type_of = ?3"#,
             params![self.image_id, self.link_id, self.type_of.as_num(),],
@@ -206,7 +206,7 @@ impl ImageLinkModel {
     pub async fn find_with_link_by_link_id(
         id: usize,
         type_of: ImageType,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<ImageWithLink>> {
         let this = db.read().await;
 

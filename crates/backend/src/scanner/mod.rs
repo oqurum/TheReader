@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, path::PathBuf, time::UNIX_EPOCH};
 
 use crate::{
-    database::Database,
+    database::DatabaseAccess,
     metadata::{get_metadata_from_files, MetadataReturned},
     model::{
         book::BookModel,
@@ -25,7 +25,7 @@ pub static WHITELISTED_FILE_TYPES: [&str; 2] = ["epub", "cbz"];
 pub async fn library_scan(
     library: &LibraryModel,
     directories: Vec<DirectoryModel>,
-    db: &Database,
+    db: &dyn DatabaseAccess,
 ) -> Result<()> {
     let mut folders: VecDeque<PathBuf> = directories
         .into_iter()
@@ -186,7 +186,7 @@ pub async fn library_scan(
 async fn file_match_or_create_book(
     file: FileModel,
     library_id: LibraryId,
-    db: &Database,
+    db: &dyn DatabaseAccess,
 ) -> Result<()> {
     if file.book_id.is_none() {
         let file_id = file.id;

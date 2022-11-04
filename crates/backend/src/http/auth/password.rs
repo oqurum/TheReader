@@ -53,7 +53,7 @@ pub async fn post_password_oauth(
     let address = email_str.parse::<Address>().map_err(Error::from)?;
 
     // Create or Update User.
-    let member = if let Some(value) = MemberModel::find_one_by_email(&email_str, &db).await? {
+    let member = if let Some(value) = MemberModel::find_one_by_email(&email_str, &db.basic()).await? {
         if value.type_of != MemberAuthType::Password {
             return Err(ApiErrorResponse::new(
                 "Invalid Member. Member does not have a local password associated with it.",
@@ -86,7 +86,7 @@ pub async fn post_password_oauth(
             new_member.permissions = Permissions::owner();
         }
 
-        let inserted = new_member.insert(&db).await?;
+        let inserted = new_member.insert(&db.basic()).await?;
 
         // Update config.
         if !has_admin_account {
@@ -103,7 +103,7 @@ pub async fn post_password_oauth(
 
     let model = AuthModel::new(Some(member.id));
 
-    model.insert(&db).await?;
+    model.insert(&db.basic()).await?;
 
     super::remember_member_auth(&request.extensions(), member.id, model.oauth_token_secret)?;
 

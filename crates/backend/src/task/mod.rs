@@ -19,7 +19,7 @@ use tokio::{runtime::Runtime, time::sleep};
 use tracing::{debug, error, info};
 
 use crate::{
-    database::Database,
+    database::{Database, DatabaseAccess},
     http::send_message_to_clients,
     metadata::{
         get_metadata_by_source, get_metadata_from_files, get_person_by_source, search_all_agents,
@@ -56,7 +56,7 @@ struct TaskInterval {
 
 #[async_trait]
 pub trait Task: Send {
-    async fn run(&mut self, task_id: UniqueId, db: &Database) -> Result<()>;
+    async fn run(&mut self, task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()>;
 
     fn name(&self) -> &'static str;
 }
@@ -115,7 +115,7 @@ pub fn start_task_manager(db: web::Data<Database>) {
 
                     info!(id = ?task_id, name = task.name(), "Task Started");
 
-                    match task.run(task_id, &db).await {
+                    match task.run(task_id, &db.basic()).await {
                         Ok(_) => info!(
                             name = task.name(),
                             elapsed = ?start_time.elapsed(),
@@ -136,7 +136,7 @@ pub fn start_task_manager(db: web::Data<Database>) {
 
 // #[async_trait]
 // impl Task for TaskFileHashSetter {
-//     async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
+//     async fn run(&mut self, _task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()> {
 //         const LIMIT: usize = 250;
 
 //         let total = FileModel::count_by_missing_hash(db).await?;
@@ -181,7 +181,7 @@ pub struct TaskLibraryScan {
 
 #[async_trait]
 impl Task for TaskLibraryScan {
-    async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
+    async fn run(&mut self, _task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()> {
         let library = LibraryModel::find_one_by_id(self.library_id, db)
             .await?
             .unwrap();
@@ -241,7 +241,7 @@ impl TaskUpdateInvalidBook {
 
 #[async_trait]
 impl Task for TaskUpdateInvalidBook {
-    async fn run(&mut self, task_id: UniqueId, db: &Database) -> Result<()> {
+    async fn run(&mut self, task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()> {
         match self.state.clone() {
             UpdatingBook::UnMatch(book_id) => {
                 info!(id = ?book_id, "Unmatching Book By Id");
@@ -672,7 +672,7 @@ impl TaskUpdateInvalidBook {
     async fn return_found_metadata_by_files(
         book_model: &BookModel,
         agent: &ActiveAgents,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Option<MetadataReturned>> {
         let files = FileModel::find_by_book_id(book_model.id, db).await?;
 
@@ -726,7 +726,7 @@ impl TaskUpdateInvalidBook {
     async fn update_book_by_files(
         curr_book_model: BookModel,
         agent: &ActiveAgents,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<()> {
         // Check Files first.
         let found_meta = Self::return_found_metadata_by_files(&curr_book_model, agent, db).await?;
@@ -745,7 +745,7 @@ impl TaskUpdateInvalidBook {
 async fn overwrite_book_with_new_metadata(
     mut curr_book_model: BookModel,
     mut metadata: MetadataReturned,
-    db: &Database,
+    db: &dyn DatabaseAccess,
 ) -> Result<()> {
     let (main_author, author_ids) = metadata.add_or_ignore_authors_into_database(db).await?;
 
@@ -847,7 +847,7 @@ impl TaskUpdatePeople {
 
 #[async_trait]
 impl Task for TaskUpdatePeople {
-    async fn run(&mut self, _task_id: UniqueId, db: &Database) -> Result<()> {
+    async fn run(&mut self, _task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()> {
         match self.state.clone() {
             UpdatingPeople::AutoUpdateById(person_id) => {
                 let old_person = PersonModel::find_one_by_id(person_id, db).await?.unwrap();
@@ -873,7 +873,7 @@ impl TaskUpdatePeople {
     pub async fn overwrite_person_with_source(
         mut old_person: PersonModel,
         source: &Source,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<()> {
         if let Some(new_person) = get_person_by_source(source).await? {
             // TODO: Need to make sure it doesn't conflict with alt names or normal names if different.

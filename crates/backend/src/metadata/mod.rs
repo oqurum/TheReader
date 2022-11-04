@@ -21,7 +21,7 @@ use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;
 use tracing::error;
 
-use crate::database::Database;
+use crate::DatabaseAccess;
 
 use self::{
     google_books::GoogleBooksMetadata, libby::LibbyMetadata, local::LocalMetadata,
@@ -353,7 +353,7 @@ impl MetadataReturned {
     /// Returns (Main Author, Person IDs)
     pub async fn add_or_ignore_authors_into_database(
         &mut self,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<(Option<String>, Vec<PersonId>)> {
         let mut main_author = None;
         let mut person_ids = Vec::new();
@@ -533,7 +533,7 @@ impl FoundImageLocation {
         matches!(self, Self::Url(_))
     }
 
-    pub async fn download(&mut self, db: &Database) -> Result<()> {
+    pub async fn download(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
         match self {
             FoundImageLocation::Url(url) => {
                 // Fix URL

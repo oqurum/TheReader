@@ -78,7 +78,7 @@ pub async fn post_passwordless_oauth(
 
     let main_html = render_email(proto, host, &email_config.display_name, &auth_callback_url);
 
-    auth_model.insert(&db).await?;
+    auth_model.insert(&db.basic()).await?;
 
     send_auth_email(query.0.email, auth_callback_url, main_html, &email_config)?;
 
@@ -108,9 +108,9 @@ pub async fn get_passwordless_oauth_callback(
     // Verify that's is a proper email address.
     let address = email.parse::<Address>().map_err(Error::from)?;
 
-    if let Some(auth) = AuthModel::find_by_token(&oauth_token, &db).await? {
+    if let Some(auth) = AuthModel::find_by_token(&oauth_token, &db.basic()).await? {
         // Create or Update User.
-        let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db).await? {
+        let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db.basic()).await? {
             value
         } else {
             let mut new_member = NewMemberModel {
@@ -130,7 +130,7 @@ pub async fn get_passwordless_oauth_callback(
                 new_member.permissions = Permissions::owner();
             }
 
-            let inserted = new_member.insert(&db).await?;
+            let inserted = new_member.insert(&db.basic()).await?;
 
             // Update config.
             if !has_admin_account {
@@ -145,7 +145,7 @@ pub async fn get_passwordless_oauth_callback(
             inserted
         };
 
-        AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &db).await?;
+        AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &db.basic()).await?;
 
         super::remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
     }

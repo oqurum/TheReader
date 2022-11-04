@@ -1,7 +1,7 @@
 use common::{BookId, Either, PersonId};
 use rusqlite::params;
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use serde::Serialize;
 
 use super::{AdvRow, TableRow};
@@ -22,7 +22,7 @@ impl TableRow<'_> for BookPersonModel {
 }
 
 impl BookPersonModel {
-    pub async fn insert_or_ignore(&self, db: &Database) -> Result<()> {
+    pub async fn insert_or_ignore(&self, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"INSERT OR IGNORE INTO book_person (book_id, person_id) VALUES (?1, ?2)"#,
             params![self.book_id, self.person_id],
@@ -31,7 +31,7 @@ impl BookPersonModel {
         Ok(())
     }
 
-    pub async fn delete(&self, db: &Database) -> Result<()> {
+    pub async fn delete(&self, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"DELETE FROM book_person WHERE book_id = ?1 AND person_id = ?2"#,
             params![self.book_id, self.person_id],
@@ -40,7 +40,7 @@ impl BookPersonModel {
         Ok(())
     }
 
-    pub async fn delete_by_book_id(id: BookId, db: &Database) -> Result<()> {
+    pub async fn delete_by_book_id(id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
         db.write()
             .await
             .execute(r#"DELETE FROM book_person WHERE book_id = ?1"#, [id])?;
@@ -48,7 +48,7 @@ impl BookPersonModel {
         Ok(())
     }
 
-    pub async fn delete_by_person_id(id: PersonId, db: &Database) -> Result<()> {
+    pub async fn delete_by_person_id(id: PersonId, db: &dyn DatabaseAccess) -> Result<()> {
         db.write()
             .await
             .execute(r#"DELETE FROM book_person WHERE person_id = ?1"#, [id])?;
@@ -59,7 +59,7 @@ impl BookPersonModel {
     pub async fn transfer_person(
         from_id: PersonId,
         to_id: PersonId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<usize> {
         Ok(db.write().await.execute(
             r#"UPDATE book_person SET person_id = ?2 WHERE person_id = ?1"#,
@@ -67,7 +67,7 @@ impl BookPersonModel {
         )?)
     }
 
-    pub async fn find_by(id: Either<BookId, PersonId>, db: &Database) -> Result<Vec<Self>> {
+    pub async fn find_by(id: Either<BookId, PersonId>, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         match id {

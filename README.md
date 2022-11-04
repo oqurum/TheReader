@@ -7,6 +7,7 @@ Lots of `.unwrap()`s which need to be removed.
 My intention will be to make it [Plex](https://plex.tv) for Books.
 
 TODO:
+ - Utilize sqlite transactions for multi table changes.
  - Remove redundant functions. I started making this without a plan so there WILL be redundant things.
  - Implement database migrations
  - More `TODO`s in comments throughout the code
@@ -15,6 +16,8 @@ TODO:
 # Running/Building
 
 To run and build the application you need to do the following:
+
+Minimum Rust Version 1.65
 
 [Install Rust](https://www.rust-lang.org/). It's used for coding this whole application.
 

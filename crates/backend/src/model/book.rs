@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::{BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::{
     filter::{FilterContainer, FilterModifier, FilterTableType},
     util::{serialize_datetime, serialize_datetime_opt},
@@ -96,7 +96,7 @@ impl TableRow<'_> for BookModel {
 }
 
 impl BookModel {
-    pub async fn insert_or_increment(&self, db: &Database) -> Result<Self> {
+    pub async fn insert_or_increment(&self, db: &dyn DatabaseAccess) -> Result<Self> {
         let table_book = if self.id != 0 {
             Self::find_one_by_id(self.id, db).await?
         } else {
@@ -149,7 +149,7 @@ impl BookModel {
         Ok(table_book.unwrap())
     }
 
-    pub async fn update(&mut self, db: &Database) -> Result<()> {
+    pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
         self.updated_at = Utc::now();
 
         db.write().await.execute(
@@ -183,7 +183,7 @@ impl BookModel {
         Ok(())
     }
 
-    pub async fn delete_or_decrement(id: BookId, db: &Database) -> Result<()> {
+    pub async fn delete_or_decrement(id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count < 1 {
                 db.write().await.execute(
@@ -200,7 +200,7 @@ impl BookModel {
         Ok(())
     }
 
-    pub async fn decrement(id: BookId, db: &Database) -> Result<()> {
+    pub async fn decrement(id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count > 0 {
                 db.write().await.execute(
@@ -213,7 +213,7 @@ impl BookModel {
         Ok(())
     }
 
-    pub async fn set_file_count(id: BookId, file_count: usize, db: &Database) -> Result<()> {
+    pub async fn set_file_count(id: BookId, file_count: usize, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"UPDATE book SET file_item_count = ?2 WHERE id = ?1"#,
             params![id, file_count],
@@ -223,7 +223,7 @@ impl BookModel {
     }
 
     // TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
-    pub async fn find_one_by_source(source: &Source, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_source(source: &Source, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -235,7 +235,7 @@ impl BookModel {
             .optional()?)
     }
 
-    pub async fn find_one_by_id(id: BookId, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_id(id: BookId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -245,7 +245,7 @@ impl BookModel {
             .optional()?)
     }
 
-    pub async fn delete_by_id(id: BookId, db: &Database) -> Result<usize> {
+    pub async fn delete_by_id(id: BookId, db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .write()
             .await
@@ -257,7 +257,7 @@ impl BookModel {
         offset: usize,
         limit: usize,
         person_id: Option<PersonId>,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<Self>> {
         let this = db.read().await;
 
@@ -285,7 +285,7 @@ impl BookModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn edit_book_by_id(book_id: BookId, edit: BookEdit, db: &Database) -> Result<usize> {
+    pub async fn edit_book_by_id(book_id: BookId, edit: BookEdit, db: &dyn DatabaseAccess) -> Result<usize> {
         let mut items = Vec::new();
 
         let mut values = vec![&book_id as &dyn rusqlite::ToSql];
@@ -469,7 +469,7 @@ impl BookModel {
         library: Option<LibraryId>,
         offset: usize,
         limit: usize,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<Self>> {
         let mut sql = Self::gen_search_query(filter, library);
 
@@ -487,7 +487,7 @@ impl BookModel {
     pub async fn count_search_by(
         filter: &FilterContainer,
         library: Option<LibraryId>,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<usize> {
         let sql = Self::gen_search_query(filter, library).replace("SELECT *", "SELECT COUNT(*)");
 

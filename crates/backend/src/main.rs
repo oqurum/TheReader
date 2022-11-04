@@ -22,6 +22,7 @@ pub mod task;
 pub mod util;
 
 pub use cli::CliArgs;
+pub use database::DatabaseAccess;
 pub use error::{Error, InternalError, Result, WebError, WebResult};
 pub use task::{queue_task, Task};
 pub use util::*;

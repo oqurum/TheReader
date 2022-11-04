@@ -1,6 +1,6 @@
 use rusqlite::params;
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::LibraryId;
 
 use super::{AdvRow, TableRow};
@@ -20,7 +20,7 @@ impl TableRow<'_> for DirectoryModel {
 }
 
 impl DirectoryModel {
-    pub async fn insert(&self, db: &Database) -> Result<()> {
+    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             r#"INSERT INTO directory (library_id, path) VALUES (?1, ?2)"#,
             params![&self.library_id, &self.path],
@@ -29,14 +29,14 @@ impl DirectoryModel {
         Ok(())
     }
 
-    pub async fn remove_by_path(path: &str, db: &Database) -> Result<usize> {
+    pub async fn remove_by_path(path: &str, db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .write()
             .await
             .execute(r#"DELETE FROM directory WHERE path = ?1"#, [path])?)
     }
 
-    pub async fn delete_by_library_id(id: LibraryId, db: &Database) -> Result<usize> {
+    pub async fn delete_by_library_id(id: LibraryId, db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .write()
             .await
@@ -45,7 +45,7 @@ impl DirectoryModel {
 
     pub async fn find_directories_by_library_id(
         library_id: LibraryId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<DirectoryModel>> {
         let this = db.read().await;
 
@@ -56,7 +56,7 @@ impl DirectoryModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn get_all(db: &Database) -> Result<Vec<DirectoryModel>> {
+    pub async fn get_all(db: &dyn DatabaseAccess) -> Result<Vec<DirectoryModel>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM directory")?;

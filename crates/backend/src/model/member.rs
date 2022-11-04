@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::{util::serialize_datetime, MemberAuthType, Permissions};
 use serde::Serialize;
 
@@ -87,7 +87,7 @@ impl TableRow<'_> for MemberModel {
 }
 
 impl NewMemberModel {
-    pub async fn insert(self, db: &Database) -> Result<MemberModel> {
+    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<MemberModel> {
         let conn = db.write().await;
 
         conn.execute(r#"
@@ -104,7 +104,7 @@ impl NewMemberModel {
 }
 
 impl MemberModel {
-    pub async fn find_one_by_email(value: &str, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_email(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -116,7 +116,7 @@ impl MemberModel {
             .optional()?)
     }
 
-    pub async fn find_one_by_id(id: MemberId, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_one_by_id(id: MemberId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -126,7 +126,7 @@ impl MemberModel {
             .optional()?)
     }
 
-    pub async fn count(db: &Database) -> Result<usize> {
+    pub async fn count(db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .read()
             .await

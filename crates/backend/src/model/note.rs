@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::{util::serialize_datetime, FileId};
 use serde::Serialize;
 
@@ -52,7 +52,7 @@ impl TableRow<'_> for FileNoteModel {
 }
 
 impl FileNoteModel {
-    pub async fn insert_or_update(&self, db: &Database) -> Result<()> {
+    pub async fn insert_or_update(&self, db: &dyn DatabaseAccess) -> Result<()> {
         if Self::find_one(self.file_id, self.member_id, db)
             .await?
             .is_some()
@@ -74,7 +74,7 @@ impl FileNoteModel {
     pub async fn find_one(
         file_id: FileId,
         member_id: MemberId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Option<Self>> {
         Ok(db
             .read()
@@ -87,7 +87,7 @@ impl FileNoteModel {
             .optional()?)
     }
 
-    pub async fn delete_one(file_id: FileId, member_id: MemberId, db: &Database) -> Result<()> {
+    pub async fn delete_one(file_id: FileId, member_id: MemberId, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             "DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
             params![member_id, file_id],

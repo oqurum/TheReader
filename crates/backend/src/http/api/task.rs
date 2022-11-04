@@ -17,7 +17,7 @@ pub async fn run_task(
 ) -> WebResult<JsonResponse<&'static str>> {
     let modify = modify.into_inner();
 
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());

@@ -21,7 +21,7 @@ pub async fn get_directory(
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetDirectoryResponse>> {
     if let Some(member) = &member {
-        let member = member.fetch_or_error(&db).await?;
+        let member = member.fetch_or_error(&db.basic()).await?;
 
         if !member.permissions.is_owner() {
             return Err(ApiErrorResponse::new("Not owner").into());

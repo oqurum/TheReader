@@ -35,7 +35,7 @@ pub async fn get_configg(
 ) -> WebResult<JsonResponse<api::ApiGetSetupResponse>> {
     if iss_setup() {
         if let Some(member) = member.as_ref() {
-            let member = member.fetch_or_error(&db).await?;
+            let member = member.fetch_or_error(&db.basic()).await?;
 
             if !member.permissions.is_owner() {
                 return Err(ApiErrorResponse::new("Not owner").into());
@@ -60,7 +60,7 @@ pub async fn save_initial_setup(
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<String>> {
     if let Some(member) = member {
-        let member = member.fetch_or_error(&db).await?;
+        let member = member.fetch_or_error(&db.basic()).await?;
 
         if !member.permissions.is_owner() {
             return Err(ApiErrorResponse::new("Not owner").into());
@@ -82,7 +82,7 @@ pub async fn save_initial_setup(
         return Ok(web::Json(WrappingResponse::error("Invalid Server Name")));
     }
 
-    let mut library_count = LibraryModel::count(&db).await?;
+    let mut library_count = LibraryModel::count(&db.basic()).await?;
 
     for path in &config.directories {
         if tokio::fs::metadata(path).await.is_err() {
@@ -99,7 +99,7 @@ pub async fn save_initial_setup(
             scanned_at: now,
             updated_at: now,
         }
-        .insert(&db)
+        .insert(&db.basic())
         .await?;
 
         // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
@@ -108,7 +108,7 @@ pub async fn save_initial_setup(
             library_id: lib.id,
             path: path.clone(),
         }
-        .insert(&db)
+        .insert(&db.basic())
         .await?;
 
         crate::task::queue_task(crate::task::TaskLibraryScan { library_id: lib.id });
@@ -132,7 +132,7 @@ pub async fn post_setup_agent(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Ok(HttpResponse::NotAcceptable().body("Not owner"));
@@ -164,7 +164,7 @@ pub async fn post_setup_agent(
 
     // TODO: Should I store it in AuthModel?
     let auth_model = AuthModel::new(None);
-    auth_model.insert(&db).await?;
+    auth_model.insert(&db.basic()).await?;
 
     let mut location_uri = Url::parse(&config.libby.url).unwrap();
     location_uri.set_path("authorize");
@@ -192,7 +192,7 @@ pub async fn get_setup_agent_verify(
     db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
     let query = query.into_inner();
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Ok(HttpResponse::NotAcceptable().body("Not owner"));
@@ -204,8 +204,8 @@ pub async fn get_setup_agent_verify(
         return Ok(HttpResponse::NotAcceptable().body("Agent is already setup"));
     }
 
-    if let Some(auth_model) = AuthModel::find_by_token(&query.state, &db).await? {
-        AuthModel::remove_by_token_secret(&auth_model.oauth_token_secret, &db).await?;
+    if let Some(auth_model) = AuthModel::find_by_token(&query.state, &db.basic()).await? {
+        AuthModel::remove_by_token_secret(&auth_model.oauth_token_secret, &db.basic()).await?;
 
         let mut location_uri = Url::parse(&config.libby.url).unwrap();
         location_uri.set_path("auth/handshake");

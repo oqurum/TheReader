@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::{BookId, MemberId};
 use rusqlite::{params, OptionalExtension};
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::{util::serialize_datetime, FileId, Progression};
 use serde::Serialize;
 
@@ -130,7 +130,7 @@ impl FileProgressionModel {
         book_id: BookId,
         file_id: FileId,
         progress: Progression,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<()> {
         let prog = Self::new(progress, member_id, book_id, file_id);
 
@@ -152,7 +152,7 @@ impl FileProgressionModel {
     pub async fn find_one(
         member_id: MemberId,
         file_id: FileId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Option<Self>> {
         Ok(db
             .read()
@@ -165,7 +165,7 @@ impl FileProgressionModel {
             .optional()?)
     }
 
-    pub async fn delete_one(member_id: MemberId, file_id: FileId, db: &Database) -> Result<()> {
+    pub async fn delete_one(member_id: MemberId, file_id: FileId, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             "DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
             params![member_id, file_id],
@@ -176,7 +176,7 @@ impl FileProgressionModel {
 
     pub async fn get_member_progression_and_books(
         member_id: MemberId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<Vec<(Self, BookModel)>> {
         let read = db.read().await;
 

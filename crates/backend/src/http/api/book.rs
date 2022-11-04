@@ -42,7 +42,7 @@ pub async fn load_book_list(
 
     let filters = query.filters.unwrap_or_default();
 
-    let count = BookModel::count_search_by(&filters, query.library, &db).await?;
+    let count = BookModel::count_search_by(&filters, query.library, &db.basic()).await?;
 
     let items = if count == 0 {
         Vec::new()
@@ -52,7 +52,7 @@ pub async fn load_book_list(
             query.library,
             query.offset.unwrap_or(0),
             query.limit.unwrap_or(50),
-            &db,
+            &db.basic(),
         )
         .await?
         .into_iter()
@@ -77,16 +77,16 @@ pub async fn load_book_preset_list(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::GetBookPresetListResponse>> {
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     match query.preset {
         BookPresetListType::Progressing => {
             let mut items = Vec::new();
 
             for (a, book) in
-                FileProgressionModel::get_member_progression_and_books(member.id, &db).await?
+                FileProgressionModel::get_member_progression_and_books(member.id, &db.basic()).await?
             {
-                let file = FileModel::find_one_by_id(a.file_id, &db).await?.unwrap();
+                let file = FileModel::find_one_by_id(a.file_id, &db.basic()).await?.unwrap();
 
                 let book = DisplayItem {
                     id: book.id,
@@ -117,7 +117,7 @@ pub async fn update_books(
 ) -> WebResult<JsonResponse<&'static str>> {
     let edit = body.into_inner();
 
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -128,22 +128,22 @@ pub async fn update_books(
     match edit.people_list_mod {
         ModifyValuesBy::Overwrite => {
             for book_id in edit.book_ids {
-                BookPersonModel::delete_by_book_id(book_id, &db).await?;
+                BookPersonModel::delete_by_book_id(book_id, &db.basic()).await?;
 
                 for person_id in edit.people_list.iter().copied() {
                     BookPersonModel { book_id, person_id }
-                        .insert_or_ignore(&db)
+                        .insert_or_ignore(&db.basic())
                         .await?;
                 }
 
                 // Update the cached author name
                 if let Some(person_id) = edit.people_list.first().copied() {
-                    let person = PersonModel::find_one_by_id(person_id, &db).await?;
-                    let book = BookModel::find_one_by_id(book_id, &db).await?;
+                    let person = PersonModel::find_one_by_id(person_id, &db.basic()).await?;
+                    let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
 
                     if let Some((person, mut book)) = person.zip(book) {
                         book.cached.author = Some(person.name);
-                        book.update(&db).await?;
+                        book.update(&db.basic()).await?;
                     }
                 }
             }
@@ -153,7 +153,7 @@ pub async fn update_books(
             for book_id in edit.book_ids {
                 for person_id in edit.people_list.iter().copied() {
                     BookPersonModel { book_id, person_id }
-                        .insert_or_ignore(&db)
+                        .insert_or_ignore(&db.basic())
                         .await?;
                 }
             }
@@ -162,20 +162,20 @@ pub async fn update_books(
         ModifyValuesBy::Remove => {
             for book_id in edit.book_ids {
                 for person_id in edit.people_list.iter().copied() {
-                    BookPersonModel { book_id, person_id }.delete(&db).await?;
+                    BookPersonModel { book_id, person_id }.delete(&db.basic()).await?;
                 }
 
                 // TODO: Check if we removed cached author
                 // If book has no other people referenced we'll update the cached author name.
-                if BookPersonModel::find_by(Either::Left(book_id), &db)
+                if BookPersonModel::find_by(Either::Left(book_id), &db.basic())
                     .await?
                     .is_empty()
                 {
-                    let book = BookModel::find_one_by_id(book_id, &db).await?;
+                    let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
 
                     if let Some(mut book) = book {
                         book.cached.author = None;
-                        book.update(&db).await?;
+                        book.update(&db.basic()).await?;
                     }
                 }
             }
@@ -192,18 +192,18 @@ pub async fn load_book_info(
     book_id: web::Path<BookId>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookByIdResponse>> {
-    let book = BookModel::find_one_by_id(*book_id, &db).await?.unwrap();
+    let book = BookModel::find_one_by_id(*book_id, &db.basic()).await?.unwrap();
 
     let (mut media, mut progress) = (Vec::new(), Vec::new());
 
-    for file in FileModel::find_by_book_id(book.id, &db).await? {
-        let prog = FileProgressionModel::find_one(member.member_id(), file.id, &db).await?;
+    for file in FileModel::find_by_book_id(book.id, &db.basic()).await? {
+        let prog = FileProgressionModel::find_one(member.member_id(), file.id, &db.basic()).await?;
 
         media.push(file.into());
         progress.push(prog.map(|v| v.into()));
     }
 
-    let people = PersonModel::find_by_book_id(book.id, &db).await?;
+    let people = PersonModel::find_by_book_id(book.id, &db.basic()).await?;
 
     Ok(web::Json(WrappingResponse::okay(api::GetBookResponse {
         book: book.into(),
@@ -222,7 +222,7 @@ pub async fn update_book_info(
 ) -> WebResult<JsonResponse<&'static str>> {
     let book_id = *book_id;
 
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -254,7 +254,7 @@ pub async fn update_book_info(
         }
 
         api::PostBookBody::Edit(edit) => {
-            BookModel::edit_book_by_id(book_id, edit, &db).await?;
+            BookModel::edit_book_by_id(book_id, edit, &db.basic()).await?;
         }
     }
 
@@ -266,7 +266,7 @@ pub async fn download_book(
     book_id: web::Path<BookId>,
     db: web::Data<Database>,
 ) -> WebResult<NamedFile> {
-    let mut files = FileModel::find_by_book_id(*book_id, &db).await?;
+    let mut files = FileModel::find_by_book_id(*book_id, &db.basic()).await?;
 
     if files.is_empty() {
         return Err(crate::Error::Internal(crate::InternalError::ItemMissing).into());
@@ -299,14 +299,14 @@ async fn get_book_posters(
     path: web::Path<BookId>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetPosterByBookIdResponse>> {
-    let book = BookModel::find_one_by_id(*path, &db).await?.unwrap();
+    let book = BookModel::find_one_by_id(*path, &db.basic()).await?.unwrap();
 
     // TODO: For Open Library we need to go from an Edition to Work.
     // Work is the main book. Usually consisting of more posters.
     // We can do they by works[0].key = "/works/OLXXXXXXW"
 
     let mut items: Vec<Poster> =
-        ImageLinkModel::find_with_link_by_link_id(**path, ImageType::Book, &db)
+        ImageLinkModel::find_with_link_by_link_id(**path, ImageType::Book, &db.basic())
             .await?
             .into_iter()
             .map(|poster| Poster {
@@ -369,13 +369,13 @@ async fn insert_or_update_book_image(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let mut book = BookModel::find_one_by_id(*book_id, &db).await?.unwrap();
+    let mut book = BookModel::find_one_by_id(*book_id, &db.basic()).await?.unwrap();
 
     match body.into_inner().url_or_id {
         Either::Left(url) => {
@@ -386,17 +386,17 @@ async fn insert_or_update_book_image(
                 .await
                 .map_err(Error::from)?;
 
-            let image_model = store_image(resp.to_vec(), &db).await?;
+            let image_model = store_image(resp.to_vec(), &db.basic()).await?;
 
             book.thumb_path = image_model.path.clone();
 
             ImageLinkModel::new_book(image_model.id, book.id)
-                .insert(&db)
+                .insert(&db.basic())
                 .await?;
         }
 
         Either::Right(id) => {
-            let poster = UploadedImageModel::get_by_id(id, &db).await?.unwrap();
+            let poster = UploadedImageModel::get_by_id(id, &db.basic()).await?.unwrap();
 
             if book.thumb_path == poster.path {
                 return Ok(web::Json(WrappingResponse::okay("success")));
@@ -406,7 +406,7 @@ async fn insert_or_update_book_image(
         }
     }
 
-    book.update(&db).await?;
+    book.update(&db.basic()).await?;
 
     Ok(web::Json(WrappingResponse::okay("success")))
 }
@@ -484,7 +484,7 @@ async fn insert_book_person(
 ) -> WebResult<JsonResponse<String>> {
     let (book_id, person_id) = ids.into_inner();
 
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Ok(web::Json(WrappingResponse::error(
@@ -493,21 +493,21 @@ async fn insert_book_person(
     }
 
     // If book had no other people referenced we'll update the cached author name.
-    if BookPersonModel::find_by(Either::Left(book_id), &db)
+    if BookPersonModel::find_by(Either::Left(book_id), &db.basic())
         .await?
         .is_empty()
     {
-        let person = PersonModel::find_one_by_id(person_id, &db).await?;
-        let book = BookModel::find_one_by_id(book_id, &db).await?;
+        let person = PersonModel::find_one_by_id(person_id, &db.basic()).await?;
+        let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
 
         if let Some((person, mut book)) = person.zip(book) {
             book.cached.author = Some(person.name);
-            book.update(&db).await?;
+            book.update(&db.basic()).await?;
         }
     }
 
     BookPersonModel { book_id, person_id }
-        .insert_or_ignore(&db)
+        .insert_or_ignore(&db.basic())
         .await?;
 
     Ok(web::Json(WrappingResponse::okay(String::from("success"))))
@@ -521,7 +521,7 @@ async fn delete_book_person(
 ) -> WebResult<JsonResponse<DeletionResponse>> {
     let (book_id, person_id) = ids.into_inner();
 
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Ok(web::Json(WrappingResponse::error(
@@ -529,18 +529,18 @@ async fn delete_book_person(
         )));
     }
 
-    BookPersonModel { book_id, person_id }.delete(&db).await?;
+    BookPersonModel { book_id, person_id }.delete(&db.basic()).await?;
 
     // If book has no other people referenced we'll update the cached author name.
-    if BookPersonModel::find_by(Either::Left(book_id), &db)
+    if BookPersonModel::find_by(Either::Left(book_id), &db.basic())
         .await?
         .is_empty()
     {
-        let book = BookModel::find_one_by_id(book_id, &db).await?;
+        let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
 
         if let Some(mut book) = book {
             book.cached.author = None;
-            book.update(&db).await?;
+            book.update(&db.basic()).await?;
         }
     }
 

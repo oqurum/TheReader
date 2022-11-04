@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use crate::{database::Database, http::gen_sample_alphanumeric, Result};
+use crate::{DatabaseAccess, http::gen_sample_alphanumeric, Result};
 
 use super::{AdvRow, TableRow};
 
@@ -46,7 +46,7 @@ impl AuthModel {
         }
     }
 
-    pub async fn insert(&self, db: &Database) -> Result<()> {
+    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<()> {
         db.write().await.execute(
             "INSERT INTO auth (oauth_token, oauth_token_secret, member_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
@@ -64,7 +64,7 @@ impl AuthModel {
     pub async fn update_with_member_id(
         token_secret: &str,
         member_id: MemberId,
-        db: &Database,
+        db: &dyn DatabaseAccess,
     ) -> Result<bool> {
         Ok(db.write().await.execute(
             "UPDATE auth SET member_id = ?2, oauth_token = NULL WHERE oauth_token_secret = ?1",
@@ -72,7 +72,7 @@ impl AuthModel {
         )? != 0)
     }
 
-    pub async fn remove_by_token_secret(token_secret: &str, db: &Database) -> Result<bool> {
+    pub async fn remove_by_token_secret(token_secret: &str, db: &dyn DatabaseAccess) -> Result<bool> {
         Ok(db.write().await.execute(
             "DELETE FROM auth WHERE oauth_token_secret = ?1",
             [token_secret],
@@ -80,7 +80,7 @@ impl AuthModel {
     }
 
     // TODO: Replace most used results with does_exist.
-    pub async fn find_by_token(token: &str, db: &Database) -> Result<Option<Self>> {
+    pub async fn find_by_token(token: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .write()
             .await

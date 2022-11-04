@@ -19,10 +19,10 @@ async fn load_options(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetOptionsResponse>> {
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
-    let libraries = LibraryModel::get_all(&db).await?;
-    let mut directories = DirectoryModel::get_all(&db).await?;
+    let libraries = LibraryModel::get_all(&db.basic()).await?;
+    let mut directories = DirectoryModel::get_all(&db.basic()).await?;
 
     Ok(web::Json(WrappingResponse::okay(api::GetOptionsResponse {
         libraries: libraries
@@ -58,7 +58,7 @@ async fn update_options_add(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -77,7 +77,7 @@ async fn update_options_add(
                 scanned_at: Utc::now(),
                 updated_at: Utc::now(),
             }
-            .insert(&db)
+            .insert(&db.basic())
             .await?;
 
             // TODO: Properly handle.
@@ -93,7 +93,7 @@ async fn update_options_add(
         if let Some((directories, library_id)) = library.directories.zip(library.id) {
             // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
             for path in directories {
-                DirectoryModel { library_id, path }.insert(&db).await?;
+                DirectoryModel { library_id, path }.insert(&db.basic()).await?;
             }
         }
     }
@@ -117,7 +117,7 @@ async fn update_options_remove(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let member = member.fetch_or_error(&db).await?;
+    let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -127,12 +127,12 @@ async fn update_options_remove(
 
     if let Some(library) = library {
         if let Some(id) = library.id {
-            LibraryModel::delete_by_id(id, &db).await?;
+            LibraryModel::delete_by_id(id, &db.basic()).await?;
         }
 
         if let Some(directory) = library.directories {
             for path in directory {
-                DirectoryModel::remove_by_path(&path, &db).await?;
+                DirectoryModel::remove_by_path(&path, &db.basic()).await?;
             }
         }
     }

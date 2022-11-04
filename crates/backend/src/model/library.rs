@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use crate::{database::Database, Result};
+use crate::{DatabaseAccess, Result};
 use common_local::{util::serialize_datetime, LibraryId};
 
 use super::{directory::DirectoryModel, AdvRow, TableRow};
@@ -42,7 +42,7 @@ impl TableRow<'_> for LibraryModel {
 }
 
 impl NewLibraryModel {
-    pub async fn insert(self, db: &Database) -> Result<LibraryModel> {
+    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<LibraryModel> {
         let lock = db.write().await;
 
         lock.execute(
@@ -66,7 +66,7 @@ impl NewLibraryModel {
 }
 
 impl LibraryModel {
-    pub async fn delete_by_id(id: LibraryId, db: &Database) -> Result<usize> {
+    pub async fn delete_by_id(id: LibraryId, db: &dyn DatabaseAccess) -> Result<usize> {
         DirectoryModel::delete_by_library_id(id, db).await?;
 
         Ok(db
@@ -75,14 +75,14 @@ impl LibraryModel {
             .execute(r#"DELETE FROM library WHERE id = ?1"#, [id])?)
     }
 
-    pub async fn count(db: &Database) -> Result<usize> {
+    pub async fn count(db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .read()
             .await
             .query_row("SELECT COUNT(*) FROM library", [], |v| v.get(0))?)
     }
 
-    pub async fn get_all(db: &Database) -> Result<Vec<LibraryModel>> {
+    pub async fn get_all(db: &dyn DatabaseAccess) -> Result<Vec<LibraryModel>> {
         let this = db.read().await;
 
         let mut conn = this.prepare("SELECT * FROM library")?;
@@ -92,7 +92,7 @@ impl LibraryModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_one_by_name(value: &str, db: &Database) -> Result<Option<LibraryModel>> {
+    pub async fn find_one_by_name(value: &str, db: &dyn DatabaseAccess) -> Result<Option<LibraryModel>> {
         Ok(db
             .read()
             .await
@@ -104,7 +104,7 @@ impl LibraryModel {
             .optional()?)
     }
 
-    pub async fn find_one_by_id(value: LibraryId, db: &Database) -> Result<Option<LibraryModel>> {
+    pub async fn find_one_by_id(value: LibraryId, db: &dyn DatabaseAccess) -> Result<Option<LibraryModel>> {
         Ok(db
             .read()
             .await
@@ -114,7 +114,7 @@ impl LibraryModel {
             .optional()?)
     }
 
-    pub async fn update(&mut self, db: &Database) -> Result<usize> {
+    pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<usize> {
         self.updated_at = Utc::now();
 
         let write = db

@@ -14,7 +14,7 @@ pub async fn load_member_self(
     cookie: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetMemberSelfResponse>> {
-    let member = cookie.fetch_or_error(&db).await?;
+    let member = cookie.fetch_or_error(&db.basic()).await?;
 
     Ok(web::Json(WrappingResponse::okay(
         api::GetMemberSelfResponse {

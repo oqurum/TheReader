@@ -18,7 +18,7 @@ use rand::{rngs::ThreadRng, Rng};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    database::Database,
+    database::{Database, DatabaseAccess},
     model::{auth::AuthModel, member::MemberModel},
     InternalError, Result, WebError,
 };
@@ -84,7 +84,7 @@ impl MemberCookie {
         self.0.token_secret.as_str()
     }
 
-    pub async fn fetch(&self, db: &Database) -> Result<Option<MemberModel>> {
+    pub async fn fetch(&self, db: &dyn DatabaseAccess) -> Result<Option<MemberModel>> {
         // Not needed now. Checked in the "LoginRequired" Middleware
 
         // if AuthModel::find_by_token(self.token_secret(), db).await?.is_some() {
@@ -94,7 +94,7 @@ impl MemberCookie {
         // }
     }
 
-    pub async fn fetch_or_error(&self, db: &Database) -> Result<MemberModel> {
+    pub async fn fetch_or_error(&self, db: &dyn DatabaseAccess) -> Result<MemberModel> {
         match self.fetch(db).await? {
             Some(v) => Ok(v),
             None => Err(InternalError::UserMissing.into()),
@@ -176,7 +176,7 @@ where
                 let db = actix_web::web::Data::<Database>::from_request(&r, &mut pl).await?;
 
                 // TODO: Handle Result
-                if AuthModel::find_by_token(&cookie.token_secret, &db)
+                if AuthModel::find_by_token(&cookie.token_secret, &db.basic())
                     .await
                     .ok()
                     .flatten()
