@@ -75,12 +75,9 @@ pub async fn library_scan(
 
                     let path = path.to_str().unwrap().replace('\\', "/");
 
-                    let hash = match book.compute_hash() {
-                        Some(v) => v,
-                        None => {
-                            error!(target: "scanner", file = path, "Unable to compute hash");
-                            continue;
-                        }
+                    let Some(hash) = book.compute_hash() else {
+                        error!(target: "scanner", file = path, "Unable to compute hash");
+                        continue;
                     };
 
                     let chapter_count = book.chapter_count() as i64;

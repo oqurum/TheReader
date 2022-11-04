@@ -88,9 +88,8 @@ impl NewUploadedImageModel {
     }
 
     pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<UploadedImageModel> {
-        let path = match self.path.into_value() {
-            Some(v) => v,
-            None => return Err(InternalError::InvalidModel.into()),
+        let Some(path) = self.path.into_value() else {
+            return Err(InternalError::InvalidModel.into());
         };
 
         let conn = db.write().await;

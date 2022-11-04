@@ -46,16 +46,13 @@ pub async fn post_passwordless_oauth(
 
     let config = get_config();
 
-    let (email_config, host) = match (
+    let (Some(email_config), Some(host)) = (
         config.email,
         req.headers().get("host").and_then(|v| v.to_str().ok()),
-    ) {
-        (Some(a), Some(b)) => (a, b),
-        _ => {
-            return Err(
-                ApiErrorResponse::new("Missing email from config OR unable to get host").into(),
-            )
-        }
+    ) else {
+        return Err(
+            ApiErrorResponse::new("Missing email from config OR unable to get host").into(),
+        );
     };
 
     let proto = if config.server.is_secure {

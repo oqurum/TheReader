@@ -33,9 +33,8 @@ impl Metadata for OpenLibraryMetadata {
     ) -> Result<Option<MetadataReturned>> {
         for file in files {
             if let Some(isbn) = file.identifier.clone() {
-                let id = match BookId::make_assumptions(isbn) {
-                    Some(v) => v,
-                    None => continue,
+                let Some(id) = BookId::make_assumptions(isbn) else {
+                    continue;
                 };
 
                 match self.request(id).await {
@@ -50,9 +49,8 @@ impl Metadata for OpenLibraryMetadata {
     }
 
     async fn get_metadata_by_source_id(&mut self, value: &str) -> Result<Option<MetadataReturned>> {
-        let id = match BookId::make_assumptions(value.to_string()) {
-            Some(v) => v,
-            None => return Ok(None),
+        let Some(id) = BookId::make_assumptions(value.to_string()) else {
+            return Ok(None);
         };
 
         match self.request(id).await {
@@ -165,9 +163,7 @@ impl Metadata for OpenLibraryMetadata {
 
 impl OpenLibraryMetadata {
     pub async fn request(&self, id: BookId) -> Result<Option<MetadataReturned>> {
-        let mut book_info = if let Some(v) = book::get_book_by_id(&id).await? {
-            v
-        } else {
+        let Some(mut book_info) = book::get_book_by_id(&id).await? else {
             return Ok(None);
         };
 
@@ -226,12 +222,11 @@ impl OpenLibraryMetadata {
 
         // TODO: Parse record.publish_date | Millions of different variations. No specifics' were followed.
 
-        let source_id = match book_info.isbn_13.as_ref().and_then(|v| {
+        let Some(source_id) = book_info.isbn_13.as_ref().and_then(|v| {
             v.first()
                 .or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first()))
-        }) {
-            Some(v) => v,
-            None => return Ok(None),
+        }) else {
+            return Ok(None);
         };
 
         Ok(Some(MetadataReturned {

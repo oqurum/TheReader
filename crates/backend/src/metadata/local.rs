@@ -20,12 +20,13 @@ impl Metadata for LocalMetadata {
         &mut self,
         files: &[FileModel],
     ) -> Result<Option<MetadataReturned>> {
+        // FIX: For let Some(_) = FUNCTION else { continue };
+        #[allow(clippy::never_loop)]
         for file in files {
             // Wrapped to prevent "future cannot be sent between threads safely"
             let (meta, authors, publisher) = {
-                let mut book = match bookie::load_from_path(&file.path)? {
-                    Some(v) => v,
-                    None => continue,
+                let Some(mut book) = bookie::load_from_path(&file.path)? else {
+                    continue;
                 };
 
                 let source = self.prefix_text(book.get_unique_id()?);
