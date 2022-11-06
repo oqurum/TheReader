@@ -94,7 +94,9 @@ async fn post_change_person_thumbnail(
         )));
     }
 
-    let mut person = PersonModel::find_one_by_id(*id, &db.basic()).await?.unwrap();
+    let mut person = PersonModel::find_one_by_id(*id, &db.basic())
+        .await?
+        .unwrap();
 
     match body.into_inner().url_or_id {
         Either::Left(url) => {
@@ -115,7 +117,9 @@ async fn post_change_person_thumbnail(
         }
 
         Either::Right(id) => {
-            let poster = UploadedImageModel::get_by_id(id, &db.basic()).await?.unwrap();
+            let poster = UploadedImageModel::get_by_id(id, &db.basic())
+                .await?
+                .unwrap();
 
             if person.thumb_url == poster.path {
                 return Ok(web::Json(WrappingResponse::okay("poster already set")));
@@ -162,7 +166,9 @@ pub async fn update_person_data(
         api::PostPersonBody::CombinePersonWith(into_person_id) => {
             // TODO: Tests for this to ensure it's correct.
 
-            let old_person = PersonModel::find_one_by_id(person_id, &db.basic()).await?.unwrap();
+            let old_person = PersonModel::find_one_by_id(person_id, &db.basic())
+                .await?
+                .unwrap();
             let mut into_person = PersonModel::find_one_by_id(into_person_id, &db.basic())
                 .await?
                 .unwrap();
@@ -237,7 +243,9 @@ async fn load_person(
     person_id: web::Path<PersonId>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::GetPersonResponse>> {
-    let person = PersonModel::find_one_by_id(*person_id, &db.basic()).await?.unwrap();
+    let person = PersonModel::find_one_by_id(*person_id, &db.basic())
+        .await?
+        .unwrap();
 
     Ok(web::Json(WrappingResponse::okay(api::GetPersonResponse {
         person: person.into(),

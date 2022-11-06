@@ -143,7 +143,11 @@ impl UploadedImageModel {
             .optional()?)
     }
 
-    pub async fn remove(link_id: BookId, path: ThumbnailStore, db: &dyn DatabaseAccess) -> Result<usize> {
+    pub async fn remove(
+        link_id: BookId,
+        path: ThumbnailStore,
+        db: &dyn DatabaseAccess,
+    ) -> Result<usize> {
         // TODO: Check for currently set images
         // TODO: Remove image links.
         if let Some(path) = path.into_value() {

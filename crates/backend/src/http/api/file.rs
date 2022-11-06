@@ -25,7 +25,9 @@ pub async fn load_file_resource(
 ) -> WebResult<HttpResponse> {
     let (file_id, resource_path) = path.into_inner();
 
-    let file = FileModel::find_one_by_id(file_id, &db.basic()).await?.unwrap();
+    let file = FileModel::find_one_by_id(file_id, &db.basic())
+        .await?
+        .unwrap();
 
     let mut book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -74,7 +76,9 @@ pub async fn load_file_pages(
 ) -> WebResult<JsonResponse<api::ApiGetFilePagesByIdResponse>> {
     let (file_id, chapters) = path.into_inner();
 
-    let file = FileModel::find_one_by_id(file_id, &db.basic()).await?.unwrap();
+    let file = FileModel::find_one_by_id(file_id, &db.basic())
+        .await?
+        .unwrap();
 
     let mut book = bookie::load_from_path(&file.path)?.unwrap();
 

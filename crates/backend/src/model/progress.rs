@@ -165,7 +165,11 @@ impl FileProgressionModel {
             .optional()?)
     }
 
-    pub async fn delete_one(member_id: MemberId, file_id: FileId, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn delete_one(
+        member_id: MemberId,
+        file_id: FileId,
+        db: &dyn DatabaseAccess,
+    ) -> Result<()> {
         db.write().await.execute(
             "DELETE FROM file_progression WHERE user_id = ?1 AND file_id = ?2",
             params![member_id, file_id],

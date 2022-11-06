@@ -84,9 +84,12 @@ pub async fn load_book_preset_list(
             let mut items = Vec::new();
 
             for (a, book) in
-                FileProgressionModel::get_member_progression_and_books(member.id, &db.basic()).await?
+                FileProgressionModel::get_member_progression_and_books(member.id, &db.basic())
+                    .await?
             {
-                let file = FileModel::find_one_by_id(a.file_id, &db.basic()).await?.unwrap();
+                let file = FileModel::find_one_by_id(a.file_id, &db.basic())
+                    .await?
+                    .unwrap();
 
                 let book = DisplayItem {
                     id: book.id,
@@ -162,7 +165,9 @@ pub async fn update_books(
         ModifyValuesBy::Remove => {
             for book_id in edit.book_ids {
                 for person_id in edit.people_list.iter().copied() {
-                    BookPersonModel { book_id, person_id }.delete(&db.basic()).await?;
+                    BookPersonModel { book_id, person_id }
+                        .delete(&db.basic())
+                        .await?;
                 }
 
                 // TODO: Check if we removed cached author
@@ -192,7 +197,9 @@ pub async fn load_book_info(
     book_id: web::Path<BookId>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookByIdResponse>> {
-    let book = BookModel::find_one_by_id(*book_id, &db.basic()).await?.unwrap();
+    let book = BookModel::find_one_by_id(*book_id, &db.basic())
+        .await?
+        .unwrap();
 
     let (mut media, mut progress) = (Vec::new(), Vec::new());
 
@@ -299,7 +306,9 @@ async fn get_book_posters(
     path: web::Path<BookId>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetPosterByBookIdResponse>> {
-    let book = BookModel::find_one_by_id(*path, &db.basic()).await?.unwrap();
+    let book = BookModel::find_one_by_id(*path, &db.basic())
+        .await?
+        .unwrap();
 
     // TODO: For Open Library we need to go from an Edition to Work.
     // Work is the main book. Usually consisting of more posters.
@@ -375,7 +384,9 @@ async fn insert_or_update_book_image(
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let mut book = BookModel::find_one_by_id(*book_id, &db.basic()).await?.unwrap();
+    let mut book = BookModel::find_one_by_id(*book_id, &db.basic())
+        .await?
+        .unwrap();
 
     match body.into_inner().url_or_id {
         Either::Left(url) => {
@@ -396,7 +407,9 @@ async fn insert_or_update_book_image(
         }
 
         Either::Right(id) => {
-            let poster = UploadedImageModel::get_by_id(id, &db.basic()).await?.unwrap();
+            let poster = UploadedImageModel::get_by_id(id, &db.basic())
+                .await?
+                .unwrap();
 
             if book.thumb_path == poster.path {
                 return Ok(web::Json(WrappingResponse::okay("success")));
@@ -529,7 +542,9 @@ async fn delete_book_person(
         )));
     }
 
-    BookPersonModel { book_id, person_id }.delete(&db.basic()).await?;
+    BookPersonModel { book_id, person_id }
+        .delete(&db.basic())
+        .await?;
 
     // If book has no other people referenced we'll update the cached author name.
     if BookPersonModel::find_by(Either::Left(book_id), &db.basic())

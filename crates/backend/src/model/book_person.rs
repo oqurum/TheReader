@@ -67,7 +67,10 @@ impl BookPersonModel {
         )?)
     }
 
-    pub async fn find_by(id: Either<BookId, PersonId>, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
+    pub async fn find_by(
+        id: Either<BookId, PersonId>,
+        db: &dyn DatabaseAccess,
+    ) -> Result<Vec<Self>> {
         let this = db.read().await;
 
         match id {

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use crate::{DatabaseAccess, http::gen_sample_alphanumeric, Result};
+use crate::{http::gen_sample_alphanumeric, DatabaseAccess, Result};
 
 use super::{AdvRow, TableRow};
 
@@ -72,7 +72,10 @@ impl AuthModel {
         )? != 0)
     }
 
-    pub async fn remove_by_token_secret(token_secret: &str, db: &dyn DatabaseAccess) -> Result<bool> {
+    pub async fn remove_by_token_secret(
+        token_secret: &str,
+        db: &dyn DatabaseAccess,
+    ) -> Result<bool> {
         Ok(db.write().await.execute(
             "DELETE FROM auth WHERE oauth_token_secret = ?1",
             [token_secret],

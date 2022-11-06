@@ -107,40 +107,41 @@ pub async fn get_passwordless_oauth_callback(
 
     if let Some(auth) = AuthModel::find_by_token(&oauth_token, &db.basic()).await? {
         // Create or Update User.
-        let member = if let Some(value) = MemberModel::find_one_by_email(&email, &db.basic()).await? {
-            value
-        } else {
-            let mut new_member = NewMemberModel {
-                name: address.user().to_string(),
-                email: Some(email),
-                password: None,
-                type_of: MemberAuthType::Passwordless,
-                permissions: Permissions::basic(),
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
+        let member =
+            if let Some(value) = MemberModel::find_one_by_email(&email, &db.basic()).await? {
+                value
+            } else {
+                let mut new_member = NewMemberModel {
+                    name: address.user().to_string(),
+                    email: Some(email),
+                    password: None,
+                    type_of: MemberAuthType::Passwordless,
+                    permissions: Permissions::basic(),
+                    created_at: Utc::now(),
+                    updated_at: Utc::now(),
+                };
+
+                let has_admin_account = get_config().has_admin_account;
+
+                // Check to see if we don't have the admin account created yet.
+                if !has_admin_account {
+                    new_member.permissions = Permissions::owner();
+                }
+
+                let inserted = new_member.insert(&db.basic()).await?;
+
+                // Update config.
+                if !has_admin_account {
+                    update_config(|config| {
+                        config.has_admin_account = true;
+                        Ok(())
+                    })?;
+
+                    save_config().await?;
+                }
+
+                inserted
             };
-
-            let has_admin_account = get_config().has_admin_account;
-
-            // Check to see if we don't have the admin account created yet.
-            if !has_admin_account {
-                new_member.permissions = Permissions::owner();
-            }
-
-            let inserted = new_member.insert(&db.basic()).await?;
-
-            // Update config.
-            if !has_admin_account {
-                update_config(|config| {
-                    config.has_admin_account = true;
-                    Ok(())
-                })?;
-
-                save_config().await?;
-            }
-
-            inserted
-        };
 
         AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &db.basic()).await?;
 

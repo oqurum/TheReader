@@ -1,6 +1,6 @@
 use common::{
     api::WrappingResponse,
-    component::popup::{button::ButtonWithPopup, Popup, PopupType, PopupClose},
+    component::popup::{button::ButtonWithPopup, Popup, PopupClose, PopupType},
 };
 use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};

@@ -93,7 +93,9 @@ async fn update_options_add(
         if let Some((directories, library_id)) = library.directories.zip(library.id) {
             // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
             for path in directories {
-                DirectoryModel { library_id, path }.insert(&db.basic()).await?;
+                DirectoryModel { library_id, path }
+                    .insert(&db.basic())
+                    .await?;
             }
         }
     }

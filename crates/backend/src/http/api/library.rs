@@ -1,8 +1,13 @@
-use actix_web::{get, web, post};
+use actix_web::{get, post, web};
 use common::api::WrappingResponse;
 use common_local::{api, LibraryColl, LibraryId};
 
-use crate::{database::Database, http::JsonResponse, model::{library::LibraryModel, directory::DirectoryModel}, WebResult};
+use crate::{
+    database::Database,
+    http::JsonResponse,
+    model::{directory::DirectoryModel, library::LibraryModel},
+    WebResult,
+};
 
 #[get("/libraries")]
 async fn load_library_list(
@@ -35,7 +40,8 @@ async fn load_library_id(
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetLibraryIdResponse>> {
     let model = LibraryModel::find_one_by_id(*id, &db.basic())
-        .await?.ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
+        .await?
+        .ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
     let directories = DirectoryModel::find_directories_by_library_id(*id, &db.basic()).await?;
 
@@ -63,7 +69,8 @@ async fn update_library_id(
     let body = body.into_inner();
 
     let mut model = LibraryModel::find_one_by_id(*id, &db.basic())
-        .await?.ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
+        .await?
+        .ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
     let mut is_updated = false;
 
@@ -74,7 +81,6 @@ async fn update_library_id(
         model.name = name;
         is_updated = true;
     }
-
 
     if is_updated {
         model.update(&db.basic()).await?;

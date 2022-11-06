@@ -3,18 +3,19 @@ use std::{ops::Deref, sync::Arc};
 use crate::Result;
 use common::Either;
 use rusqlite::Connection;
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, Semaphore, SemaphorePermit, OwnedMutexGuard, Mutex};
+use tokio::sync::{
+    Mutex, OwnedMutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard, Semaphore, SemaphorePermit,
+};
 // TODO: use tokio::task::spawn_blocking;
 
 const DATABASE_PATH: &str = "./app/database.db";
 
 mod migrations;
 
-
 /// Borrowed Or Owned
 pub enum Boo<'a, V> {
     Borrow(&'a V),
-    Owned(V)
+    Owned(V),
 }
 
 impl<'a, V> Deref for Boo<'a, V> {
@@ -27,7 +28,6 @@ impl<'a, V> Deref for Boo<'a, V> {
         }
     }
 }
-
 
 pub async fn init() -> Result<Database> {
     let database = Database::open(5, || Ok(Connection::open(DATABASE_PATH)?))?;
@@ -119,9 +119,7 @@ impl Database {
 
     /// Basic Read/Write Database Access.
     pub fn basic(&self) -> DatabaseReadWrite<'_> {
-        DatabaseReadWrite {
-            client: self
-        }
+        DatabaseReadWrite { client: self }
     }
 
     /// Write-Only Transactional executions.
@@ -136,21 +134,16 @@ impl Database {
 
         Ok(DatabaseTransactionWrite {
             is_committed: false,
-            client: write
+            client: write,
         })
     }
 }
-
-
-
 
 #[async_trait::async_trait]
 pub trait DatabaseAccess: Send + Sync {
     async fn read(&self) -> Boo<DatabaseAcquireGuard<'_>>;
     async fn write(&self) -> Boo<DatabaseAcquireGuard<'_>>;
 }
-
-
 
 pub struct DatabaseReadWrite<'a> {
     client: &'a Database,
@@ -166,7 +159,6 @@ impl<'a> DatabaseAccess for DatabaseReadWrite<'a> {
         Boo::Owned(self.client.write().await)
     }
 }
-
 
 // Used for Transactions.
 // Transactions will only acquire writes 1 by 1.
@@ -200,12 +192,13 @@ impl<'a> DatabaseAccess for DatabaseTransactionWrite<'a> {
 impl<'a> Drop for DatabaseTransactionWrite<'a> {
     fn drop(&mut self) {
         if !self.is_committed {
-            let _ = self.client.execute_batch("ROLLBACK")
+            let _ = self
+                .client
+                .execute_batch("ROLLBACK")
                 .map_err(|v| println!("{v:?}"));
         }
     }
 }
-
 
 // Single Guard for Both Reads and Writes.
 // Optional permit and guard for the transaction.
@@ -225,7 +218,6 @@ impl<'a> Deref for DatabaseAcquireGuard<'a> {
         &self.conn
     }
 }
-
 
 #[cfg(test)]
 mod tests {

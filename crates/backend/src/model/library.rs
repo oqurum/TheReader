@@ -92,7 +92,10 @@ impl LibraryModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_one_by_name(value: &str, db: &dyn DatabaseAccess) -> Result<Option<LibraryModel>> {
+    pub async fn find_one_by_name(
+        value: &str,
+        db: &dyn DatabaseAccess,
+    ) -> Result<Option<LibraryModel>> {
         Ok(db
             .read()
             .await
@@ -104,7 +107,10 @@ impl LibraryModel {
             .optional()?)
     }
 
-    pub async fn find_one_by_id(value: LibraryId, db: &dyn DatabaseAccess) -> Result<Option<LibraryModel>> {
+    pub async fn find_one_by_id(
+        value: LibraryId,
+        db: &dyn DatabaseAccess,
+    ) -> Result<Option<LibraryModel>> {
         Ok(db
             .read()
             .await
@@ -117,17 +123,11 @@ impl LibraryModel {
     pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<usize> {
         self.updated_at = Utc::now();
 
-        let write = db
-            .write()
-            .await;
+        let write = db.write().await;
 
         Ok(write.execute(
             "UPDATE library SET name = ?2, updated_at = ?3 WHERE id = ?1",
-            params![
-                self.id,
-                &self.name,
-                self.updated_at,
-            ]
+            params![self.id, &self.name, self.updated_at,],
         )?)
     }
 }

@@ -213,7 +213,11 @@ impl BookModel {
         Ok(())
     }
 
-    pub async fn set_file_count(id: BookId, file_count: usize, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn set_file_count(
+        id: BookId,
+        file_count: usize,
+        db: &dyn DatabaseAccess,
+    ) -> Result<()> {
         db.write().await.execute(
             r#"UPDATE book SET file_item_count = ?2 WHERE id = ?1"#,
             params![id, file_count],
@@ -223,7 +227,10 @@ impl BookModel {
     }
 
     // TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
-    pub async fn find_one_by_source(source: &Source, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
+    pub async fn find_one_by_source(
+        source: &Source,
+        db: &dyn DatabaseAccess,
+    ) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await
@@ -285,7 +292,11 @@ impl BookModel {
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn edit_book_by_id(book_id: BookId, edit: BookEdit, db: &dyn DatabaseAccess) -> Result<usize> {
+    pub async fn edit_book_by_id(
+        book_id: BookId,
+        edit: BookEdit,
+        db: &dyn DatabaseAccess,
+    ) -> Result<usize> {
         let mut items = Vec::new();
 
         let mut values = vec![&book_id as &dyn rusqlite::ToSql];

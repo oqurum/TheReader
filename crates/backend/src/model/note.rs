@@ -87,7 +87,11 @@ impl FileNoteModel {
             .optional()?)
     }
 
-    pub async fn delete_one(file_id: FileId, member_id: MemberId, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn delete_one(
+        file_id: FileId,
+        member_id: MemberId,
+        db: &dyn DatabaseAccess,
+    ) -> Result<()> {
         db.write().await.execute(
             "DELETE FROM file_note WHERE user_id = ?1 AND file_id = ?2",
             params![member_id, file_id],

@@ -286,7 +286,11 @@ impl FileModel {
             .query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
     }
 
-    pub async fn update_book_id(file_id: FileId, book_id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn update_book_id(
+        file_id: FileId,
+        book_id: BookId,
+        db: &dyn DatabaseAccess,
+    ) -> Result<()> {
         db.write().await.execute(
             r#"UPDATE file SET book_id = ?1 WHERE id = ?2"#,
             params![book_id, file_id],
