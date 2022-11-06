@@ -143,11 +143,10 @@ pub struct GetLibrariesResponse {
     pub items: Vec<LibraryColl>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize, Clone)]
 pub struct UpdateLibrary {
     pub name: Option<String>,
 }
-
 
 // Book
 #[derive(Default, Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]

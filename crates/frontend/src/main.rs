@@ -1,4 +1,4 @@
-#![allow(clippy::let_unit_value)]
+#![allow(clippy::let_unit_value, clippy::type_complexity)]
 
 use std::{
     mem::MaybeUninit,

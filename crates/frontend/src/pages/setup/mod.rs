@@ -33,7 +33,7 @@ pub enum SetupPageMessage {
 
     UpdateInput(Box<dyn Fn(&mut EditManager<SetupConfig>, String)>, String),
 
-    IsAlreadySetupResponse(WrappingResponse<ApiGetSetupResponse>),
+    IsAlreadySetupResponse(Box<WrappingResponse<ApiGetSetupResponse>>),
 }
 
 pub struct SetupPage {
@@ -50,7 +50,7 @@ impl Component for SetupPage {
 
     fn create(ctx: &Context<Self>) -> Self {
         ctx.link().send_future(async move {
-            SetupPageMessage::IsAlreadySetupResponse(request::check_if_setup().await)
+            SetupPageMessage::IsAlreadySetupResponse(Box::new(request::check_if_setup().await))
         });
 
         Self {
