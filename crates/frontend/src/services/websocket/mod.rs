@@ -18,7 +18,11 @@ pub use event_bus::WsEventBus;
 use crate::util::as_local_path_without_http;
 
 pub fn open_websocket_conn() {
-    let ws_type = if window().location().protocol().unwrap_throw() == "https" {
+    let secure = window().location().protocol().unwrap_throw().starts_with("https");
+
+    log::info!("Secure? {secure}");
+
+    let ws_type = if secure {
         "wss"
     } else {
         "ws"
