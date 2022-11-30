@@ -1,6 +1,6 @@
 use common::{
     api::WrappingResponse,
-    component::popup::{Popup, PopupType},
+    component::{Popup, PopupType, ExpandableContainerComponent},
     BookId,
 };
 use common_local::{
@@ -187,7 +187,9 @@ impl MediaView {
                         <div class="metadata-container">
                             <div class="metadata">
                                 <h3 class="title">{ book.get_title() }</h3>
-                                <p class="description">{ book.description.clone().unwrap_or_default() }</p>
+                                <ExpandableContainerComponent>
+                                    { book.description.clone().unwrap_or_default() }
+                                </ExpandableContainerComponent>
                             </div>
                         </div>
                     </div>
