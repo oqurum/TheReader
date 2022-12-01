@@ -7,9 +7,9 @@ use std::{
 
 use actix_identity::Identity;
 use actix_web::{
-    body::MessageBody,
+    body::{MessageBody, EitherBody},
     dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
-    FromRequest, HttpRequest,
+    FromRequest, HttpRequest, HttpResponse,
 };
 use chrono::Utc;
 use common::{api::ApiErrorResponse, MemberId};
@@ -26,7 +26,7 @@ use crate::{
 pub mod password;
 pub mod passwordless;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CookieAuth {
     /// Our member id. Mainly here just for redundancy.
     pub member_id: MemberId,
@@ -42,17 +42,14 @@ pub struct CookieAuth {
     pub stored_since: i64,
 }
 
-fn get_auth_value(identity: Identity) -> Option<(Identity, CookieAuth)> {
-    let ident = identity.id().ok()?;
+fn get_auth_value(identity: &Identity) -> Result<Option<CookieAuth>> {
+    let Ok(ident) = identity.id() else {
+        return Ok(None);
+    };
 
-    if let Ok(v) = serde_json::from_str(&ident) {
-        Some((identity, v))
-    } else {
-        // Invalid Data? Logout.
-        identity.logout();
+    let v = serde_json::from_str(&ident)?;
 
-        None
-    }
+    Ok(Some(v))
 }
 
 pub fn remember_member_auth(
@@ -111,7 +108,7 @@ impl FromRequest for MemberCookie {
         let fut = Identity::from_request(req, pl);
 
         Box::pin(async move {
-            if let Some((_, id)) = get_auth_value(fut.await?) {
+            if let Ok(Some(id)) = get_auth_value(&fut.await?) {
                 Ok(MemberCookie(id))
             } else {
                 Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")))
@@ -128,7 +125,7 @@ where
     S::Future: 'static,
     B: MessageBody + 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = actix_web::Error;
     type Transform = CheckLoginMiddleware<S>;
     type InitError = ();
@@ -151,7 +148,7 @@ where
     S::Future: 'static,
     B: MessageBody + 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = actix_web::Error;
     type Future = LocalBoxFuture<'static, std::result::Result<Self::Response, Self::Error>>;
 
@@ -167,31 +164,57 @@ where
 
             // Should we ignore the check?
             if r.path() == "/api/setup" || r.path() == "/api/directory" {
-                return srv.call(ServiceRequest::from_parts(r, pl)).await;
+                return srv.call(ServiceRequest::from_parts(r, pl)).await.map(|res| res.map_into_left_body());
             }
 
             let identity = Identity::from_request(&r, &mut pl).await?;
 
-            if let Some((identity, cookie)) = get_auth_value(identity) {
-                let db = actix_web::web::Data::<Database>::from_request(&r, &mut pl).await?;
+            match get_auth_value(&identity) {
+                Ok(Some(cookie)) => {
+                    let db = actix_web::web::Data::<Database>::from_request(&r, &mut pl).await?;
 
-                // TODO: Handle Result
-                if AuthModel::find_by_token(&cookie.token_secret, &db.basic())
-                    .await
-                    .ok()
-                    .flatten()
-                    .is_some()
-                {
-                    // HttpRequest contains an Rc so we need to drop identity to free the cloned ones.
-                    drop(db);
-                    drop(identity);
+                    // TODO: Handle Result
+                    if AuthModel::find_by_token(&cookie.token_secret, &db.basic())
+                        .await
+                        .ok()
+                        .flatten()
+                        .is_some()
+                    {
+                        // HttpRequest contains an Rc so we need to drop identity to free the cloned ones.
+                        drop(db);
+                        drop(identity);
 
-                    return srv.call(ServiceRequest::from_parts(r, pl)).await;
-                } else {
-                    // Remove Cookie if we can't find the token anymore.
+                        return srv.call(ServiceRequest::from_parts(r, pl)).await.map(|res| res.map_into_left_body());
+                    } else {
+                        // Remove Cookie if we can't find the token anymore.
+                        identity.logout();
+
+                        // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
+                        return Ok(ServiceResponse::new(
+                            r,
+                            HttpResponse::Ok()
+                                .json(ApiErrorResponse::new("refresh"))
+                        ).map_into_right_body::<B>());
+                    }
+                }
+
+                Ok(None) => (),
+
+                Err(_) => {
+                    // Logout the person if we've encountered an error.
+                    // This will only happen if we couldn't parse the cookie.
+
                     identity.logout();
+
+                    // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
+                    return Ok(ServiceResponse::new(
+                        r,
+                        HttpResponse::Ok()
+                            .json(ApiErrorResponse::new("refresh"))
+                    ).map_into_right_body::<B>());
                 }
             }
+
             Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")).into())
         }
         .boxed_local()

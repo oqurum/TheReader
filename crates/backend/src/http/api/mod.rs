@@ -20,7 +20,7 @@ pub fn api_route() -> Scope<
     impl ServiceFactory<
         ServiceRequest,
         Config = (),
-        Response = ServiceResponse<actix_web::body::BoxBody>,
+        Response = ServiceResponse<actix_web::body::EitherBody<actix_web::body::BoxBody>>,
         Error = actix_web::Error,
         InitError = (),
     >,
