@@ -6,7 +6,7 @@ use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
 use yew_router::{prelude::Link, scope_ext::RouterScopeExt};
 
-use crate::{components::edit::library::LibraryEdit, request, Route};
+use crate::{components::edit::library::LibraryEdit, request, BaseRoute};
 
 pub enum Msg {
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
@@ -91,11 +91,11 @@ impl Sidebar {
     fn render_sidebar_library_item(item: &LibraryColl, scope: &Scope<Self>) -> Html {
         let library_id = item.id;
 
-        let to = Route::ViewLibrary { library_id };
-        let cr = scope.route::<Route>().unwrap();
+        let to = BaseRoute::ViewLibrary { library_id };
+        let cr = scope.route::<BaseRoute>().unwrap();
 
         html! {
-            <Link<Route> {to} classes={ classes!("sidebar-item", "library", (cr == to).then_some("active")) }>
+            <Link<BaseRoute> {to} classes={ classes!("sidebar-item", "library", (cr == to).then_some("active")) }>
                 <span class="title">{ item.name.clone() }</span>
                 <div class="options">
                     <ButtonWithPopup class="menu-list">
@@ -140,7 +140,7 @@ impl Sidebar {
                         </PopupClose>
                     </ButtonWithPopup>
                 </div>
-            </Link<Route>>
+            </Link<BaseRoute>>
         }
     }
 }

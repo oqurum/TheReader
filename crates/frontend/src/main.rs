@@ -153,7 +153,7 @@ impl Component for Model {
                         {
                             if self.has_loaded_member {
                                 html! {
-                                    <Switch<Route> render={ Switch::render(switch) } />
+                                    <Switch<BaseRoute> render={ Switch::render(switch_base) } />
                                 }
                             } else {
                                 html! {
@@ -186,7 +186,7 @@ impl Component for Model {
 }
 
 #[derive(Routable, PartialEq, Eq, Clone, Debug)]
-pub enum Route {
+pub enum BaseRoute {
     #[at("/login")]
     Login,
 
@@ -208,8 +208,8 @@ pub enum Route {
     #[at("/person/:person_id")]
     ViewPerson { person_id: PersonId },
 
-    #[at("/options")]
-    Options,
+    #[at("/settings/*")]
+    Settings,
 
     #[at("/setup")]
     Setup,
@@ -218,51 +218,51 @@ pub enum Route {
     Dashboard,
 }
 
-fn switch(route: &Route) -> Html {
+fn switch_base(route: &BaseRoute) -> Html {
     log::info!("{:?}", route);
 
-    if !is_signed_in() && route != &Route::Setup {
+    if !is_signed_in() && route != &BaseRoute::Setup {
         return html! { <pages::LoginPage /> };
     }
 
     match route.clone() {
-        Route::Login => {
+        BaseRoute::Login => {
             html! { <pages::LoginPage /> }
         }
 
-        Route::Logout => {
+        BaseRoute::Logout => {
             html! { <pages::LogoutPage /> }
         }
 
-        Route::ViewLibrary { library_id } => {
-            html! { <pages::LibraryPage library_id={library_id}  /> }
+        BaseRoute::ViewLibrary { library_id } => {
+            html! { <pages::LibraryPage library_id={library_id} /> }
         }
 
-        Route::ViewBook { book_id } => {
-            html! { <pages::MediaView id={book_id}  /> }
+        BaseRoute::ViewBook { book_id } => {
+            html! { <pages::MediaView id={book_id} /> }
         }
 
-        Route::ReadBook { book_id } => {
-            html! { <pages::ReadingBook id={book_id}  /> }
+        BaseRoute::ReadBook { book_id } => {
+            html! { <pages::ReadingBook id={book_id} /> }
         }
 
-        Route::People => {
+        BaseRoute::People => {
             html! { <pages::AuthorListPage /> }
         }
 
-        Route::ViewPerson { person_id } => {
-            html! { <pages::AuthorView id={person_id}  /> }
+        BaseRoute::ViewPerson { person_id } => {
+            html! { <pages::AuthorView id={person_id} /> }
         }
 
-        Route::Options => {
-            html! { <pages::OptionsPage /> }
+        BaseRoute::Settings => {
+            html! { <Switch<pages::settings::SettingsRoute> render={Switch::render(pages::settings::switch_settings)} /> }
         }
 
-        Route::Setup => {
+        BaseRoute::Setup => {
             html! { <pages::SetupPage /> }
         }
 
-        Route::Dashboard => {
+        BaseRoute::Dashboard => {
             html! { <pages::HomePage /> }
         }
     }

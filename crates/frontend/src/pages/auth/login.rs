@@ -4,7 +4,7 @@ use yew::prelude::*;
 use yew_hooks::use_async;
 use yew_router::{history::History, prelude::RouterScopeExt};
 
-use crate::{request, Route};
+use crate::{request, BaseRoute};
 
 pub enum Msg {
     LoginPasswordResponse(std::result::Result<String, ApiErrorResponse>),
@@ -28,7 +28,7 @@ impl Component for LoginPage {
                     crate::request_member_self();
 
                     let history = ctx.link().history().unwrap();
-                    history.push(Route::Dashboard);
+                    history.push(BaseRoute::Dashboard);
                 }
             }
 
@@ -37,7 +37,7 @@ impl Component for LoginPage {
                     crate::request_member_self();
 
                     let history = ctx.link().history().unwrap();
-                    history.push(Route::Dashboard);
+                    history.push(BaseRoute::Dashboard);
                 }
             }
         }

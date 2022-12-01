@@ -10,7 +10,7 @@ use yew_router::prelude::Link;
 use crate::{
     request,
     util::{on_click_prevdef_cb, on_click_prevdef_stopprop_cb},
-    Route,
+    BaseRoute,
 };
 
 #[derive(Properties)]
@@ -71,14 +71,14 @@ impl Component for BookPosterItem {
         } = ctx.props();
 
         let route_to = if let Some((_, file)) = ctx.props().progress.as_ref() {
-            Route::ReadBook { book_id: file.id }
+            BaseRoute::ReadBook { book_id: file.id }
         } else {
-            Route::ViewBook { book_id: item.id }
+            BaseRoute::ViewBook { book_id: item.id }
         };
 
         html! {
             <div class="book-list-item">
-                <Link<Route> to={ route_to } classes="poster">
+                <Link<BaseRoute> to={ route_to } classes="poster">
                     { self.render_tools(ctx) }
                     <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                     {
@@ -90,7 +90,7 @@ impl Component for BookPosterItem {
                             html! {}
                         }
                     }
-                </Link<Route>>
+                </Link<BaseRoute>>
 
                 {
                     if let Some(&(Progression::Ebook { chapter, .. }, ref file)) = ctx.props().progress.as_ref() {
@@ -105,7 +105,7 @@ impl Component for BookPosterItem {
                 }
 
                 <div class="info">
-                    <div class="title" title={ item.title.clone() }><Link<Route> to={ Route::ViewBook { book_id: item.id } }>{ item.title.clone() }</Link<Route>></div>
+                    <div class="title" title={ item.title.clone() }><Link<BaseRoute> to={ BaseRoute::ViewBook { book_id: item.id } }>{ item.title.clone() }</Link<BaseRoute>></div>
                     {
                         if let Some(author) = item.cached.author.as_ref() {
                             html! {

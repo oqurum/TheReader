@@ -14,7 +14,7 @@ use yew_router::prelude::Link;
 use crate::{
     request,
     util::{on_click_prevdef_scope, on_click_prevdef_stopprop_scope},
-    Route,
+    BaseRoute,
 };
 
 #[derive(Clone)]
@@ -442,7 +442,7 @@ impl AuthorListPage {
         });
 
         html! {
-            <Link<Route> to={ Route::ViewPerson { person_id: item.id } } classes={ classes!("person-container") }>
+            <Link<BaseRoute> to={ BaseRoute::ViewPerson { person_id: item.id } } classes={ classes!("person-container") }>
                 <div class="photo">
                     <div class="bottom-right">
                         <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
@@ -450,7 +450,7 @@ impl AuthorListPage {
                     <img src={ item.get_thumb_url() } />
                 </div>
                 <span class="title">{ item.name.clone() }</span>
-            </Link<Route>>
+            </Link<BaseRoute>>
         }
     }
 

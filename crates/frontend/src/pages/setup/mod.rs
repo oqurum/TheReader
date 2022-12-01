@@ -19,7 +19,7 @@ use yew::prelude::*;
 use yew_router::prelude::*;
 
 use super::PasswordLogin;
-use crate::{request, Route};
+use crate::{request, BaseRoute};
 
 pub enum SetupPageMessage {
     Ignore,
@@ -78,7 +78,7 @@ impl Component for SetupPage {
                         if self.is_fully_setup() {
                             // TODO: Add a delay + reason.
                             let history = ctx.link().history().unwrap();
-                            history.push(Route::Dashboard);
+                            history.push(BaseRoute::Dashboard);
                         }
                     }
 
@@ -88,7 +88,7 @@ impl Component for SetupPage {
 
             SetupPageMessage::AfterSentConfigSuccess => {
                 let history = ctx.link().history().unwrap();
-                history.push(Route::Dashboard);
+                history.push(BaseRoute::Dashboard);
             }
 
             SetupPageMessage::AfterSentConfigError(err) => {

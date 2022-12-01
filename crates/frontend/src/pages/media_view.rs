@@ -16,7 +16,7 @@ use crate::{
         book_poster_item::DisplayOverlayItem, DropdownInfoPopup, DropdownInfoPopupEvent,
         PopupEditBook, PopupSearchBook, Sidebar,
     },
-    request, Route,
+    request, BaseRoute,
 };
 
 #[derive(Clone)]
@@ -200,11 +200,11 @@ impl MediaView {
                             {
                                 for media.iter().map(|media| {
                                     html! {
-                                        <Link<Route> to={ Route::ReadBook { book_id: media.id } } classes={ classes!("file-item") }>
+                                        <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: media.id } } classes={ classes!("file-item") }>
                                             <h5>{ media.file_name.clone() }</h5>
                                             <div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
                                             <div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
-                                        </Link<Route>>
+                                        </Link<BaseRoute>>
                                     }
                                 })
                             }

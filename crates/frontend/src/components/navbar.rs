@@ -8,7 +8,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::components::Link;
 
-use crate::{request, Route};
+use crate::{request, BaseRoute};
 
 #[derive(PartialEq, Eq, Properties)]
 pub struct Property {
@@ -22,8 +22,8 @@ pub enum Msg {
 }
 
 pub struct NavbarModule {
-    left_items: Vec<(Route, DisplayType)>,
-    right_items: Vec<(Route, DisplayType)>,
+    left_items: Vec<(BaseRoute, DisplayType)>,
+    right_items: Vec<(BaseRoute, DisplayType)>,
 
     search_results: Option<GetBookListResponse>,
     #[allow(clippy::type_complexity)]
@@ -37,10 +37,10 @@ impl Component for NavbarModule {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             left_items: vec![
-                (Route::Dashboard, DisplayType::Icon("home", "Home")),
-                (Route::People, DisplayType::Icon("person", "Authors")),
+                (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
+                (BaseRoute::People, DisplayType::Icon("person", "Authors")),
             ],
-            right_items: vec![(Route::Options, DisplayType::Icon("settings", "Settings"))],
+            right_items: vec![(BaseRoute::Settings, DisplayType::Icon("settings", "Settings"))],
 
             search_results: None,
             closure: Arc::new(Mutex::new(None)),
@@ -143,15 +143,15 @@ impl Component for NavbarModule {
 }
 
 impl NavbarModule {
-    fn render_item(route: Route, name: &DisplayType) -> Html {
+    fn render_item(route: BaseRoute, name: &DisplayType) -> Html {
         match name {
             DisplayType::Text(v) => html! {
-                <Link<Route> to={route}>{ v }</Link<Route>>
+                <Link<BaseRoute> to={route}>{ v }</Link<BaseRoute>>
             },
             DisplayType::Icon(icon, title) => html! {
-                <Link<Route> to={route}>
+                <Link<BaseRoute> to={route}>
                     <span class="material-icons" title={ *title }>{ icon }</span>
-                </Link<Route>>
+                </Link<BaseRoute>>
             },
         }
     }
@@ -163,14 +163,14 @@ impl NavbarModule {
                     {
                         for resp.items.iter().map(|item| {
                             html_nested! {
-                                <Link<Route> to={Route::ViewBook { book_id: item.id }} classes={ classes!("search-item") }>
+                                <Link<BaseRoute> to={BaseRoute::ViewBook { book_id: item.id }} classes={ classes!("search-item") }>
                                     <div class="poster max-vertical">
                                         <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                                     </div>
                                     <div class="info">
                                         <h5 class="book-name" title={ item.title.clone() }>{ item.title.clone() }</h5>
                                     </div>
-                                </Link<Route>>
+                                </Link<BaseRoute>>
                             }
                         })
                     }
