@@ -37,7 +37,7 @@ pub fn switch_settings(route: &SettingsRoute) -> Html {
 
     // TODO: Move once I have general settings.
     if !member.permissions.is_owner() {
-        return html! {}
+        return html_container("No Permissions");
     }
 
     match route {
@@ -59,12 +59,12 @@ pub fn switch_settings(route: &SettingsRoute) -> Html {
     }
 }
 
-fn unimplemented() -> Html {
+fn html_container(value: &'static str) -> Html {
     html! {
         <div class="outer-view-container">
             <SettingsSidebar />
             <div class="view-container">
-                <h1>{ "Unimplemented" }</h1>
+                <h1>{ value }</h1>
             </div>
         </div>
     }

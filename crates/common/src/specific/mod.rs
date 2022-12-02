@@ -24,9 +24,10 @@ pub use perms::*;
 )]
 #[repr(u8)]
 pub enum MemberAuthType {
-    External = 0,
-    Passwordless = 1,
-    Password = 2,
+    Invite = 0,
+    External = 1,
+    Passwordless = 2,
+    Password = 3,
 }
 
 #[cfg(feature = "backend")]

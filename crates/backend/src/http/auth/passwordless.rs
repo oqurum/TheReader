@@ -41,8 +41,18 @@ pub async fn post_passwordless_oauth(
         return Err(ApiErrorResponse::new("Already logged in").into());
     }
 
+    let PostPasswordlessCallback {
+        email: mut email_str,
+    } = query.into_inner();
+    email_str = email_str.trim().to_string();
+
+
+    if MemberModel::find_one_by_email(&email_str, &db.basic()).await?.is_none() && get_config().has_admin_account {
+        return Err(ApiErrorResponse::new("Hey dum dum! You have no invite with this email!").into());
+    }
+
     // Verify that's is a proper email address.
-    let _ = query.email.parse::<Address>().map_err(Error::from)?;
+    let _ = email_str.parse::<Address>().map_err(Error::from)?;
 
     let config = get_config();
 
@@ -68,7 +78,7 @@ pub async fn post_passwordless_oauth(
         PASSWORDLESS_PATH_CB,
         serde_urlencoded::to_string(QueryCallback {
             oauth_token: auth_model.oauth_token.clone().unwrap(),
-            email: query.email.clone()
+            email: email_str.clone()
         })
         .map_err(Error::from)?
     );
@@ -77,7 +87,7 @@ pub async fn post_passwordless_oauth(
 
     auth_model.insert(&db.basic()).await?;
 
-    send_auth_email(query.0.email, auth_callback_url, main_html, &email_config)?;
+    send_auth_email(email_str, auth_callback_url, main_html, &email_config)?;
 
     Ok(web::Json(WrappingResponse::okay("success")))
 }
@@ -107,41 +117,52 @@ pub async fn get_passwordless_oauth_callback(
 
     if let Some(auth) = AuthModel::find_by_token(&oauth_token, &db.basic()).await? {
         // Create or Update User.
-        let member =
-            if let Some(value) = MemberModel::find_one_by_email(&email, &db.basic()).await? {
-                value
-            } else {
-                let mut new_member = NewMemberModel {
-                    name: address.user().to_string(),
-                    email: Some(email),
-                    password: None,
-                    type_of: MemberAuthType::Passwordless,
-                    permissions: Permissions::basic(),
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                };
+        let mut member = if let Some(value) = MemberModel::find_one_by_email(&email, &db.basic()).await? {
+            value
+        } else if !get_config().has_admin_account {
+            // Double check that we don't already have users in the database.
+            if MemberModel::count(&db.basic()).await? != 0 {
+                update_config(|config| {
+                    config.has_admin_account = true;
+                    Ok(())
+                })?;
 
-                let has_admin_account = get_config().has_admin_account;
+                save_config().await?;
 
-                // Check to see if we don't have the admin account created yet.
-                if !has_admin_account {
-                    new_member.permissions = Permissions::owner();
-                }
+                return Err(ApiErrorResponse::new("We already have people in the database.").into());
+            }
 
-                let inserted = new_member.insert(&db.basic()).await?;
-
-                // Update config.
-                if !has_admin_account {
-                    update_config(|config| {
-                        config.has_admin_account = true;
-                        Ok(())
-                    })?;
-
-                    save_config().await?;
-                }
-
-                inserted
+            // If we don't have an admin account this means we should create one.
+            let new_member = NewMemberModel {
+                name: address.user().to_string(),
+                email,
+                type_of: MemberAuthType::Passwordless,
+                permissions: Permissions::owner(),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
             };
+
+            let mut inserted = new_member.insert(&db.basic()).await?;
+
+            // We instantly accept the invite.
+            inserted.accept_invite(MemberAuthType::Passwordless, None, &db.basic()).await?;
+
+            update_config(|config| {
+                config.has_admin_account = true;
+                Ok(())
+            })?;
+
+            save_config().await?;
+
+            inserted
+        } else {
+            return Err(ApiErrorResponse::new("Hey dum dum! You have no invite with this email!").into());
+        };
+
+        // If we were invited update the invite with correct info.
+        if member.type_of == MemberAuthType::Invite {
+            member.accept_invite(MemberAuthType::Passwordless, None, &db.basic()).await?;
+        }
 
         AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &db.basic()).await?;
 

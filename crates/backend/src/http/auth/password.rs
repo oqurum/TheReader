@@ -30,7 +30,6 @@ pub static PASSWORD_PATH: &str = "/auth/password";
 pub struct PostPasswordCallback {
     pub email: String,
     pub password: String,
-    // TODO: Check for Login vs Signup
 }
 
 pub async fn post_password_oauth(
@@ -53,55 +52,67 @@ pub async fn post_password_oauth(
     let address = email_str.parse::<Address>().map_err(Error::from)?;
 
     // Create or Update User.
-    let member = if let Some(value) =
+    let mut member = if let Some(value) =
         MemberModel::find_one_by_email(&email_str, &db.basic()).await?
     {
         if value.type_of != MemberAuthType::Password {
             return Err(ApiErrorResponse::new(
-                "Invalid Member. Member does not have a local password associated with it.",
+                "Member does not have a local password associated with it.",
             )
             .into());
-        }
-
-        if bcrypt::verify(&password, value.password.as_ref().unwrap()).map_err(Error::from)? {
+        } else if value.type_of == MemberAuthType::Invite || bcrypt::verify(&password, value.password.as_ref().unwrap()).map_err(Error::from)? {
             value
         } else {
             return Err(ApiErrorResponse::new("Unable to very password hash for account").into());
         }
-    } else {
-        let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
-
-        let mut new_member = NewMemberModel {
-            name: address.user().to_string(),
-            email: Some(email_str),
-            password: Some(hash),
-            type_of: MemberAuthType::Password,
-            permissions: Permissions::basic(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
-
-        let has_admin_account = get_config().has_admin_account;
-
-        // Check to see if we don't have the admin account created yet.
-        if !has_admin_account {
-            new_member.permissions = Permissions::owner();
-        }
-
-        let inserted = new_member.insert(&db.basic()).await?;
-
-        // Update config.
-        if !has_admin_account {
+    } else if !get_config().has_admin_account {
+        // Double check that we don't already have users in the database.
+        if MemberModel::count(&db.basic()).await? != 0 {
             update_config(|config| {
                 config.has_admin_account = true;
                 Ok(())
             })?;
 
             save_config().await?;
+
+            return Err(ApiErrorResponse::new("We already have people in the database.").into());
         }
 
+        // If we don't have an admin account this means we should create one.
+        let new_member = NewMemberModel {
+            name: address.user().to_string(),
+            email: email_str,
+            type_of: MemberAuthType::Password,
+            permissions: Permissions::owner(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let mut inserted = new_member.insert(&db.basic()).await?;
+
+        let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
+
+        // We instantly accept the invite.
+        inserted.accept_invite(MemberAuthType::Password, Some(hash), &db.basic()).await?;
+
+        update_config(|config| {
+            config.has_admin_account = true;
+            Ok(())
+        })?;
+
+        save_config().await?;
+
         inserted
+    } else  {
+        return Err(ApiErrorResponse::new("Hey dum dum! You have no invite with this email!").into());
     };
+
+    // If we were invited update the invite with correct info.
+    if member.type_of == MemberAuthType::Invite {
+        let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
+
+        member.accept_invite(MemberAuthType::Password, Some(hash), &db.basic()).await?;
+    }
 
     let model = AuthModel::new(Some(member.id));
 

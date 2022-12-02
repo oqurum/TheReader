@@ -10,8 +10,7 @@ use super::{AdvRow, TableRow};
 
 pub struct NewMemberModel {
     pub name: String,
-    pub email: Option<String>,
-    pub password: Option<String>,
+    pub email: String,
 
     pub type_of: MemberAuthType,
 
@@ -28,7 +27,7 @@ impl NewMemberModel {
             id,
             name: self.name,
             email: self.email,
-            password: self.password,
+            password: None,
             type_of: self.type_of,
             permissions: self.permissions,
             created_at: self.created_at,
@@ -37,12 +36,13 @@ impl NewMemberModel {
     }
 }
 
+
 #[derive(Debug, Clone, Serialize)]
 pub struct MemberModel {
     pub id: MemberId,
 
     pub name: String,
-    pub email: Option<String>,
+    pub email: String,
     pub password: Option<String>,
 
     pub type_of: MemberAuthType,
@@ -91,11 +91,12 @@ impl NewMemberModel {
         let conn = db.write().await;
 
         conn.execute(r#"
-            INSERT INTO members (name, email, password, type_of, permissions, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            INSERT INTO members (name, email, type_of, permissions, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
         "#,
         params![
-            &self.name, self.email.as_ref(), self.password.as_ref(), self.type_of, self.permissions,
+            &self.name, &self.email,
+            self.type_of, self.permissions,
             self.created_at, self.updated_at
         ])?;
 
@@ -124,6 +125,21 @@ impl MemberModel {
                 Self::from_row(v)
             })
             .optional()?)
+    }
+
+    pub async fn accept_invite(&mut self, login_type: MemberAuthType, password: Option<String>, db: &dyn DatabaseAccess) -> Result<usize> {
+        if self.type_of != MemberAuthType::Invite {
+            return Ok(0);
+        }
+
+        self.type_of = login_type;
+        self.password = password;
+        self.updated_at = Utc::now();
+
+        Ok(db.write().await.execute(
+            "UPDATE members SET type_of = ?2, password = ?3, updated_at = ?4 WHERE id = ?1",
+            params![ self.id, self.type_of, self.password.as_ref(), self.updated_at ]
+        )?)
     }
 
     pub async fn delete(id: MemberId, db: &dyn DatabaseAccess) -> Result<usize> {
