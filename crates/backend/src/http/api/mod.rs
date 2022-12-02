@@ -47,6 +47,8 @@ pub fn api_route() -> Scope<
         .service(image::get_local_image)
         // Member
         .service(member::load_member_self)
+        .service(member::load_members_list)
+        .service(member::update_member)
         // Book
         .service(book::load_book_list)
         .service(book::load_book_preset_list)

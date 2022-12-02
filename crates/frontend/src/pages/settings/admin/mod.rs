@@ -4,6 +4,6 @@ pub mod myserver;
 pub mod tasks;
 
 pub use libraries::AdminLibrariesPage;
-// pub use members::AdminMembersPage;
+pub use members::AdminMembersPage;
 pub use myserver::AdminMyServerPage;
 pub use tasks::AdminTaskPage;

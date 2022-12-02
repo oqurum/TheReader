@@ -46,7 +46,7 @@ pub fn switch_settings(route: &SettingsRoute) -> Html {
         }
 
         SettingsRoute::AdminMembers => {
-            unimplemented()
+            html! { <AdminMembersPage /> }
         }
 
         SettingsRoute::AdminMyServer => {

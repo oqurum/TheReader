@@ -126,6 +126,24 @@ impl MemberModel {
             .optional()?)
     }
 
+    pub async fn delete(id: MemberId, db: &dyn DatabaseAccess) -> Result<usize> {
+        Ok(db
+            .write()
+            .await
+            .execute("DELETE FROM members WHERE id = ?1", [id])?
+        )
+    }
+
+    pub async fn get_all(db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
+        let read = db.read().await;
+
+        let mut stmt = read.prepare("SELECT * FROM members")?;
+
+        let map = stmt.query_map([], |v| Self::from_row(v))?;
+
+        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
     pub async fn count(db: &dyn DatabaseAccess) -> Result<usize> {
         Ok(db
             .read()

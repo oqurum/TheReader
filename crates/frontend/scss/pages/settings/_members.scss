@@ -1,0 +1,30 @@
+
+.admin-members {
+    .horizontal-center {
+        min-width: 35em;
+    }
+
+    .section-invite {
+        margin-bottom: 2em;
+    }
+
+    .members-list {
+        width: 100%;
+
+        .list-item {
+            &:hover {
+                background-color: var(--surface-3);
+            }
+
+            td {
+                &.cell-label {
+                    width: 5em;
+                }
+
+                &.cell-button {
+                    width: 10em;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,18 @@
+
+.list {
+    display: flex;
+    flex-direction: column;
+
+    > .list-item {
+        padding: 3px;
+
+        &:hover {
+            background-color: var(--surface-3);
+        }
+
+        .row {
+            display: flex;
+            flex-direction: row;
+        }
+    }
+}

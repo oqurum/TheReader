@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 use common::{
     api::QueryListResponse,
     util::{deserialize_naivedate_opt, serialize_naivedate_opt},
-    BookId, Either, ImageId, PersonId, Source,
+    BookId, Either, ImageId, PersonId, Source, MemberId,
 };
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +49,8 @@ pub type ApiGetLibraryIdResponse = LibraryColl;
 // Members
 /// GET     /member
 pub type ApiGetMemberSelfResponse = self::GetMemberSelfResponse;
+/// GET     /members
+pub type ApiGetMembersListResponse = self::GetMembersListResponse;
 
 // Books
 /// GET     /books
@@ -134,6 +136,25 @@ pub struct ChangePosterBody {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetMemberSelfResponse {
     pub member: Option<Member>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GetMembersListResponse {
+    pub count: usize,
+    pub items: Vec<Member>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum UpdateMember {
+    Delete {
+        id: MemberId,
+    },
+
+    Update {
+        id: MemberId,
+        //
+    }
 }
 
 // Libraries

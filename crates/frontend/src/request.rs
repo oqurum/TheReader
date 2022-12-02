@@ -47,6 +47,20 @@ pub async fn get_member_self() -> WrappingResponse<ApiGetMemberSelfResponse> {
         .unwrap_or_else(def)
 }
 
+pub async fn get_members() -> WrappingResponse<ApiGetMembersListResponse> {
+    fetch("GET", "/api/members", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
+}
+
+
+pub async fn update_member(options: UpdateMember) -> WrappingResponse<String> {
+    fetch("POST", "/api/member", Some(&options))
+        .await
+        .unwrap_or_else(def)
+}
+
+
 // Libraries
 
 pub async fn get_libraries() -> WrappingResponse<ApiGetLibrariesResponse> {
