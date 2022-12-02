@@ -151,9 +151,8 @@ pub enum UpdateMember {
         id: MemberId,
     },
 
-    Update {
-        id: MemberId,
-        //
+    Invite {
+        email: String,
     }
 }
 

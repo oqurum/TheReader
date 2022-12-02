@@ -55,7 +55,7 @@ pub async fn post_password_oauth(
     let mut member = if let Some(value) =
         MemberModel::find_one_by_email(&email_str, &db.basic()).await?
     {
-        if value.type_of != MemberAuthType::Password {
+        if !value.type_of.is_invited() && value.type_of != MemberAuthType::Password {
             return Err(ApiErrorResponse::new(
                 "Member does not have a local password associated with it.",
             )

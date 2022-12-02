@@ -22,6 +22,24 @@ pub struct NewMemberModel {
 }
 
 impl NewMemberModel {
+    pub fn from_email(email: String) -> Self {
+        // TODO: unzip once stable
+        let name = if let Some(v) = email.split_once('@').map(|v| v.0) {
+            v.to_string()
+        } else {
+            email.clone()
+        };
+
+        Self {
+            name,
+            email,
+            type_of: MemberAuthType::Invite,
+            permissions: Permissions::basic(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
     pub fn into_member(self, id: MemberId) -> MemberModel {
         MemberModel {
             id,

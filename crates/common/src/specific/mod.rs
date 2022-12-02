@@ -30,6 +30,12 @@ pub enum MemberAuthType {
     Password = 3,
 }
 
+impl MemberAuthType {
+    pub fn is_invited(self) -> bool {
+        matches!(self, Self::Invite)
+    }
+}
+
 #[cfg(feature = "backend")]
 impl FromSql for MemberAuthType {
     #[inline]

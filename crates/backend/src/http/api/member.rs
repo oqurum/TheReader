@@ -5,7 +5,7 @@ use common_local::api;
 use crate::{
     database::Database,
     http::{JsonResponse, MemberCookie},
-    WebResult, model::member::MemberModel,
+    WebResult, model::member::{MemberModel, NewMemberModel},
 };
 
 // TODO: Add body requests for specifics
@@ -40,8 +40,11 @@ pub async fn update_member(
             MemberModel::delete(id, &db.basic()).await?;
         }
 
-        api::UpdateMember::Update { id: _id } => {
-            //
+        api::UpdateMember::Invite { email } => {
+            NewMemberModel::from_email(email)
+                .insert(&db.basic()).await?;
+
+            // TODO: Send an email.
         }
     }
 
