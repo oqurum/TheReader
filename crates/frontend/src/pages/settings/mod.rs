@@ -29,6 +29,8 @@ pub enum SettingsRoute {
     AdminTasks,
 
     // General Routes
+    #[at("/settings/general")]
+    General,
 }
 
 
@@ -55,6 +57,10 @@ pub fn switch_settings(route: &SettingsRoute) -> Html {
 
         SettingsRoute::AdminTasks => {
             html! { <AdminTaskPage /> }
+        }
+
+        SettingsRoute::General => {
+            html_container("Not Implemented")
         }
     }
 }

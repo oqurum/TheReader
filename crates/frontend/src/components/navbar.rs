@@ -8,7 +8,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::components::Link;
 
-use crate::{request, BaseRoute};
+use crate::{request, BaseRoute, pages::settings::SettingsRoute, get_member_self};
 
 #[derive(PartialEq, Eq, Properties)]
 pub struct Property {
@@ -144,15 +144,34 @@ impl Component for NavbarModule {
 
 impl NavbarModule {
     fn render_item(route: BaseRoute, name: &DisplayType) -> Html {
-        match name {
-            DisplayType::Text(v) => html! {
-                <Link<BaseRoute> to={route}>{ v }</Link<BaseRoute>>
-            },
-            DisplayType::Icon(icon, title) => html! {
-                <Link<BaseRoute> to={route}>
-                    <span class="material-icons" title={ *title }>{ icon }</span>
-                </Link<BaseRoute>>
-            },
+        if route == BaseRoute::Settings {
+            let route = if get_member_self().map(|v| v.permissions.is_owner()).unwrap_or_default() {
+                SettingsRoute::AdminTasks
+            } else {
+                SettingsRoute::General
+            };
+
+            match name {
+                DisplayType::Text(v) => html! {
+                    <Link<SettingsRoute> to={route}>{ v }</Link<SettingsRoute>>
+                },
+                DisplayType::Icon(icon, title) => html! {
+                    <Link<SettingsRoute> to={route}>
+                        <span class="material-icons" title={ *title }>{ icon }</span>
+                    </Link<SettingsRoute>>
+                },
+            }
+        } else {
+            match name {
+                DisplayType::Text(v) => html! {
+                    <Link<BaseRoute> to={route}>{ v }</Link<BaseRoute>>
+                },
+                DisplayType::Icon(icon, title) => html! {
+                    <Link<BaseRoute> to={route}>
+                        <span class="material-icons" title={ *title }>{ icon }</span>
+                    </Link<BaseRoute>>
+                },
+            }
         }
     }
 
