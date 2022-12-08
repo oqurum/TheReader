@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     filter::FilterContainer, setup::Config, BasicLibrary, BookEdit, Chapter, DisplayBookItem,
     DisplayItem, LibraryColl, LibraryId, MediaItem, Member, ModifyValuesBy, Person, Poster,
-    Progression, Result, SearchType,
+    Progression, Result, SearchType, Collection,
 };
 
 // API Routes
@@ -45,6 +45,10 @@ pub type ApiGetImageTypeByIdResponse = Vec<u8>;
 pub type ApiGetLibrariesResponse = self::GetLibrariesResponse;
 /// GET     /library/{id}
 pub type ApiGetLibraryIdResponse = LibraryColl;
+
+// Collections
+/// GET     /collection/{id}
+pub type ApiGetCollectionIdResponse = Collection;
 
 // Members
 /// GET     /member
@@ -154,6 +158,14 @@ pub enum UpdateMember {
     Invite {
         email: String,
     }
+}
+
+// Collections
+
+#[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
+pub struct NewCollectionBody {
+    pub name: String,
+    pub description: Option<String>,
 }
 
 // Libraries

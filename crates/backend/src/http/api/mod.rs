@@ -15,6 +15,7 @@ pub mod person;
 pub mod settings;
 pub mod storage;
 pub mod task;
+pub mod collection;
 
 pub fn api_route() -> Scope<
     impl ServiceFactory<
@@ -74,6 +75,9 @@ pub fn api_route() -> Scope<
         .service(library::load_library_list)
         .service(library::load_library_id)
         .service(library::update_library_id)
+        // Collection
+        .service(collection::new_collection)
+        .service(collection::load_collection_id)
         // Task
         .service(task::run_task)
         // Storage

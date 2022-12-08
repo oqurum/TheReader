@@ -292,5 +292,41 @@ pub async fn init(database: &Database) -> Result<()> {
         [],
     )?;
 
+    // Collection
+    conn.execute(
+        r#"CREATE TABLE "collection" (
+            "id"             INTEGER NOT NULL UNIQUE,
+
+            "member_id"      INTEGER NOT NULL,
+
+            "name"           TEXT NOT NULL,
+            "description"    TEXT,
+
+            "thumb_url"      TEXT,
+
+            "created_at"     TEXT NOT NULL,
+            "updated_at"     TEXT NOT NULL,
+
+            FOREIGN KEY("member_id") REFERENCES member("id") ON DELETE CASCADE,
+
+            PRIMARY KEY("id" AUTOINCREMENT)
+        );"#,
+        [],
+    )?;
+
+    // Collection Item
+    conn.execute(
+        r#"CREATE TABLE "collection_item" (
+            "collection_id"   INTEGER NOT NULL,
+            "book_id"         INTEGER NOT NULL,
+
+            FOREIGN KEY("collection_id") REFERENCES collection("id") ON DELETE CASCADE,
+        	FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE,
+
+            UNIQUE(collection_id, book_id)
+        );"#,
+        [],
+    )?;
+
     Ok(())
 }

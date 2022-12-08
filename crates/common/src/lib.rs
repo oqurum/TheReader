@@ -91,6 +91,31 @@ impl PartialEq for Person {
     }
 }
 
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Collection {
+    pub id: CollectionId,
+
+    pub member_id: MemberId,
+
+    pub name: String,
+    pub description: Option<String>,
+
+    pub thumb_url: ThumbnailStore,
+
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
+    pub created_at: DateTime<Utc>,
+    #[serde(
+        serialize_with = "serialize_datetime",
+        deserialize_with = "deserialize_datetime"
+    )]
+    pub updated_at: DateTime<Utc>,
+}
+
+
 // Used for Library View
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

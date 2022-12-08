@@ -3,6 +3,8 @@ use rusqlite::{types::FromSql, Row};
 pub mod auth;
 pub mod book;
 pub mod book_person;
+pub mod collection;
+pub mod collection_item;
 pub mod directory;
 pub mod file;
 pub mod image;
