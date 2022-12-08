@@ -55,8 +55,8 @@ impl TableRow<'_> for PersonModel {
 
             thumb_url: ThumbnailStore::from(row.next_opt::<String>()?),
 
-            created_at: row.next()?,
             updated_at: row.next()?,
+            created_at: row.next()?,
         })
     }
 }
