@@ -7,7 +7,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_list;
 
-use crate::request;
+use crate::{request, components::edit::library::LibraryEdit};
 use crate::pages::settings::SettingsSidebar;
 
 pub enum Msg {
@@ -80,49 +80,14 @@ impl Component for AdminLibrariesPage {
                     {
                         for resp.libraries.iter()
                             .map(|v| {
-                                let lib_id = v.id;
+                                let id = v.id;
 
                                 html! {
-                                    <>
-                                        <h3>{ v.name.clone() }</h3>
-                                        <button class="red" onclick={ ctx.link().callback(move|_| {
-                                            Msg::RequestUpdateOptions(
-                                                false,
-                                                api::ModifyOptionsBody {
-                                                    library: Some(BasicLibrary {
-                                                        id: Some(lib_id),
-                                                        name: None,
-                                                        directories: None,
-                                                    }),
-                                                    .. Default::default()
-                                                }
-                                            )
-                                        }) }>{ "delete" }</button>
-                                        <ul>
-                                            {
-                                                for v.directories.iter().map(move |v| {
-                                                    let path = v.clone();
-
-                                                    html! {
-                                                        <li><button class="red" onclick={ ctx.link().callback(move |_| {
-                                                            Msg::RequestUpdateOptions(
-                                                                false,
-                                                                api::ModifyOptionsBody {
-                                                                    library: Some(BasicLibrary {
-                                                                        id: Some(lib_id),
-                                                                        name: None,
-                                                                        directories: Some(vec![path.clone()]),
-                                                                    }),
-                                                                    .. Default::default()
-                                                                }
-                                                            )
-                                                        }) }>{ "X" }</button>{ v.clone() }</li>
-                                                    }
-                                                })
-                                            }
-                                            <li><button class="green" onclick={ctx.link().callback(move |_| Msg::DisplayPopup(1, lib_id))}>{ "Add New" }</button></li>
-                                        </ul>
-                                    </>
+                                    <div>
+                                        <button class="slim" onclick={ ctx.link().callback(move |_| Msg::DisplayPopup(1, id)) }>
+                                            { v.name.clone() }
+                                        </button>
+                                    </div>
                                 }
                             })
                     }
@@ -157,7 +122,7 @@ impl Component for AdminLibrariesPage {
 
 impl AdminLibrariesPage {
     fn render_popup(&self, ctx: &Context<Self>) -> Html {
-        if let Some((popup_id, item_index)) = self.visible_popup {
+        if let Some((popup_id, library_id)) = self.visible_popup {
             // TODO: Make popup component for this.
 
             match popup_id {
@@ -166,9 +131,17 @@ impl AdminLibrariesPage {
                     <NewLibrary callback={ ctx.link().callback(|v| v) } />
                 },
 
-                // Add Directory to Library
                 1 => html! {
-                    <NewLibraryDirectory callback={ ctx.link().callback(|v| v) } library_id={ item_index } />
+                    <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
+                        <LibraryEdit
+                            id={ library_id }
+                            on_change={ ctx.link().callback_future(move |v| async move {
+                                request::update_library(library_id, &v).await;
+
+                                Msg::ClosePopup
+                            }) }
+                        />
+                    </Popup>
                 },
 
                 _ => html! {},
@@ -269,64 +242,6 @@ fn new_library(props: &NewLibraryProps) -> Html {
                 <input
                     onkeypress={ on_new_dir_path }
                 />
-            </div>
-        </Popup>
-    }
-}
-
-#[derive(Properties, PartialEq)]
-pub struct NewLibraryDirectoryProps {
-    pub callback: Callback<Msg>,
-
-    pub library_id: LibraryId,
-}
-
-#[function_component(NewLibraryDirectory)]
-fn new_library_dir(props: &NewLibraryDirectoryProps) -> Html {
-    let directory = use_state(String::new);
-
-    let on_create = {
-        let directory = directory.clone();
-        let library_id = props.library_id;
-
-        props.callback.reform(move |_| {
-            Msg::RequestUpdateOptions(
-                true,
-                api::ModifyOptionsBody {
-                    library: Some(BasicLibrary {
-                        id: Some(library_id),
-                        name: None,
-                        directories: Some(vec![directory.to_string()]),
-                    }),
-                    ..Default::default()
-                },
-            )
-        })
-    };
-
-    let on_change_lib_name = {
-        let directory = directory.setter();
-
-        Callback::from(move |e: Event| {
-            directory.set(e.target_unchecked_into::<HtmlInputElement>().value());
-        })
-    };
-
-    html! {
-        <Popup
-            // classes=""
-            type_of={ PopupType::FullOverlay }
-            on_close={ props.callback.reform(|_| Msg::ClosePopup) }
-        >
-            <h2>{ "Add Directory to Library" }</h2>
-
-            <div class="form-container">
-                <div class="row">
-                    // TODO: Directory Selector
-                    <input type="text" name="directory-name" placeholder="Directory" onchange={ on_change_lib_name } />
-
-                    <button class="green" onclick={ on_create }>{"Create"}</button>
-                </div>
             </div>
         </Popup>
     }

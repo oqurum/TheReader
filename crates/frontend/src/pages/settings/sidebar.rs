@@ -22,17 +22,29 @@ impl Component for SettingsSidebar {
         SettingsSidebar
     }
 
-
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
             <div class="sidebar-container">
-                { for ADMIN_LOCATIONS.iter().map(|&(title, route)| Self::render_sidebar_item(title, route, ctx.link())) }
+                { Self::render_admin_items(ctx) }
             </div>
         }
     }
 }
 
 impl SettingsSidebar {
+    fn render_admin_items(ctx: &Context<Self>) -> Html {
+        html! {
+            <>
+                <div class="sidebar-item">
+                    <h3>
+                        { "Admin" }
+                    </h3>
+                </div>
+                { for ADMIN_LOCATIONS.iter().map(|&(title, route)| Self::render_sidebar_item(title, route, ctx.link())) }
+            </>
+        }
+    }
+
     fn render_sidebar_item(title: &'static str, route: SettingsRoute, scope: &Scope<Self>) -> Html {
         let cr = scope.route::<SettingsRoute>().unwrap();
 

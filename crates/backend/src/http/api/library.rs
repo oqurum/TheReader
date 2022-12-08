@@ -82,6 +82,22 @@ async fn update_library_id(
         is_updated = true;
     }
 
+    if !body.remove_directories.is_empty() {
+        // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
+        for path in body.remove_directories {
+            DirectoryModel::remove_by_path(&path, &db.basic()).await?;
+        }
+    }
+
+    if !body.add_directories.is_empty() {
+        // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
+        for path in body.add_directories {
+            DirectoryModel { library_id: *id, path }
+                .insert(&db.basic())
+                .await?;
+        }
+    }
+
     if is_updated {
         model.update(&db.basic()).await?;
     }
