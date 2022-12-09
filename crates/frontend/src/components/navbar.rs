@@ -39,6 +39,7 @@ impl Component for NavbarModule {
             left_items: vec![
                 (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
                 (BaseRoute::People, DisplayType::Icon("person", "Authors")),
+                (BaseRoute::Collections, DisplayType::Icon("library_books", "My Collections")),
             ],
             right_items: vec![(BaseRoute::Settings, DisplayType::Icon("settings", "Settings"))],
 

@@ -7,6 +7,21 @@ use common_local::{api, CollectionId};
 use crate::{http::{JsonResponse, MemberCookie}, WebResult, database::Database, model::collection::{CollectionModel, NewCollectionModel}};
 
 
+#[get("/collections")]
+async fn load_collection_list(
+    member: MemberCookie,
+    db: web::Data<Database>,
+) -> WebResult<JsonResponse<api::ApiGetCollectionListResponse>> {
+    let member = member.fetch_or_error(&db.basic()).await?;
+
+    let items = CollectionModel::find_by_member_id(member.id, &db.basic()).await?
+        .into_iter()
+        .map(|v| v.into())
+        .collect();
+
+    Ok(web::Json(WrappingResponse::okay(items)))
+}
+
 
 
 #[get("/collection/{id}")]
@@ -39,7 +54,7 @@ async fn new_collection(
         member_id: member.id,
 
         name: body.name,
-        description: body.description,
+        description: body.description.map(|v| v.trim().to_string()).filter(|v| !v.is_empty()),
 
         thumb_url: ThumbnailStore::None,
     }.insert(&db.basic()).await?;

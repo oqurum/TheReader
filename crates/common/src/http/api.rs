@@ -47,6 +47,8 @@ pub type ApiGetLibrariesResponse = self::GetLibrariesResponse;
 pub type ApiGetLibraryIdResponse = LibraryColl;
 
 // Collections
+/// GET     /collections
+pub type ApiGetCollectionListResponse = Vec<Collection>;
 /// GET     /collection/{id}
 pub type ApiGetCollectionIdResponse = Collection;
 

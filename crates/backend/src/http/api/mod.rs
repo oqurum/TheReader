@@ -76,6 +76,7 @@ pub fn api_route() -> Scope<
         .service(library::load_library_id)
         .service(library::update_library_id)
         // Collection
+        .service(collection::load_collection_list)
         .service(collection::new_collection)
         .service(collection::load_collection_id)
         // Task

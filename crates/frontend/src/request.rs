@@ -12,7 +12,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, RequestMode, Response};
 
 use common_local::{
-    api::*, filter::FilterContainer, setup::SetupConfig, FileId, LibraryId, Progression, SearchType,
+    api::*, filter::FilterContainer, setup::SetupConfig, FileId, LibraryId, Progression, SearchType, CollectionId,
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {
@@ -59,6 +59,27 @@ pub async fn update_member(options: UpdateMember) -> WrappingResponse<String> {
         .await
         .unwrap_or_else(def)
 }
+
+// Collections
+
+pub async fn get_collections() -> WrappingResponse<ApiGetCollectionListResponse> {
+    fetch("GET", "/api/collections", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
+}
+
+pub async fn get_collection(id: CollectionId) -> WrappingResponse<ApiGetCollectionIdResponse> {
+    fetch("GET", &format!("/api/collection/{id}"), Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
+}
+
+pub async fn create_collection(value: &NewCollectionBody) -> WrappingResponse<ApiGetCollectionIdResponse> {
+    fetch("POST", "/api/collection", Some(value))
+        .await
+        .unwrap_or_else(def)
+}
+
 
 
 // Libraries

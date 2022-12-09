@@ -11,7 +11,7 @@ use common::{
     component::popup::{Popup, PopupType},
     BookId, PersonId,
 };
-use common_local::{api, FileId, LibraryId, Member};
+use common_local::{api, FileId, LibraryId, Member, CollectionId};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
 use yew::{html::Scope, prelude::*};
@@ -208,6 +208,12 @@ pub enum BaseRoute {
     #[at("/person/:person_id")]
     ViewPerson { person_id: PersonId },
 
+    #[at("/collections")]
+    Collections,
+
+    #[at("/collection/:id")]
+    ViewCollection { id: CollectionId },
+
     #[at("/settings/*")]
     Settings,
 
@@ -252,6 +258,15 @@ fn switch_base(route: &BaseRoute) -> Html {
 
         BaseRoute::ViewPerson { person_id } => {
             html! { <pages::AuthorView id={person_id} /> }
+        }
+
+        BaseRoute::Collections => {
+            html! { <pages::CollectionListPage /> }
+        }
+
+        BaseRoute::ViewCollection { id } => {
+            // html! { <pages:: id={person_id} /> }
+            html! {}
         }
 
         BaseRoute::Settings => {

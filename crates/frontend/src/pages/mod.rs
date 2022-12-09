@@ -13,6 +13,8 @@ pub mod media_view;
 pub mod reading;
 pub mod settings;
 pub mod setup;
+pub mod list_collections;
+pub mod collection;
 
 pub use author_view::AuthorView;
 pub use home::HomePage;
@@ -21,3 +23,4 @@ pub use list_authors::AuthorListPage;
 pub use media_view::MediaView;
 pub use reading::ReadingBook;
 pub use setup::SetupPage;
+pub use list_collections::CollectionListPage;
