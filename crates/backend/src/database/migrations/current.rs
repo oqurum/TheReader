@@ -307,7 +307,7 @@ pub async fn init(database: &Database) -> Result<()> {
             "created_at"     TEXT NOT NULL,
             "updated_at"     TEXT NOT NULL,
 
-            FOREIGN KEY("member_id") REFERENCES member("id") ON DELETE CASCADE,
+            FOREIGN KEY("member_id") REFERENCES members("id") ON DELETE CASCADE,
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
