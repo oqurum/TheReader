@@ -54,7 +54,6 @@ impl NewMemberModel {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize)]
 pub struct MemberModel {
     pub id: MemberId,
@@ -108,15 +107,20 @@ impl NewMemberModel {
     pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<MemberModel> {
         let conn = db.write().await;
 
-        conn.execute(r#"
+        conn.execute(
+            r#"
             INSERT INTO members (name, email, type_of, permissions, created_at, updated_at)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
         "#,
-        params![
-            &self.name, &self.email,
-            self.type_of, self.permissions,
-            self.created_at, self.updated_at
-        ])?;
+            params![
+                &self.name,
+                &self.email,
+                self.type_of,
+                self.permissions,
+                self.created_at,
+                self.updated_at
+            ],
+        )?;
 
         Ok(self.into_member(MemberId::from(conn.last_insert_rowid() as usize)))
     }
@@ -145,7 +149,12 @@ impl MemberModel {
             .optional()?)
     }
 
-    pub async fn accept_invite(&mut self, login_type: MemberAuthType, password: Option<String>, db: &dyn DatabaseAccess) -> Result<usize> {
+    pub async fn accept_invite(
+        &mut self,
+        login_type: MemberAuthType,
+        password: Option<String>,
+        db: &dyn DatabaseAccess,
+    ) -> Result<usize> {
         if self.type_of != MemberAuthType::Invite {
             return Ok(0);
         }
@@ -156,7 +165,12 @@ impl MemberModel {
 
         Ok(db.write().await.execute(
             "UPDATE members SET type_of = ?2, password = ?3, updated_at = ?4 WHERE id = ?1",
-            params![ self.id, self.type_of, self.password.as_ref(), self.updated_at ]
+            params![
+                self.id,
+                self.type_of,
+                self.password.as_ref(),
+                self.updated_at
+            ],
         )?)
     }
 
@@ -164,8 +178,7 @@ impl MemberModel {
         Ok(db
             .write()
             .await
-            .execute("DELETE FROM members WHERE id = ?1", [id])?
-        )
+            .execute("DELETE FROM members WHERE id = ?1", [id])?)
     }
 
     pub async fn get_all(db: &dyn DatabaseAccess) -> Result<Vec<Self>> {

@@ -7,7 +7,7 @@ use std::{
 
 use actix_identity::Identity;
 use actix_web::{
-    body::{MessageBody, EitherBody},
+    body::{EitherBody, MessageBody},
     dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
     FromRequest, HttpRequest, HttpResponse,
 };
@@ -164,7 +164,10 @@ where
 
             // Should we ignore the check?
             if r.path() == "/api/setup" || r.path() == "/api/directory" {
-                return srv.call(ServiceRequest::from_parts(r, pl)).await.map(|res| res.map_into_left_body());
+                return srv
+                    .call(ServiceRequest::from_parts(r, pl))
+                    .await
+                    .map(|res| res.map_into_left_body());
             }
 
             let identity = Identity::from_request(&r, &mut pl).await?;
@@ -184,7 +187,10 @@ where
                         drop(db);
                         drop(identity);
 
-                        return srv.call(ServiceRequest::from_parts(r, pl)).await.map(|res| res.map_into_left_body());
+                        return srv
+                            .call(ServiceRequest::from_parts(r, pl))
+                            .await
+                            .map(|res| res.map_into_left_body());
                     } else {
                         // Remove Cookie if we can't find the token anymore.
                         identity.logout();
@@ -192,9 +198,9 @@ where
                         // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
                         return Ok(ServiceResponse::new(
                             r,
-                            HttpResponse::Ok()
-                                .json(ApiErrorResponse::new("refresh"))
-                        ).map_into_right_body::<B>());
+                            HttpResponse::Ok().json(ApiErrorResponse::new("refresh")),
+                        )
+                        .map_into_right_body::<B>());
                     }
                 }
 
@@ -209,9 +215,9 @@ where
                     // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
                     return Ok(ServiceResponse::new(
                         r,
-                        HttpResponse::Ok()
-                            .json(ApiErrorResponse::new("refresh"))
-                    ).map_into_right_body::<B>());
+                        HttpResponse::Ok().json(ApiErrorResponse::new("refresh")),
+                    )
+                    .map_into_right_body::<B>());
                 }
             }
 

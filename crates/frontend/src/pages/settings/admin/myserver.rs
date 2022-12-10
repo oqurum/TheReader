@@ -1,12 +1,10 @@
-use common::{
-    api::WrappingResponse,
-};
+use common::api::WrappingResponse;
 use common_local::api;
 use web_sys::HtmlSelectElement;
 use yew::prelude::*;
 
-use crate::request;
 use crate::pages::settings::SettingsSidebar;
+use crate::request;
 
 pub enum Msg {
     // Request Results
@@ -25,9 +23,7 @@ impl Component for AdminMyServerPage {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-            resp: None,
-        }
+        Self { resp: None }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {

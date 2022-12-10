@@ -7,8 +7,8 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_list;
 
-use crate::{request, components::edit::library::LibraryEdit};
 use crate::pages::settings::SettingsSidebar;
+use crate::{components::edit::library::LibraryEdit, request};
 
 pub enum Msg {
     // Request Results

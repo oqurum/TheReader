@@ -1,13 +1,13 @@
-use common::MemberId;
 use common::api::WrappingResponse;
+use common::MemberId;
 use common_local::api;
 use gloo_utils::window;
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::request;
 use crate::pages::settings::SettingsSidebar;
+use crate::request;
 
 pub enum Msg {
     // Request Results
@@ -18,9 +18,7 @@ pub enum Msg {
     ClosePopup,
 
     RequestUpdateOptions(api::UpdateMember),
-    InviteMember {
-        email: String,
-    },
+    InviteMember { email: String },
 
     Ignore,
 }
@@ -85,7 +83,8 @@ impl Component for AdminMembersPage {
         let render = if let Some(resp) = self.resp.as_ref() {
             let input_ref = NodeRef::default();
 
-            let (members_invited, members_accepted): (Vec<_>, Vec<_>) = resp.items.iter().partition(|v| v.type_of.is_invited());
+            let (members_invited, members_accepted): (Vec<_>, Vec<_>) =
+                resp.items.iter().partition(|v| v.type_of.is_invited());
 
             html! {
                 // We use a empty div to prevent the buttons' widths from fully expanding.

@@ -4,14 +4,14 @@ use chrono::NaiveDate;
 use common::{
     api::QueryListResponse,
     util::{deserialize_naivedate_opt, serialize_naivedate_opt},
-    BookId, Either, ImageId, PersonId, Source, MemberId,
+    BookId, Either, ImageId, MemberId, PersonId, Source,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    filter::FilterContainer, setup::Config, BasicLibrary, BookEdit, Chapter, DisplayBookItem,
-    DisplayItem, LibraryColl, LibraryId, MediaItem, Member, ModifyValuesBy, Person, Poster,
-    Progression, Result, SearchType, Collection,
+    filter::FilterContainer, setup::Config, BasicLibrary, BookEdit, Chapter, Collection,
+    DisplayBookItem, DisplayItem, LibraryColl, LibraryId, MediaItem, Member, ModifyValuesBy,
+    Person, Poster, Progression, Result, SearchType,
 };
 
 // API Routes
@@ -146,7 +146,6 @@ pub struct GetMemberSelfResponse {
     pub member: Option<Member>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetMembersListResponse {
     pub count: usize,
@@ -155,13 +154,9 @@ pub struct GetMembersListResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum UpdateMember {
-    Delete {
-        id: MemberId,
-    },
+    Delete { id: MemberId },
 
-    Invite {
-        email: String,
-    }
+    Invite { email: String },
 }
 
 // Collections

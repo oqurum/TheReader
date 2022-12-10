@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
-use common::{ThumbnailStore, MemberId};
+use common::{MemberId, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use common_local::{util::serialize_datetime, CollectionId, Collection};
+use common_local::{util::serialize_datetime, Collection, CollectionId};
 
-use crate::{DatabaseAccess, Result};
 use super::{AdvRow, TableRow};
+use crate::{DatabaseAccess, Result};
 
 #[derive(Debug)]
 pub struct NewCollectionModel {
@@ -73,14 +73,20 @@ impl NewCollectionModel {
 
         let now = Utc::now();
 
-        conn.execute(r#"
+        conn.execute(
+            r#"
             INSERT INTO collection (member_id, name, description, thumb_url, created_at, updated_at)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
         "#,
-        params![
-            self.member_id, &self.name, &self.description, self.thumb_url.as_value(),
-            now, now,
-        ])?;
+            params![
+                self.member_id,
+                &self.name,
+                &self.description,
+                self.thumb_url.as_value(),
+                now,
+                now,
+            ],
+        )?;
 
         Ok(CollectionModel {
             id: CollectionId::from(conn.last_insert_rowid() as usize),
@@ -98,16 +104,18 @@ impl CollectionModel {
     pub async fn find_by_member_id(id: MemberId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
         let this = db.read().await;
 
-        let mut conn = this.prepare(
-            "SELECT * FROM collection WHERE member_id = ?1",
-        )?;
+        let mut conn = this.prepare("SELECT * FROM collection WHERE member_id = ?1")?;
 
         let map = conn.query_map([id], |v| Self::from_row(v))?;
 
         Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
     }
 
-    pub async fn find_one_by_id(id: CollectionId, member_id: MemberId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
+    pub async fn find_one_by_id(
+        id: CollectionId,
+        member_id: MemberId,
+        db: &dyn DatabaseAccess,
+    ) -> Result<Option<Self>> {
         Ok(db
             .read()
             .await

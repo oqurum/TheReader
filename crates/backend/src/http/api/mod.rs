@@ -6,6 +6,7 @@ use actix_web::{
 use super::LoginRequired;
 
 pub mod book;
+pub mod collection;
 pub mod file;
 pub mod image;
 pub mod library;
@@ -15,7 +16,6 @@ pub mod person;
 pub mod settings;
 pub mod storage;
 pub mod task;
-pub mod collection;
 
 pub fn api_route() -> Scope<
     impl ServiceFactory<

@@ -8,7 +8,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::components::Link;
 
-use crate::{request, BaseRoute, pages::settings::SettingsRoute, get_member_self};
+use crate::{get_member_self, pages::settings::SettingsRoute, request, BaseRoute};
 
 #[derive(PartialEq, Eq, Properties)]
 pub struct Property {
@@ -39,9 +39,15 @@ impl Component for NavbarModule {
             left_items: vec![
                 (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
                 (BaseRoute::People, DisplayType::Icon("person", "Authors")),
-                (BaseRoute::Collections, DisplayType::Icon("library_books", "My Collections")),
+                (
+                    BaseRoute::Collections,
+                    DisplayType::Icon("library_books", "My Collections"),
+                ),
             ],
-            right_items: vec![(BaseRoute::Settings, DisplayType::Icon("settings", "Settings"))],
+            right_items: vec![(
+                BaseRoute::Settings,
+                DisplayType::Icon("settings", "Settings"),
+            )],
 
             search_results: None,
             closure: Arc::new(Mutex::new(None)),
@@ -146,7 +152,10 @@ impl Component for NavbarModule {
 impl NavbarModule {
     fn render_item(route: BaseRoute, name: &DisplayType) -> Html {
         if route == BaseRoute::Settings {
-            let route = if get_member_self().map(|v| v.permissions.is_owner()).unwrap_or_default() {
+            let route = if get_member_self()
+                .map(|v| v.permissions.is_owner())
+                .unwrap_or_default()
+            {
                 SettingsRoute::AdminTasks
             } else {
                 SettingsRoute::General

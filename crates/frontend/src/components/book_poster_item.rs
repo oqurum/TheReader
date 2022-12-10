@@ -2,7 +2,7 @@ use common::{
     component::{Popup, PopupClose, PopupType},
     BookId, Either,
 };
-use common_local::{api, DisplayItem, MediaItem, Progression, ThumbnailStoreExt, CollectionId};
+use common_local::{api, CollectionId, DisplayItem, MediaItem, Progression, ThumbnailStoreExt};
 use web_sys::{HtmlElement, HtmlInputElement, MouseEvent};
 use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast};
 use yew_hooks::use_async;
@@ -284,9 +284,7 @@ pub struct DropdownInfoPopupProps {
 pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
     let book_id = props.book_id;
 
-    let display_collections = use_async(async move {
-        request::get_collections().await.ok()
-    });
+    let display_collections = use_async(async move { request::get_collections().await.ok() });
 
     let add_to_collection_cb = {
         let display_collections = display_collections.clone();
@@ -299,7 +297,10 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
         })
     };
 
-    if display_collections.loading || display_collections.data.is_some() || display_collections.error.is_some() {
+    if display_collections.loading
+        || display_collections.data.is_some()
+        || display_collections.error.is_some()
+    {
         return html! {
             <Popup type_of={ PopupType::AtPoint(props.pos_x, props.pos_y) } on_close={ props.event.reform(|_| DropdownInfoPopupEvent::Closed) }>
                 {
@@ -352,7 +353,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     }
                 }
             </Popup>
-        }
+        };
     }
 
     html! {

@@ -212,8 +212,6 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
     }
 }
 
-
-
 #[derive(Properties, PartialEq)]
 struct NewLibraryDirectoryProps {
     pub callback: Callback<String>,

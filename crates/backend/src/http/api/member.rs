@@ -1,11 +1,12 @@
-use actix_web::{get, web, post};
-use common::api::{WrappingResponse, ApiErrorResponse};
+use actix_web::{get, post, web};
+use common::api::{ApiErrorResponse, WrappingResponse};
 use common_local::api;
 
 use crate::{
     database::Database,
     http::{JsonResponse, MemberCookie},
-    WebResult, model::member::{MemberModel, NewMemberModel},
+    model::member::{MemberModel, NewMemberModel},
+    WebResult,
 };
 
 // TODO: Add body requests for specifics
@@ -42,7 +43,8 @@ pub async fn update_member(
 
         api::UpdateMember::Invite { email } => {
             NewMemberModel::from_email(email)
-                .insert(&db.basic()).await?;
+                .insert(&db.basic())
+                .await?;
 
             // TODO: Send an email.
         }
@@ -50,7 +52,6 @@ pub async fn update_member(
 
     Ok(web::Json(WrappingResponse::okay("ok")))
 }
-
 
 #[get("/members")]
 pub async fn load_members_list(

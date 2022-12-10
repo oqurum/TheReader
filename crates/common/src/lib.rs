@@ -91,7 +91,6 @@ impl PartialEq for Person {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Collection {
     pub id: CollectionId,
@@ -114,7 +113,6 @@ pub struct Collection {
     )]
     pub updated_at: DateTime<Utc>,
 }
-
 
 // Used for Library View
 

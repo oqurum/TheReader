@@ -92,9 +92,12 @@ async fn update_library_id(
     if !body.add_directories.is_empty() {
         // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
         for path in body.add_directories {
-            DirectoryModel { library_id: *id, path }
-                .insert(&db.basic())
-                .await?;
+            DirectoryModel {
+                library_id: *id,
+                path,
+            }
+            .insert(&db.basic())
+            .await?;
         }
     }
 

@@ -1,23 +1,21 @@
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::prelude::*;
 
-use common::{api::WrappingResponse, component::{Popup, PopupType}};
-use common_local::{
-    api,
-    Collection, CollectionId, DisplayItem,
+use common::{
+    api::WrappingResponse,
+    component::{Popup, PopupType},
 };
+use common_local::{api, Collection, CollectionId, DisplayItem};
 
 use crate::{
-    components::{Sidebar, BookPosterItem},
+    components::{BookPosterItem, Sidebar},
     request,
 };
-
 
 #[derive(Properties, PartialEq, Eq)]
 pub struct Props {
     pub id: CollectionId,
 }
-
 
 #[derive(Clone)]
 pub enum Msg {
@@ -65,15 +63,13 @@ impl Component for CollectionItemPage {
                 self.display_popup = false;
             }
 
-            Msg::BooksResults(resp) => {
-                match resp.ok() {
-                    Ok(resp) => {
-                        self.media_items = Some(resp.items);
-                    }
-
-                    Err(err) => crate::display_error(err),
+            Msg::BooksResults(resp) => match resp.ok() {
+                Ok(resp) => {
+                    self.media_items = Some(resp.items);
                 }
-            }
+
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::OpenPopup => self.display_popup = true,
             Msg::ClosePopup => self.display_popup = false,
@@ -126,9 +122,8 @@ impl Component for CollectionItemPage {
         if first_render {
             let id = ctx.props().id;
 
-            ctx.link().send_future(async move {
-                Msg::ItemResults(request::get_collection(id).await)
-            });
+            ctx.link()
+                .send_future(async move { Msg::ItemResults(request::get_collection(id).await) });
         }
     }
 }
@@ -162,7 +157,6 @@ impl CollectionItemPage {
     }
 }
 
-
 #[derive(Properties, PartialEq)]
 struct CreatePopupProps {
     on_submit: Callback<api::NewCollectionBody>,
@@ -184,7 +178,8 @@ fn _create_popup(props: &CreatePopupProps) -> Html {
 
             api::NewCollectionBody {
                 name: name_input.value(),
-                description: Some(description_textarea.value().trim().to_string()).filter(|v| !v.is_empty())
+                description: Some(description_textarea.value().trim().to_string())
+                    .filter(|v| !v.is_empty()),
             }
         })
     };

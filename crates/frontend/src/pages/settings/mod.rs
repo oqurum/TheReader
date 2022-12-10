@@ -15,7 +15,6 @@ use crate::get_member_self;
 #[derive(Routable, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum SettingsRoute {
     // Admin Routes
-
     #[at("/settings/libraries")]
     AdminLibraries,
 
@@ -32,7 +31,6 @@ pub enum SettingsRoute {
     #[at("/settings/general")]
     General,
 }
-
 
 pub fn switch_settings(route: &SettingsRoute) -> Html {
     let member = get_member_self().unwrap();
@@ -59,9 +57,7 @@ pub fn switch_settings(route: &SettingsRoute) -> Html {
             html! { <AdminTaskPage /> }
         }
 
-        SettingsRoute::General => {
-            html_container("Not Implemented")
-        }
+        SettingsRoute::General => html_container("Not Implemented"),
     }
 }
 

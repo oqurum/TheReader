@@ -60,7 +60,9 @@ pub async fn post_password_oauth(
                 "Member does not have a local password associated with it.",
             )
             .into());
-        } else if value.type_of == MemberAuthType::Invite || bcrypt::verify(&password, value.password.as_ref().unwrap()).map_err(Error::from)? {
+        } else if value.type_of == MemberAuthType::Invite
+            || bcrypt::verify(&password, value.password.as_ref().unwrap()).map_err(Error::from)?
+        {
             value
         } else {
             return Err(ApiErrorResponse::new("Unable to very password hash for account").into());
@@ -93,7 +95,9 @@ pub async fn post_password_oauth(
         let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
         // We instantly accept the invite.
-        inserted.accept_invite(MemberAuthType::Password, Some(hash), &db.basic()).await?;
+        inserted
+            .accept_invite(MemberAuthType::Password, Some(hash), &db.basic())
+            .await?;
 
         update_config(|config| {
             config.has_admin_account = true;
@@ -103,15 +107,19 @@ pub async fn post_password_oauth(
         save_config().await?;
 
         inserted
-    } else  {
-        return Err(ApiErrorResponse::new("Hey dum dum! You have no invite with this email!").into());
+    } else {
+        return Err(
+            ApiErrorResponse::new("Hey dum dum! You have no invite with this email!").into(),
+        );
     };
 
     // If we were invited update the invite with correct info.
     if member.type_of == MemberAuthType::Invite {
         let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
-        member.accept_invite(MemberAuthType::Password, Some(hash), &db.basic()).await?;
+        member
+            .accept_invite(MemberAuthType::Password, Some(hash), &db.basic())
+            .await?;
     }
 
     let model = AuthModel::new(Some(member.id));

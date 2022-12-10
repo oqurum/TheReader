@@ -1,6 +1,6 @@
 use common::{
     api::WrappingResponse,
-    component::{Popup, PopupType, ExpandableContainerComponent},
+    component::{ExpandableContainerComponent, Popup, PopupType},
     BookId,
 };
 use common_local::{

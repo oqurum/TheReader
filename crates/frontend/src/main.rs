@@ -11,7 +11,7 @@ use common::{
     component::popup::{Popup, PopupType},
     BookId, PersonId,
 };
-use common_local::{api, FileId, LibraryId, Member, CollectionId};
+use common_local::{api, CollectionId, FileId, LibraryId, Member};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
 use yew::{html::Scope, prelude::*};

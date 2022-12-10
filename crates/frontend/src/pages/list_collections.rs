@@ -2,16 +2,13 @@ use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
-use common::{api::WrappingResponse, component::{Popup, PopupType}};
-use common_local::{
-    api,
-    Collection,
+use common::{
+    api::WrappingResponse,
+    component::{Popup, PopupType},
 };
+use common_local::{api, Collection};
 
-use crate::{
-    components::Sidebar,
-    request, BaseRoute,
-};
+use crate::{components::Sidebar, request, BaseRoute};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -92,9 +89,8 @@ impl Component for CollectionListPage {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            ctx.link().send_future(async move {
-                Msg::ListResults(request::get_collections().await)
-            });
+            ctx.link()
+                .send_future(async move { Msg::ListResults(request::get_collections().await) });
         }
     }
 }
@@ -121,7 +117,6 @@ impl CollectionListPage {
     }
 }
 
-
 #[derive(Properties, PartialEq)]
 struct CreatePopupProps {
     on_submit: Callback<api::NewCollectionBody>,
@@ -143,7 +138,8 @@ fn _create_popup(props: &CreatePopupProps) -> Html {
 
             api::NewCollectionBody {
                 name: name_input.value(),
-                description: Some(description_textarea.value().trim().to_string()).filter(|v| !v.is_empty())
+                description: Some(description_textarea.value().trim().to_string())
+                    .filter(|v| !v.is_empty()),
             }
         })
     };

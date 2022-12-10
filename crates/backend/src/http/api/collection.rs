@@ -1,11 +1,18 @@
 /// Personal Collections
-
-use actix_web::{get, post, web, delete};
-use common::{api::WrappingResponse, ThumbnailStore, BookId};
+use actix_web::{delete, get, post, web};
+use common::{api::WrappingResponse, BookId, ThumbnailStore};
 use common_local::{api, CollectionId, DisplayItem};
 
-use crate::{http::{JsonResponse, MemberCookie}, WebResult, database::Database, model::{collection::{CollectionModel, NewCollectionModel}, collection_item::CollectionItemModel, book::BookModel}};
-
+use crate::{
+    database::Database,
+    http::{JsonResponse, MemberCookie},
+    model::{
+        book::BookModel,
+        collection::{CollectionModel, NewCollectionModel},
+        collection_item::CollectionItemModel,
+    },
+    WebResult,
+};
 
 #[get("/collections")]
 async fn load_collection_list(
@@ -14,15 +21,14 @@ async fn load_collection_list(
 ) -> WebResult<JsonResponse<api::ApiGetCollectionListResponse>> {
     let member = member.fetch_or_error(&db.basic()).await?;
 
-    let items = CollectionModel::find_by_member_id(member.id, &db.basic()).await?
+    let items = CollectionModel::find_by_member_id(member.id, &db.basic())
+        .await?
         .into_iter()
         .map(|v| v.into())
         .collect();
 
     Ok(web::Json(WrappingResponse::okay(items)))
 }
-
-
 
 #[get("/collection/{id}")]
 async fn load_collection_id(
@@ -68,14 +74,13 @@ async fn load_collection_id_books(
         }
     }
 
-    Ok(web::Json(WrappingResponse::okay(api::GetBookListResponse {
-        count: books.len(),
-        items: books,
-    })))
+    Ok(web::Json(WrappingResponse::okay(
+        api::GetBookListResponse {
+            count: books.len(),
+            items: books,
+        },
+    )))
 }
-
-
-
 
 #[post("/collection")]
 async fn new_collection(
@@ -89,16 +94,18 @@ async fn new_collection(
         member_id: member.id,
 
         name: body.name,
-        description: body.description.map(|v| v.trim().to_string()).filter(|v| !v.is_empty()),
+        description: body
+            .description
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty()),
 
         thumb_url: ThumbnailStore::None,
-    }.insert(&db.basic()).await?;
+    }
+    .insert(&db.basic())
+    .await?;
 
     Ok(web::Json(WrappingResponse::okay(model.into())))
 }
-
-
-
 
 #[post("/collection/{id}/book/{book_id}")]
 async fn add_book_to_collection(
@@ -117,11 +124,12 @@ async fn add_book_to_collection(
     CollectionItemModel {
         collection_id: id.0,
         book_id: id.1,
-    }.insert_or_ignore(&db.basic()).await?;
+    }
+    .insert_or_ignore(&db.basic())
+    .await?;
 
     Ok(web::Json(WrappingResponse::okay("ok")))
 }
-
 
 #[delete("/collection/{id}/book/{book_id}")]
 async fn remove_book_from_collection(
@@ -140,7 +148,9 @@ async fn remove_book_from_collection(
     CollectionItemModel {
         collection_id: id.0,
         book_id: id.1,
-    }.delete_one(&db.basic()).await?;
+    }
+    .delete_one(&db.basic())
+    .await?;
 
     Ok(web::Json(WrappingResponse::okay("ok")))
 }
