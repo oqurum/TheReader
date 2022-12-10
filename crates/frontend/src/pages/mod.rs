@@ -24,3 +24,4 @@ pub use media_view::MediaView;
 pub use reading::ReadingBook;
 pub use setup::SetupPage;
 pub use list_collections::CollectionListPage;
+pub use collection::CollectionItemPage;

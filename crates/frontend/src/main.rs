@@ -265,8 +265,7 @@ fn switch_base(route: &BaseRoute) -> Html {
         }
 
         BaseRoute::ViewCollection { id } => {
-            // html! { <pages:: id={person_id} /> }
-            html! {}
+            html! { <pages::CollectionItemPage {id} /> }
         }
 
         BaseRoute::Settings => {

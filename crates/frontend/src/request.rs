@@ -74,8 +74,26 @@ pub async fn get_collection(id: CollectionId) -> WrappingResponse<ApiGetCollecti
         .unwrap_or_else(def)
 }
 
+pub async fn get_collection_books(id: CollectionId) -> WrappingResponse<ApiGetCollectionIdBooksResponse> {
+    fetch("GET", &format!("/api/collection/{id}/books"), Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
+}
+
 pub async fn create_collection(value: &NewCollectionBody) -> WrappingResponse<ApiGetCollectionIdResponse> {
     fetch("POST", "/api/collection", Some(value))
+        .await
+        .unwrap_or_else(def)
+}
+
+pub async fn add_book_to_collection(id: CollectionId, book_id: BookId) -> WrappingResponse<String> {
+    fetch("POST", &format!("/api/collection/{id}/book/{book_id}"), Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
+}
+
+pub async fn remove_book_from_collection(id: CollectionId, book_id: BookId) -> WrappingResponse<String> {
+    fetch("DELETE", &format!("/api/collection/{id}/book/{book_id}"), Option::<&()>::None)
         .await
         .unwrap_or_else(def)
 }

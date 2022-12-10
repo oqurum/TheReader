@@ -269,6 +269,14 @@ impl Component for LibraryPage {
                         });
                     }
 
+                    PosterItem::AddBookToCollection(book_id, collection_id) => {
+                        ctx.link().send_future(async move {
+                            request::add_book_to_collection(collection_id, book_id).await;
+
+                            Msg::Ignore
+                        });
+                    }
+
                     PosterItem::UnMatch(book_id) => {
                         ctx.link().send_future(async move {
                             request::update_book(book_id, &api::PostBookBody::UnMatch).await;
@@ -371,9 +379,12 @@ impl LibraryPage {
                                                 { is_matched }
 
                                                 event={ ctx.link().callback(move |e| {
+                                                    log::debug!("{e:?}");
+
                                                     match e {
                                                         DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
                                                         DropdownInfoPopupEvent::UnMatchBook => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UnMatch(book_id))),
+                                                        DropdownInfoPopupEvent::AddToCollection(id) => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::AddBookToCollection(book_id, id))),
                                                         DropdownInfoPopupEvent::RefreshMetadata => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id))),
                                                         DropdownInfoPopupEvent::SearchFor => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }))),
                                                         DropdownInfoPopupEvent::Info => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id }))),

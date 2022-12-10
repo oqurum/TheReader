@@ -2,9 +2,10 @@ use common::{
     component::{Popup, PopupClose, PopupType},
     BookId, Either,
 };
-use common_local::{api, DisplayItem, MediaItem, Progression, ThumbnailStoreExt};
+use common_local::{api, DisplayItem, MediaItem, Progression, ThumbnailStoreExt, CollectionId};
 use web_sys::{HtmlElement, HtmlInputElement, MouseEvent};
 use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast};
+use yew_hooks::use_async;
 use yew_router::prelude::Link;
 
 use crate::{
@@ -209,6 +210,7 @@ pub enum PosterItem {
 
     // Popup Events
     UpdateBookById(BookId),
+    AddBookToCollection(BookId, CollectionId),
 
     UnMatch(BookId),
 
@@ -257,10 +259,11 @@ impl PartialEq for DisplayOverlayItem {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum DropdownInfoPopupEvent {
     Closed,
     RefreshMetadata,
+    AddToCollection(CollectionId),
     UnMatchBook,
     SearchFor,
     Info,
@@ -280,6 +283,77 @@ pub struct DropdownInfoPopupProps {
 #[function_component(DropdownInfoPopup)]
 pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
     let book_id = props.book_id;
+
+    let display_collections = use_async(async move {
+        request::get_collections().await.ok()
+    });
+
+    let add_to_collection_cb = {
+        let display_collections = display_collections.clone();
+
+        Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            e.stop_propagation();
+
+            display_collections.run();
+        })
+    };
+
+    if display_collections.loading || display_collections.data.is_some() || display_collections.error.is_some() {
+        return html! {
+            <Popup type_of={ PopupType::AtPoint(props.pos_x, props.pos_y) } on_close={ props.event.reform(|_| DropdownInfoPopupEvent::Closed) }>
+                {
+                    if display_collections.loading {
+                        html! {
+                            <div class="menu-list">
+                                <div class="menu-item"></div>
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+
+                {
+                    if let Some(data) = display_collections.data.as_ref() {
+                        html! {
+                            <div class="menu-list">
+                                {
+                                    for data.iter().map(|d| {
+                                        let id = d.id;
+
+                                        html! {
+                                            <PopupClose
+                                                class="menu-item"
+                                                onclick={ on_click_prevdef_cb(
+                                                    props.event.clone(),
+                                                    move |cb, _| cb.emit(DropdownInfoPopupEvent::AddToCollection(id))
+                                                ) }
+                                            >{ d.name.clone() }</PopupClose>
+                                        }
+                                    })
+                                }
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+
+                {
+                    if let Some(data) = display_collections.error.as_ref() {
+                        html! {
+                            <div class="menu-list">
+                                <div class="menu-item">{ data.description.clone() }</div>
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+            </Popup>
+        }
+    }
 
     html! {
         <Popup type_of={ PopupType::AtPoint(props.pos_x, props.pos_y) } on_close={ props.event.reform(|_| DropdownInfoPopupEvent::Closed) }>
@@ -303,6 +377,8 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     props.event.clone(),
                     |cb, _| cb.emit(DropdownInfoPopupEvent::RefreshMetadata)
                 ) }>{ "Refresh Metadata" }</PopupClose>
+
+                <div class="menu-item" onclick={ add_to_collection_cb }>{ "Add to Collection" }</div>
 
                 {
                     if cfg!(feature = "web") {

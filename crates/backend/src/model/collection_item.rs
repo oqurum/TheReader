@@ -40,4 +40,17 @@ impl CollectionItemModel {
 
         Ok(())
     }
+
+    pub async fn find_by_collection_id(
+        id: CollectionId,
+        db: &dyn DatabaseAccess,
+    ) -> Result<Vec<Self>> {
+        let this = db.read().await;
+
+        let mut conn = this.prepare("SELECT * FROM collection_item WHERE collection_id = ?1")?;
+
+        let map = conn.query_map([id], |v| Self::from_row(v))?;
+
+        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
 }

@@ -204,6 +204,14 @@ impl Component for AuthorView {
                         });
                     }
 
+                    PosterItem::AddBookToCollection(book_id, collection_id) => {
+                        ctx.link().send_future(async move {
+                            request::add_book_to_collection(collection_id, book_id).await;
+
+                            Msg::Ignore
+                        });
+                    }
+
                     PosterItem::UpdateBookByFiles(book_id) => {
                         ctx.link().send_future(async move {
                             request::update_book(
