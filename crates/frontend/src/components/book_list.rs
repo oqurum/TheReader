@@ -1,39 +1,32 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-    sync::Mutex,
-};
+use std::{collections::{HashMap, HashSet}, rc::Rc, sync::Mutex};
 
-use common::{
-    api::WrappingResponse,
-    component::{InfiniteScroll, InfiniteScrollEvent, Popup, PopupType},
-    BookId,
-};
-use common_local::{
-    api,
-    ws::{TaskType, UniqueId, WebsocketNotification},
-    DisplayItem, LibraryId,
-};
+use common::{BookId, component::{InfiniteScroll, Popup, PopupType, InfiniteScrollEvent}, api::WrappingResponse};
+use common_local::{api, DisplayItem, ws::{UniqueId, WebsocketNotification, TaskType}, CollectionId};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{
-    components::{
-        book_poster_item::{BookPosterItem, BookPosterItemMsg, DisplayOverlayItem, PosterItem},
-        DropdownInfoPopup, DropdownInfoPopupEvent, MassSelectBar, PopupEditBook, PopupSearchBook,
-        Sidebar,
-    },
-    request,
-    services::WsEventBus,
-    util::build_book_filter_query,
-};
+use crate::{services::WsEventBus, request, components::{DropdownInfoPopup, DropdownInfoPopupEvent}};
 
-#[derive(Properties, PartialEq, Eq)]
-pub struct Property {
-    pub library_id: LibraryId,
+use super::book_poster_item::{BookPosterItem, BookPosterItemMsg, PosterItem, DisplayOverlayItem};
+use super::{MassSelectBar, PopupSearchBook, PopupEditBook};
+
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct BookListScope {
+    pub collection_id: Option<CollectionId>,
 }
 
-#[derive(Clone)]
+
+pub struct BookListRequest {
+    pub offset: Option<usize>,
+    pub response: Callback<WrappingResponse<api::GetBookListResponse>>,
+}
+
+#[derive(Properties, PartialEq)]
+pub struct Props {
+    pub on_load: Callback<BookListRequest>,
+}
+
 pub enum Msg {
     HandleWebsocket(WebsocketNotification),
 
@@ -55,7 +48,8 @@ pub enum Msg {
     Ignore,
 }
 
-pub struct LibraryPage {
+
+pub struct BookListComponent {
     media_items: Option<Vec<DisplayItem>>,
     total_media_count: usize,
 
@@ -76,9 +70,9 @@ pub struct LibraryPage {
     task_items_updating: HashSet<BookId>,
 }
 
-impl Component for LibraryPage {
+impl Component for BookListComponent {
     type Message = Msg;
-    type Properties = Property;
+    type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
         Self {
@@ -193,18 +187,9 @@ impl Component for LibraryPage {
                 )
                 .filter(|v| *v != 0);
 
-                let library = ctx.props().library_id;
-
-                ctx.link().send_future(async move {
-                    Msg::MediaListResults(
-                        request::get_books(
-                            Some(library),
-                            offset,
-                            None,
-                            Some(build_book_filter_query()),
-                        )
-                        .await,
-                    )
+                ctx.props().on_load.emit(BookListRequest {
+                    offset,
+                    response: ctx.link().callback(Msg::MediaListResults),
                 });
             }
 
@@ -278,6 +263,14 @@ impl Component for LibraryPage {
                     }
 
                     PosterItem::RemoveBookFromCollection(book_id, collection_id) => {
+                        // TODO: Ensure this is only called from inside a collection.
+                        let books = self.media_items.as_mut().unwrap();
+
+                        if let Some(index) = books.iter().position(|v| v.id == book_id) {
+                            books.remove(index);
+                            self.total_media_count -= 1;
+                        }
+
                         ctx.link().send_future(async move {
                             request::remove_book_from_collection(collection_id, book_id).await;
 
@@ -316,25 +309,6 @@ impl Component for LibraryPage {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        html! {
-            <div class="outer-view-container">
-                <Sidebar />
-                <div class="view-container">
-                    { self.render_main(ctx) }
-                </div>
-            </div>
-        }
-    }
-
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if first_render {
-            ctx.link().send_message(Msg::RequestMediaItems);
-        }
-    }
-}
-
-impl LibraryPage {
-    fn render_main(&self, ctx: &Context<Self>) -> Html {
         if let Some(items) = self.media_items.as_deref() {
             // TODO: Placeholders
             // let remaining = (self.total_media_count as usize - items.len()).min(50);
@@ -450,6 +424,14 @@ impl LibraryPage {
         }
     }
 
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        if first_render {
+            ctx.link().send_message(Msg::RequestMediaItems);
+        }
+    }
+}
+
+impl BookListComponent {
     // fn render_placeholder_item() -> Html {
     //     html! {
     //         <div class="book-list-item placeholder">

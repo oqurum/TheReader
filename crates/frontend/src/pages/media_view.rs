@@ -253,6 +253,7 @@ impl MediaView {
                                                 match e {
                                                     // TODO:
                                                     DropdownInfoPopupEvent::AddToCollection(_id) => Msg::ClosePopup,
+                                                    DropdownInfoPopupEvent::RemoveFromCollection(_id) => Msg::ClosePopup,
                                                     DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
                                                     DropdownInfoPopupEvent::RefreshMetadata => Msg::UpdateBook(book_id),
                                                     DropdownInfoPopupEvent::UnMatchBook => Msg::UnMatchBook(book_id),

@@ -212,6 +212,14 @@ impl Component for AuthorView {
                         });
                     }
 
+                    PosterItem::RemoveBookFromCollection(book_id, collection_id) => {
+                        ctx.link().send_future(async move {
+                            request::remove_book_from_collection(collection_id, book_id).await;
+
+                            Msg::Ignore
+                        });
+                    }
+
                     PosterItem::UpdateBookByFiles(book_id) => {
                         ctx.link().send_future(async move {
                             request::update_book(

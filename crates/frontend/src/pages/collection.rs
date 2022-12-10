@@ -5,10 +5,10 @@ use common::{
     api::WrappingResponse,
     component::{Popup, PopupType},
 };
-use common_local::{api, Collection, CollectionId, DisplayItem};
+use common_local::{api, Collection, CollectionId};
 
 use crate::{
-    components::{BookPosterItem, Sidebar},
+    components::{BookListComponent, BookListScope, Sidebar, BookListRequest},
     request,
 };
 
@@ -20,14 +20,14 @@ pub struct Props {
 #[derive(Clone)]
 pub enum Msg {
     ItemResults(WrappingResponse<api::ApiGetCollectionIdResponse>),
-    BooksResults(WrappingResponse<api::GetBookListResponse>),
 
     OpenPopup,
     ClosePopup,
+
+    Ignore,
 }
 
 pub struct CollectionItemPage {
-    media_items: Option<Vec<DisplayItem>>,
     item: Option<Collection>,
     display_popup: bool,
 }
@@ -38,22 +38,16 @@ impl Component for CollectionItemPage {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            media_items: None,
             item: None,
             display_popup: false,
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ItemResults(resp) => {
                 match resp.ok() {
                     Ok(resp) => {
-                        let id = ctx.props().id;
-                        ctx.link().send_future(async move {
-                            Msg::BooksResults(request::get_collection_books(id).await)
-                        });
-
                         self.item = Some(resp);
                     }
 
@@ -63,16 +57,10 @@ impl Component for CollectionItemPage {
                 self.display_popup = false;
             }
 
-            Msg::BooksResults(resp) => match resp.ok() {
-                Ok(resp) => {
-                    self.media_items = Some(resp.items);
-                }
-
-                Err(err) => crate::display_error(err),
-            },
-
             Msg::OpenPopup => self.display_popup = true,
             Msg::ClosePopup => self.display_popup = false,
+
+            Msg::Ignore => return false,
         }
 
         true
@@ -129,7 +117,13 @@ impl Component for CollectionItemPage {
 }
 
 impl CollectionItemPage {
-    fn render_main(&self, info: &Collection, _ctx: &Context<Self>) -> Html {
+    fn render_main(&self, info: &Collection, ctx: &Context<Self>) -> Html {
+        let id = info.id;
+
+        let context = BookListScope {
+            collection_id: Some(ctx.props().id),
+        };
+
         html! {
             <>
                 <div class="collection-list">
@@ -137,21 +131,15 @@ impl CollectionItemPage {
                     <p>{ info.description.clone().unwrap_or_default() }</p>
                 </div>
 
-                <div class="book-list normal">
-                    {
-                        if let Some(items) = self.media_items.as_ref() {
-                            html! {
-                                for items.iter().map(|item| {
-                                    html! {
-                                        <BookPosterItem item={ item.clone() } />
-                                    }
-                                })
-                            }
-                        } else {
-                            html! {}
-                        }
-                    }
-                </div>
+                <ContextProvider<BookListScope> {context}>
+                    <BookListComponent on_load={ ctx.link().callback_future(move |v: BookListRequest| async move {
+                        let res = request::get_collection_books(id).await;
+
+                        v.response.emit(res);
+
+                        Msg::Ignore
+                    }) } />
+                </ContextProvider<BookListScope>>
             </>
         }
     }

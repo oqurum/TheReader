@@ -4,7 +4,7 @@ use common::{
 };
 use common_local::{api, CollectionId, DisplayItem, MediaItem, Progression, ThumbnailStoreExt};
 use web_sys::{HtmlElement, HtmlInputElement, MouseEvent};
-use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast};
+use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast, use_context};
 use yew_hooks::use_async;
 use yew_router::prelude::Link;
 
@@ -13,6 +13,8 @@ use crate::{
     util::{on_click_prevdef_cb, on_click_prevdef_stopprop_cb},
     BaseRoute,
 };
+
+use super::BookListScope;
 
 #[derive(Properties)]
 pub struct BookPosterItemProps {
@@ -211,6 +213,7 @@ pub enum PosterItem {
     // Popup Events
     UpdateBookById(BookId),
     AddBookToCollection(BookId, CollectionId),
+    RemoveBookFromCollection(BookId, CollectionId),
 
     UnMatch(BookId),
 
@@ -264,6 +267,7 @@ pub enum DropdownInfoPopupEvent {
     Closed,
     RefreshMetadata,
     AddToCollection(CollectionId),
+    RemoveFromCollection(CollectionId),
     UnMatchBook,
     SearchFor,
     Info,
@@ -283,6 +287,8 @@ pub struct DropdownInfoPopupProps {
 #[function_component(DropdownInfoPopup)]
 pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
     let book_id = props.book_id;
+
+    let book_list_ctx = use_context::<BookListScope>().unwrap_or_default();
 
     let display_collections = use_async(async move { request::get_collections().await.ok() });
 
@@ -379,7 +385,23 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     |cb, _| cb.emit(DropdownInfoPopupEvent::RefreshMetadata)
                 ) }>{ "Refresh Metadata" }</PopupClose>
 
-                <div class="menu-item" onclick={ add_to_collection_cb }>{ "Add to Collection" }</div>
+                {
+                    if let Some(id) = book_list_ctx.collection_id {
+                        html! {
+                            <PopupClose
+                                class="menu-item"
+                                onclick={ on_click_prevdef_cb(
+                                    props.event.clone(),
+                                    move |cb, _| cb.emit(DropdownInfoPopupEvent::RemoveFromCollection(id))
+                                ) }
+                            >{ "Remove from Collection" }</PopupClose>
+                        }
+                    } else {
+                        html! {
+                            <div class="menu-item" onclick={ add_to_collection_cb }>{ "Add to Collection" }</div>
+                        }
+                    }
+                }
 
                 {
                     if cfg!(feature = "web") {
