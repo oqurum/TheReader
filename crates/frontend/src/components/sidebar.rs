@@ -91,7 +91,7 @@ impl Sidebar {
     fn render_sidebar_library_item(item: &LibraryColl, scope: &Scope<Self>) -> Html {
         let library_id = item.id;
 
-        let to = BaseRoute::ViewLibrary { library_id };
+        let to = BaseRoute::ViewLibrary { id: library_id };
         let cr = scope.route::<BaseRoute>().unwrap();
 
         html! {

@@ -193,8 +193,8 @@ pub enum BaseRoute {
     #[at("/logout")]
     Logout,
 
-    #[at("/library/:library_id")]
-    ViewLibrary { library_id: LibraryId },
+    #[at("/library/:id")]
+    ViewLibrary { id: LibraryId },
 
     #[at("/view/:book_id")]
     ViewBook { book_id: BookId },
@@ -240,8 +240,8 @@ fn switch_base(route: &BaseRoute) -> Html {
             html! { <pages::LogoutPage /> }
         }
 
-        BaseRoute::ViewLibrary { library_id } => {
-            html! { <pages::LibraryPage library_id={library_id} /> }
+        BaseRoute::ViewLibrary { id } => {
+            html! { <pages::LibraryPage id={id} /> }
         }
 
         BaseRoute::ViewBook { book_id } => {
