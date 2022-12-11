@@ -99,10 +99,10 @@ impl CollectionListPage {
     fn render_main(&self, _ctx: &Context<Self>) -> Html {
         if let Some(items) = self.items.as_deref() {
             html! {
-                <div class="collection-list">
+                <div class="list">
                     {
                         for items.iter().map(|item| html! {
-                            <Link<BaseRoute> to={ BaseRoute::ViewCollection { id: item.id } } classes={ "collection-list-item" }>
+                            <Link<BaseRoute> to={ BaseRoute::ViewCollection { id: item.id } } classes={ "list-item" }>
                                 <span>{ item.name.clone() }</span>
                             </Link<BaseRoute>>
                         })
