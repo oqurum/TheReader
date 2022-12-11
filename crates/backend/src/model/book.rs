@@ -5,7 +5,6 @@ use rusqlite::{params, OptionalExtension};
 use crate::{DatabaseAccess, Result};
 use common_local::{
     filter::{FilterContainer, FilterModifier, FilterTableType},
-    util::{serialize_datetime, serialize_datetime_opt},
     BookEdit, BookItemCached, DisplayBookItem, LibraryId,
 };
 use serde::Serialize;
@@ -31,16 +30,11 @@ pub struct BookModel {
     // TODO: Make table for all tags. Include publisher in it. Remove country.
     pub cached: BookItemCached,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub refreshed_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub updated_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime_opt")]
     pub deleted_at: Option<DateTime<Utc>>,
 
-    #[serde(serialize_with = "serialize_datetime_opt")]
     pub available_at: Option<DateTime<Utc>>,
     pub year: Option<i64>,
 }

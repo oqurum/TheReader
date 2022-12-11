@@ -3,7 +3,6 @@ use std::{collections::HashMap, path::PathBuf};
 use chrono::NaiveDate;
 use common::{
     api::QueryListResponse,
-    util::{deserialize_naivedate_opt, serialize_naivedate_opt},
     BookId, Either, ImageId, MemberId, PersonId, Source,
 };
 use serde::{Deserialize, Serialize};
@@ -374,15 +373,7 @@ pub struct MetadataPersonSearchItem {
     pub other_names: Option<Vec<String>>,
     pub description: Option<String>,
 
-    #[serde(
-        serialize_with = "serialize_naivedate_opt",
-        deserialize_with = "deserialize_naivedate_opt"
-    )]
     pub birth_date: Option<NaiveDate>,
-    #[serde(
-        serialize_with = "serialize_naivedate_opt",
-        deserialize_with = "deserialize_naivedate_opt"
-    )]
     pub death_date: Option<NaiveDate>,
 }
 

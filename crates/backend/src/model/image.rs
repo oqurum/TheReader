@@ -4,7 +4,6 @@ use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
 use crate::{DatabaseAccess, InternalError, Result};
-use common_local::util::serialize_datetime;
 
 use super::{AdvRow, TableRow};
 
@@ -20,7 +19,6 @@ pub struct ImageLinkModel {
 pub struct NewUploadedImageModel {
     pub path: ThumbnailStore,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
 }
 
@@ -30,7 +28,6 @@ pub struct UploadedImageModel {
 
     pub path: ThumbnailStore,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
 }
 
@@ -43,7 +40,6 @@ pub struct ImageWithLink {
 
     pub path: ThumbnailStore,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
 }
 

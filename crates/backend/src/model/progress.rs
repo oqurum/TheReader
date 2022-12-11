@@ -3,7 +3,7 @@ use common::{BookId, MemberId};
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
-use common_local::{util::serialize_datetime, FileId, Progression};
+use common_local::{FileId, Progression};
 use serde::Serialize;
 
 use super::{book::BookModel, AdvRow, TableRow};
@@ -26,9 +26,7 @@ pub struct FileProgressionModel {
     // Audiobook
     pub seek_pos: Option<i64>,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub updated_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
 }
 

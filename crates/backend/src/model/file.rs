@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
-use common::{util::serialize_datetime_opt, BookId};
+use common::BookId;
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
-use common_local::{util::serialize_datetime, FileId, LibraryId, MediaItem};
+use common_local::{FileId, LibraryId, MediaItem};
 use serde::Serialize;
 
 use super::{book::BookModel, AdvRow, TableRow};
@@ -47,13 +47,9 @@ pub struct FileModel {
     pub identifier: Option<String>,
     pub hash: String,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub modified_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub accessed_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime_opt")]
     pub deleted_at: Option<DateTime<Utc>>,
 }
 

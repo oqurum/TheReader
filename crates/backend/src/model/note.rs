@@ -3,7 +3,7 @@ use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
-use common_local::{util::serialize_datetime, FileId};
+use common_local::FileId;
 use serde::Serialize;
 
 use super::{AdvRow, TableRow};
@@ -16,9 +16,7 @@ pub struct FileNoteModel {
     pub data: String,
     pub data_size: i64,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub updated_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
 }
 

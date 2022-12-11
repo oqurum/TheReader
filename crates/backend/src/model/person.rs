@@ -1,9 +1,9 @@
 use chrono::{DateTime, NaiveDate, Utc};
-use common::{util::serialize_naivedate_opt, BookId, PersonId, Source, ThumbnailStore};
+use common::{BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
-use common_local::{util::serialize_datetime, Person};
+use common_local::Person;
 use serde::Serialize;
 
 use super::{AdvRow, TableRow};
@@ -31,14 +31,11 @@ pub struct PersonModel {
     pub name: String,
     pub description: Option<String>,
 
-    #[serde(serialize_with = "serialize_naivedate_opt")]
     pub birth_date: Option<NaiveDate>,
 
     pub thumb_url: ThumbnailStore,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub updated_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
 }
 

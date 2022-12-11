@@ -3,7 +3,7 @@ use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
 use crate::{DatabaseAccess, Result};
-use common_local::{util::serialize_datetime, LibraryId};
+use common_local::LibraryId;
 
 use super::{directory::DirectoryModel, AdvRow, TableRow};
 
@@ -21,11 +21,8 @@ pub struct LibraryModel {
 
     pub name: String,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub scanned_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub updated_at: DateTime<Utc>,
 }
 

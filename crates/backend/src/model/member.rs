@@ -3,7 +3,7 @@ use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
-use common_local::{util::serialize_datetime, MemberAuthType, Permissions};
+use common_local::{MemberAuthType, Permissions};
 use serde::Serialize;
 
 use super::{AdvRow, TableRow};
@@ -66,10 +66,7 @@ pub struct MemberModel {
 
     pub permissions: Permissions,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
-
-    #[serde(serialize_with = "serialize_datetime")]
     pub updated_at: DateTime<Utc>,
 }
 

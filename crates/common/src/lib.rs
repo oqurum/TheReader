@@ -2,12 +2,10 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, NaiveDate, Utc};
 use common::{
-    util::{deserialize_naivedate_opt, serialize_naivedate_opt},
     Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore,
 };
 use serde::{Deserialize, Serialize};
 
-use util::*;
 
 pub mod error;
 mod ext;
@@ -33,15 +31,7 @@ pub struct Member {
 
     pub permissions: Permissions,
 
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub created_at: DateTime<Utc>,
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -55,23 +45,11 @@ pub struct Person {
 
     pub name: String,
     pub description: Option<String>,
-    #[serde(
-        serialize_with = "serialize_naivedate_opt",
-        deserialize_with = "deserialize_naivedate_opt"
-    )]
     pub birth_date: Option<NaiveDate>,
 
     pub thumb_url: ThumbnailStore,
 
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub updated_at: DateTime<Utc>,
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub created_at: DateTime<Utc>,
 }
 
@@ -102,15 +80,7 @@ pub struct Collection {
 
     pub thumb_url: ThumbnailStore,
 
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub created_at: DateTime<Utc>,
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -161,25 +131,9 @@ pub struct DisplayBookItem {
     // TODO: Make table for all tags. Include publisher in it. Remove country.
     pub cached: BookItemCached,
 
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub refreshed_at: DateTime<Utc>,
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub created_at: DateTime<Utc>,
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub updated_at: DateTime<Utc>,
-    #[serde(
-        serialize_with = "serialize_datetime_opt",
-        deserialize_with = "deserialize_datetime_opt"
-    )]
     pub deleted_at: Option<DateTime<Utc>>,
 
     pub available_at: Option<i64>,
@@ -388,9 +342,5 @@ pub struct Poster {
 
     pub path: String,
 
-    #[serde(
-        serialize_with = "serialize_datetime",
-        deserialize_with = "deserialize_datetime"
-    )]
     pub created_at: DateTime<Utc>,
 }

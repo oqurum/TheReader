@@ -3,7 +3,7 @@ use common::{MemberId, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
-use common_local::{util::serialize_datetime, Collection, CollectionId};
+use common_local::{Collection, CollectionId};
 
 use super::{AdvRow, TableRow};
 use crate::{DatabaseAccess, Result};
@@ -29,9 +29,7 @@ pub struct CollectionModel {
 
     pub thumb_url: ThumbnailStore,
 
-    #[serde(serialize_with = "serialize_datetime")]
     pub created_at: DateTime<Utc>,
-    #[serde(serialize_with = "serialize_datetime")]
     pub updated_at: DateTime<Utc>,
 }
 
