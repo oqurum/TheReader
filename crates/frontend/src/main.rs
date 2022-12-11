@@ -149,11 +149,13 @@ impl Component for Model {
             <>
                 <BrowserRouter>
                     <ContextProvider<Rc<AppState>> context={ self.state.clone() }>
-                        <NavbarModule visible={ self.state.is_navbar_visible } />
-                        {
-                            if self.has_loaded_member {
-                                html! {
-                                    <Switch<BaseRoute> render={ Switch::render(switch_base) } />
+                    {
+                        if self.has_loaded_member {
+                            html! {
+                                    <>
+                                        <NavbarModule visible={ self.state.is_navbar_visible } />
+                                        <Switch<BaseRoute> render={ Switch::render(switch_base) } />
+                                    </>
                                 }
                             } else {
                                 html! {
