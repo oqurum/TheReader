@@ -1,14 +1,14 @@
-use std::{collections::{HashMap, HashSet}, rc::Rc, sync::Mutex};
+use std::{collections::{HashMap, HashSet}, rc::Rc, cell::RefCell};
 
-use common::{BookId, component::{InfiniteScroll, Popup, PopupType, InfiniteScrollEvent}, api::WrappingResponse};
+use common::{BookId, component::{InfiniteScroll, InfiniteScrollEvent}, api::WrappingResponse};
 use common_local::{api, DisplayItem, ws::{UniqueId, WebsocketNotification, TaskType}, CollectionId};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{services::WsEventBus, request, components::{DropdownInfoPopup, DropdownInfoPopupEvent}};
+use crate::{services::WsEventBus, request};
 
-use super::book_poster_item::{BookPosterItem, BookPosterItemMsg, PosterItem, DisplayOverlayItem};
-use super::{MassSelectBar, PopupSearchBook, PopupEditBook};
+use super::book_poster_item::{BookPosterItem, BookPosterItemMsg};
+use super::MassSelectBar;
 
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -39,13 +39,10 @@ pub enum Msg {
 
     // Events
     OnScroll(InfiniteScrollEvent),
-    ClosePopup,
 
     DeselectAllEditing,
 
     BookListItemEvent(BookPosterItemMsg),
-
-    Ignore,
 }
 
 
@@ -55,12 +52,10 @@ pub struct BookListComponent {
 
     is_fetching_media_items: bool,
 
-    media_popup: Option<DisplayOverlayItem>,
-
     book_list_ref: NodeRef,
 
     // TODO: Make More Advanced
-    editing_items: Rc<Mutex<Vec<BookId>>>,
+    editing_items: Rc<RefCell<Vec<BookId>>>,
 
     _producer: Box<dyn Bridge<WsEventBus>>,
 
@@ -81,11 +76,9 @@ impl Component for BookListComponent {
 
             is_fetching_media_items: false,
 
-            media_popup: None,
-
             book_list_ref: NodeRef::default(),
 
-            editing_items: Rc::new(Mutex::new(Vec::new())),
+            editing_items: Rc::new(RefCell::new(Vec::new())),
 
             _producer: WsEventBus::bridge(ctx.link().callback(Msg::HandleWebsocket)),
 
@@ -164,12 +157,8 @@ impl Component for BookListComponent {
                 Err(err) => crate::display_error(err),
             },
 
-            Msg::ClosePopup => {
-                self.media_popup = None;
-            }
-
             Msg::DeselectAllEditing => {
-                self.editing_items.lock().unwrap().clear();
+                self.editing_items.borrow_mut().clear();
             }
 
             Msg::RequestMediaItems => {
@@ -219,90 +208,17 @@ impl Component for BookListComponent {
                 return false;
             }
 
-            Msg::BookListItemEvent(event) => match event {
-                BookPosterItemMsg::AddOrRemoveItemFromEditing(id, value) => {
-                    let mut items = self.editing_items.lock().unwrap();
+            Msg::BookListItemEvent(BookPosterItemMsg::RemoveBookFromCollection(book_id, _collection_id)) => {
+                // TODO: Ensure this is only called from inside a collection.
+                let books = self.media_items.as_mut().unwrap();
 
-                    if value {
-                        if !items.iter().any(|v| *v == id) {
-                            items.push(id);
-                        }
-                    } else if let Some(index) = items.iter().position(|v| *v == id) {
-                        items.swap_remove(index);
-                    }
+                if let Some(index) = books.iter().position(|v| v.id == book_id) {
+                    books.remove(index);
+                    self.total_media_count -= 1;
                 }
-
-                BookPosterItemMsg::PosterItem(item) => match item {
-                    PosterItem::ShowPopup(new_disp) => {
-                        if let Some(old_disp) = self.media_popup.as_mut() {
-                            if *old_disp == new_disp {
-                                self.media_popup = None;
-                            } else {
-                                self.media_popup = Some(new_disp);
-                            }
-                        } else {
-                            self.media_popup = Some(new_disp);
-                        }
-                    }
-
-                    PosterItem::UpdateBookById(book_id) => {
-                        ctx.link().send_future(async move {
-                            request::update_book(book_id, &api::PostBookBody::AutoMatchBookId)
-                                .await;
-
-                            Msg::Ignore
-                        });
-                    }
-
-                    PosterItem::AddBookToCollection(book_id, collection_id) => {
-                        ctx.link().send_future(async move {
-                            request::add_book_to_collection(collection_id, book_id).await;
-
-                            Msg::Ignore
-                        });
-                    }
-
-                    PosterItem::RemoveBookFromCollection(book_id, collection_id) => {
-                        // TODO: Ensure this is only called from inside a collection.
-                        let books = self.media_items.as_mut().unwrap();
-
-                        if let Some(index) = books.iter().position(|v| v.id == book_id) {
-                            books.remove(index);
-                            self.total_media_count -= 1;
-                        }
-
-                        ctx.link().send_future(async move {
-                            request::remove_book_from_collection(collection_id, book_id).await;
-
-                            Msg::Ignore
-                        });
-                    }
-
-                    PosterItem::UnMatch(book_id) => {
-                        ctx.link().send_future(async move {
-                            request::update_book(book_id, &api::PostBookBody::UnMatch).await;
-
-                            Msg::Ignore
-                        });
-                    }
-
-                    PosterItem::UpdateBookByFiles(book_id) => {
-                        ctx.link().send_future(async move {
-                            request::update_book(
-                                book_id,
-                                &api::PostBookBody::AutoMatchBookIdByFiles,
-                            )
-                            .await;
-
-                            Msg::Ignore
-                        });
-                    }
-                },
-
-                BookPosterItemMsg::Ignore => (),
             },
 
-            Msg::Ignore => return false,
+            _ => (),
         }
 
         true
@@ -322,7 +238,7 @@ impl Component for BookListComponent {
                     >
                         {
                             for items.iter().map(|item| {
-                                let is_editing = self.editing_items.lock().unwrap().contains(&item.id);
+                                let is_editing = self.editing_items.borrow().contains(&item.id);
                                 let is_updating = self.task_items_updating.contains(&item.id);
 
                                 html! {
@@ -337,77 +253,6 @@ impl Component for BookListComponent {
                             })
                         }
                         // { for (0..remaining).map(|_| Self::render_placeholder_item()) }
-
-                        {
-                            if let Some(overlay_type) = self.media_popup.as_ref() {
-                                match overlay_type {
-                                    DisplayOverlayItem::Info { book_id: _ } => {
-                                        html! {
-                                            <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-                                                <h1>{"Info"}</h1>
-                                            </Popup>
-                                        }
-                                    }
-
-                                    &DisplayOverlayItem::More { book_id, mouse_pos: (pos_x, pos_y) } => {
-                                        let is_matched = true;//items.iter().any(|b| b.source.agent.as_ref() == "local");
-
-                                        html! {
-                                            <DropdownInfoPopup
-                                                { pos_x }
-                                                { pos_y }
-
-                                                { book_id }
-                                                { is_matched }
-
-                                                event={ ctx.link().callback(move |e| {
-                                                    log::debug!("{e:?}");
-
-                                                    match e {
-                                                        DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
-                                                        DropdownInfoPopupEvent::UnMatchBook => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UnMatch(book_id))),
-                                                        DropdownInfoPopupEvent::AddToCollection(id) => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::AddBookToCollection(book_id, id))),
-                                                        DropdownInfoPopupEvent::RemoveFromCollection(id) => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::RemoveBookFromCollection(book_id, id))),
-                                                        DropdownInfoPopupEvent::RefreshMetadata => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id))),
-                                                        DropdownInfoPopupEvent::SearchFor => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }))),
-                                                        DropdownInfoPopupEvent::Info => Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id }))),
-                                                    }
-                                                }) }
-                                            />
-                                        }
-                                    }
-
-                                    DisplayOverlayItem::Edit(resp) => {
-                                        html! {
-                                            <PopupEditBook
-                                                on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-                                                classes={ classes!("popup-book-edit") }
-                                                media_resp={ (**resp).clone() }
-                                            />
-                                        }
-                                    }
-
-                                    &DisplayOverlayItem::SearchForBook { book_id, ref input_value } => {
-                                        let input_value = if let Some(v) = input_value {
-                                            v.to_string()
-                                        } else {
-                                            let items = self.media_items.as_ref().unwrap();
-                                            let item = items.iter().find(|v| v.id == book_id).unwrap();
-
-                                            format!("{} {}", item.title.clone(), item.cached.author.as_deref().unwrap_or_default())
-                                        };
-
-                                        let input_value = input_value.trim().to_string();
-
-                                        html! {
-                                            <PopupSearchBook {book_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
-                                        }
-                                    }
-                                }
-                            } else {
-                                html! {}
-                            }
-                        }
                     </InfiniteScroll>
 
                     <MassSelectBar

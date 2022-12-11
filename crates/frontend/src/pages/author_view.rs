@@ -3,10 +3,7 @@ use std::str::FromStr;
 use chrono::NaiveDate;
 use common::{
     api::WrappingResponse,
-    component::{
-        popup::{Popup, PopupClose, PopupType},
-        upload::UploadModule,
-    },
+    component::upload::UploadModule,
     Either, ImageIdType, PersonId,
 };
 use common_local::{
@@ -18,12 +15,8 @@ use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::{html::Scope, prelude::*};
 
 use crate::{
-    components::{
-        book_poster_item::{BookPosterItem, BookPosterItemMsg, DisplayOverlayItem, PosterItem},
-        PopupEditBook,
-    },
+    components::book_poster_item::BookPosterItem,
     request,
-    util::{on_click_prevdef_scope, on_click_prevdef_stopprop_scope},
 };
 
 #[derive(Clone)]
@@ -36,12 +29,9 @@ pub enum Msg {
     UpdatedPoster,
 
     // Events
-    ClosePopup,
     ToggleEdit,
     SaveEdits,
     UpdateEditing(ChangingType, String),
-
-    BookListItemEvent(BookPosterItemMsg),
 
     Ignore,
 }
@@ -58,8 +48,6 @@ pub struct AuthorView {
 
     /// If we're currently editing. This'll be set.
     editing_item: Option<GetPersonResponse>,
-
-    media_popup: Option<DisplayOverlayItem>,
 }
 
 impl Component for AuthorView {
@@ -86,8 +74,6 @@ impl Component for AuthorView {
             cached_books: None,
 
             editing_item: None,
-
-            media_popup: None,
         }
     }
 
@@ -99,10 +85,6 @@ impl Component for AuthorView {
                 Ok(resp) => self.cached_books = Some(resp),
                 Err(err) => crate::display_error(err),
             },
-
-            Msg::ClosePopup => {
-                self.media_popup = None;
-            }
 
             Msg::UpdatedPoster => {
                 if let Some(book) = self.media.as_ref() {
@@ -175,66 +157,7 @@ impl Component for AuthorView {
             Msg::RetrieveMediaView(resp) => match resp.ok() {
                 Ok(resp) => self.media = Some(resp),
                 Err(err) => crate::display_error(err),
-            },
-
-            Msg::BookListItemEvent(event) => match event {
-                BookPosterItemMsg::AddOrRemoveItemFromEditing(_, _) => (),
-
-                BookPosterItemMsg::PosterItem(item) => match item {
-                    PosterItem::UnMatch(_) => (),
-
-                    PosterItem::ShowPopup(new_disp) => {
-                        if let Some(old_disp) = self.media_popup.as_mut() {
-                            if *old_disp == new_disp {
-                                self.media_popup = None;
-                            } else {
-                                self.media_popup = Some(new_disp);
-                            }
-                        } else {
-                            self.media_popup = Some(new_disp);
-                        }
-                    }
-
-                    PosterItem::UpdateBookById(book_id) => {
-                        ctx.link().send_future(async move {
-                            request::update_book(book_id, &api::PostBookBody::AutoMatchBookId)
-                                .await;
-
-                            Msg::Ignore
-                        });
-                    }
-
-                    PosterItem::AddBookToCollection(book_id, collection_id) => {
-                        ctx.link().send_future(async move {
-                            request::add_book_to_collection(collection_id, book_id).await;
-
-                            Msg::Ignore
-                        });
-                    }
-
-                    PosterItem::RemoveBookFromCollection(book_id, collection_id) => {
-                        ctx.link().send_future(async move {
-                            request::remove_book_from_collection(collection_id, book_id).await;
-
-                            Msg::Ignore
-                        });
-                    }
-
-                    PosterItem::UpdateBookByFiles(book_id) => {
-                        ctx.link().send_future(async move {
-                            request::update_book(
-                                book_id,
-                                &api::PostBookBody::AutoMatchBookIdByFiles,
-                            )
-                            .await;
-
-                            Msg::Ignore
-                        });
-                    }
-                },
-
-                BookPosterItemMsg::Ignore => (),
-            },
+            }
         }
 
         true
@@ -431,10 +354,7 @@ impl Component for AuthorView {
                                             html! {{
                                                 for resp.items.iter().map(|item| {
                                                     html! {
-                                                        <BookPosterItem
-                                                            item={item.clone()}
-                                                            callback={ctx.link().callback(Msg::BookListItemEvent)}
-                                                        />
+                                                        <BookPosterItem item={item.clone()} />
                                                     }
                                                 })
                                             }}
@@ -445,61 +365,6 @@ impl Component for AuthorView {
                                 </div>
                             </div>
                         </section>
-
-                        {
-                            if let Some(overlay_type) = self.media_popup.as_ref() {
-                                match overlay_type {
-                                    DisplayOverlayItem::Info { book_id: _ } => {
-                                        html! {
-                                            <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-                                                <h1>{"Info"}</h1>
-                                            </Popup>
-                                        }
-                                    }
-
-                                    &DisplayOverlayItem::More { book_id, mouse_pos } => {
-                                        html! {
-                                            <Popup type_of={ PopupType::AtPoint(mouse_pos.0, mouse_pos.1) } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-                                                <div class="menu-list">
-                                                    <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_scope(
-                                                        ctx.link().clone(),
-                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookById(book_id)))
-                                                    ) }>{ "Refresh Metadata" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_scope(
-                                                        ctx.link().clone(),
-                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None })))
-                                                    ) }>{ "Search For Book" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_scope(
-                                                        ctx.link().clone(),
-                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::UpdateBookByFiles(book_id)))
-                                                    ) }>{ "Quick Search By Files" }</PopupClose>
-                                                    <PopupClose class="menu-item" >{ "Delete" }</PopupClose>
-                                                    <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_scope(
-                                                        ctx.link().clone(),
-                                                        move |_| Msg::BookListItemEvent(BookPosterItemMsg::PosterItem(PosterItem::ShowPopup(DisplayOverlayItem::Info { book_id })))
-                                                    ) }>{ "Show Info" }</PopupClose>
-                                                </div>
-                                            </Popup>
-                                        }
-                                    }
-
-                                    DisplayOverlayItem::Edit(resp) => {
-                                        html! {
-                                            <PopupEditBook
-                                                on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-                                                classes={ classes!("popup-book-edit") }
-                                                media_resp={ (**resp).clone() }
-                                            />
-                                        }
-                                    }
-
-                                    DisplayOverlayItem::SearchForBook { .. } => html! {},
-                                }
-                            } else {
-                                html! {}
-                            }
-                        }
                     </div>
                 </div>
             }

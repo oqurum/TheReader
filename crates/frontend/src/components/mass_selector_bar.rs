@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Mutex};
+use std::{rc::Rc, cell::RefCell};
 
 use common::{
     api::WrappingResponse,
@@ -26,7 +26,7 @@ pub struct Property {
 
     pub editing_container: NodeRef,
 
-    pub editing_items: Rc<Mutex<Vec<BookId>>>,
+    pub editing_items: Rc<RefCell<Vec<BookId>>>,
 }
 
 impl PartialEq for Property {
@@ -81,10 +81,7 @@ impl Component for MassSelectBar {
             }
 
             Msg::UpdateMultiple(type_of) => {
-                let book_ids = {
-                    let items = ctx.props().editing_items.lock().unwrap();
-                    items.clone()
-                };
+                let book_ids = ctx.props().editing_items.borrow().clone();
 
                 ctx.link().send_future(async move {
                     for book_id in book_ids {
@@ -156,7 +153,7 @@ impl Component for MassSelectBar {
                             }
 
                             MsgEditPopup::Save => {
-                                edit.book_ids = ctx.props().editing_items.lock().unwrap().clone();
+                                edit.book_ids = ctx.props().editing_items.borrow().clone();
 
                                 let edit = edit.clone();
 
@@ -176,7 +173,7 @@ impl Component for MassSelectBar {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let items = ctx.props().editing_items.lock().unwrap();
+        let items = ctx.props().editing_items.borrow();
 
         if items.is_empty() {
             html! {}
@@ -283,7 +280,7 @@ impl Component for MassSelectBar {
         if let Some(container_element) = ctx.props().editing_container.cast::<HtmlElement>() {
             let cl = container_element.class_list();
 
-            if ctx.props().editing_items.lock().unwrap().is_empty() {
+            if ctx.props().editing_items.borrow().is_empty() {
                 let _ = cl.remove_1(EDITING_CONTAINER_CLASS);
             } else if !cl.contains(EDITING_CONTAINER_CLASS) {
                 let _ = cl.add_1(EDITING_CONTAINER_CLASS);
