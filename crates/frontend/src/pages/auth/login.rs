@@ -50,6 +50,7 @@ impl Component for LoginPage {
             <div class="login-container">
                 <div class="center-normal">
                     <div class="center-container">
+                        // TODO: Impl. display for selecting with login to use. Don't display both at the same time.
                         <PasswordlessLogin cb={ ctx.link().callback(Msg::LoginPasswordlessResponse) } />
                         <PasswordLogin cb={ ctx.link().callback(Msg::LoginPasswordResponse) } />
                     </div>
@@ -114,11 +115,14 @@ pub fn _passwordless(props: &InnerProps) -> Html {
     html! {
         <>
             <h2>{ "Passwordless Login" }</h2>
-            <div class="form-container">
-                <label for="emailpassless">{ "Email Address" }</label>
-                <input type="email" name="email" id="emailpassless" onchange={ on_change_passless_email } />
 
-                <input type="submit" value="Log in" class="button" onclick={ Callback::from(move |_| submit_passless.run()) } />
+            <form onsubmit={ Callback::from(move |_| submit_passless.run()) }>
+                <div class="mb-3">
+                    <label class="form-label" for="emailpassless">{ "Email Address" }</label>
+                    <input class="form-control" type="email" name="email" id="emailpassless" onchange={ on_change_passless_email } />
+                </div>
+
+                <input type="submit" value="Log in" class="btn btn-primary" />
 
                 {
                     if let Some(error) = response_error.as_ref() {
@@ -129,7 +133,7 @@ pub fn _passwordless(props: &InnerProps) -> Html {
                         html! {}
                     }
                 }
-            </div>
+            </form>
         </>
     }
 }
@@ -187,14 +191,18 @@ pub fn _password(props: &InnerProps) -> Html {
     html! {
         <>
             <h2>{ "Password Login" }</h2>
-            <div class="form-container">
-                <label for="email">{ "Email Address" }</label>
-                <input type="email" name="email" id="email" onchange={ on_change_pass_email } />
+            <form onsubmit={ Callback::from(move |_| submit_pass.run()) }>
+                <div class="mb-3">
+                    <label class="form-label" for="email">{ "Email Address" }</label>
+                    <input class="form-control" type="email" name="email" id="email" onchange={ on_change_pass_email } />
+                </div>
 
-                <label for="password">{ "Password" }</label>
-                <input type="password" name="password" id="password" onchange={ on_change_pass_pass } />
+                <div class="mb-3">
+                    <label class="form-label" for="password">{ "Password" }</label>
+                    <input class="form-control" type="password" name="password" id="password" onchange={ on_change_pass_pass } />
+                </div>
 
-                <input type="submit" value="Log in" class="button" onclick={ Callback::from(move |_| submit_pass.run()) } />
+                <input type="submit" value="Log in" class="btn btn-primary" />
 
                 {
                     if let Some(error) = response_error.as_ref() {
@@ -205,7 +213,7 @@ pub fn _password(props: &InnerProps) -> Html {
                         html! {}
                     }
                 }
-            </div>
+            </form>
         </>
     }
 }

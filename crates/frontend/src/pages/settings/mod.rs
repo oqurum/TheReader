@@ -6,7 +6,7 @@ mod member;
 mod sidebar;
 
 pub use admin::*;
-pub use sidebar::SettingsSidebar;
+pub use sidebar::SettingsSidebarContents;
 
 use crate::get_member_self;
 
@@ -63,11 +63,8 @@ pub fn switch_settings(route: &SettingsRoute) -> Html {
 
 fn html_container(value: &'static str) -> Html {
     html! {
-        <div class="outer-view-container">
-            <SettingsSidebar />
-            <div class="view-container">
-                <h1>{ value }</h1>
-            </div>
+        <div class="view-container">
+            <h1>{ value }</h1>
         </div>
     }
 }

@@ -218,9 +218,9 @@ impl Component for MassSelectBar {
                             match popup {
                                 LocalPopupType::EditBooks { selected_people, cached_people, edit } => html! {
                                     <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::CloseEditPopup) } classes={ classes!("popup-book-edit") }>
-                                        <div class="content shrink-width-to-content">
+                                        <div class="modal-body">
                                             // Update People
-                                            <div class="form-container">
+                                            <div class="mb-3">
                                                 <h4>{ "People" }</h4>
 
                                                 <MultiSelectModule<PersonId>
@@ -261,8 +261,8 @@ impl Component for MassSelectBar {
                                         </div>
 
                                         <div class="footer">
-                                            <button class="red" onclick={ ctx.link().callback(|_| Msg::CloseEditPopup) }>{ "Cancel" }</button>
-                                            <button class="green" onclick={ ctx.link().callback(|_| Msg::EditPopupMsg(MsgEditPopup::Save)) }>{ "Save" }</button>
+                                            <button class="btn btn-danger" onclick={ ctx.link().callback(|_| Msg::CloseEditPopup) }>{ "Cancel" }</button>
+                                            <button class="btn btn-success" onclick={ ctx.link().callback(|_| Msg::EditPopupMsg(MsgEditPopup::Save)) }>{ "Save" }</button>
                                         </div>
                                     </Popup>
                                 },

@@ -1,16 +1,16 @@
-// TODO: Move back into global common. grass crate doesn't properly compile the back brackets.
-:where(a[href]),
-:where(a[href]):visited {
-	color: var(--text-1);
+// // TODO: Move back into global common. grass crate doesn't properly compile the back brackets.
+// :where(a[href]),
+// :where(a[href]):visited {
+// 	color: var(--text-1);
 
-	&:hover {
-		text-decoration: inherit;
-	}
-}
+// 	&:hover {
+// 		text-decoration: inherit;
+// 	}
+// }
 
-:where(input, button, textarea, select),
-:where(input[type="file"])::-webkit-file-upload-button {
-	--_bg: var(--surface-2);
-	--_ink-shadow: 0 1px 0 var(--surface-1);
-	--_highlight: var(--_highlight-dark);
-}
+// :where(input, button, textarea, select),
+// :where(input[type="file"])::-webkit-file-upload-button {
+// 	--_bg: var(--surface-2);
+// 	--_ink-shadow: 0 1px 0 var(--surface-1);
+// 	--_highlight: var(--_highlight-dark);
+// }

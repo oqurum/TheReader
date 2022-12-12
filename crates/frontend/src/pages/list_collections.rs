@@ -8,7 +8,7 @@ use common::{
 };
 use common_local::{api, Collection};
 
-use crate::{components::Sidebar, request, BaseRoute};
+use crate::{request, BaseRoute};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -57,11 +57,10 @@ impl Component for CollectionListPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <div class="outer-view-container">
-                <Sidebar />
+            <>
                 <div class="view-container">
                     <div>
-                        <button onclick={ ctx.link().callback(|_| Msg::OpenPopup) }>{ "New Collection" }</button>
+                        <button class="btn btn-primary" onclick={ ctx.link().callback(|_| Msg::OpenPopup) }>{ "New Collection" }</button>
                     </div>
                     { self.render_main(ctx) }
                 </div>
@@ -83,7 +82,7 @@ impl Component for CollectionListPage {
                         html! {}
                     }
                 }
-            </div>
+            </>
         }
     }
 
@@ -99,15 +98,15 @@ impl CollectionListPage {
     fn render_main(&self, _ctx: &Context<Self>) -> Html {
         if let Some(items) = self.items.as_deref() {
             html! {
-                <div class="list">
+                <nav class="nav flex-column">
                     {
                         for items.iter().map(|item| html! {
-                            <Link<BaseRoute> to={ BaseRoute::ViewCollection { id: item.id } } classes={ "list-item" }>
+                            <Link<BaseRoute> to={ BaseRoute::ViewCollection { id: item.id } } classes={ "nav-link link-light" }>
                                 <span>{ item.name.clone() }</span>
                             </Link<BaseRoute>>
                         })
                     }
-                </div>
+                </nav>
             }
         } else {
             html! {
@@ -146,17 +145,21 @@ fn _create_popup(props: &CreatePopupProps) -> Html {
 
     html! {
         <Popup type_of={ PopupType::FullOverlay } on_close={ props.on_close.clone() }>
-            <div class="form-container">
-                <label>{ "Name" }</label>
-                <input ref={ name_ref } type="text" placeholder="Container Name" />
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">{ "Name" }</label>
+                    <input class="form-control" ref={ name_ref } type="text" placeholder="Container Name" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{ "Description" }</label>
+                    <textarea class="form-control" ref={ description_ref } placeholder="Container Description"></textarea>
+                </div>
             </div>
 
-            <div class="form-container">
-                <label>{ "Description" }</label>
-                <textarea ref={ description_ref } placeholder="Container Description"></textarea>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick={ on_save }>{ "Create" }</button>
             </div>
-
-            <button class="green" onclick={ on_save }>{ "Create" }</button>
         </Popup>
     }
 }

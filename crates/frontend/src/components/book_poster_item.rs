@@ -33,6 +33,8 @@ pub struct BookPosterItemProps {
     pub is_editing: bool,
     #[prop_or_default]
     pub is_updating: bool,
+    #[prop_or_default]
+    pub disable_tools: bool,
 }
 
 impl PartialEq for BookPosterItemProps {
@@ -167,7 +169,7 @@ impl Component for BookPosterItem {
 
         html! {
             <div class="book-list-item">
-                <Link<BaseRoute> to={ route_to } classes="poster">
+                <Link<BaseRoute> to={ route_to } classes="poster link-light">
                     { self.render_tools(ctx) }
                     <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                     {
@@ -194,7 +196,9 @@ impl Component for BookPosterItem {
                 }
 
                 <div class="info">
-                    <div class="title" title={ item.title.clone() }><Link<BaseRoute> to={ BaseRoute::ViewBook { book_id: item.id } }>{ item.title.clone() }</Link<BaseRoute>></div>
+                    <div title={ item.title.clone() } class="title-container">
+                        <Link<BaseRoute> classes="title link-light" to={ BaseRoute::ViewBook { book_id: item.id } }>{ item.title.clone() }</Link<BaseRoute>>
+                    </div>
                     {
                         if let Some(author) = item.cached.author.as_ref() {
                             html! {
@@ -212,7 +216,12 @@ impl Component for BookPosterItem {
                             DisplayOverlayItem::Info { book_id: _ } => {
                                 html! {
                                     <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| BookPosterItemMsg::ClosePopup)}>
-                                        <h1>{"Info"}</h1>
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">{ "Info" }</h5>
+                                        </div>
+                                        <div class="modal-body">
+                                            <span>{ "TODO" }</span>
+                                        </div>
                                     </Popup>
                                 }
                             }
@@ -283,10 +292,15 @@ impl Component for BookPosterItem {
 impl BookPosterItem {
     fn render_tools(&self, ctx: &Context<Self>) -> Html {
         let &BookPosterItemProps {
+            disable_tools,
             is_editing,
             ref item,
             ..
         } = ctx.props();
+
+        if disable_tools {
+            return html! {};
+        }
 
         let book_id = item.id;
 
@@ -448,8 +462,8 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                 {
                     if display_collections.loading {
                         html! {
-                            <div class="menu-list">
-                                <div class="menu-item"></div>
+                            <div class="dropdown-menu dropdown-menu-dark show">
+                                <div class="dropdown-item"></div>
                             </div>
                         }
                     } else {
@@ -460,14 +474,14 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                 {
                     if let Some(data) = display_collections.data.as_ref() {
                         html! {
-                            <div class="menu-list">
+                            <div class="dropdown-menu dropdown-menu-dark show">
                                 {
                                     for data.iter().map(|d| {
                                         let id = d.id;
 
                                         html! {
                                             <PopupClose
-                                                class="menu-item"
+                                                class="dropdown-item"
                                                 onclick={ on_click_prevdef_cb(
                                                     props.event.clone(),
                                                     move |cb, _| cb.emit(DropdownInfoPopupEvent::AddToCollection(id))
@@ -486,8 +500,8 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                 {
                     if let Some(data) = display_collections.error.as_ref() {
                         html! {
-                            <div class="menu-list">
-                                <div class="menu-item">{ data.description.clone() }</div>
+                            <div class="dropdown-menu dropdown-menu-dark show">
+                                <div class="dropdown-item">{ data.description.clone() }</div>
                             </div>
                         }
                     } else {
@@ -500,13 +514,13 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
 
     html! {
         <Popup type_of={ PopupType::AtPoint(props.pos_x, props.pos_y) } on_close={ props.event.reform(|_| DropdownInfoPopupEvent::Closed) }>
-            <div class="menu-list">
+            <div class="dropdown-menu dropdown-menu-dark show">
                 // <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
 
                 {
                     if props.is_matched {
                         html! {
-                            <PopupClose class="menu-item" onclick={ on_click_prevdef_cb(
+                            <PopupClose class="dropdown-item" onclick={ on_click_prevdef_cb(
                                 props.event.clone(),
                                 |cb, _| cb.emit(DropdownInfoPopupEvent::UnMatchBook)
                             ) }>{ "Unmatch Book" }</PopupClose>
@@ -516,7 +530,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     }
                 }
 
-                <PopupClose class="menu-item" onclick={ on_click_prevdef_cb(
+                <PopupClose class="dropdown-item" onclick={ on_click_prevdef_cb(
                     props.event.clone(),
                     |cb, _| cb.emit(DropdownInfoPopupEvent::RefreshMetadata)
                 ) }>{ "Refresh Metadata" }</PopupClose>
@@ -525,7 +539,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     if let Some(id) = book_list_ctx.collection_id {
                         html! {
                             <PopupClose
-                                class="menu-item"
+                                class="dropdown-item"
                                 onclick={ on_click_prevdef_cb(
                                     props.event.clone(),
                                     move |cb, _| cb.emit(DropdownInfoPopupEvent::RemoveFromCollection(id))
@@ -534,7 +548,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                         }
                     } else {
                         html! {
-                            <div class="menu-item" onclick={ add_to_collection_cb }>{ "Add to Collection" }</div>
+                            <div class="dropdown-item" onclick={ add_to_collection_cb }>{ "Add to Collection" }</div>
                         }
                     }
                 }
@@ -545,7 +559,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                         use wasm_bindgen::UnwrapThrowExt;
 
                         html! {
-                            <PopupClose class="menu-item" onclick={
+                            <PopupClose class="dropdown-item" onclick={
                                 Callback::from(move |_| {
                                     window().open_with_url_and_target(
                                         &request::get_download_path(Either::Left(book_id)),
@@ -559,14 +573,14 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     }
                 }
 
-                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_cb(
+                <PopupClose class="dropdown-item" onclick={ on_click_prevdef_stopprop_cb(
                     props.event.clone(),
                     |cb, _| cb.emit(DropdownInfoPopupEvent::SearchFor)
                 ) }>{ "Search For Book" }</PopupClose>
 
-                // <PopupClose class="menu-item">{ "Delete" }</PopupClose>
+                // <PopupClose class="dropdown-item">{ "Delete" }</PopupClose>
 
-                <PopupClose class="menu-item" onclick={ on_click_prevdef_stopprop_cb(
+                <PopupClose class="dropdown-item" onclick={ on_click_prevdef_stopprop_cb(
                     props.event.clone(),
                     |cb, _| cb.emit(DropdownInfoPopupEvent::Info)
                 ) }>{ "Show Info" }</PopupClose>

@@ -7,7 +7,6 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_list;
 
-use crate::pages::settings::SettingsSidebar;
 use crate::{components::edit::library::LibraryEdit, request};
 
 pub enum Msg {
@@ -84,14 +83,14 @@ impl Component for AdminLibrariesPage {
 
                                 html! {
                                     <div>
-                                        <button class="slim" onclick={ ctx.link().callback(move |_| Msg::DisplayPopup(1, id)) }>
+                                        <button class="btn btn-secondary btn-sm" onclick={ ctx.link().callback(move |_| Msg::DisplayPopup(1, id)) }>
                                             { v.name.clone() }
                                         </button>
                                     </div>
                                 }
                             })
                     }
-                    <button class="green" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, LibraryId::none()))}>{ "Add Library" }</button>
+                    <button class="btn btn-success btn-sm" onclick={ctx.link().callback(|_| Msg::DisplayPopup(0, LibraryId::none()))}>{ "Add Library" }</button>
 
                     { self.render_popup(ctx) }
                 </div>
@@ -103,11 +102,8 @@ impl Component for AdminLibrariesPage {
         };
 
         html! {
-            <div class="outer-view-container">
-                <SettingsSidebar />
-                <div class="view-container">
-                    { render }
-                </div>
+            <div class="view-container">
+                { render }
             </div>
         }
     }
@@ -208,41 +204,42 @@ fn new_library(props: &NewLibraryProps) -> Html {
             type_of={ PopupType::FullOverlay }
             on_close={ props.callback.reform(|_| Msg::ClosePopup) }
         >
-            <h2>{ "New Library" }</h2>
+            <div class="modal-header">
+                <h2 class="modal-title">{ "New Library" }</h2>
+            </div>
 
-            <div class="form-container">
-                <div class="row">
-                    <input type="text" name="library-name" placeholder="Library Name" onchange={ on_change_lib_name } />
-                    <button class="green" onclick={ on_create }>{"Create"}</button>
+            <div class="modal-body">
+                <div class="mb-3 input-group">
+                    <input class="form-control" type="text" name="library-name" placeholder="Library Name" onchange={ on_change_lib_name } />
+                    <button class="btn btn-success btn-sm" onclick={ on_create }>{"Create"}</button>
+                </div>
+
+                <h5>{ "Directories" }</h5>
+
+                <div class="directories">
+                    {
+                        for directories.current()
+                            .iter()
+                            .enumerate()
+                            .map(|(index, path)| {
+                                let dirs = directories.clone();
+
+                                let onclick = Callback::from(move |_| { dirs.remove(index); });
+
+                                html! {
+                                    <div class="mb-3">
+                                        <button class="btn btn-danger btn-sm" {onclick}>{ "X" }</button>
+                                        <span>{ path.clone() }</span>
+                                    </div>
+                                }
+                            }
+                        )
+                    }
+
+                    <input class="form-control" onkeypress={ on_new_dir_path } />
                 </div>
             </div>
 
-            <h5>{ "Directories" }</h5>
-
-            <div class="form-container">
-                {
-                    for directories.current()
-                        .iter()
-                        .enumerate()
-                        .map(|(index, path)| {
-                            let dirs = directories.clone();
-
-                            let onclick = Callback::from(move |_| { dirs.remove(index); });
-
-                            html! {
-                                <div class="row">
-                                    <button class="red" {onclick}>{ "X" }</button>
-                                    <span>{ path.clone() }</span>
-                                </div>
-                            }
-                        }
-                    )
-                }
-
-                <input
-                    onkeypress={ on_new_dir_path }
-                />
-            </div>
         </Popup>
     }
 }

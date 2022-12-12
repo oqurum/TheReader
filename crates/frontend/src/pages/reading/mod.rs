@@ -312,7 +312,13 @@ impl Component for ReadingBook {
                                 match visible {
                                     LocalPopupType::Notes => html! {
                                         <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
-                                            <Notes book={ Rc::clone(book) } />
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">{ "Notes" }</h5>
+                                            </div>
+
+                                            <div class="modal-body">
+                                                <Notes book={ Rc::clone(book) } />
+                                            </div>
                                         </Popup>
                                     },
 
@@ -339,8 +345,8 @@ impl Component for ReadingBook {
                     </div>
 
                     <div class={ classes!("tools", (self.reader_settings.is_fullscreen && !self.display_toolbar.is_expanded()).then_some("hidden")) }>
-                        <button class="tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
-                        <button class="tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
+                        <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
+                        <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>
                 </div>
             }

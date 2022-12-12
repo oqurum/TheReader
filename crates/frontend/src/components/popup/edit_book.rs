@@ -198,8 +198,8 @@ impl Component for PopupEditBook {
                 on_close={ on_close.clone() }
                 classes={ classes!("popup-book-edit") }
             >
-                <div class="header">
-                    <h2>{"Edit"}</h2>
+                <div class="modal-header">
+                    <h5 class="modal-title">{"Edit"}</h5>
                 </div>
 
                 <div class="tab-bar">
@@ -208,11 +208,13 @@ impl Component for PopupEditBook {
                     <div class="tab-bar-item" onclick={ctx.link().callback(|_| Msg::SwitchTab(TabDisplay::Info))}>{ "Info" }</div>
                 </div>
 
-                { self.render_tab_contents(ctx) }
+                <div class="modal-body">
+                    { self.render_tab_contents(ctx) }
+                </div>
 
-                <div class="footer">
-                    <button class="red" onclick={ Callback::from(move |_| on_close.emit(())) }>{ "Cancel" }</button>
-                    <button class="green" onclick={ ctx.link().callback(|_| Msg::Save) }>{ "Save" }</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick={ Callback::from(move |_| on_close.emit(())) }>{ "Cancel" }</button>
+                    <button type="button" class="btn btn-primary" onclick={ ctx.link().callback(|_| Msg::Save) }>{ "Save" }</button>
                 </div>
             </Popup>
         }
@@ -242,11 +244,11 @@ impl PopupEditBook {
         let resp = &ctx.props().media_resp;
 
         html! {
-            <div class="content">
-                <div class="form-container">
-                    <label for="input-title">{ "Title" }</label>
+            <form>
+                <div class="mb-3">
+                    <label for="input-title" class="form-label">{ "Title" }</label>
                     <input
-                        type="text" id="input-title"
+                        type="text" class="form-control" id="input-title"
                         value={ self.edits.title.as_ref().map_or_else(|| resp.book.title.clone(), |v| v.clone()) }
                         onchange={
                             ctx.link().callback(move |e: Event| Msg::Edit(
@@ -256,11 +258,10 @@ impl PopupEditBook {
                         }
                     />
                 </div>
-
-                <div class="form-container">
-                    <label for="input-orig-title">{ "Original Title" }</label>
+                <div class="mb-3">
+                    <label for="input-orig-title" class="form-label">{ "Original Title" }</label>
                     <input
-                        type="text" id="input-orig-title"
+                        type="text" class="form-control" id="input-orig-title"
                         value={ self.edits.original_title.as_ref().map_or_else(|| resp.book.original_title.clone(), |v| v.clone()) }
                         onchange={
                             ctx.link().callback(move |e: Event| Msg::Edit(
@@ -270,11 +271,10 @@ impl PopupEditBook {
                         }
                     />
                 </div>
-
-                <div class="form-container">
-                    <label for="input-descr">{ "Description" }</label>
+                <div class="mb-3">
+                    <label for="input-description" class="form-label">{ "Description" }</label>
                     <textarea
-                        type="text" id="input-descr" rows="5"
+                        rows="5" class="form-control" id="input-description"
                         value={ self.edits.description.as_ref().map_or_else(|| resp.book.description.clone(), |v| v.clone()) }
                         onchange={
                             ctx.link().callback(move |e: Event| Msg::Edit(
@@ -285,9 +285,8 @@ impl PopupEditBook {
                     />
                 </div>
 
-                <div class="form-container">
-                    <span>{ "People" }</span>
-
+                <div class="mb-3">
+                    <label class="form-label">{ "People" }</label>
                     <MultiSelectModule<PersonId>
                         editing=true
                         create_new=false
@@ -320,7 +319,7 @@ impl PopupEditBook {
                         }
                     </MultiSelectModule<PersonId>>
                 </div>
-            </div>
+            </form>
         }
     }
 

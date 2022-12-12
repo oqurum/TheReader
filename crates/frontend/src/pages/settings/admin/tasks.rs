@@ -1,7 +1,5 @@
 use yew::prelude::*;
 
-use crate::pages::settings::SettingsSidebar;
-
 pub struct AdminTaskPage;
 
 impl Component for AdminTaskPage {
@@ -16,15 +14,12 @@ impl Component for AdminTaskPage {
         // let member = get_member_self().unwrap();
 
         html! {
-            <div class="outer-view-container">
-                <SettingsSidebar />
-                <div class="view-container">
-                    <h2>{ "Tasks" }</h2>
+            <div class="view-container">
+                <h2>{ "Tasks" }</h2>
 
-                    <br />
+                <br />
 
-                    <h4>{ "Viewing not implemented" }</h4>
-                </div>
+                <h4>{ "Viewing not implemented" }</h4>
             </div>
         }
     }

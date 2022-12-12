@@ -14,7 +14,7 @@ use yew_router::prelude::*;
 use crate::{
     components::{
         book_poster_item::DisplayOverlayItem, DropdownInfoPopup, DropdownInfoPopupEvent,
-        PopupEditBook, PopupSearchBook, Sidebar,
+        PopupEditBook, PopupSearchBook,
     },
     request, BaseRoute,
 };
@@ -41,13 +41,13 @@ pub struct Property {
     pub id: BookId,
 }
 
-pub struct MediaView {
+pub struct BookPage {
     media: Option<GetBookResponse>,
 
     media_popup: Option<DisplayOverlayItem>,
 }
 
-impl Component for MediaView {
+impl Component for BookPage {
     type Message = Msg;
     type Properties = Property;
 
@@ -105,11 +105,8 @@ impl Component for MediaView {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <div class="outer-view-container">
-                <Sidebar />
-                <div class="view-container">
-                    { self.render_main(ctx) }
-                </div>
+            <div class="view-container">
+                { self.render_main(ctx) }
             </div>
         }
     }
@@ -135,7 +132,7 @@ impl Component for MediaView {
     }
 }
 
-impl MediaView {
+impl BookPage {
     fn render_main(&self, ctx: &Context<Self>) -> Html {
         if let Some(GetBookResponse {
             people,
@@ -182,11 +179,11 @@ impl MediaView {
                                 })} title="More Options">{ "edit" }</span>
                             </div>
 
-                            <img src={ book.thumb_path.get_book_http_path().into_owned() } />
+                            <img class="rounded" src={ book.thumb_path.get_book_http_path().into_owned() } />
                         </div>
                         <div class="metadata-container">
                             <div class="metadata">
-                                <h3 class="title">{ book.get_title() }</h3>
+                                <h1 class="title">{ book.get_title() }</h1>
                                 <ExpandableContainerComponent>
                                     { book.description.clone().unwrap_or_default() }
                                 </ExpandableContainerComponent>
@@ -200,7 +197,7 @@ impl MediaView {
                             {
                                 for media.iter().map(|media| {
                                     html! {
-                                        <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: media.id } } classes={ classes!("file-item") }>
+                                        <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: media.id } } classes={ "file-item link-light" }>
                                             <h5>{ media.file_name.clone() }</h5>
                                             <div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
                                             <div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
@@ -218,7 +215,7 @@ impl MediaView {
                                 for people.iter().map(|person| {
                                     html! {
                                         <div class="person-container">
-                                            <div class="photo"><img src={ person.get_thumb_url() } /></div>
+                                            <div class="photo"><img class="rounded" src={ person.get_thumb_url() } /></div>
                                             <span class="title">{ person.name.clone() }</span>
                                         </div>
                                     }

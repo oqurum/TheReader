@@ -8,7 +8,7 @@ use common::{
 use common_local::{api, Collection, CollectionId};
 
 use crate::{
-    components::{BookListComponent, BookListScope, Sidebar, BookListRequest},
+    components::{BookListComponent, BookListScope, BookListRequest},
     request,
 };
 
@@ -68,8 +68,7 @@ impl Component for CollectionItemPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <div class="outer-view-container">
-                <Sidebar />
+            <>
                 <div class="view-container">
                     {
                         if let Some(info) = self.item.as_ref() {
@@ -102,7 +101,7 @@ impl Component for CollectionItemPage {
                         html! {}
                     }
                 }
-            </div>
+            </>
         }
     }
 
@@ -174,17 +173,21 @@ fn _create_popup(props: &CreatePopupProps) -> Html {
 
     html! {
         <Popup type_of={ PopupType::FullOverlay } on_close={ props.on_close.clone() }>
-            <div class="form-container">
-                <label>{ "Name" }</label>
-                <input ref={ name_ref } type="text" placeholder="Container Name" />
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">{ "Name" }</label>
+                    <input class="form-control" ref={ name_ref } type="text" placeholder="Container Name" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">{ "Description" }</label>
+                    <textarea class="form-control" ref={ description_ref } placeholder="Container Description"></textarea>
+                </div>
             </div>
 
-            <div class="form-container">
-                <label>{ "Description" }</label>
-                <textarea ref={ description_ref } placeholder="Container Description"></textarea>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick={ on_save }>{ "Create" }</button>
             </div>
-
-            <button class="green" onclick={ on_save }>{ "Create" }</button>
         </Popup>
     }
 }

@@ -6,7 +6,7 @@ use yew::prelude::*;
 use crate::{
     components::{
         BookListComponent,
-        Sidebar, BookListRequest,
+        BookListRequest,
     },
     request,
     util::build_book_filter_query,
@@ -35,21 +35,18 @@ impl Component for LibraryPage {
         let library = ctx.props().id;
 
         html! {
-            <div class="outer-view-container">
-                <Sidebar />
-                <div class="view-container">
-                    <BookListComponent on_load={ ctx.link().callback_future(move |v: BookListRequest| async move {
-                        let res = request::get_books(
-                            Some(library),
-                            v.offset,
-                            None,
-                            Some(build_book_filter_query()),
-                        )
-                        .await;
+            <div class="view-container">
+                <BookListComponent on_load={ ctx.link().callback_future(move |v: BookListRequest| async move {
+                    let res = request::get_books(
+                        Some(library),
+                        v.offset,
+                        None,
+                        Some(build_book_filter_query()),
+                    )
+                    .await;
 
-                        v.response.emit(res);
-                    }) } />
-                </div>
+                    v.response.emit(res);
+                }) } />
             </div>
         }
     }

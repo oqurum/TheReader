@@ -12,12 +12,13 @@ use common::{
     BookId, PersonId,
 };
 use common_local::{api, CollectionId, FileId, LibraryId, Member};
+use gloo_utils::body;
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
 use yew::{html::Scope, prelude::*};
 use yew_router::prelude::*;
 
-use components::NavbarModule;
+use components::{NavbarModule, Sidebar};
 
 mod components;
 mod pages;
@@ -113,7 +114,7 @@ impl Component for Model {
 
         Self {
             state: Rc::new(AppState {
-                is_navbar_visible: true,
+                is_navbar_visible: false,
                 update_nav_visibility: ctx.link().callback(Msg::UpdateNavVis),
             }),
             has_loaded_member: false,
@@ -127,6 +128,8 @@ impl Component for Model {
                     if resp.member.is_some() {
                         open_websocket_conn();
                     }
+
+                    Rc::make_mut(&mut self.state).is_navbar_visible = resp.member.is_some();
 
                     *MEMBER_SELF.lock().unwrap() = resp.member;
                 }
@@ -151,10 +154,15 @@ impl Component for Model {
                     <ContextProvider<Rc<AppState>> context={ self.state.clone() }>
                     {
                         if self.has_loaded_member {
+                            log::debug!("RENDER");
+
                             html! {
                                     <>
-                                        <NavbarModule visible={ self.state.is_navbar_visible } />
-                                        <Switch<BaseRoute> render={ Switch::render(switch_base) } />
+                                        <Sidebar visible={ self.state.is_navbar_visible } />
+                                        <div class="outer-view-container flex-column">
+                                            <NavbarModule visible={ self.state.is_navbar_visible } />
+                                            <Switch<BaseRoute> render={ Switch::render(switch_base) } />
+                                        </div>
                                     </>
                                 }
                             } else {
@@ -247,7 +255,7 @@ fn switch_base(route: &BaseRoute) -> Html {
         }
 
         BaseRoute::ViewBook { book_id } => {
-            html! { <pages::MediaView id={book_id} /> }
+            html! { <pages::BookPage id={book_id} /> }
         }
 
         BaseRoute::ReadBook { book_id } => {
@@ -288,6 +296,8 @@ fn main() {
     wasm_logger::init(wasm_logger::Config::default());
 
     log::debug!("starting...");
+
+    body().set_class_name("text-light d-flex");
 
     yew::start_app::<Model>();
 }

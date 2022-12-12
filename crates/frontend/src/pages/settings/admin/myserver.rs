@@ -3,7 +3,6 @@ use common_local::api;
 use web_sys::HtmlSelectElement;
 use yew::prelude::*;
 
-use crate::pages::settings::SettingsSidebar;
 use crate::request;
 
 pub enum Msg {
@@ -59,37 +58,41 @@ impl Component for AdminMyServerPage {
                     {
                         if config.libby.token.is_some() {
                             html! {
-                                <div class="form-container shrink-width-to-content">
-                                    <span class="label green">
+                                <>
+                                    <span class="badge rounded-pill text-bg-success">
                                         { "Metadata Server Link is Setup: " }
                                         <a href={ config.libby.url.clone() }>{ config.libby.url.clone() }</a>
                                     </span>
 
-                                    <label>{ "Search Return Type" }</label>
-                                    <select onchange={ ctx.link().callback(|v: Event| {
-                                        Msg::RequestUpdateOptions(
-                                            true,
-                                            api::ModifyOptionsBody {
-                                                libby_public_search: Some(v.target_unchecked_into::<HtmlSelectElement>().selected_index() == 0),
-                                                .. Default::default()
-                                            }
-                                        )
-                                    }) }>
-                                        <option selected={ config.libby.public_only }>{ "Public Only" }</option>
-                                        <option selected={ !config.libby.public_only }>{ "All" }</option>
-                                    </select>
-                                </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">{ "Search Return Type" }</label>
+                                        <select class="form-select" onchange={ ctx.link().callback(|v: Event| {
+                                            Msg::RequestUpdateOptions(
+                                                true,
+                                                api::ModifyOptionsBody {
+                                                    libby_public_search: Some(v.target_unchecked_into::<HtmlSelectElement>().selected_index() == 0),
+                                                    .. Default::default()
+                                                }
+                                            )
+                                        }) }>
+                                            <option selected={ config.libby.public_only }>{ "Public Only" }</option>
+                                            <option selected={ !config.libby.public_only }>{ "All" }</option>
+                                        </select>
+                                    </div>
+                                </>
                             }
                         } else {
                             html! {
                                 <>
-                                    <span class="label red">
+                                    <span class="badge rounded-pill text-bg-danger">
                                         { "Click below to setup the Metadata Server Link for " }
                                         <b><a href={ config.libby.url.clone() }>{ config.libby.url.clone() }</a></b>
                                     </span>
+
                                     <br />
+
                                     <form action="/api/setup/agent" method="POST">
-                                        <button class="green" type="submit">{ "Link" }</button>
+                                        <button class="btn btn-primary" type="submit">{ "Link" }</button>
                                     </form>
                                 </>
                             }
@@ -104,11 +107,8 @@ impl Component for AdminMyServerPage {
         };
 
         html! {
-            <div class="outer-view-container">
-                <SettingsSidebar />
-                <div class="view-container">
-                    { render }
-                </div>
+            <div class="view-container">
+                { render }
             </div>
         }
     }

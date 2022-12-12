@@ -110,105 +110,108 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
     };
 
     html! {
-        <div class="library-edit">
-            <h3>{ "Editing Library" }</h3>
+        <>
+            <div class="modal-header">
+                <h3 class="modal-title">{ "Editing Library" }</h3>
+            </div>
 
-            // Loading
-            {
-                if resp.loading {
-                    html! {
-                        <h4>{ "Loading..." }</h4>
+            <div class="modal-body">
+                // Loading
+                {
+                    if resp.loading {
+                        html! {
+                            <h4>{ "Loading..." }</h4>
+                        }
+                    } else {
+                        html! {}
                     }
-                } else {
-                    html! {}
                 }
-            }
 
-            // Error
-            {
-                // TODO: Check if I can .take() instead.
-                if let Some(err) = resp.error.as_ref() {
-                    html! {
-                        <>
-                            <h4>{ "Error:" }</h4>
-                            <span>{ err.description.clone() }</span>
-                        </>
+                // Error
+                {
+                    // TODO: Check if I can .take() instead.
+                    if let Some(err) = resp.error.as_ref() {
+                        html! {
+                            <>
+                                <h4>{ "Error:" }</h4>
+                                <span>{ err.description.clone() }</span>
+                            </>
+                        }
+                    } else {
+                        html! {}
                     }
-                } else {
-                    html! {}
                 }
-            }
 
-            // Response
-            {
-                if let Some(library) = resp.data.as_ref() {
-                    html! {
-                        <>
-                            <div class="form-container">
-                                <label for="asdf">{ "Library Name: " }</label>
-                                <input placeholder="Library Name" type="text" value={ library.name.clone() } onchange={ on_change_name } />
-                            </div>
+                // Response
+                {
+                    if let Some(library) = resp.data.as_ref() {
+                        html! {
+                            <>
+                                <div class="mb-3">
+                                    <label class="form-label" for="asdf">{ "Library Name: " }</label>
+                                    <input class="form-control" placeholder="Library Name" type="text" value={ library.name.clone() } onchange={ on_change_name } />
+                                </div>
 
-                            <div class="form-container">
-                                <h5>{ "Directories:" }</h5>
-                                <ul>
-                                    {
-                                        for library.directories.iter()
-                                            .cloned()
-                                            .map(|path| {
-                                                let path2 = path.clone();
-                                                let on_remove_directory = on_remove_directory.clone();
-                                                let on_add_directory = on_add_directory.clone();
+                                <div class="mb-3">
+                                    <h5>{ "Directories:" }</h5>
+                                    <ul>
+                                        {
+                                            for library.directories.iter()
+                                                .cloned()
+                                                .map(|path| {
+                                                    let path2 = path.clone();
+                                                    let on_remove_directory = on_remove_directory.clone();
+                                                    let on_add_directory = on_add_directory.clone();
 
-                                                html! {
-                                                    <li>
-                                                        {
-                                                            if library_update.borrow().remove_directories.iter().any(|i| i == &path) {
-                                                                html! {
-                                                                    <button
-                                                                        class="slim green"
-                                                                        onclick={ Callback::from(move |_| on_add_directory.emit(path2.clone())) }
-                                                                    >
-                                                                        { "+" }
-                                                                    </button>
-                                                                }
-                                                            } else {
-                                                                html! {
-                                                                    <button
-                                                                        class="slim red"
-                                                                        onclick={ Callback::from(move |_| on_remove_directory.emit(path2.clone())) }
-                                                                    >
-                                                                        { "X" }
-                                                                    </button>
+                                                    html! {
+                                                        <li>
+                                                            {
+                                                                if library_update.borrow().remove_directories.iter().any(|i| i == &path) {
+                                                                    html! {
+                                                                        <button
+                                                                            class="btn btn-success btn-sm"
+                                                                            onclick={ Callback::from(move |_| on_add_directory.emit(path2.clone())) }
+                                                                        >
+                                                                            { "+" }
+                                                                        </button>
+                                                                    }
+                                                                } else {
+                                                                    html! {
+                                                                        <button
+                                                                            class="btn btn-danger btn-sm"
+                                                                            onclick={ Callback::from(move |_| on_remove_directory.emit(path2.clone())) }
+                                                                        >
+                                                                            { "X" }
+                                                                        </button>
+                                                                    }
                                                                 }
                                                             }
-                                                        }
 
-                                                        { path }
-                                                    </li>
-                                                }
-                                            })
-                                    }
-                                </ul>
-                            </div>
+                                                            { path }
+                                                        </li>
+                                                    }
+                                                })
+                                        }
+                                    </ul>
+                                </div>
 
-                            <NewLibraryDirectory id={ library.id } callback={ on_add_directory } />
-
-                            <div class="form-container row">
-                                // TODO: Don't close the popup until we received a response.
-                                <PopupClose><button
-                                    class="slim green"
-                                    onclick={ on_submit }
-                                >{ "Submit" }</button></PopupClose>
-                                <PopupClose><button class="slim red">{ "Cancel" }</button></PopupClose>
-                            </div>
-                        </>
+                                <NewLibraryDirectory id={ library.id } callback={ on_add_directory } />
+                            </>
+                        }
+                    } else {
+                        html! {}
                     }
-                } else {
-                    html! {}
                 }
-            }
-        </div>
+            </div>
+            <div class="modal-footer">
+                // TODO: Don't close the popup until we received a response.
+                <PopupClose><button
+                    class="btn btn-success btn-sm"
+                    onclick={ on_submit }
+                >{ "Submit" }</button></PopupClose>
+                <PopupClose><button class="btn btn-danger btn-sm">{ "Cancel" }</button></PopupClose>
+            </div>
+        </>
     }
 }
 
@@ -247,13 +250,11 @@ fn new_library_dir(props: &NewLibraryDirectoryProps) -> Html {
         <>
             <h5>{ "Add Directory to Library" }</h5>
 
-            <div class="form-container">
-                <div class="row">
-                    // TODO: Use the FileSearch Component
-                    <input type="text" name="directory-name" placeholder="Directory" onchange={ on_change_lib_name } />
+            <div class="input-group mb-3">
+                // TODO: Use the FileSearch Component
+                <input class="form-control" type="text" name="directory-name" placeholder="Directory" onchange={ on_change_lib_name } />
 
-                    <button class="slim green" onclick={ on_create }>{ "Create" }</button>
-                </div>
+                <button class="btn btn-success btn-sm" onclick={ on_create }>{ "Create" }</button>
             </div>
         </>
     }

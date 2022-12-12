@@ -6,7 +6,6 @@ use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::pages::settings::SettingsSidebar;
 use crate::request;
 
 pub enum Msg {
@@ -92,22 +91,31 @@ impl Component for AdminMembersPage {
                     <div class="section-invite">
                         <h3>{ "Invite Someone" }</h3>
 
-                        <input ref={ input_ref.clone() } type="email" placeholder="Email Address" />
-                        <button class="green" onclick={ ctx.link().callback(move |_| {
-                            let input = input_ref.get().unwrap().unchecked_into::<HtmlInputElement>();
+                        <div class="input-group mb-3">
+                            <input class="form-control" ref={ input_ref.clone() } type="email" placeholder="Email Address" />
+                            <button class="btn btn-primary" onclick={ ctx.link().callback(move |_| {
+                                let input = input_ref.get().unwrap().unchecked_into::<HtmlInputElement>();
 
-                            if input.check_validity() {
-                                Msg::InviteMember {
-                                    email: input_ref.get().unwrap().unchecked_into::<HtmlInputElement>().value(),
+                                if input.check_validity() {
+                                    Msg::InviteMember {
+                                        email: input_ref.get().unwrap().unchecked_into::<HtmlInputElement>().value(),
+                                    }
+                                } else {
+                                    Msg::Ignore
                                 }
-                            } else {
-                                Msg::Ignore
-                            }
-                        }) }>{ "Invite" }</button>
+                            }) }>{ "Invite" }</button>
+                        </div>
                     </div>
 
-                    <h3>{ "Members" }</h3>
-                    <table class="members-list">
+                    <table class="table table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <td colspan="3">
+                                    <h4>{ "Members" }</h4>
+                                </td>
+                            </tr>
+                        </thead>
+
                         <tbody>
                             {
                                 for members_accepted.iter()
@@ -116,22 +124,22 @@ impl Component for AdminMembersPage {
 
                                         html! {
                                             <tr class="list-item">
-                                                <td class="cell-label">
+                                                <td>
                                                     <span class="label" title="Permission Grouping">{ format!("{:?}", v.permissions.group) }</span>
                                                 </td>
-                                                <td class="cell-title">
+                                                <td>
                                                     <span class="title" title={ v.email.clone() }>{ v.name.clone() }</span>
                                                 </td>
 
                                                 {
                                                     if v.permissions.is_owner() {
                                                         html! {
-                                                            <td class="cell-button"></td>
+                                                            <td></td>
                                                         }
                                                     } else {
                                                         html! {
-                                                            <td class="cell-button">
-                                                                <button class="slim red" onclick={ ctx.link().callback(move|_| {
+                                                            <td>
+                                                                <button class="btn btn-danger btn-sm" onclick={ ctx.link().callback(move|_| {
                                                                     if window().confirm_with_message("Are you sure you want to delete this?").unwrap_throw() {
                                                                         Msg::RequestUpdateOptions(
                                                                             api::UpdateMember::Delete {
@@ -150,34 +158,41 @@ impl Component for AdminMembersPage {
                                         }
                                     })
                             }
-                            <tr class="list-item">
+                        </tbody>
+                    </table>
+
+                    <table class="table table-dark table-striped">
+                        <thead>
+                            <tr>
                                 <td colspan="3">
-                                    <h5>{ "Pending an Invitation" }</h5>
+                                    <h4>{ "Pending Invitations" }</h4>
                                 </td>
                             </tr>
+                        </thead>
+                        <tbody>
                             {
                                 for members_invited.iter()
                                     .map(|v| {
                                         let member_id = v.id;
 
                                         html! {
-                                            <tr class="list-item">
-                                                <td class="cell-label">
+                                            <tr>
+                                                <td>
                                                     <span class="label" title="Permission Grouping">{ format!("{:?}", v.permissions.group) }</span>
                                                 </td>
-                                                <td class="cell-title">
+                                                <td>
                                                     <span class="title" title={ v.email.clone() }>{ v.name.clone() }</span>
                                                 </td>
 
                                                 {
                                                     if v.permissions.is_owner() {
                                                         html! {
-                                                            <td class="cell-button"></td>
+                                                            <td></td>
                                                         }
                                                     } else {
                                                         html! {
-                                                            <td class="cell-button">
-                                                                <button class="slim red" onclick={ ctx.link().callback(move|_| {
+                                                            <td>
+                                                                <button class="btn btn-danger btn-sm" onclick={ ctx.link().callback(move|_| {
                                                                     if window().confirm_with_message("Are you sure you want to delete this?").unwrap_throw() {
                                                                         Msg::RequestUpdateOptions(
                                                                             api::UpdateMember::Delete {
@@ -207,11 +222,8 @@ impl Component for AdminMembersPage {
         };
 
         html! {
-            <div class="outer-view-container">
-                <SettingsSidebar />
-                <div class="view-container admin-members">
-                    { render }
-                </div>
+            <div class="view-container admin-members">
+                { render }
             </div>
         }
     }

@@ -34,10 +34,10 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
         let settings_inner = settings.clone();
 
         html! {
-            <div class="form-container shrink-width-to-content">
-                <label for="page-load-select">{ "Page Load Type" }</label>
+            <div class="mb-3">
+                <label class="form-label" for="page-load-select">{ "Page Load Type" }</label>
 
-                <select id="page-load-select"
+                <select class="form-select" id="page-load-select"
                     onchange={ Callback::from(move |e: Event| {
                         let idx = e.target().unwrap()
                             .unchecked_into::<HtmlSelectElement>()
@@ -62,10 +62,10 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
         let settings_inner = settings.clone();
 
         html! {
-            <div class="form-container shrink-width-to-content">
-                <label for="screen-size-select">{ "Screen Size Selection" }</label>
+            <div class="mb-3">
+                <label class="form-label" for="screen-size-select">{ "Screen Size Selection" }</label>
 
-                <select id="screen-size-select"
+                <select class="form-select" id="screen-size-select"
                     onchange={ Callback::from(move |e: Event| {
                         let idx = e.target().unwrap()
                             .unchecked_into::<HtmlSelectElement>()
@@ -97,20 +97,22 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
             let ref_height_input = use_node_ref();
 
             html! {
-                <div class="form-container shrink-width-to-content">
-                    <label>{ "Screen Width and Height" }</label>
+                <div class="shrink-width-to-content">
+                    <label class="form-label">{ "Screen Width and Height" }</label>
 
-                    <div>
+                    <div class="input-group">
                         <input
+                            class="form-control"
                             style="width: 100px;"
                             value={ props.reader_dimensions.0.to_string() }
                             ref={ ref_width_input.clone() }
                             type="number"
                         />
 
-                        <span>{ "x" }</span>
+                        <span class="input-group-text">{ "X" }</span>
 
                         <input
+                            class="form-control"
                             style="width: 100px;"
                             value={ props.reader_dimensions.1.to_string() }
                             ref={ ref_height_input.clone() }
@@ -118,7 +120,7 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
                         />
                     </div>
 
-                    <button onclick={ Callback::from(move |_| {
+                    <button class="btn btn-secondary btn-sm" onclick={ Callback::from(move |_| {
                         let width = ref_width_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
                         let height = ref_height_input.cast::<HtmlInputElement>().unwrap().value_as_number() as i32;
 
@@ -133,9 +135,9 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
         let settings_inner = settings.clone();
 
         html! {
-            <div class="form-container shrink-width-to-content">
-                <label for="page-type-select">{ "Reader View Type" }</label>
-                <select id="page-type-select" onchange={
+            <div class="shrink-width-to-content">
+                <label class="form-label" for="page-type-select">{ "Reader View Type" }</label>
+                <select class="form-select" id="page-type-select" onchange={
                     Callback::from(move |e: Event| {
                         let display = e.target().unwrap()
                             .unchecked_into::<HtmlSelectElement>()
@@ -156,7 +158,11 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
 
     html! {
         <Popup type_of={ PopupType::FullOverlay } on_close={ props.scope.callback(|_| Msg::ClosePopup) }>
-            <div class="settings">
+            <div class="modal-header">
+                <h5 class="modal-title">{ "Book Settings" }</h5>
+            </div>
+
+            <div class="modal-body">
                 { page_load_type_section }
 
                 { screen_size_type_section }
@@ -164,15 +170,13 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
                 { screen_size_section }
 
                 { reader_view_type_section }
+            </div>
 
-                <hr />
-
-                <div>
-                    <button
-                        class="green"
-                        onclick={ props.scope.callback(move |_| Msg::ChangeReaderSettings(settings.take())) }
-                    >{ "Submit" }</button>
-                </div>
+            <div class="modal-footer">
+                <button
+                    class="btn btn-primary"
+                    onclick={ props.scope.callback(move |_| Msg::ChangeReaderSettings(settings.take())) }
+                >{ "Submit" }</button>
             </div>
         </Popup>
     }

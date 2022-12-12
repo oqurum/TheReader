@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use common::{api::WrappingResponse, util::does_parent_contain_class};
 use common_local::{api::GetBookListResponse, filter::FilterContainer, ThumbnailStoreExt};
-use gloo_utils::{body, document};
+use gloo_utils::body;
 use wasm_bindgen::{prelude::Closure, JsCast};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -37,12 +37,12 @@ impl Component for NavbarModule {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             left_items: vec![
-                (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
-                (BaseRoute::People, DisplayType::Icon("person", "Authors")),
-                (
-                    BaseRoute::Collections,
-                    DisplayType::Icon("library_books", "My Collections"),
-                ),
+                // (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
+                // (BaseRoute::People, DisplayType::Icon("person", "Authors")),
+                // (
+                //     BaseRoute::Collections,
+                //     DisplayType::Icon("library_books", "My Collections"),
+                // ),
             ],
             right_items: vec![(
                 BaseRoute::Settings,
@@ -85,37 +85,40 @@ impl Component for NavbarModule {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let input_id = "book-search-input";
+        if !ctx.props().visible {
+            return html! {};
+        }
+
+        let node_ref = NodeRef::default();
 
         html! {
-            <div class={ classes!("navbar-module", (!ctx.props().visible).then_some("hidden")) }>
-                <div class="left-content">
-                {
-                    for self.left_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1))
-                }
-                </div>
-                <div class="center-content">
-                    <form class="search-bar row">
-                        <input id={input_id} placeholder="Search" class="alternate" />
-                        <button for={input_id} class="alternate" onclick={
-                            ctx.link().callback(move |e: MouseEvent| {
-                                e.prevent_default();
+            <nav class={ classes!("navbar", "navbar-expand-lg", "text-bg-dark") }>
+                <div class="container-fluid">
+                    // <ul class="navbar-nav">
+                    //     { for self.left_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1)) }
+                    // </ul>
+                    <form class="d-flex" role="search">
+                        <div class="input-group">
+                            <input ref={ node_ref.clone() } class="form-control" type="search" placeholder="Search" aria-label="Search" />
+                            <button class="btn btn-success" type="submit" onclick={
+                                ctx.link().callback(move |e: MouseEvent| {
+                                    e.prevent_default();
 
-                                let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
+                                    let input = node_ref.cast::<HtmlInputElement>().unwrap();
 
-                                Msg::SearchFor(input.value())
-                            })
-                        }>{ "Search" }</button>
+                                    Msg::SearchFor(input.value())
+                                })
+                            }>{ "Search" }</button>
+                        </div>
                     </form>
 
-                    { self.render_dropdown_results() }
+                    <ul class="navbar-nav">
+                        { for self.right_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1)) }
+                    </ul>
                 </div>
-                <div class="right-content">
-                {
-                    for self.right_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1))
-                }
-                </div>
-            </div>
+
+                { self.render_dropdown_results() }
+            </nav>
         }
     }
 
@@ -151,7 +154,7 @@ impl Component for NavbarModule {
 
 impl NavbarModule {
     fn render_item(route: BaseRoute, name: &DisplayType) -> Html {
-        if route == BaseRoute::Settings {
+        let inner = if route == BaseRoute::Settings {
             let route = if get_member_self()
                 .map(|v| v.permissions.is_owner())
                 .unwrap_or_default()
@@ -163,10 +166,10 @@ impl NavbarModule {
 
             match name {
                 DisplayType::Text(v) => html! {
-                    <Link<SettingsRoute> to={route}>{ v }</Link<SettingsRoute>>
+                    <Link<SettingsRoute> to={route} classes="nav-link px-2 text-white">{ v }</Link<SettingsRoute>>
                 },
                 DisplayType::Icon(icon, title) => html! {
-                    <Link<SettingsRoute> to={route}>
+                    <Link<SettingsRoute> to={route} classes="nav-link px-2 text-white">
                         <span class="material-icons" title={ *title }>{ icon }</span>
                     </Link<SettingsRoute>>
                 },
@@ -174,14 +177,18 @@ impl NavbarModule {
         } else {
             match name {
                 DisplayType::Text(v) => html! {
-                    <Link<BaseRoute> to={route}>{ v }</Link<BaseRoute>>
+                    <Link<BaseRoute> to={route} classes="nav-link px-2 text-white">{ v }</Link<BaseRoute>>
                 },
                 DisplayType::Icon(icon, title) => html! {
-                    <Link<BaseRoute> to={route}>
+                    <Link<BaseRoute> to={route} classes="nav-link px-2 text-white">
                         <span class="material-icons" title={ *title }>{ icon }</span>
                     </Link<BaseRoute>>
                 },
             }
+        };
+
+        html! {
+            <li class="nav-item">{ inner }</li>
         }
     }
 
@@ -192,7 +199,7 @@ impl NavbarModule {
                     {
                         for resp.items.iter().map(|item| {
                             html_nested! {
-                                <Link<BaseRoute> to={BaseRoute::ViewBook { book_id: item.id }} classes={ classes!("search-item") }>
+                                <Link<BaseRoute> to={BaseRoute::ViewBook { book_id: item.id }} classes={ "search-item link-light" }>
                                     <div class="poster max-vertical">
                                         <img src={ item.thumb_path.get_book_http_path().into_owned() } />
                                     </div>

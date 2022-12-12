@@ -9,7 +9,7 @@ use common_local::{
 use yew::prelude::*;
 
 use crate::{
-    components::{BookPosterItem, Sidebar},
+    components::BookPosterItem,
     request,
 };
 
@@ -91,71 +91,68 @@ impl Component for HomePage {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <div class="outer-view-container">
-                <Sidebar />
-                <div class="view-container">
-                    {
-                        if let Some(sec) = self.section_progressing.as_ref().filter(|v| !v.items.is_empty()) {
-                            html! {
-                                <>
-                                    <h3>{ "In Progress" }</h3>
-                                    <CarouselComponent>
-                                    {
-                                        for sec.items.iter().map(|item| {
-                                            html! {
-                                                <BookPosterItem
-                                                    is_editing=false
-                                                    is_updating=false
+            <div class="view-container">
+                {
+                    if let Some(sec) = self.section_progressing.as_ref().filter(|v| !v.items.is_empty()) {
+                        html! {
+                            <>
+                                <h3>{ "In Progress" }</h3>
+                                <CarouselComponent>
+                                {
+                                    for sec.items.iter().map(|item| {
+                                        html! {
+                                            <BookPosterItem
+                                                is_editing=false
+                                                is_updating=false
 
-                                                    progress={ (item.progress, item.file.clone()) }
-                                                    item={ item.book.clone() }
-                                                />
-                                            }
-                                        })
-                                    }
-                                    </CarouselComponent>
-                                </>
-                            }
-                        } else {
-                            html! {}
+                                                progress={ (item.progress, item.file.clone()) }
+                                                item={ item.book.clone() }
+                                            />
+                                        }
+                                    })
+                                }
+                                </CarouselComponent>
+                            </>
                         }
+                    } else {
+                        html! {}
                     }
+                }
 
-                    {
-                        for self.libraries.iter()
-                            .map(|lib| html! {
-                                <>
-                                    <h3>{ lib.name.clone() }</h3>
-                                    {
-                                        if let Some(contents) = self.library_items.get(&lib.id) {
-                                            html! {
-                                                <CarouselComponent>
-                                                {
-                                                    for contents.iter().cloned().map(|item| {
-                                                        html! {
-                                                            <BookPosterItem
-                                                                is_editing=false
-                                                                is_updating=false
+                {
+                    for self.libraries.iter()
+                        .map(|lib| html! {
+                            <>
+                                <h3>{ lib.name.clone() }</h3>
+                                {
+                                    if let Some(contents) = self.library_items.get(&lib.id) {
+                                        html! {
+                                            <CarouselComponent>
+                                            {
+                                                for contents.iter().cloned().map(|item| {
+                                                    html! {
+                                                        <BookPosterItem
+                                                            is_editing=false
+                                                            is_updating=false
 
-                                                                { item }
-                                                            />
-                                                        }
-                                                    })
-                                                }
-                                                </CarouselComponent>
+                                                            { item }
+                                                        />
+                                                    }
+                                                })
                                             }
-                                        } else {
-                                            html! {
-                                                <div>
-                                                    <span>{ "Loading..." }</span>
-                                                </div>
-                                            }
+                                            </CarouselComponent>
+                                        }
+                                    } else {
+                                        html! {
+                                            <div>
+                                                <span>{ "Loading..." }</span>
+                                            </div>
                                         }
                                     }
-                                </>
-                            })
-                    }
-                </div>
+                                }
+                            </>
+                        })
+                }
             </div>
         }
     }

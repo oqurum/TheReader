@@ -1,5 +1,3 @@
-// TODO: Make component Sidebar modular and remove this one?
-
 use yew::{html::Scope, prelude::*};
 use yew_router::{prelude::Link, scope_ext::RouterScopeExt};
 
@@ -12,27 +10,17 @@ const ADMIN_LOCATIONS: [(&str, SettingsRoute); 4] = [
     ("Libraries", SettingsRoute::AdminLibraries),
 ];
 
-pub struct SettingsSidebar;
+pub struct SettingsSidebarContents;
 
-impl Component for SettingsSidebar {
+impl Component for SettingsSidebarContents {
     type Message = ();
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        SettingsSidebar
+        SettingsSidebarContents
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        html! {
-            <div class="sidebar-container">
-                { Self::render_admin_items(ctx) }
-            </div>
-        }
-    }
-}
-
-impl SettingsSidebar {
-    fn render_admin_items(ctx: &Context<Self>) -> Html {
         html! {
             <>
                 <div class="sidebar-item">
@@ -40,18 +28,25 @@ impl SettingsSidebar {
                         { "Admin" }
                     </h3>
                 </div>
-                { for ADMIN_LOCATIONS.iter().map(|&(title, route)| Self::render_sidebar_item(title, route, ctx.link())) }
+
+                <ul class="nav nav-pills flex-column mb-auto">
+                    { for ADMIN_LOCATIONS.iter().map(|&(title, route)| Self::render_sidebar_item(title, route, ctx.link())) }
+                </ul>
             </>
         }
     }
+}
 
+impl SettingsSidebarContents {
     fn render_sidebar_item(title: &'static str, route: SettingsRoute, scope: &Scope<Self>) -> Html {
         let cr = scope.route::<SettingsRoute>().unwrap();
 
         html! {
-            <Link<SettingsRoute> to={route} classes={ classes!("sidebar-item", (cr == route).then_some("active")) }>
-                <span class="title">{ title }</span>
-            </Link<SettingsRoute>>
+            <li class="nav-item">
+                <Link<SettingsRoute> to={route} classes={ classes!("nav-link", (cr == route).then_some("active")) }>
+                    <span class="title">{ title }</span>
+                </Link<SettingsRoute>>
+            </li>
         }
     }
 }

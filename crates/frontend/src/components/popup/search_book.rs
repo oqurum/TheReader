@@ -83,7 +83,7 @@ impl Component for PopupSearchBook {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let input_id = "external-book-search-input";
+        let input_ref = NodeRef::default();
 
         html! {
             <Popup
@@ -91,46 +91,56 @@ impl Component for PopupSearchBook {
                 on_close={ ctx.props().on_close.clone() }
                 classes={ classes!("external-book-search-popup") }
             >
-                <h1>{"Book Search"}</h1>
+                <div class="modal-header">
+                    <h5 class="modal-title">{ "Book Search" }</h5>
+                </div>
 
-                <form class="row">
-                    <input id={input_id} name="book_search" placeholder="Search For Title" value={ self.input_value.clone() } />
-                    <button onclick={
-                        ctx.link().callback(move |e: MouseEvent| {
-                            e.prevent_default();
+                <div class="modal-body">
+                    <form>
+                        <div class="input-group mb-3">
+                            <input ref={ input_ref.clone() }
+                                type="text" class="form-control"
+                                placeholder="Search For Book Title"
+                                value={ self.input_value.clone() }
+                            />
+                            <button class="btn btn-primary" onclick={
+                                ctx.link().callback(move |e: MouseEvent| {
+                                    e.prevent_default();
 
-                            let input = document().get_element_by_id(input_id).unwrap().unchecked_into::<HtmlInputElement>();
+                                    let input = input_ref.cast::<HtmlInputElement>().unwrap();
 
-                            Msg::SearchFor(input.value())
-                        })
-                    }>{ "Search" }</button>
-                </form>
+                                    Msg::SearchFor(input.value())
+                                })
+                            }>{ "Search" }</button>
+                        </div>
+                    </form>
 
-                <div class="external-book-search-container">
-                    {
-                        if let Some(resp) = self.cached_posters.as_ref() {
-                            match resp {
-                                LoadingItem::Loaded(resp) => html! {
-                                    <>
-                                        <h2>{ "Results" }</h2>
-                                        <div class="book-search-items">
-                                        {
-                                            for resp.items.iter()
-                                                .flat_map(|(name, values)| values.iter().map(|v| (name.clone(), v)))
-                                                .map(|(site, item)| Self::render_poster_container(site, item, ctx))
-                                        }
-                                        </div>
-                                    </>
-                                },
+                    <div class="external-book-search-container">
+                        {
+                            if let Some(resp) = self.cached_posters.as_ref() {
+                                match resp {
+                                    LoadingItem::Loaded(resp) => html! {
+                                        <>
+                                            <h2>{ "Results" }</h2>
+                                            <div class="book-search-items">
+                                            {
+                                                for resp.items.iter()
+                                                    .flat_map(|(name, values)| values.iter().map(|v| (name.clone(), v)))
+                                                    .map(|(site, item)| Self::render_poster_container(site, item, ctx))
+                                            }
+                                            </div>
+                                        </>
+                                    },
 
-                                LoadingItem::Loading => html! {
-                                    <h2>{ "Loading..." }</h2>
+                                    LoadingItem::Loading => html! {
+                                        <h2>{ "Loading..." }</h2>
+                                    }
                                 }
+                            } else {
+                                html! {}
                             }
-                        } else {
-                            html! {}
                         }
-                    }
+                    </div>
                 </div>
             </Popup>
         }

@@ -196,7 +196,7 @@ impl Component for SetupPage {
                                     }
                                 }
 
-                                <button disabled={ self.is_waiting_for_resp } onclick={ ctx.link().callback(|_| SetupPageMessage::Finish) }>{ "Continue" }</button>
+                                <button class="btn btn-primary" disabled={ self.is_waiting_for_resp } onclick={ ctx.link().callback(|_| SetupPageMessage::Finish) }>{ "Continue" }</button>
                             </div>
                         </div>
                     </div>
@@ -224,9 +224,10 @@ impl SetupPage {
                     </div>
                 </div>
 
-                <div class="form-container">
-                    <label for="our-name">{ "Server Name" }</label>
+                <div class="mb-3">
+                    <label class="form-label" for="our-name">{ "Server Name" }</label>
                     <input
+                        class="form-control"
                         id="our-name" type="text"
                         value={ self.config.server.name.clone() }
                         onchange={
@@ -238,8 +239,8 @@ impl SetupPage {
                     />
                 </div>
 
-                <div class="form-container">
-                    <label for="our-directory">{ "Search Directory" }</label>
+                <div class="mb-3">
+                    <label class="form-label" for="our-directory">{ "Search Directory" }</label>
                     <FileSearchComponent
                         init_location={ PathBuf::from(self.config.directories.first().map(|v| v.as_str()).unwrap_or("/")) }
                         on_event={ ctx.link().callback_future(|e| async move {
@@ -289,50 +290,49 @@ impl SetupPage {
                         { "Authentications" }
                     </div>
                 </div>
-                <div class="form-container">
-                    <div class="row">
-                        <input type="checkbox" id="my-password" checked={ self.config.authenticators.email_pass }
-                            onchange={
-                                ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
-                                    Box::new(|e, _| { e.authenticators.email_pass = !e.authenticators.email_pass; }),
-                                    String::new(),
-                                ))
-                            }
-                        />
-                        <label for="my-password">{ "Local Password Authentication" }</label>
-                    </div>
 
-                    <div class="row">
-                        <input type="checkbox" id="my-passwordless" checked={ self.config.authenticators.email_no_pass }
-                            onchange={
-                                ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
-                                    Box::new(|e, _| {
-                                        e.authenticators.email_no_pass = !e.authenticators.email_no_pass;
+                <div class="mb-3 form-check">
+                    <input class="form-check-input" type="checkbox" id="my-password" checked={ self.config.authenticators.email_pass }
+                        onchange={
+                            ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
+                                Box::new(|e, _| { e.authenticators.email_pass = !e.authenticators.email_pass; }),
+                                String::new(),
+                            ))
+                        }
+                    />
+                    <label class="form-check-label" for="my-password">{ "Local Password Authentication" }</label>
+                </div>
 
-                                        if e.authenticators.email_no_pass {
-                                            e.email = Some(Default::default());
-                                        } else {
-                                            e.email = None;
-                                        }
-                                    }),
-                                    String::new(),
-                                ))
-                            }
-                        />
-                        <label for="my-passwordless">{ "Local Passwordless Authentication" }</label>
-                    </div>
+                <div class="mb-3 form-check">
+                    <input class="form-check-input" type="checkbox" id="my-passwordless" checked={ self.config.authenticators.email_no_pass }
+                        onchange={
+                            ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
+                                Box::new(|e, _| {
+                                    e.authenticators.email_no_pass = !e.authenticators.email_no_pass;
 
-                    <div class="row">
-                        <input type="checkbox" id="our-external-auth" disabled=true// checked={ self.config.authenticators.main_server }
-                            onchange={
-                                ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
-                                    Box::new(|e, _| { e.authenticators.main_server = !e.authenticators.main_server; }),
-                                    String::new(),
-                                ))
-                            }
-                        />
-                        <label for="our-external-auth">{ "External Authentication" }</label>
-                    </div>
+                                    if e.authenticators.email_no_pass {
+                                        e.email = Some(Default::default());
+                                    } else {
+                                        e.email = None;
+                                    }
+                                }),
+                                String::new(),
+                            ))
+                        }
+                    />
+                    <label class="form-check-label" for="my-passwordless">{ "Local Passwordless Authentication" }</label>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input class="form-check-input" type="checkbox" id="our-external-auth" disabled=true// checked={ self.config.authenticators.main_server }
+                        onchange={
+                            ctx.link().callback(move |_| SetupPageMessage::UpdateInput(
+                                Box::new(|e, _| { e.authenticators.main_server = !e.authenticators.main_server; }),
+                                String::new(),
+                            ))
+                        }
+                    />
+                    <label class="form-check-label" for="our-external-auth">{ "External Authentication" }</label>
                 </div>
             </>
         }
@@ -353,9 +353,10 @@ impl SetupPage {
                     <div class="label yellow">{ "Must fill out ALL these fields to use the Passwordless Login." }</div>
 
                     // Display Name
-                    <div class="form-container">
-                        <label for="display_name">{ "Display Name" }</label>
+                    <div class="mb-3">
+                        <label class="form-label" for="display_name">{ "Display Name" }</label>
                         <input
+                            class="form-control"
                             id="display_name" type="text"
                             placeholder="The Ultimate Book Reading Library"
                             value={ email.display_name }
@@ -369,9 +370,10 @@ impl SetupPage {
                     </div>
 
                     // Sending Emails From
-                    <div class="form-container">
-                        <label for="sending_email">{ "Email We're Sending From" }</label>
+                    <div class="mb-3">
+                        <label class="form-label" for="sending_email">{ "Email We're Sending From" }</label>
                         <input
+                            class="form-control"
                             id="sending_email" type="text"
                             placeholder="from@example.com"
                             value={ email.sending_email }
@@ -385,9 +387,10 @@ impl SetupPage {
                     </div>
 
                     // Contact Email
-                    <div class="form-container">
-                        <label for="contact_email">{ "Email We can be contacted by" }</label>
+                    <div class="mb-3">
+                        <label class="form-label" for="contact_email">{ "Email We can be contacted by" }</label>
                         <input
+                            class="form-control"
                             id="contact_email" type="text"
                             placeholder="contact@example.com"
                             value={ email.contact_email }
@@ -401,9 +404,10 @@ impl SetupPage {
                     </div>
 
                     // Email Subject Line
-                    <div class="form-container">
-                        <label for="subject_line">{ "Email Subject Line" }</label>
+                    <div class="mb-3">
+                        <label class="form-label" for="subject_line">{ "Email Subject Line" }</label>
                         <input
+                            class="form-control"
                             id="subject_line" type="text"
                             placeholder="Your link to sign in to The Ultimate Library"
                             value={ email.subject_line }
@@ -417,9 +421,10 @@ impl SetupPage {
                     </div>
 
                     // SMTP Username
-                    <div class="form-container">
-                        <label for="smtp_username">{ "SMTP Username" }</label>
+                    <div class="mb-3">
+                        <label class="form-label" for="smtp_username">{ "SMTP Username" }</label>
                         <input
+                            class="form-control"
                             id="smtp_username" type="text"
                             placeholder="(can be found on your email provider)"
                             value={ email.smtp_username }
@@ -433,9 +438,10 @@ impl SetupPage {
                     </div>
 
                     // SMTP Password
-                    <div class="form-container">
-                        <label for="smtp_password">{ "SMTP Password" }</label>
+                    <div class="mb-3">
+                        <label class="form-label" for="smtp_password">{ "SMTP Password" }</label>
                         <input
+                            class="form-control"
                             id="smtp_password" type="text"
                             placeholder="(can be found on your email provider)"
                             value={ email.smtp_password }
@@ -449,9 +455,10 @@ impl SetupPage {
                     </div>
 
                     // SMTP Relay
-                    <div class="form-container">
-                        <label for="smtp_relay">{ "SMTP Relay" }</label>
+                    <div class="mb-3">
+                        <label class="form-label" for="smtp_relay">{ "SMTP Relay" }</label>
                         <input
+                            class="form-control"
                             id="smtp_relay" type="text"
                             placeholder="(can be found on your email provider)"
                             value={ email.smtp_relay }
