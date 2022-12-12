@@ -6,7 +6,7 @@ use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
 use yew_router::{prelude::{Link, AnyHistory}, scope_ext::{RouterScopeExt, HistoryHandle}};
 
-use crate::{components::edit::library::LibraryEdit, pages::settings::SettingsSidebarContents, request, BaseRoute};
+use crate::{components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute};
 
 
 #[derive(Properties, PartialEq, Eq)]
@@ -151,16 +151,41 @@ impl Sidebar {
                 </>
             },
 
-            Viewing::Settings => html! {
-                <>
-                    <Link<BaseRoute> to={ BaseRoute::Dashboard } classes={ "d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none" }>
-                        <span class="fs-4">{ "Reader" }</span>
-                    </Link<BaseRoute>>
+            Viewing::Settings => {
+                const ADMIN_LOCATIONS: [(&str, SettingsRoute); 4] = [
+                    ("Tasks", SettingsRoute::AdminTasks),
+                    ("Members", SettingsRoute::AdminMembers),
+                    ("My Server", SettingsRoute::AdminMyServer),
+                    ("Libraries", SettingsRoute::AdminLibraries),
+                ];
 
-                    <hr />
+                let cr = ctx.link().route::<SettingsRoute>().unwrap();
 
-                    <SettingsSidebarContents />
-                </>
+                html! {
+                    <>
+                        <Link<BaseRoute> to={ BaseRoute::Dashboard } classes={ "d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none" }>
+                            <span class="fs-4">{ "Reader" }</span>
+                        </Link<BaseRoute>>
+
+                        <hr />
+
+                        <div class="sidebar-item">
+                            <h3>
+                                { "Admin" }
+                            </h3>
+                        </div>
+
+                        <ul class="nav nav-pills flex-column mb-auto">
+                            { for ADMIN_LOCATIONS.iter().map(|&(title, route)| html! {
+                                <li class="nav-item">
+                                    <Link<SettingsRoute> to={route} classes={ classes!("nav-link", (cr == route).then_some("active")) }>
+                                        <span class="title">{ title }</span>
+                                    </Link<SettingsRoute>>
+                                </li>
+                            }) }
+                        </ul>
+                    </>
+                }
             }
         }
     }

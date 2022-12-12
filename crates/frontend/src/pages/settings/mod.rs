@@ -3,10 +3,8 @@ use yew_router::Routable;
 
 mod admin;
 mod member;
-mod sidebar;
 
 pub use admin::*;
-pub use sidebar::SettingsSidebarContents;
 
 use crate::get_member_self;
 
