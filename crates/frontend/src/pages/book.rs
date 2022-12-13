@@ -231,7 +231,7 @@ impl BookPage {
                                 for people.iter().map(|person| {
                                     html! {
                                         <div class="person-container">
-                                            <div class="photo"><img class="rounded" src={ person.get_thumb_url() } /></div>
+                                            <div class="photo"><img src={ person.get_thumb_url() } /></div>
                                             <span class="title">{ person.name.clone() }</span>
                                         </div>
                                     }
