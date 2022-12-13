@@ -325,6 +325,16 @@ pub async fn change_poster_for_book(
     .unwrap_or_else(def)
 }
 
+pub async fn get_progress_for_book(id: BookId) -> WrappingResponse<ApiGetBookProgressResponse> {
+    fetch(
+        "GET",
+        &format!("/api/book/{id}/progress"),
+        Option::<&()>::None,
+    )
+    .await
+    .unwrap_or_else(def)
+}
+
 // Progress
 
 pub async fn update_book_progress(

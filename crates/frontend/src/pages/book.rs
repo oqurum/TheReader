@@ -6,7 +6,7 @@ use common::{
 use common_local::{
     api::{self, GetBookResponse},
     util::file_size_bytes_to_readable_string,
-    ThumbnailStoreExt,
+    ThumbnailStoreExt, Progression,
 };
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -138,7 +138,7 @@ impl BookPage {
             people,
             book,
             media,
-            progress: _,
+            progress,
         }) = self.media.as_ref()
         {
             let book_id = book.id;
@@ -195,12 +195,28 @@ impl BookPage {
                         <h2>{ "Files" }</h2>
                         <div class="files-container">
                             {
-                                for media.iter().map(|media| {
+                                for media.iter().zip(progress.iter()).map(|(media, progress)| {
+                                    // TODO: Add an "Are you sure?" for if we clicked on a non-progressed file.
+
                                     html! {
                                         <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: media.id } } classes={ "file-item link-light" }>
                                             <h5>{ media.file_name.clone() }</h5>
                                             <div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
                                             <div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
+                                            {
+                                                if let Some(&Progression::Ebook { chapter, .. }) = progress.as_ref() {
+                                                    html! {
+                                                        <div
+                                                            style="background-color: var(--bs-body-color);height: 5px;overflow: hidden;border-radius: 8px;"
+                                                            title={ format!("{chapter}/{}", media.chapter_count) }
+                                                        >
+                                                            <div style={format!("background-color: var(--bs-green); height: 100%; width: {}%;", chapter as f32 / media.chapter_count as f32 * 100.0)}></div>
+                                                        </div>
+                                                    }
+                                                } else {
+                                                    html! {}
+                                                }
+                                            }
                                         </Link<BaseRoute>>
                                     }
                                 })

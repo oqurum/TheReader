@@ -176,6 +176,22 @@ impl FileProgressionModel {
         Ok(())
     }
 
+    pub async fn find_one_by_book_id(
+        member_id: MemberId,
+        book_id: BookId,
+        db: &dyn DatabaseAccess,
+    ) -> Result<Option<Self>> {
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                "SELECT * FROM file_progression WHERE user_id = ?1 AND book_id = ?2",
+                params![member_id, book_id],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
+    }
+
     pub async fn get_member_progression_and_books(
         member_id: MemberId,
         db: &dyn DatabaseAccess,

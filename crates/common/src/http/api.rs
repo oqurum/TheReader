@@ -74,6 +74,8 @@ pub type ApiGetBookByIdResponse = self::GetBookResponse;
 pub type ApiPostUpdateBookResponse = ();
 /// GET     /book/search
 pub type ApiGetBookSearchResponse = self::BookSearchResponse;
+/// GET     /book/progress
+pub type ApiGetBookProgressResponse = Option<Progression>;
 
 // Directory
 /// GET     /book/search

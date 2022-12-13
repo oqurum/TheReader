@@ -163,7 +163,7 @@ pub async fn init(database: &Database) -> Result<()> {
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
         	FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE,
 
-            UNIQUE(file_id, user_id)
+            UNIQUE(book_id, user_id)
         );"#,
         [],
     )?;

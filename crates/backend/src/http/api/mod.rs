@@ -57,6 +57,7 @@ pub fn api_route() -> Scope<
         .service(book::update_book_info)
         .service(book::book_search)
         .service(book::load_book_info)
+        .service(book::get_book_progress)
         .service(book::get_book_posters)
         .service(book::insert_or_update_book_image)
         .service(book::insert_book_person)
