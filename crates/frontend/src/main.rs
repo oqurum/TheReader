@@ -3,7 +3,7 @@
 use std::{
     mem::MaybeUninit,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, collections::HashMap,
 };
 
 use common::{
@@ -11,7 +11,7 @@ use common::{
     component::popup::{Popup, PopupType},
     BookId, PersonId,
 };
-use common_local::{api, CollectionId, FileId, LibraryId, Member};
+use common_local::{api, CollectionId, FileId, LibraryId, Member, ws::{TaskInfo, UniqueId}};
 use gloo_utils::body;
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
@@ -33,6 +33,8 @@ pub struct AppState {
 }
 
 lazy_static! {
+    pub static ref RUNNING_TASKS: Mutex<HashMap<UniqueId, TaskInfo>> = Mutex::default();
+
     pub static ref MEMBER_SELF: Arc<Mutex<Option<Member>>> = Arc::new(Mutex::new(None));
     static ref ERROR_POPUP: Arc<Mutex<Option<ApiErrorResponse>>> = Arc::new(Mutex::new(None));
 }
@@ -89,6 +91,7 @@ fn remove_error() {
 
 enum Msg {
     LoadMemberSelf(WrappingResponse<api::GetMemberSelfResponse>),
+    GetTasksResponse(WrappingResponse<Vec<(UniqueId, TaskInfo)>>),
 
     UpdateNavVis(bool),
 
@@ -121,17 +124,39 @@ impl Component for Model {
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::LoadMemberSelf(resp) => {
+                let mut await_tasks = false;
+
                 if let WrappingResponse::Resp(resp) = resp {
-                    if resp.member.is_some() {
+                    if let Some(member) = resp.member.as_ref() {
+                        if member.permissions.is_owner() {
+                            ctx.link().send_future(async {
+                                Msg::GetTasksResponse(request::get_tasks().await)
+                            });
+
+                            await_tasks = true;
+                        }
+
                         open_websocket_conn();
                     }
 
                     Rc::make_mut(&mut self.state).is_navbar_visible = resp.member.is_some();
 
                     *MEMBER_SELF.lock().unwrap() = resp.member;
+                }
+
+                self.has_loaded_member = !await_tasks;
+            }
+
+            Msg::GetTasksResponse(resp) => {
+                match resp.ok() {
+                    Ok(resp) => {
+                        *RUNNING_TASKS.lock().unwrap() = HashMap::from_iter(resp);
+                    }
+
+                    Err(e) => display_error(e),
                 }
 
                 self.has_loaded_member = true;

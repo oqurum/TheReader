@@ -29,6 +29,16 @@ impl fmt::Display for UniqueId {
     }
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskInfo {
+    pub name: String,
+
+    pub updating: Vec<BookId>,
+    pub subtitle: Vec<Option<String>>,
+}
+
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WebsocketResponse {
     Ping,
@@ -49,20 +59,28 @@ impl WebsocketResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WebsocketNotification {
-    TaskStart { id: UniqueId, type_of: TaskType },
+    TaskStart {
+        id: UniqueId,
+        name: String,
+    },
 
-    TaskTypeEnd { id: UniqueId, type_of: TaskType },
+    TaskUpdate {
+        id: UniqueId,
+        type_of: TaskType,
+        subtitle: Option<String>,
+        inserting: bool,
+    },
 
     TaskEnd(UniqueId),
 }
 
 impl WebsocketNotification {
-    pub fn new_task(id: UniqueId, type_of: TaskType) -> Self {
-        Self::TaskStart { id, type_of }
+    pub fn new_task(id: UniqueId, name: String) -> Self {
+        Self::TaskStart { id, name }
     }
 
-    pub fn update_task(id: UniqueId, type_of: TaskType) -> Self {
-        Self::TaskTypeEnd { id, type_of }
+    pub fn update_task(id: UniqueId, type_of: TaskType, inserting: bool, subtitle: Option<String>) -> Self {
+        Self::TaskUpdate { id, type_of, inserting, subtitle }
     }
 }
 

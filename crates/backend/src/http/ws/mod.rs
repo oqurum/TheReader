@@ -2,19 +2,21 @@
 
 use std::{
     sync::Mutex,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, collections::HashMap,
 };
 
 use actix::{Actor, ActorContext, AsyncContext, Handler, Message, Recipient, StreamHandler};
 use actix_web::{get, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
-use common_local::ws::{WebsocketNotification, WebsocketResponse};
+use common_local::ws::{WebsocketNotification, WebsocketResponse, UniqueId, TaskInfo, TaskType};
 use lazy_static::lazy_static;
 use tracing::{info, trace};
 
 lazy_static! {
     // TODO: Change lock type.
     static ref SOCKET_CLIENTS: Mutex<Vec<Recipient<Line>>> = Mutex::new(Vec::new());
+
+    pub static ref RUNNING_TASKS: Mutex<HashMap<UniqueId, TaskInfo>> = Mutex::new(HashMap::new());
 }
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
@@ -120,5 +122,37 @@ pub fn send_message_to_clients(value: WebsocketNotification) {
 
     for client in clients.as_slice() {
         client.do_send(Line(value.clone()));
+    }
+
+    match value {
+        WebsocketNotification::TaskStart { id, name } => {
+            RUNNING_TASKS.lock().unwrap().insert(id, TaskInfo {
+                name,
+                updating: Vec::new(),
+                subtitle: Vec::new(),
+            });
+        }
+
+        WebsocketNotification::TaskUpdate { id, type_of, subtitle, inserting } => {
+            match type_of {
+                TaskType::UpdatingBook(book_id) => {
+                    if let Some(info) = RUNNING_TASKS.lock().unwrap().get_mut(&id) {
+                        if inserting {
+                            info.subtitle.push(subtitle);
+                            info.updating.push(book_id);
+                        } else if let Some(index) = info.updating.iter().position(|v| v == &book_id) {
+                            info.subtitle.swap_remove(index);
+                            info.updating.swap_remove(index);
+                        }
+                    }
+                }
+
+                TaskType::TempRustWarningFix => unreachable!(),
+            }
+        }
+
+        WebsocketNotification::TaskEnd(id) => {
+            RUNNING_TASKS.lock().unwrap().remove(&id);
+        }
     }
 }

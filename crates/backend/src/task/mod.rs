@@ -44,14 +44,17 @@ use crate::{
 // TODO: Store what's currently running
 
 lazy_static! {
+    /// The tasks which are currently queued.
     pub static ref TASKS_QUEUED: Mutex<VecDeque<Box<dyn Task>>> = Mutex::new(VecDeque::new());
+
+    /// The tasks which run in intervals.
     static ref TASK_INTERVALS: Mutex<Vec<TaskInterval>> = Mutex::new(vec![]);
 }
 
 struct TaskInterval {
     pub last_ran: Option<DateTime<Utc>>,
     pub interval: Duration,
-    pub task: fn() -> Box<dyn Task>, // I shouldn't have to box this.
+    pub task: fn() -> Box<dyn Task>,
 }
 
 #[async_trait]
@@ -77,10 +80,13 @@ pub fn start_task_manager(db: web::Data<Database>) {
             loop {
                 sleep(Duration::from_secs(1)).await;
 
+                // TODO: Should I check intervals first or manually queued first?
+
                 // Used to prevent holding lock past await.
                 let task = {
                     let now = Utc::now();
 
+                    // Get the next task in interval.
                     let mut v = TASK_INTERVALS.lock().unwrap();
 
                     let interval = v.iter_mut().find_map(|v| {
@@ -108,12 +114,18 @@ pub fn start_task_manager(db: web::Data<Database>) {
                     interval.or_else(|| TASKS_QUEUED.lock().unwrap().pop_front())
                 };
 
+                // Run the found task.
                 if let Some(mut task) = task {
                     let start_time = Instant::now();
 
                     let task_id = UniqueId::default();
 
                     info!(id = ?task_id, name = task.name(), "Task Started");
+
+                    send_message_to_clients(WebsocketNotification::new_task(
+                        task_id,
+                        task.name().to_string()
+                    ));
 
                     match task.run(task_id, &db.basic()).await {
                         Ok(_) => info!(
@@ -186,6 +198,7 @@ impl Task for TaskLibraryScan {
             .await?
             .unwrap();
 
+        // TODO: Return groups of Directories.
         let directories =
             DirectoryModel::find_directories_by_library_id(self.library_id, db).await?;
 
@@ -203,8 +216,6 @@ impl Task for TaskLibraryScan {
 
 #[derive(Clone)]
 pub enum UpdatingBook {
-    /// Match where File book link is NULL
-    AutoMatchInvalid,
     /// Update book by file info
     AutoUpdateBookIdByFiles(BookId),
     /// Update book w/ all steps. weither by source, files, or agent id.
@@ -261,78 +272,14 @@ impl Task for TaskUpdateInvalidBook {
                 .await?;
             }
 
-            // TODO: Remove at some point. Currently inside of scanner.
-            UpdatingBook::AutoMatchInvalid => {
-                for file in FileModel::find_by_missing_book(db).await? {
-                    // TODO: Ensure we ALWAYS creates some type of metadata for the file.
-                    if file.book_id.map(|v| v == 0).unwrap_or(true) {
-                        let file_id = file.id;
-
-                        match get_metadata_from_files(&[file], &ActiveAgents::default()).await {
-                            Ok(meta) => {
-                                if let Some(mut ret) = meta {
-                                    let (main_author, author_ids) =
-                                        ret.add_or_ignore_authors_into_database(db).await?;
-
-                                    let MetadataReturned {
-                                        mut meta,
-                                        publisher,
-                                        ..
-                                    } = ret;
-
-                                    // TODO: This is For Local File Data. Need specify.
-                                    if let Some(item) =
-                                        meta.thumb_locations.iter_mut().find(|v| v.is_file_data())
-                                    {
-                                        item.download(db).await?;
-                                    }
-
-                                    let mut book_model: BookModel = meta.into();
-
-                                    // TODO: Store Publisher inside Database
-                                    book_model.cached = book_model
-                                        .cached
-                                        .publisher_optional(publisher)
-                                        .author_optional(main_author);
-
-                                    let book_model = book_model.insert_or_increment(db).await?;
-                                    FileModel::update_book_id(file_id, book_model.id, db).await?;
-
-                                    if let Some(thumb_path) = book_model.thumb_path.as_value() {
-                                        if let Some(image) =
-                                            UploadedImageModel::get_by_path(thumb_path, db).await?
-                                        {
-                                            ImageLinkModel::new_book(image.id, book_model.id)
-                                                .insert(db)
-                                                .await?;
-                                        }
-                                    }
-
-                                    for person_id in author_ids {
-                                        BookPersonModel {
-                                            book_id: book_model.id,
-                                            person_id,
-                                        }
-                                        .insert_or_ignore(db)
-                                        .await?;
-                                    }
-                                }
-                            }
-
-                            Err(error) => {
-                                error!(?error, "Auto Match Invalid");
-                            }
-                        }
-                    }
-                }
-            }
-
             UpdatingBook::AutoUpdateBookIdByFiles(book_id) => {
                 info!(id = ?book_id, "Auto Update Metadata ID by Files");
 
-                send_message_to_clients(WebsocketNotification::new_task(
+                send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
                     TaskType::UpdatingBook(book_id),
+                    true,
+                    None,
                 ));
 
                 let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
@@ -343,9 +290,11 @@ impl Task for TaskUpdateInvalidBook {
             UpdatingBook::AutoUpdateBookId(book_id) => {
                 info!(id = ?book_id, "Auto Update By Title");
 
-                send_message_to_clients(WebsocketNotification::new_task(
+                send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
                     TaskType::UpdatingBook(book_id),
+                    true,
+                    None,
                 ));
 
                 let book_model = BookModel::find_one_by_id(book_id, db).await?.unwrap();
@@ -409,9 +358,11 @@ impl Task for TaskUpdateInvalidBook {
                     "Update Book By Source",
                 );
 
-                send_message_to_clients(WebsocketNotification::new_task(
+                send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
                     TaskType::UpdatingBook(old_book_id),
+                    true,
+                    None,
                 ));
 
                 match BookModel::find_one_by_source(&source, db).await? {
@@ -641,9 +592,11 @@ impl Task for TaskUpdateInvalidBook {
                         {
                             let book_id = book.id;
 
-                            send_message_to_clients(WebsocketNotification::new_task(
+                            send_message_to_clients(WebsocketNotification::update_task(
                                 task_id,
                                 TaskType::UpdatingBook(book_id),
+                                true,
+                                None,
                             ));
 
                             Self::update_book_by_files(book, &active_agent, db).await?;
@@ -651,6 +604,8 @@ impl Task for TaskUpdateInvalidBook {
                             send_message_to_clients(WebsocketNotification::update_task(
                                 task_id,
                                 TaskType::UpdatingBook(book_id),
+                                true,
+                                None,
                             ));
                         }
                     }

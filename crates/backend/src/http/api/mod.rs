@@ -84,6 +84,7 @@ pub fn api_route() -> Scope<
         .service(collection::add_book_to_collection)
         .service(collection::remove_book_from_collection)
         // Task
+        .service(task::get_tasks)
         .service(task::run_task)
         // Storage
         .service(storage::get_directory)

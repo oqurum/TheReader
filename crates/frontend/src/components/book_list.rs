@@ -91,17 +91,19 @@ impl Component for BookListComponent {
         match msg {
             Msg::HandleWebsocket(value) => {
                 match value {
-                    WebsocketNotification::TaskStart { id, type_of } => {
-                        if let TaskType::UpdatingBook(book_id) = type_of {
-                            self.task_items.insert(id, book_id);
-                            self.task_items_updating.insert(book_id);
-                        }
+                    WebsocketNotification::TaskStart { .. } => {
+                        //
                     }
 
-                    WebsocketNotification::TaskTypeEnd { id, type_of } => {
+                    WebsocketNotification::TaskUpdate { id, type_of, inserting, .. } => {
                         if let TaskType::UpdatingBook(book_id) = type_of {
-                            self.task_items_updating.remove(&book_id);
-                            self.task_items.remove(&id); // TODO: I shouldn't remove this.
+                            if inserting {
+                                self.task_items.insert(id, book_id);
+                                self.task_items_updating.insert(book_id);
+                            } else {
+                                self.task_items_updating.remove(&book_id);
+                                self.task_items.remove(&id);
+                            }
 
                             if let Some(items) = self.media_items.as_ref() {
                                 if items.iter().any(|v| v.id == book_id) {
