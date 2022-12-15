@@ -116,7 +116,10 @@ pub fn _passwordless(props: &InnerProps) -> Html {
         <>
             <h2>{ "Passwordless Login" }</h2>
 
-            <form onsubmit={ Callback::from(move |_| submit_passless.run()) }>
+            <form onsubmit={ Callback::from(move |e: FocusEvent| {
+                e.prevent_default();
+                submit_passless.run();
+            }) }>
                 <div class="mb-3">
                     <label class="form-label" for="emailpassless">{ "Email Address" }</label>
                     <input class="form-control" type="email" name="email" id="emailpassless" onchange={ on_change_passless_email } />
@@ -191,7 +194,10 @@ pub fn _password(props: &InnerProps) -> Html {
     html! {
         <>
             <h2>{ "Password Login" }</h2>
-            <form onsubmit={ Callback::from(move |_| submit_pass.run()) }>
+            <form onsubmit={ Callback::from(move |e: FocusEvent| {
+                e.prevent_default();
+                submit_pass.run();
+            }) }>
                 <div class="mb-3">
                     <label class="form-label" for="email">{ "Email Address" }</label>
                     <input class="form-control" type="email" name="email" id="email" onchange={ on_change_pass_email } />
