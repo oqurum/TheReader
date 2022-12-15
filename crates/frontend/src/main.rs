@@ -11,7 +11,7 @@ use common::{
     component::popup::{Popup, PopupType},
     BookId, PersonId,
 };
-use common_local::{api, CollectionId, FileId, LibraryId, Member, ws::{TaskInfo, UniqueId}};
+use common_local::{api, CollectionId, FileId, LibraryId, Member, ws::{TaskInfo, TaskId}};
 use gloo_utils::body;
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
@@ -33,7 +33,7 @@ pub struct AppState {
 }
 
 lazy_static! {
-    pub static ref RUNNING_TASKS: Mutex<HashMap<UniqueId, TaskInfo>> = Mutex::default();
+    pub static ref RUNNING_TASKS: Mutex<HashMap<TaskId, TaskInfo>> = Mutex::default();
 
     pub static ref MEMBER_SELF: Arc<Mutex<Option<Member>>> = Arc::new(Mutex::new(None));
     static ref ERROR_POPUP: Arc<Mutex<Option<ApiErrorResponse>>> = Arc::new(Mutex::new(None));
@@ -91,7 +91,7 @@ fn remove_error() {
 
 enum Msg {
     LoadMemberSelf(WrappingResponse<api::GetMemberSelfResponse>),
-    GetTasksResponse(WrappingResponse<Vec<(UniqueId, TaskInfo)>>),
+    GetTasksResponse(WrappingResponse<Vec<(TaskId, TaskInfo)>>),
 
     UpdateNavVis(bool),
 

@@ -1,7 +1,7 @@
 use std::{collections::{HashMap, HashSet}, rc::Rc, cell::RefCell};
 
 use common::{BookId, component::{InfiniteScroll, InfiniteScrollEvent}, api::WrappingResponse};
-use common_local::{api, DisplayItem, ws::{UniqueId, WebsocketNotification, TaskType}, CollectionId};
+use common_local::{api, DisplayItem, ws::{TaskId, WebsocketNotification, TaskType}, CollectionId};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
@@ -35,7 +35,7 @@ pub enum Msg {
 
     // Results
     MediaListResults(WrappingResponse<api::GetBookListResponse>),
-    BookItemResults(UniqueId, WrappingResponse<DisplayItem>),
+    BookItemResults(TaskId, WrappingResponse<DisplayItem>),
 
     // Events
     OnScroll(InfiniteScrollEvent),
@@ -60,7 +60,7 @@ pub struct BookListComponent {
     _producer: Box<dyn Bridge<WsEventBus>>,
 
     // TODO: I should just have a global one
-    task_items: HashMap<UniqueId, BookId>,
+    task_items: HashMap<TaskId, BookId>,
     // Used along with task_items
     task_items_updating: HashSet<BookId>,
 }
@@ -95,21 +95,21 @@ impl Component for BookListComponent {
                         //
                     }
 
-                    WebsocketNotification::TaskUpdate { id, type_of, inserting, .. } => {
-                        if let TaskType::UpdatingBook(book_id) = type_of {
+                    WebsocketNotification::TaskUpdate { id: task_id, type_of, inserting } => {
+                        if let TaskType::UpdatingBook { id: book_id, .. } = type_of {
                             if inserting {
-                                self.task_items.insert(id, book_id);
+                                self.task_items.insert(task_id, book_id);
                                 self.task_items_updating.insert(book_id);
                             } else {
                                 self.task_items_updating.remove(&book_id);
-                                self.task_items.remove(&id);
+                                self.task_items.remove(&task_id);
                             }
 
                             if let Some(items) = self.media_items.as_ref() {
                                 if items.iter().any(|v| v.id == book_id) {
                                     ctx.link().send_future(async move {
                                         Msg::BookItemResults(
-                                            id,
+                                            task_id,
                                             request::get_media_view(book_id)
                                                 .await
                                                 .map(|v| v.book.into()),

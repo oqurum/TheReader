@@ -9,21 +9,21 @@ use serde::{Deserialize, Serialize};
 pub static UNIQUE_ID: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct UniqueId(usize);
+pub struct TaskId(usize);
 
-impl UniqueId {
+impl TaskId {
     pub fn new() -> Self {
         Self(UNIQUE_ID.fetch_add(1, Ordering::SeqCst))
     }
 }
 
-impl Default for UniqueId {
+impl Default for TaskId {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl fmt::Display for UniqueId {
+impl fmt::Display for TaskId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         usize::fmt(&self.0, f)
     }
@@ -34,8 +34,7 @@ impl fmt::Display for UniqueId {
 pub struct TaskInfo {
     pub name: String,
 
-    pub updating: Vec<BookId>,
-    pub subtitle: Vec<Option<String>>,
+    pub current: Option<TaskType>,
 }
 
 
@@ -60,33 +59,35 @@ impl WebsocketResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WebsocketNotification {
     TaskStart {
-        id: UniqueId,
+        id: TaskId,
         name: String,
     },
 
     TaskUpdate {
-        id: UniqueId,
+        id: TaskId,
         type_of: TaskType,
-        subtitle: Option<String>,
         inserting: bool,
     },
 
-    TaskEnd(UniqueId),
+    TaskEnd(TaskId),
 }
 
 impl WebsocketNotification {
-    pub fn new_task(id: UniqueId, name: String) -> Self {
+    pub fn new_task(id: TaskId, name: String) -> Self {
         Self::TaskStart { id, name }
     }
 
-    pub fn update_task(id: UniqueId, type_of: TaskType, inserting: bool, subtitle: Option<String>) -> Self {
-        Self::TaskUpdate { id, type_of, inserting, subtitle }
+    pub fn update_task(id: TaskId, type_of: TaskType, inserting: bool) -> Self {
+        Self::TaskUpdate { id, type_of, inserting }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskType {
-    UpdatingBook(BookId),
+    UpdatingBook {
+        id: BookId,
+        subtitle: Option<String>,
+    },
 
-    TempRustWarningFix,
+    LibraryScan(String),
 }

@@ -11,12 +11,12 @@ use crate::{
         image::{ImageLinkModel, UploadedImageModel},
         library::LibraryModel,
     },
-    Result,
+    Result, http::send_message_to_clients,
 };
 use bookie::BookSearch;
 use chrono::{TimeZone, Utc};
 use common::parse_book_id;
-use common_local::LibraryId;
+use common_local::{LibraryId, ws::{TaskId, TaskType, WebsocketNotification}};
 use tokio::fs;
 use tracing::{error, info, trace};
 
@@ -25,6 +25,7 @@ pub static WHITELISTED_FILE_TYPES: [&str; 2] = ["epub", "cbz"];
 pub async fn library_scan(
     library: &LibraryModel,
     directories: Vec<DirectoryModel>,
+    task_id: TaskId,
     db: &dyn DatabaseAccess,
 ) -> Result<()> {
     let mut folders: VecDeque<PathBuf> = directories
@@ -51,6 +52,12 @@ pub async fn library_scan(
                     Some((v1, v2)) => (v1.to_string(), v2.to_string().to_lowercase()),
                     None => (file_name, String::new()),
                 };
+
+                send_message_to_clients(WebsocketNotification::update_task(
+                    task_id,
+                    TaskType::LibraryScan(file_name.clone()),
+                    true,
+                ));
 
                 if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) {
                     let file_size = fs::metadata(&path).await?.len();
@@ -82,7 +89,7 @@ pub async fn library_scan(
 
                     let chapter_count = book.chapter_count() as i64;
 
-                    // If file exists, check to see if the one in the database is valid.
+                    // If file exists, check to see if the one currently in the database is valid.
                     if let Some(mut model) =
                         FileModel::find_one_by_hash_or_path(&path, &hash, db).await?
                     {

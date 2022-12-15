@@ -19,23 +19,17 @@ impl Component for AdminTaskPage {
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        log::debug!("{msg:?}");
-
         match msg {
             WebsocketNotification::TaskStart { id, name } => {
-                RUNNING_TASKS.lock().unwrap().insert(id, TaskInfo { name, updating: Vec::new(), subtitle: Vec::new() });
+                RUNNING_TASKS.lock().unwrap().insert(id, TaskInfo { name, current: None });
             }
 
-            WebsocketNotification::TaskUpdate { id, type_of, inserting, subtitle } => {
-                if let TaskType::UpdatingBook(book_id) = type_of {
-                    if let Some(task_items) = RUNNING_TASKS.lock().unwrap().get_mut(&id) {
-                        if inserting {
-                            task_items.subtitle.push(subtitle);
-                            task_items.updating.push(book_id);
-                        } else if let Some(index) = task_items.updating.iter().position(|v| v == &book_id) {
-                            task_items.subtitle.swap_remove(index);
-                            task_items.updating.swap_remove(index);
-                        }
+            WebsocketNotification::TaskUpdate { id, type_of, inserting } => {
+                if let Some(info) = RUNNING_TASKS.lock().unwrap().get_mut(&id) {
+                    if inserting {
+                        info.current = Some(type_of);
+                    } else {
+                        info.current = None;
                     }
                 }
             }
@@ -59,7 +53,7 @@ impl Component for AdminTaskPage {
 
                 <br />
 
-                <div class="row justify-content-md-center">
+                <div class="container-lg justify-content-md-center">
                     <div class="p-3 col-md-auto bg-dark">
                         {
                             if tasks.is_empty() {
@@ -70,20 +64,18 @@ impl Component for AdminTaskPage {
                                 html! {
                                     for tasks.values()
                                         .map(|task| html! {
-                                            <>
+                                            <div>
                                                 <h4>{ task.name.clone() }</h4>
 
                                                 {
-                                                    for task.updating.iter().zip(task.subtitle.iter())
-                                                        .map(|(book_id, subtitle)| html! {
-                                                            <div class="alert alert-secondary">
-                                                                { subtitle.clone().unwrap_or_else(|| format!("Updating {book_id:?}")) }
-                                                            </div>
+                                                    for task.current.clone()
+                                                        .map(|type_of| html! {
+                                                            <p>{ render_type_of(type_of) }</p>
                                                         })
                                                 }
 
                                                 <br />
-                                            </>
+                                            </div>
                                         })
                                 }
                             }
@@ -91,6 +83,18 @@ impl Component for AdminTaskPage {
                     </div>
                 </div>
             </div>
+        }
+    }
+}
+
+fn render_type_of(type_of: TaskType) -> String {
+    match type_of {
+        TaskType::UpdatingBook { id, subtitle } => {
+            subtitle.unwrap_or_else(|| format!("Updating {id:?}"))
+        }
+
+        TaskType::LibraryScan(file_name) => {
+            file_name
         }
     }
 }

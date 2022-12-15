@@ -13,7 +13,7 @@ use web_sys::{Headers, Request, RequestInit, RequestMode, Response};
 
 use common_local::{
     api::*, filter::FilterContainer, setup::SetupConfig, CollectionId, FileId, LibraryId,
-    Progression, SearchType, ws::{UniqueId, TaskInfo},
+    Progression, SearchType, ws::{TaskId, TaskInfo},
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {
@@ -416,7 +416,7 @@ pub async fn run_task(value: RunTaskBody) -> WrappingResponse<String> {
         .unwrap_or_else(def)
 }
 
-pub async fn get_tasks() -> WrappingResponse<Vec<(UniqueId, TaskInfo)>> {
+pub async fn get_tasks() -> WrappingResponse<Vec<(TaskId, TaskInfo)>> {
     fetch("GET", "/api/tasks", Option::<&()>::None)
         .await
         .unwrap_or_else(def)

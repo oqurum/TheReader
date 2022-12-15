@@ -1,6 +1,6 @@
 use actix_web::{post, web, get};
 use common::api::{ApiErrorResponse, WrappingResponse};
-use common_local::{api, ws::{TaskInfo, UniqueId}};
+use common_local::{api, ws::{TaskInfo, TaskId}};
 
 use crate::{
     database::Database,
@@ -44,7 +44,7 @@ pub async fn run_task(
 pub async fn get_tasks(
     member: MemberCookie,
     db: web::Data<Database>,
-) -> WebResult<JsonResponse<Vec<(UniqueId, TaskInfo)>>> {
+) -> WebResult<JsonResponse<Vec<(TaskId, TaskInfo)>>> {
     let member = member.fetch_or_error(&db.basic()).await?;
 
     if !member.permissions.is_owner() {

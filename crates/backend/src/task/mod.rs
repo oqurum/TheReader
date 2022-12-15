@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use common::{BookId, PersonId, Source};
 use common_local::{
     filter::FilterContainer,
-    ws::{TaskType, UniqueId, WebsocketNotification},
+    ws::{TaskType, TaskId, WebsocketNotification},
     LibraryId, SearchFor, SearchForBooksBy,
 };
 use lazy_static::lazy_static;
@@ -59,7 +59,7 @@ struct TaskInterval {
 
 #[async_trait]
 pub trait Task: Send {
-    async fn run(&mut self, task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()>;
+    async fn run(&mut self, task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()>;
 
     fn name(&self) -> &'static str;
 }
@@ -118,7 +118,7 @@ pub fn start_task_manager(db: web::Data<Database>) {
                 if let Some(mut task) = task {
                     let start_time = Instant::now();
 
-                    let task_id = UniqueId::default();
+                    let task_id = TaskId::default();
 
                     info!(id = ?task_id, name = task.name(), "Task Started");
 
@@ -193,7 +193,7 @@ pub struct TaskLibraryScan {
 
 #[async_trait]
 impl Task for TaskLibraryScan {
-    async fn run(&mut self, _task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()> {
+    async fn run(&mut self, task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()> {
         let library = LibraryModel::find_one_by_id(self.library_id, db)
             .await?
             .unwrap();
@@ -202,7 +202,7 @@ impl Task for TaskLibraryScan {
         let directories =
             DirectoryModel::find_directories_by_library_id(self.library_id, db).await?;
 
-        crate::scanner::library_scan(&library, directories, db).await?;
+        crate::scanner::library_scan(&library, directories, task_id, db).await?;
 
         Ok(())
     }
@@ -252,7 +252,7 @@ impl TaskUpdateInvalidBook {
 
 #[async_trait]
 impl Task for TaskUpdateInvalidBook {
-    async fn run(&mut self, task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()> {
+    async fn run(&mut self, task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()> {
         match self.state.clone() {
             UpdatingBook::UnMatch(book_id) => {
                 info!(id = ?book_id, "Unmatching Book By Id");
@@ -277,9 +277,8 @@ impl Task for TaskUpdateInvalidBook {
 
                 send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
-                    TaskType::UpdatingBook(book_id),
+                    TaskType::UpdatingBook { id: book_id, subtitle: None },
                     true,
-                    None,
                 ));
 
                 let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
@@ -292,9 +291,8 @@ impl Task for TaskUpdateInvalidBook {
 
                 send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
-                    TaskType::UpdatingBook(book_id),
+                    TaskType::UpdatingBook { id: book_id, subtitle: None },
                     true,
-                    None,
                 ));
 
                 let book_model = BookModel::find_one_by_id(book_id, db).await?.unwrap();
@@ -360,9 +358,8 @@ impl Task for TaskUpdateInvalidBook {
 
                 send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
-                    TaskType::UpdatingBook(old_book_id),
+                    TaskType::UpdatingBook { id: old_book_id, subtitle: None },
                     true,
-                    None,
                 ));
 
                 match BookModel::find_one_by_source(&source, db).await? {
@@ -594,18 +591,16 @@ impl Task for TaskUpdateInvalidBook {
 
                             send_message_to_clients(WebsocketNotification::update_task(
                                 task_id,
-                                TaskType::UpdatingBook(book_id),
+                                TaskType::UpdatingBook { id: book_id, subtitle: None },
                                 true,
-                                None,
                             ));
 
                             Self::update_book_by_files(book, &active_agent, db).await?;
 
                             send_message_to_clients(WebsocketNotification::update_task(
                                 task_id,
-                                TaskType::UpdatingBook(book_id),
+                                TaskType::UpdatingBook { id: book_id, subtitle: None },
                                 true,
-                                None,
                             ));
                         }
                     }
@@ -802,7 +797,7 @@ impl TaskUpdatePeople {
 
 #[async_trait]
 impl Task for TaskUpdatePeople {
-    async fn run(&mut self, _task_id: UniqueId, db: &dyn DatabaseAccess) -> Result<()> {
+    async fn run(&mut self, _task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()> {
         match self.state.clone() {
             UpdatingPeople::AutoUpdateById(person_id) => {
                 let old_person = PersonModel::find_one_by_id(person_id, db).await?.unwrap();
