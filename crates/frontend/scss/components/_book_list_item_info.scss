@@ -1,0 +1,20 @@
+.book-list-item-info {
+    display: flex;
+    overflow: hidden;
+    height: 247px;
+    margin-bottom: 10px;
+
+    &.small {
+        height: 123px;
+    }
+
+    > .info {
+        margin-left: 5px;
+
+        > .title {
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+    }
+}

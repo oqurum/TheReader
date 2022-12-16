@@ -1,6 +1,6 @@
 use common::{
     api::WrappingResponse,
-    component::popup::{Popup, PopupClose, PopupType},
+    component::{Popup, PopupType},
     util::{truncate_on_indices, LoadingItem},
     BookId,
 };
@@ -8,12 +8,10 @@ use common_local::{
     api::{BookSearchResponse, PostBookBody, SearchItem},
     SearchType,
 };
-use gloo_utils::document;
-use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::request;
+use crate::{components::BookListItemInfo, request};
 
 #[derive(Properties, PartialEq)]
 pub struct Property {
@@ -149,15 +147,20 @@ impl Component for PopupSearchBook {
 
 impl PopupSearchBook {
     fn render_poster_container(site: String, item: &SearchItem, ctx: &Context<Self>) -> Html {
-        let book_id = ctx.props().book_id;
-
         let item = item.as_book();
-
         let source = item.source.clone();
 
+        let book_id = ctx.props().book_id;
+
         html! {
-            <PopupClose
-                class="book-search-item"
+            <BookListItemInfo
+                onclick_close_popup=true
+                image={ Some(item.thumbnail_url.to_string()).filter(|v| !v.trim().is_empty()) }
+                title={ item.name.clone() }
+                subtitle={ site }
+                description={ item.description.clone()
+                    .map(|mut v| { truncate_on_indices(&mut v, 300); v })
+                    .unwrap_or_default() }
                 onclick={
                     ctx.link()
                     .callback_future(move |_| {
@@ -173,18 +176,7 @@ impl PopupSearchBook {
                         }
                     })
                 }
-            >
-                <img src={ item.thumbnail_url.to_string() } />
-                <div class="book-info">
-                    <h4 class="book-name">{ item.name.clone() }</h4>
-                    <h5>{ site }</h5>
-                    <span class="book-author">{ item.author.clone().unwrap_or_default() }</span>
-                    <p class="book-author">{ item.description.clone()
-                            .map(|mut v| { truncate_on_indices(&mut v, 300); v })
-                            .unwrap_or_default() }
-                    </p>
-                </div>
-            </PopupClose>
+            />
         }
     }
 }

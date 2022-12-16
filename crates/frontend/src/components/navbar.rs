@@ -8,7 +8,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::components::Link;
 
-use crate::{get_member_self, pages::settings::SettingsRoute, request, BaseRoute};
+use crate::{get_member_self, pages::settings::SettingsRoute, request, BaseRoute, components::BookListItemInfo};
 
 #[derive(PartialEq, Eq, Properties)]
 pub struct Property {
@@ -198,15 +198,14 @@ impl NavbarModule {
                 <div class="search-dropdown">
                     {
                         for resp.items.iter().map(|item| {
-                            html_nested! {
-                                <Link<BaseRoute> to={BaseRoute::ViewBook { book_id: item.id }} classes={ "search-item link-light" }>
-                                    <div class="poster max-vertical">
-                                        <img src={ item.thumb_path.get_book_http_path().into_owned() } />
-                                    </div>
-                                    <div class="info">
-                                        <h5 class="book-name" title={ item.title.clone() }>{ item.title.clone() }</h5>
-                                    </div>
-                                </Link<BaseRoute>>
+                            html! {
+                                <BookListItemInfo
+                                    small=true
+                                    class="link-light"
+                                    to={ BaseRoute::ViewBook { book_id: item.id } }
+                                    image={ item.thumb_path.get_book_http_path().into_owned() }
+                                    title={ item.title.clone() }
+                                />
                             }
                         })
                     }
