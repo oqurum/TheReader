@@ -77,8 +77,8 @@ impl Component for SetupPage {
 
                         if self.is_fully_setup() {
                             // TODO: Add a delay + reason.
-                            let history = ctx.link().history().unwrap();
-                            history.push(BaseRoute::Dashboard);
+                            let history = ctx.link().navigator().unwrap();
+                            history.push(&BaseRoute::Dashboard);
                         }
                     }
 
@@ -87,8 +87,8 @@ impl Component for SetupPage {
             }
 
             SetupPageMessage::AfterSentConfigSuccess => {
-                let history = ctx.link().history().unwrap();
-                history.push(BaseRoute::Dashboard);
+                let history = ctx.link().navigator().unwrap();
+                history.push(&BaseRoute::Dashboard);
             }
 
             SetupPageMessage::AfterSentConfigError(err) => {

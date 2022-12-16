@@ -80,7 +80,14 @@ impl Component for BookListComponent {
 
             editing_items: Rc::new(RefCell::new(Vec::new())),
 
-            _producer: WsEventBus::bridge(ctx.link().callback(Msg::HandleWebsocket)),
+            _producer: {
+                let cb = {
+                    let link = ctx.link().clone();
+                    move |e| link.send_message(Msg::HandleWebsocket(e))
+                };
+
+                WsEventBus::bridge(Rc::new(cb))
+            },
 
             task_items: HashMap::new(),
             task_items_updating: HashSet::new(),
@@ -234,7 +241,7 @@ impl Component for BookListComponent {
             html! {
                 <>
                     <InfiniteScroll
-                        ref={ self.book_list_ref.clone() }
+                        r#ref={ self.book_list_ref.clone() }
                         class="book-list normal"
                         event={ ctx.link().callback(Msg::OnScroll) }
                     >

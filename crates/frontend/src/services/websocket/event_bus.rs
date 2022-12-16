@@ -1,19 +1,19 @@
 use common_local::ws::WebsocketNotification;
 use std::collections::HashSet;
-use yew_agent::{Agent, AgentLink, Context, HandlerId};
+use yew_agent::{HandlerId, Worker, Public, WorkerLink};
 
 pub struct WsEventBus {
-    link: AgentLink<WsEventBus>,
+    link: WorkerLink<WsEventBus>,
     subscribers: HashSet<HandlerId>,
 }
 
-impl Agent for WsEventBus {
-    type Reach = Context<Self>;
+impl Worker for WsEventBus {
+    type Reach = Public<Self>;
     type Message = ();
     type Input = WebsocketNotification;
     type Output = WebsocketNotification;
 
-    fn create(link: AgentLink<Self>) -> Self {
+    fn create(link: WorkerLink<Self>) -> Self {
         Self {
             link,
             subscribers: HashSet::new(),

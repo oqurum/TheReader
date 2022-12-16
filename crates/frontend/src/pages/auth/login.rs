@@ -27,8 +27,8 @@ impl Component for LoginPage {
                 if resp.is_ok() {
                     crate::request_member_self();
 
-                    let history = ctx.link().history().unwrap();
-                    history.push(BaseRoute::Dashboard);
+                    let history = ctx.link().navigator().unwrap();
+                    history.push(&BaseRoute::Dashboard);
                 }
             }
 
@@ -36,8 +36,8 @@ impl Component for LoginPage {
                 if resp.is_ok() {
                     crate::request_member_self();
 
-                    let history = ctx.link().history().unwrap();
-                    history.push(BaseRoute::Dashboard);
+                    let history = ctx.link().navigator().unwrap();
+                    history.push(&BaseRoute::Dashboard);
                 }
             }
         }
@@ -116,7 +116,7 @@ pub fn _passwordless(props: &InnerProps) -> Html {
         <>
             <h2>{ "Passwordless Login" }</h2>
 
-            <form onsubmit={ Callback::from(move |e: FocusEvent| {
+            <form onsubmit={ Callback::from(move |e: SubmitEvent| {
                 e.prevent_default();
                 submit_passless.run();
             }) }>
@@ -194,7 +194,7 @@ pub fn _password(props: &InnerProps) -> Html {
     html! {
         <>
             <h2>{ "Password Login" }</h2>
-            <form onsubmit={ Callback::from(move |e: FocusEvent| {
+            <form onsubmit={ Callback::from(move |e: SubmitEvent| {
                 e.prevent_default();
                 submit_pass.run();
             }) }>

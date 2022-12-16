@@ -121,7 +121,7 @@ impl Component for BookPage {
         }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
         let book_id = ctx.props().id;
 
         ctx.link().send_future(async move {

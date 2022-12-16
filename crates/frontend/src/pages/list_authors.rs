@@ -200,7 +200,7 @@ impl AuthorListPage {
 
             html! {
                 <InfiniteScroll
-                    ref={ self.author_list_ref.clone() }
+                    r#ref={ self.author_list_ref.clone() }
                     class="person-list"
                     event={ ctx.link().callback(Msg::OnScroll) }
                 >

@@ -4,7 +4,7 @@ use common::{
 };
 use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
-use yew_router::{prelude::{Link, AnyHistory}, scope_ext::{RouterScopeExt, HistoryHandle}};
+use yew_router::{prelude::{Link, Navigator}, scope_ext::{RouterScopeExt, NavigatorHandle}};
 
 use crate::{components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute};
 
@@ -23,7 +23,7 @@ pub enum Msg {
     EditLibrary(LibraryId),
     HideEdit,
 
-    HistoryChange(AnyHistory),
+    HistoryChange(Navigator),
 
     Ignore,
 }
@@ -33,7 +33,7 @@ pub struct Sidebar {
 
     library_editing: Option<LibraryId>,
 
-    _history_handle: Option<HistoryHandle>,
+    _history_handle: Option<NavigatorHandle>,
 
     viewing: Viewing,
 }
@@ -54,7 +54,7 @@ impl Component for Sidebar {
             library_items: None,
             library_editing: None,
 
-            _history_handle: ctx.link().add_history_listener(ctx.link().callback(Msg::HistoryChange)),
+            _history_handle: ctx.link().add_navigator_listener(ctx.link().callback(Msg::HistoryChange)),
         }
     }
 
@@ -62,7 +62,7 @@ impl Component for Sidebar {
         match msg {
             Msg::Ignore => return false,
 
-            Msg::HistoryChange(_history) => {
+            Msg::HistoryChange(_nav) => {
                 self.viewing = Viewing::get_from_route(ctx.link());
             }
 
@@ -103,7 +103,7 @@ impl Component for Sidebar {
         }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
         if ctx.props().visible {
             ctx.link()
                 .send_future(async move { Msg::LibraryListResults(request::get_libraries().await) });

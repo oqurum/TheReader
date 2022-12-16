@@ -186,7 +186,7 @@ impl Component for Model {
                                         <Sidebar visible={ self.state.is_navbar_visible } />
                                         <div class="outer-view-container flex-column">
                                             <NavbarModule visible={ self.state.is_navbar_visible } />
-                                            <Switch<BaseRoute> render={ Switch::render(switch_base) } />
+                                            <Switch<BaseRoute> render={ switch_base } />
                                         </div>
                                     </>
                                 }
@@ -259,10 +259,10 @@ pub enum BaseRoute {
     Dashboard,
 }
 
-fn switch_base(route: &BaseRoute) -> Html {
+fn switch_base(route: BaseRoute) -> Html {
     log::info!("{:?}", route);
 
-    if !is_signed_in() && route != &BaseRoute::Setup {
+    if !is_signed_in() && route != BaseRoute::Setup {
         return html! { <pages::LoginPage /> };
     }
 
@@ -304,7 +304,7 @@ fn switch_base(route: &BaseRoute) -> Html {
         }
 
         BaseRoute::Settings => {
-            html! { <Switch<pages::settings::SettingsRoute> render={Switch::render(pages::settings::switch_settings)} /> }
+            html! { <Switch<pages::settings::SettingsRoute> render={ pages::settings::switch_settings } /> }
         }
 
         BaseRoute::Setup => {
@@ -324,5 +324,5 @@ fn main() {
 
     body().set_class_name("text-light d-flex");
 
-    yew::start_app::<Model>();
+    yew::Renderer::<Model>::new().render();
 }

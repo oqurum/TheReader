@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use common_local::ws::{WebsocketNotification, TaskType, TaskInfo};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
@@ -14,7 +16,14 @@ impl Component for AdminTaskPage {
 
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            _producer: WsEventBus::bridge(ctx.link().callback(|v| v)),
+            _producer: {
+                let cb = {
+                    let link = ctx.link().clone();
+                    move |e| link.send_message(e)
+                };
+
+                WsEventBus::bridge(Rc::new(cb))
+            },
         }
     }
 

@@ -29,7 +29,7 @@ serde_json = { workspace = true }
 serde_urlencoded = { workspace = true }
 serde-xml-rs = { workspace = true }
 serde_qs = { workspace = true, features = ["actix4"] }
-toml_edit = { version = "0.14", features = ["easy"] }
+toml_edit = { version = "0.15", features = ["easy"] }
 
 anyhow = { workspace = true }
 thiserror = { workspace = true }

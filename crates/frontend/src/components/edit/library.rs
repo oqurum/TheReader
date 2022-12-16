@@ -93,19 +93,20 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
         })
     };
 
+
+    let library_update2 = library_update.clone();
+
+    let func = use_async(async move {
+        request::update_library(lib_id, &library_update2.take())
+            .await
+            .ok()
+    });
+
     let on_submit = if let Some(cb) = prop.on_change.as_ref() {
         let library_update = library_update.clone();
 
         cb.reform(move |_| library_update.borrow().clone())
     } else {
-        let library_update = library_update.clone();
-
-        let func = use_async(async move {
-            request::update_library(lib_id, &library_update.take())
-                .await
-                .ok()
-        });
-
         Callback::from(move |_| func.run())
     };
 

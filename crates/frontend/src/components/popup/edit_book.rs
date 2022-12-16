@@ -81,7 +81,7 @@ impl Component for PopupEditBook {
         }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
         self.selected_persons = ctx.props().media_resp.people.clone();
         self.edits = BookEdit::default();
 

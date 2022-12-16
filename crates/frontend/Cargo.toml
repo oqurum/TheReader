@@ -48,10 +48,10 @@ reqwasm = "0.5"
 anyhow = { workspace = true }
 log = { workspace = true }
 
-yew = "0.19"
-yew-agent = "0.1"
-yew-router = "0.16"
-yew-hooks = "0.1"
+yew = "0.20"
+yew-agent = "0.2"
+yew-router = "0.17"
+yew-hooks = "0.2"
 
 validator = { workspace = true }
 wasm-logger = "0.2"

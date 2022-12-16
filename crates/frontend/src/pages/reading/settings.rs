@@ -87,14 +87,15 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
         }
     };
 
+
+    let ref_width_input = use_node_ref();
+    let ref_height_input = use_node_ref();
+
     let screen_size_section = {
         if settings.borrow().is_fullscreen {
             html! {}
         } else {
             let settings = settings.clone();
-
-            let ref_width_input = use_node_ref();
-            let ref_height_input = use_node_ref();
 
             html! {
                 <div class="shrink-width-to-content">

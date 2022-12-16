@@ -5,7 +5,7 @@ use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{DomRect, HtmlElement, MouseEvent};
 use yew::{
     function_component, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state_eq,
-    Callback, NodeRef, Properties, UseStateHandle,
+    Callback, NodeRef, Properties, UseStateHandle, Html, hook,
 };
 use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
 
@@ -210,6 +210,7 @@ impl Clone for UseMouseHandle {
     }
 }
 
+#[hook]
 pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
     let node_bb = use_mut_ref(|| DomRect::new().unwrap_throw());
     let dragging = use_state_eq(|| false);

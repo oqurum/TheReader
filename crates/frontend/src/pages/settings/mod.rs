@@ -30,7 +30,7 @@ pub enum SettingsRoute {
     General,
 }
 
-pub fn switch_settings(route: &SettingsRoute) -> Html {
+pub fn switch_settings(route: SettingsRoute) -> Html {
     let member = get_member_self().unwrap();
 
     // TODO: Move once I have general settings.

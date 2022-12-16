@@ -261,7 +261,7 @@ impl Component for Reader {
 
                 self.after_page_change();
 
-                return self.update(ctx, ReaderMsg::UploadProgress);
+                return Component::update(self, ctx, ReaderMsg::UploadProgress);
             }
 
             ReaderMsg::HandleJsRedirect(_chapter, file_path, _id_name) => {
@@ -348,7 +348,7 @@ impl Component for Reader {
                                         section.transitioning_page(self.drag_distance);
                                     }
                                 } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
-                                    return self.update(ctx, ReaderMsg::PreviousPage);
+                                    return Component::update(self, ctx, ReaderMsg::PreviousPage);
                                 } else if let Some(section) = self.get_current_section() {
                                     section.transitioning_page(0);
                                     self.drag_distance = 0;
@@ -364,7 +364,7 @@ impl Component for Reader {
                                         section.transitioning_page(self.drag_distance);
                                     }
                                 } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
-                                    return self.update(ctx, ReaderMsg::NextPage);
+                                    return Component::update(self, ctx, ReaderMsg::NextPage);
                                 } else if let Some(section) = self.get_current_section() {
                                     section.transitioning_page(0);
                                     self.drag_distance = 0;
@@ -500,7 +500,7 @@ impl Component for Reader {
                 }
 
                 SectionDisplay::Scroll(_) => {
-                    return self.update(ctx, ReaderMsg::SetSection(new_page));
+                    return Component::update(self, ctx, ReaderMsg::SetSection(new_page));
                 }
             },
 
@@ -515,7 +515,7 @@ impl Component for Reader {
                     }
 
                     SectionDisplay::Scroll(_) => {
-                        return self.update(ctx, ReaderMsg::NextSection);
+                        return Component::update(self, ctx, ReaderMsg::NextSection);
                     }
                 }
 
@@ -533,7 +533,7 @@ impl Component for Reader {
                     }
 
                     SectionDisplay::Scroll(_) => {
-                        return self.update(ctx, ReaderMsg::PreviousSection);
+                        return Component::update(self, ctx, ReaderMsg::PreviousSection);
                     }
                 }
 
@@ -694,7 +694,7 @@ impl Component for Reader {
         }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
         let props = ctx.props();
 
         if let Some(Progression::Ebook { chapter, .. }) = *ctx.props().progress.lock().unwrap() {
