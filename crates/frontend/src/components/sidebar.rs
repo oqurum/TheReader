@@ -8,6 +8,8 @@ use yew_router::{prelude::{Link, AnyHistory}, scope_ext::{RouterScopeExt, Histor
 
 use crate::{components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute};
 
+use super::OwnerBarrier;
+
 
 #[derive(Properties, PartialEq, Eq)]
 pub struct Props {
@@ -169,21 +171,23 @@ impl Sidebar {
 
                         <hr />
 
-                        <div class="sidebar-item">
-                            <h3>
-                                { "Admin" }
-                            </h3>
-                        </div>
+                        <OwnerBarrier>
+                            <div class="sidebar-item">
+                                <h3>
+                                    { "Admin" }
+                                </h3>
+                            </div>
 
-                        <ul class="nav nav-pills flex-column mb-auto">
-                            { for ADMIN_LOCATIONS.iter().map(|&(title, route)| html! {
-                                <li class="nav-item">
-                                    <Link<SettingsRoute> to={route} classes={ classes!("nav-link", (cr == route).then_some("active")) }>
-                                        <span class="title">{ title }</span>
-                                    </Link<SettingsRoute>>
-                                </li>
-                            }) }
-                        </ul>
+                            <ul class="nav nav-pills flex-column mb-auto">
+                                { for ADMIN_LOCATIONS.iter().map(|&(title, route)| html! {
+                                    <li class="nav-item">
+                                        <Link<SettingsRoute> to={route} classes={ classes!("nav-link", (cr == route).then_some("active")) }>
+                                            <span class="title">{ title }</span>
+                                        </Link<SettingsRoute>>
+                                    </li>
+                                }) }
+                            </ul>
+                        </OwnerBarrier>
                     </>
                 }
             }
@@ -202,50 +206,52 @@ impl Sidebar {
                     { item.name.clone() }
                 </Link<BaseRoute>>
 
-                <div class="options">
-                    <ButtonWithPopup class="menu-list">
-                        <PopupClose class="dropdown-item" onclick={ scope.callback_future(move |e: MouseEvent| {
-                            e.prevent_default();
+                <OwnerBarrier>
+                    <div class="options">
+                        <ButtonWithPopup class="menu-list">
+                            <PopupClose class="dropdown-item" onclick={ scope.callback_future(move |e: MouseEvent| {
+                                e.prevent_default();
 
-                            async move {
-                                request::run_task(api::RunTaskBody {
-                                    run_metadata: Some(library_id),
+                                async move {
+                                    request::run_task(api::RunTaskBody {
+                                        run_metadata: Some(library_id),
 
-                                    .. Default::default()
-                                }).await;
+                                        .. Default::default()
+                                    }).await;
 
-                                Msg::Ignore
-                            }
-                        }) }>
-                            { "Refresh All Metadata" }
-                        </PopupClose>
+                                    Msg::Ignore
+                                }
+                            }) }>
+                                { "Refresh All Metadata" }
+                            </PopupClose>
 
-                        <PopupClose class="dropdown-item" onclick={ scope.callback_future(move |e: MouseEvent| {
-                            e.prevent_default();
+                            <PopupClose class="dropdown-item" onclick={ scope.callback_future(move |e: MouseEvent| {
+                                e.prevent_default();
 
-                            async move {
-                                request::run_task(api::RunTaskBody {
-                                    run_search: Some(library_id),
+                                async move {
+                                    request::run_task(api::RunTaskBody {
+                                        run_search: Some(library_id),
 
-                                    .. Default::default()
-                                }).await;
+                                        .. Default::default()
+                                    }).await;
 
-                                Msg::Ignore
-                            }
-                        }) }>
-                            { "Library Scan" }
-                        </PopupClose>
+                                    Msg::Ignore
+                                }
+                            }) }>
+                                { "Library Scan" }
+                            </PopupClose>
 
-                        <PopupClose class="dropdown-item" onclick={ scope.callback(move |e: MouseEvent| {
-                            e.prevent_default();
-                            e.stop_propagation();
+                            <PopupClose class="dropdown-item" onclick={ scope.callback(move |e: MouseEvent| {
+                                e.prevent_default();
+                                e.stop_propagation();
 
-                            Msg::EditLibrary(library_id)
-                        }) }>
-                            { "Edit Library" }
-                        </PopupClose>
-                    </ButtonWithPopup>
-                </div>
+                                Msg::EditLibrary(library_id)
+                            }) }>
+                                { "Edit Library" }
+                            </PopupClose>
+                        </ButtonWithPopup>
+                    </div>
+                </OwnerBarrier>
             </li>
         }
     }

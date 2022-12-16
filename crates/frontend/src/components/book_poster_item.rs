@@ -17,7 +17,7 @@ use crate::{
     BaseRoute,
 };
 
-use super::BookListScope;
+use super::{BookListScope, OwnerBarrier};
 
 #[derive(Properties)]
 pub struct BookPosterItemProps {
@@ -517,6 +517,7 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
             <div class="dropdown-menu dropdown-menu-dark show">
                 // <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
 
+                <OwnerBarrier>
                 {
                     if props.is_matched {
                         html! {
@@ -529,11 +530,14 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                         html! {}
                     }
                 }
+                </OwnerBarrier>
 
-                <PopupClose class="dropdown-item" onclick={ on_click_prevdef_cb(
-                    props.event.clone(),
-                    |cb, _| cb.emit(DropdownInfoPopupEvent::RefreshMetadata)
-                ) }>{ "Refresh Metadata" }</PopupClose>
+                <OwnerBarrier>
+                    <PopupClose class="dropdown-item" onclick={ on_click_prevdef_cb(
+                        props.event.clone(),
+                        |cb, _| cb.emit(DropdownInfoPopupEvent::RefreshMetadata)
+                    ) }>{ "Refresh Metadata" }</PopupClose>
+                </OwnerBarrier>
 
                 {
                     if let Some(id) = book_list_ctx.collection_id {
@@ -573,10 +577,12 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
                     }
                 }
 
-                <PopupClose class="dropdown-item" onclick={ on_click_prevdef_stopprop_cb(
-                    props.event.clone(),
-                    |cb, _| cb.emit(DropdownInfoPopupEvent::SearchFor)
-                ) }>{ "Search For Book" }</PopupClose>
+                <OwnerBarrier>
+                    <PopupClose class="dropdown-item" onclick={ on_click_prevdef_stopprop_cb(
+                        props.event.clone(),
+                        |cb, _| cb.emit(DropdownInfoPopupEvent::SearchFor)
+                    ) }>{ "Search For Book" }</PopupClose>
+                </OwnerBarrier>
 
                 // <PopupClose class="dropdown-item">{ "Delete" }</PopupClose>
 

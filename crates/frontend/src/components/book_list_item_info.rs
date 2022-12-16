@@ -59,6 +59,7 @@ impl Component for BookListItemInfo {
                 </div>
                 <div class="info">
                     <h5 class="title" title={ title.clone() }>{ title.unwrap_or_else(|| String::from("Untitled")) }</h5>
+
                     {
                         if let Some(subtitle) = subtitle {
                             html! {
@@ -68,7 +69,16 @@ impl Component for BookListItemInfo {
                             html! {}
                         }
                     }
-                    <p class="description">{ description.unwrap_or_else(|| String::from("No Description")) }</p>
+
+                    {
+                        if let Some(description) = description {
+                            html! {
+                                <p class="description">{ description }</p>
+                            }
+                        } else {
+                            html! {}
+                        }
+                    }
                 </div>
             </>
         };
