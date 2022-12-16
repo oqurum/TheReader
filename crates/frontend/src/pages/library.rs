@@ -1,13 +1,8 @@
-use common_local::{
-    LibraryId,
-};
+use common_local::LibraryId;
 use yew::prelude::*;
 
 use crate::{
-    components::{
-        BookListComponent,
-        BookListRequest,
-    },
+    components::{BookListComponent, BookListRequest},
     request,
     util::build_book_filter_query,
 };

@@ -8,7 +8,10 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_router::components::Link;
 
-use crate::{get_member_self, pages::settings::SettingsRoute, request, BaseRoute, components::BookListItemInfo};
+use crate::{
+    components::BookListItemInfo, get_member_self, pages::settings::SettingsRoute, request,
+    BaseRoute,
+};
 
 #[derive(PartialEq, Eq, Properties)]
 pub struct Property {

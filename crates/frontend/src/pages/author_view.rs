@@ -2,9 +2,7 @@ use std::str::FromStr;
 
 use chrono::NaiveDate;
 use common::{
-    api::WrappingResponse,
-    component::upload::UploadModule,
-    Either, ImageIdType, PersonId,
+    api::WrappingResponse, component::upload::UploadModule, Either, ImageIdType, PersonId,
 };
 use common_local::{
     api::{self, GetPersonResponse, GetPostersResponse},
@@ -14,10 +12,7 @@ use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlTextAreaElement};
 use yew::{html::Scope, prelude::*};
 
-use crate::{
-    components::book_poster_item::BookPosterItem,
-    request,
-};
+use crate::{components::book_poster_item::BookPosterItem, request};
 
 #[derive(Clone)]
 pub enum Msg {
@@ -157,7 +152,7 @@ impl Component for AuthorView {
             Msg::RetrieveMediaView(resp) => match resp.ok() {
                 Ok(resp) => self.media = Some(resp),
                 Err(err) => crate::display_error(err),
-            }
+            },
         }
 
         true

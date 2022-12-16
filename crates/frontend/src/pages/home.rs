@@ -8,10 +8,7 @@ use common_local::{
 };
 use yew::prelude::*;
 
-use crate::{
-    components::BookPosterItem,
-    request,
-};
+use crate::{components::BookPosterItem, request};
 
 pub enum Msg {
     Ignore,

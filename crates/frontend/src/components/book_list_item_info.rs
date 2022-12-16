@@ -1,13 +1,10 @@
-use common::{MISSING_THUMB_PATH, component::PopupClose};
+use common::{component::PopupClose, MISSING_THUMB_PATH};
 use yew::prelude::*;
 use yew_router::prelude::Link;
 
 use crate::BaseRoute;
 
-
 // TODO: Better Names for both of these types.
-
-
 
 #[derive(Clone, Properties, PartialEq)]
 pub struct Props {
@@ -25,7 +22,6 @@ pub struct Props {
     pub onclick_close_popup: bool,
     pub to: Option<BaseRoute>,
 }
-
 
 pub struct BookListItemInfo;
 

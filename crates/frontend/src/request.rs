@@ -12,8 +12,11 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, RequestMode, Response};
 
 use common_local::{
-    api::*, filter::FilterContainer, setup::SetupConfig, CollectionId, FileId, LibraryId,
-    Progression, SearchType, ws::{TaskId, TaskInfo},
+    api::*,
+    filter::FilterContainer,
+    setup::SetupConfig,
+    ws::{TaskId, TaskInfo},
+    CollectionId, FileId, LibraryId, Progression, SearchType,
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {

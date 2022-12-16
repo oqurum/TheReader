@@ -1,9 +1,10 @@
 #![allow(clippy::let_unit_value, clippy::type_complexity)]
 
 use std::{
+    collections::HashMap,
     mem::MaybeUninit,
     rc::Rc,
-    sync::{Arc, Mutex}, collections::HashMap,
+    sync::{Arc, Mutex},
 };
 
 use common::{
@@ -11,7 +12,11 @@ use common::{
     component::popup::{Popup, PopupType},
     BookId, PersonId,
 };
-use common_local::{api, CollectionId, FileId, LibraryId, Member, ws::{TaskInfo, TaskId}};
+use common_local::{
+    api,
+    ws::{TaskId, TaskInfo},
+    CollectionId, FileId, LibraryId, Member,
+};
 use gloo_utils::body;
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
@@ -34,7 +39,6 @@ pub struct AppState {
 
 lazy_static! {
     pub static ref RUNNING_TASKS: Mutex<HashMap<TaskId, TaskInfo>> = Mutex::default();
-
     pub static ref MEMBER_SELF: Arc<Mutex<Option<Member>>> = Arc::new(Mutex::new(None));
     static ref ERROR_POPUP: Arc<Mutex<Option<ApiErrorResponse>>> = Arc::new(Mutex::new(None));
 }
@@ -266,7 +270,7 @@ fn switch_base(route: BaseRoute) -> Html {
         return html! { <pages::LoginPage /> };
     }
 
-    match route.clone() {
+    match route {
         BaseRoute::Login => {
             html! { <pages::LoginPage /> }
         }

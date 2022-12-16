@@ -93,7 +93,6 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
         })
     };
 
-
     let library_update2 = library_update.clone();
 
     let func = use_async(async move {

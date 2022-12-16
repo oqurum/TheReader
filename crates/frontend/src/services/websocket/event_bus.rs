@@ -1,6 +1,6 @@
 use common_local::ws::WebsocketNotification;
 use std::collections::HashSet;
-use yew_agent::{HandlerId, Worker, Public, WorkerLink};
+use yew_agent::{HandlerId, Public, Worker, WorkerLink};
 
 pub struct WsEventBus {
     link: WorkerLink<WsEventBus>,

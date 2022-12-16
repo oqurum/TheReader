@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use common_local::ws::{WebsocketNotification, TaskType, TaskInfo};
+use common_local::ws::{TaskInfo, TaskType, WebsocketNotification};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
@@ -30,10 +30,20 @@ impl Component for AdminTaskPage {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             WebsocketNotification::TaskStart { id, name } => {
-                RUNNING_TASKS.lock().unwrap().insert(id, TaskInfo { name, current: None });
+                RUNNING_TASKS.lock().unwrap().insert(
+                    id,
+                    TaskInfo {
+                        name,
+                        current: None,
+                    },
+                );
             }
 
-            WebsocketNotification::TaskUpdate { id, type_of, inserting } => {
+            WebsocketNotification::TaskUpdate {
+                id,
+                type_of,
+                inserting,
+            } => {
                 if let Some(info) = RUNNING_TASKS.lock().unwrap().get_mut(&id) {
                     if inserting {
                         info.current = Some(type_of);
@@ -102,8 +112,6 @@ fn render_type_of(type_of: TaskType) -> String {
             subtitle.unwrap_or_else(|| format!("Updating {id:?}"))
         }
 
-        TaskType::LibraryScan(file_name) => {
-            file_name
-        }
+        TaskType::LibraryScan(file_name) => file_name,
     }
 }

@@ -4,18 +4,21 @@ use common::{
 };
 use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
-use yew_router::{prelude::{Link, Navigator}, scope_ext::{RouterScopeExt, NavigatorHandle}};
+use yew_router::{
+    prelude::{Link, Navigator},
+    scope_ext::{NavigatorHandle, RouterScopeExt},
+};
 
-use crate::{components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute};
+use crate::{
+    components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute,
+};
 
 use super::OwnerBarrier;
-
 
 #[derive(Properties, PartialEq, Eq)]
 pub struct Props {
     pub visible: bool,
 }
-
 
 pub enum Msg {
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
@@ -44,8 +47,9 @@ impl Component for Sidebar {
 
     fn create(ctx: &Context<Self>) -> Self {
         if ctx.props().visible {
-            ctx.link()
-                .send_future(async move { Msg::LibraryListResults(request::get_libraries().await) });
+            ctx.link().send_future(async move {
+                Msg::LibraryListResults(request::get_libraries().await)
+            });
         }
 
         Self {
@@ -54,7 +58,9 @@ impl Component for Sidebar {
             library_items: None,
             library_editing: None,
 
-            _history_handle: ctx.link().add_navigator_listener(ctx.link().callback(Msg::HistoryChange)),
+            _history_handle: ctx
+                .link()
+                .add_navigator_listener(ctx.link().callback(Msg::HistoryChange)),
         }
     }
 
@@ -105,8 +111,9 @@ impl Component for Sidebar {
 
     fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
         if ctx.props().visible {
-            ctx.link()
-                .send_future(async move { Msg::LibraryListResults(request::get_libraries().await) });
+            ctx.link().send_future(async move {
+                Msg::LibraryListResults(request::get_libraries().await)
+            });
         }
 
         true
@@ -256,7 +263,6 @@ impl Sidebar {
         }
     }
 }
-
 
 #[derive(Clone, Copy)]
 enum Viewing {

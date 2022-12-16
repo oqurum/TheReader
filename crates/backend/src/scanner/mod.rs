@@ -2,6 +2,7 @@ use std::{collections::VecDeque, path::PathBuf, time::UNIX_EPOCH};
 
 use crate::{
     database::DatabaseAccess,
+    http::send_message_to_clients,
     metadata::{get_metadata_from_files, MetadataReturned},
     model::{
         book::BookModel,
@@ -11,12 +12,15 @@ use crate::{
         image::{ImageLinkModel, UploadedImageModel},
         library::LibraryModel,
     },
-    Result, http::send_message_to_clients,
+    Result,
 };
 use bookie::BookSearch;
 use chrono::{TimeZone, Utc};
 use common::parse_book_id;
-use common_local::{LibraryId, ws::{TaskId, TaskType, WebsocketNotification}};
+use common_local::{
+    ws::{TaskId, TaskType, WebsocketNotification},
+    LibraryId,
+};
 use tokio::fs;
 use tracing::{error, info, trace};
 

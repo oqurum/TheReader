@@ -2,7 +2,7 @@ use common::api::ApiErrorResponse;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_async;
-use yew_router::{history::History, prelude::RouterScopeExt};
+use yew_router::prelude::RouterScopeExt;
 
 use crate::{request, BaseRoute};
 

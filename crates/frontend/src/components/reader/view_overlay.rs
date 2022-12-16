@@ -4,8 +4,8 @@ use chrono::{Duration, Utc};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{DomRect, HtmlElement, MouseEvent};
 use yew::{
-    function_component, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state_eq,
-    Callback, NodeRef, Properties, UseStateHandle, Html, hook,
+    function_component, hook, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state_eq,
+    Callback, Html, NodeRef, Properties, UseStateHandle,
 };
 use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
 
@@ -229,7 +229,7 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
 
         Rc::new(move || {
             if let Some(coords_end) = *coords_end {
-                ((*coords_start).0 - coords_end.0) as i32
+                (coords_start.0 - coords_end.0) as i32
             } else {
                 0
             }
@@ -242,7 +242,7 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
 
         Rc::new(move || {
             if let Some(coords_end) = *coords_end {
-                ((*coords_start).1 - coords_end.1) as i32
+                (coords_start.1 - coords_end.1) as i32
             } else {
                 0
             }

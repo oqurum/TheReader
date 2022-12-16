@@ -202,13 +202,15 @@ pub async fn progress_file_add(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    if let Some(book_id) = FileModel::find_one_by_id(*file_id, &db.basic()).await?.and_then(|v| v.book_id) {
+    if let Some(book_id) = FileModel::find_one_by_id(*file_id, &db.basic())
+        .await?
+        .and_then(|v| v.book_id)
+    {
         // Check if the book already has progression. Return the progression.
-        if let Some(prog) = FileProgressionModel::find_one_by_book_id(
-            member.member_id(),
-            book_id,
-            &db.basic()
-        ).await? {
+        if let Some(prog) =
+            FileProgressionModel::find_one_by_book_id(member.member_id(), book_id, &db.basic())
+                .await?
+        {
             if prog.file_id != *file_id {
                 FileProgressionModel::delete_one(prog.user_id, prog.file_id, &db.basic()).await?;
             }

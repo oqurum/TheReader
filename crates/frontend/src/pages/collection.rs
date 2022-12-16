@@ -8,7 +8,7 @@ use common::{
 use common_local::{api, Collection, CollectionId};
 
 use crate::{
-    components::{BookListComponent, BookListScope, BookListRequest},
+    components::{BookListComponent, BookListRequest, BookListScope},
     request,
 };
 

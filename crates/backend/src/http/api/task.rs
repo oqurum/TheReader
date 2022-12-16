@@ -1,10 +1,13 @@
-use actix_web::{post, web, get};
+use actix_web::{get, post, web};
 use common::api::{ApiErrorResponse, WrappingResponse};
-use common_local::{api, ws::{TaskInfo, TaskId}};
+use common_local::{
+    api,
+    ws::{TaskId, TaskInfo},
+};
 
 use crate::{
     database::Database,
-    http::{JsonResponse, MemberCookie, ws::RUNNING_TASKS},
+    http::{ws::RUNNING_TASKS, JsonResponse, MemberCookie},
     queue_task, task, WebResult,
 };
 
@@ -39,7 +42,6 @@ pub async fn run_task(
     Ok(web::Json(WrappingResponse::okay("success")))
 }
 
-
 #[get("/tasks")]
 pub async fn get_tasks(
     member: MemberCookie,
@@ -51,7 +53,12 @@ pub async fn get_tasks(
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let resp = RUNNING_TASKS.lock().unwrap().iter().map(|(a, b)| (*a, b.clone())).collect::<Vec<_>>();
+    let resp = RUNNING_TASKS
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(a, b)| (*a, b.clone()))
+        .collect::<Vec<_>>();
 
     Ok(web::Json(WrappingResponse::okay(resp)))
 }

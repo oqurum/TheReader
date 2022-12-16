@@ -87,7 +87,6 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
         }
     };
 
-
     let ref_width_input = use_node_ref();
     let ref_height_input = use_node_ref();
 

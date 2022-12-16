@@ -6,13 +6,16 @@ use common::{
 };
 use common_local::{api, CollectionId, DisplayItem, MediaItem, Progression, ThumbnailStoreExt};
 use web_sys::{HtmlElement, HtmlInputElement, MouseEvent};
-use yew::{function_component, html, Callback, Component, Context, Html, Properties, TargetCast, use_context, classes};
+use yew::{
+    classes, function_component, html, use_context, Callback, Component, Context, Html, Properties,
+    TargetCast,
+};
 use yew_hooks::use_async;
 use yew_router::prelude::Link;
 
 use crate::{
-    request,
     components::{PopupEditBook, PopupSearchBook},
+    request,
     util::{on_click_prevdef_cb, on_click_prevdef_stopprop_cb},
     BaseRoute,
 };
@@ -57,7 +60,6 @@ pub enum BookPosterItemMsg {
     UnMatch(BookId),
 
     // Other
-
     AddOrRemoveItemFromEditing(BookId, bool),
 
     ClosePopup,
@@ -74,9 +76,7 @@ impl Component for BookPosterItem {
     type Properties = BookPosterItemProps;
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-            media_popup: None,
-        }
+        Self { media_popup: None }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -101,8 +101,7 @@ impl Component for BookPosterItem {
 
             BookPosterItemMsg::UpdateBookById(book_id) => {
                 ctx.link().send_future(async move {
-                    request::update_book(book_id, &api::PostBookBody::AutoMatchBookId)
-                        .await;
+                    request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
 
                     BookPosterItemMsg::Ignore
                 });

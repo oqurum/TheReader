@@ -6,7 +6,7 @@ use common::{
 use common_local::{
     api::{self, GetBookResponse},
     util::file_size_bytes_to_readable_string,
-    ThumbnailStoreExt, Progression,
+    Progression, ThumbnailStoreExt,
 };
 use yew::prelude::*;
 use yew_router::prelude::*;

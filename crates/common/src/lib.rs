@@ -1,11 +1,8 @@
 use std::path::PathBuf;
 
 use chrono::{DateTime, NaiveDate, Utc};
-use common::{
-    Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore,
-};
+use common::{Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore};
 use serde::{Deserialize, Serialize};
-
 
 pub mod error;
 mod ext;

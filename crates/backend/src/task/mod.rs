@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 use common::{BookId, PersonId, Source};
 use common_local::{
     filter::FilterContainer,
-    ws::{TaskType, TaskId, WebsocketNotification},
+    ws::{TaskId, TaskType, WebsocketNotification},
     LibraryId, SearchFor, SearchForBooksBy,
 };
 use lazy_static::lazy_static;
@@ -124,7 +124,7 @@ pub fn start_task_manager(db: web::Data<Database>) {
 
                     send_message_to_clients(WebsocketNotification::new_task(
                         task_id,
-                        task.name().to_string()
+                        task.name().to_string(),
                     ));
 
                     match task.run(task_id, &db.basic()).await {
@@ -277,7 +277,10 @@ impl Task for TaskUpdateInvalidBook {
 
                 send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
-                    TaskType::UpdatingBook { id: book_id, subtitle: None },
+                    TaskType::UpdatingBook {
+                        id: book_id,
+                        subtitle: None,
+                    },
                     true,
                 ));
 
@@ -291,7 +294,10 @@ impl Task for TaskUpdateInvalidBook {
 
                 send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
-                    TaskType::UpdatingBook { id: book_id, subtitle: None },
+                    TaskType::UpdatingBook {
+                        id: book_id,
+                        subtitle: None,
+                    },
                     true,
                 ));
 
@@ -358,7 +364,10 @@ impl Task for TaskUpdateInvalidBook {
 
                 send_message_to_clients(WebsocketNotification::update_task(
                     task_id,
-                    TaskType::UpdatingBook { id: old_book_id, subtitle: None },
+                    TaskType::UpdatingBook {
+                        id: old_book_id,
+                        subtitle: None,
+                    },
                     true,
                 ));
 
@@ -591,7 +600,10 @@ impl Task for TaskUpdateInvalidBook {
 
                             send_message_to_clients(WebsocketNotification::update_task(
                                 task_id,
-                                TaskType::UpdatingBook { id: book_id, subtitle: None },
+                                TaskType::UpdatingBook {
+                                    id: book_id,
+                                    subtitle: None,
+                                },
                                 true,
                             ));
 
@@ -599,7 +611,10 @@ impl Task for TaskUpdateInvalidBook {
 
                             send_message_to_clients(WebsocketNotification::update_task(
                                 task_id,
-                                TaskType::UpdatingBook { id: book_id, subtitle: None },
+                                TaskType::UpdatingBook {
+                                    id: book_id,
+                                    subtitle: None,
+                                },
                                 true,
                             ));
                         }

@@ -206,7 +206,8 @@ pub async fn load_book_info(
 
     for file in FileModel::find_by_book_id(book.id, &db.basic()).await? {
         let prog = if !found_progression {
-            let prog = FileProgressionModel::find_one(member.member_id(), file.id, &db.basic()).await?;
+            let prog =
+                FileProgressionModel::find_one(member.member_id(), file.id, &db.basic()).await?;
 
             found_progression = prog.is_some();
 
@@ -439,7 +440,9 @@ async fn get_book_progress(
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookProgressResponse>> {
-    let model = FileProgressionModel::find_one_by_book_id(member.member_id(), *book_id, &db.basic()).await?;
+    let model =
+        FileProgressionModel::find_one_by_book_id(member.member_id(), *book_id, &db.basic())
+            .await?;
 
     Ok(web::Json(WrappingResponse::okay(model.map(|v| v.into()))))
 }

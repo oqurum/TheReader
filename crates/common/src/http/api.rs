@@ -1,10 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use chrono::NaiveDate;
-use common::{
-    api::QueryListResponse,
-    BookId, Either, ImageId, MemberId, PersonId, Source,
-};
+use common::{api::QueryListResponse, BookId, Either, ImageId, MemberId, PersonId, Source};
 use serde::{Deserialize, Serialize};
 
 use crate::{

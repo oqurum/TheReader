@@ -12,10 +12,6 @@ pub enum Msg {
     // Request Results
     MembersResults(Box<WrappingResponse<api::ApiGetMembersListResponse>>),
 
-    // Events
-    DisplayPopup(usize, MemberId),
-    ClosePopup,
-
     RequestUpdateOptions(api::UpdateMember),
     InviteMember { email: String },
 
@@ -47,14 +43,6 @@ impl Component for AdminMembersPage {
                 }
                 Err(err) => crate::display_error(err),
             },
-
-            Msg::DisplayPopup(popup, index) => {
-                self.visible_popup = Some((popup, index));
-            }
-
-            Msg::ClosePopup => {
-                self.visible_popup = None;
-            }
 
             Msg::RequestUpdateOptions(options) => {
                 ctx.link().send_future(async move {

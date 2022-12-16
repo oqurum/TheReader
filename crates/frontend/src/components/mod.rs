@@ -1,22 +1,22 @@
+pub mod book_list;
+mod book_list_item_info;
 pub mod book_poster_item;
 pub mod edit;
 pub mod mass_selector_bar;
 pub mod navbar;
 pub mod notes;
+mod owner_barrier;
 pub mod popup;
 pub mod reader;
 mod sidebar;
-pub mod book_list;
-mod book_list_item_info;
-mod owner_barrier;
 
+pub use book_list::{BookListComponent, BookListRequest, BookListScope};
+pub use book_list_item_info::BookListItemInfo;
 pub use book_poster_item::{BookPosterItem, DropdownInfoPopup, DropdownInfoPopupEvent};
 pub use mass_selector_bar::MassSelectBar;
 pub use navbar::NavbarModule;
 pub use notes::Notes;
+pub use owner_barrier::OwnerBarrier;
 pub use popup::{edit_book::PopupEditBook, search_book::PopupSearchBook};
 pub use reader::Reader;
 pub use sidebar::Sidebar;
-pub use book_list::{BookListComponent, BookListRequest, BookListScope};
-pub use book_list_item_info::BookListItemInfo;
-pub use owner_barrier::OwnerBarrier;

@@ -1,21 +1,31 @@
-use std::{collections::{HashMap, HashSet}, rc::Rc, cell::RefCell};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
-use common::{BookId, component::{InfiniteScroll, InfiniteScrollEvent}, api::WrappingResponse};
-use common_local::{api, DisplayItem, ws::{TaskId, WebsocketNotification, TaskType}, CollectionId};
+use common::{
+    api::WrappingResponse,
+    component::{InfiniteScroll, InfiniteScrollEvent},
+    BookId,
+};
+use common_local::{
+    api,
+    ws::{TaskId, TaskType, WebsocketNotification},
+    CollectionId, DisplayItem,
+};
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
-use crate::{services::WsEventBus, request};
+use crate::{request, services::WsEventBus};
 
 use super::book_poster_item::{BookPosterItem, BookPosterItemMsg};
 use super::MassSelectBar;
-
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct BookListScope {
     pub collection_id: Option<CollectionId>,
 }
-
 
 pub struct BookListRequest {
     pub offset: Option<usize>,
@@ -44,7 +54,6 @@ pub enum Msg {
 
     BookListItemEvent(BookPosterItemMsg),
 }
-
 
 pub struct BookListComponent {
     media_items: Option<Vec<DisplayItem>>,
@@ -102,7 +111,11 @@ impl Component for BookListComponent {
                         //
                     }
 
-                    WebsocketNotification::TaskUpdate { id: task_id, type_of, inserting } => {
+                    WebsocketNotification::TaskUpdate {
+                        id: task_id,
+                        type_of,
+                        inserting,
+                    } => {
                         if let TaskType::UpdatingBook { id: book_id, .. } = type_of {
                             if inserting {
                                 self.task_items.insert(task_id, book_id);
@@ -217,7 +230,10 @@ impl Component for BookListComponent {
                 return false;
             }
 
-            Msg::BookListItemEvent(BookPosterItemMsg::RemoveBookFromCollection(book_id, _collection_id)) => {
+            Msg::BookListItemEvent(BookPosterItemMsg::RemoveBookFromCollection(
+                book_id,
+                _collection_id,
+            )) => {
                 // TODO: Ensure this is only called from inside a collection.
                 let books = self.media_items.as_mut().unwrap();
 
@@ -225,7 +241,7 @@ impl Component for BookListComponent {
                     books.remove(index);
                     self.total_media_count -= 1;
                 }
-            },
+            }
 
             _ => (),
         }

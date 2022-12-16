@@ -1,14 +1,15 @@
 // Websocket used for notifications
 
 use std::{
+    collections::HashMap,
     sync::Mutex,
-    time::{Duration, Instant}, collections::HashMap,
+    time::{Duration, Instant},
 };
 
 use actix::{Actor, ActorContext, AsyncContext, Handler, Message, Recipient, StreamHandler};
 use actix_web::{get, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
-use common_local::ws::{WebsocketNotification, WebsocketResponse, TaskId, TaskInfo};
+use common_local::ws::{TaskId, TaskInfo, WebsocketNotification, WebsocketResponse};
 use lazy_static::lazy_static;
 use tracing::{info, trace};
 
@@ -126,13 +127,20 @@ pub fn send_message_to_clients(value: WebsocketNotification) {
 
     match value {
         WebsocketNotification::TaskStart { id, name } => {
-            RUNNING_TASKS.lock().unwrap().insert(id, TaskInfo {
-                name,
-                current: None,
-            });
+            RUNNING_TASKS.lock().unwrap().insert(
+                id,
+                TaskInfo {
+                    name,
+                    current: None,
+                },
+            );
         }
 
-        WebsocketNotification::TaskUpdate { id, type_of, inserting } => {
+        WebsocketNotification::TaskUpdate {
+            id,
+            type_of,
+            inserting,
+        } => {
             if let Some(info) = RUNNING_TASKS.lock().unwrap().get_mut(&id) {
                 if inserting {
                     info.current = Some(type_of);

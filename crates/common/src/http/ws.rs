@@ -29,14 +29,12 @@ impl fmt::Display for TaskId {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskInfo {
     pub name: String,
 
     pub current: Option<TaskType>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WebsocketResponse {
@@ -78,7 +76,11 @@ impl WebsocketNotification {
     }
 
     pub fn update_task(id: TaskId, type_of: TaskType, inserting: bool) -> Self {
-        Self::TaskUpdate { id, type_of, inserting }
+        Self::TaskUpdate {
+            id,
+            type_of,
+            inserting,
+        }
     }
 }
 
