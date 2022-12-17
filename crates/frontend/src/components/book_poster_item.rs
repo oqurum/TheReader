@@ -319,51 +319,58 @@ impl BookPosterItem {
             })
         });
 
+        let on_click_edit = ctx.link().callback_future(move |e: MouseEvent| {
+            e.prevent_default();
+            e.stop_propagation();
+
+            async move {
+                let resp = request::get_media_view(book_id).await;
+
+                match resp.ok() {
+                    Ok(res) => BookPosterItemMsg::ShowPopup(DisplayOverlayItem::Edit(Box::new(res))),
+                    Err(err) => {
+                        crate::display_error(err);
+                        BookPosterItemMsg::Ignore
+                    }
+                }
+            }
+        });
+
         html! {
             <>
-                <div class="top-left">
-                    <input
-                        checked={ is_editing }
-                        type="checkbox"
-                        onclick={ ctx.link().callback(move |e: MouseEvent| {
-                            e.prevent_default();
-                            e.stop_propagation();
+                <OwnerBarrier>
+                    <div class="top-left">
+                        <input
+                            checked={ is_editing }
+                            type="checkbox"
+                            onclick={ ctx.link().callback(move |e: MouseEvent| {
+                                e.prevent_default();
+                                e.stop_propagation();
 
-                            BookPosterItemMsg::Ignore
-                        }) }
-                        onmouseup={ ctx.link().callback(move |e: MouseEvent| {
-                            let input = e.target_unchecked_into::<HtmlInputElement>();
+                                BookPosterItemMsg::Ignore
+                            }) }
+                            onmouseup={ ctx.link().callback(move |e: MouseEvent| {
+                                let input = e.target_unchecked_into::<HtmlInputElement>();
 
-                            let value = !input.checked();
+                                let value = !input.checked();
 
-                            input.set_checked(value);
+                                input.set_checked(value);
 
-                            BookPosterItemMsg::AddOrRemoveItemFromEditing(book_id, value)
-                        }) }
-                    />
-                </div>
+                                BookPosterItemMsg::AddOrRemoveItemFromEditing(book_id, value)
+                            }) }
+                        />
+                    </div>
+                </OwnerBarrier>
+
                 <div class="bottom-right">
                     <span class="material-icons" onclick={ on_click_more } title="More Options">{ "more_horiz" }</span>
                 </div>
-                <div class="bottom-left">
-                    <span class="material-icons" onclick={ ctx.link().callback_future(move |e: MouseEvent| {
-                        e.prevent_default();
-                        e.stop_propagation();
 
-                        async move {
-                            let resp = request::get_media_view(book_id).await;
-
-                            match resp.ok() {
-                                Ok(res) => BookPosterItemMsg::ShowPopup(DisplayOverlayItem::Edit(Box::new(res))),
-                                Err(err) => {
-                                    crate::display_error(err);
-                                    BookPosterItemMsg::Ignore
-                                }
-                            }
-
-                        }
-                    }) } title="More Options">{ "edit" }</span>
-                </div>
+                <OwnerBarrier>
+                    <div class="bottom-left">
+                        <span class="material-icons" onclick={ on_click_edit } title="More Options">{ "edit" }</span>
+                    </div>
+                </OwnerBarrier>
             </>
         }
     }
