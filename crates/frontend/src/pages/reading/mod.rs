@@ -199,9 +199,8 @@ impl Component for ReadingBook {
                                     .cast::<Element>()
                                     .unwrap()
                                     .client_width()
-                                    .max(0)
-                            })
-                            / 2,
+                                    .max(0) / 2
+                            }),
                         Some(self.reader_settings.dimensions.1)
                             .filter(|v| *v > 0)
                             .unwrap_or_else(|| {
@@ -209,9 +208,8 @@ impl Component for ReadingBook {
                                     .cast::<Element>()
                                     .unwrap()
                                     .client_height()
-                                    .max(0)
-                            })
-                            / 2,
+                                    .max(0) / 2
+                            }),
                     );
                 }
             }
