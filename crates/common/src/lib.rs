@@ -27,6 +27,7 @@ pub struct Member {
     pub type_of: MemberAuthType,
 
     pub permissions: Permissions,
+    pub preferences: Option<String>,
 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

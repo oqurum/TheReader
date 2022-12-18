@@ -147,6 +147,7 @@ pub async fn get_passwordless_oauth_callback(
                 email,
                 type_of: MemberAuthType::Passwordless,
                 permissions: Permissions::owner(),
+                preferences: None,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
             };

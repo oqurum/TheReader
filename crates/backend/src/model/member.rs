@@ -16,6 +16,7 @@ pub struct NewMemberModel {
 
     // TODO: pub oqurum_oauth: Option<OqurumOauth>,
     pub permissions: Permissions,
+    pub preferences: Option<String>,
 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -35,6 +36,7 @@ impl NewMemberModel {
             email,
             type_of: MemberAuthType::Invite,
             permissions: Permissions::basic(),
+            preferences: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -48,6 +50,7 @@ impl NewMemberModel {
             password: None,
             type_of: self.type_of,
             permissions: self.permissions,
+            preferences: self.preferences,
             created_at: self.created_at,
             updated_at: self.updated_at,
         }
@@ -65,6 +68,7 @@ pub struct MemberModel {
     pub type_of: MemberAuthType,
 
     pub permissions: Permissions,
+    pub preferences: Option<String>,
 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -78,6 +82,7 @@ impl From<MemberModel> for common_local::Member {
             email: value.email,
             type_of: value.type_of,
             permissions: value.permissions,
+            preferences: value.preferences,
             created_at: value.created_at,
             updated_at: value.updated_at,
         }
@@ -93,6 +98,7 @@ impl TableRow<'_> for MemberModel {
             password: row.next()?,
             type_of: row.next()?,
             permissions: row.next()?,
+            preferences: row.next_opt()?,
 
             created_at: row.next()?,
             updated_at: row.next()?,
