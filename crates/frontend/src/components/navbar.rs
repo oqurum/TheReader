@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 
 use common::{api::WrappingResponse, util::does_parent_contain_class};
-use common_local::{api::GetBookListResponse, filter::FilterContainer, ThumbnailStoreExt};
+use common_local::{api::{GetBookListResponse, GetLibrariesResponse}, filter::FilterContainer, ThumbnailStoreExt};
 use gloo_utils::body;
-use wasm_bindgen::{prelude::Closure, JsCast};
+use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
-use yew_router::components::Link;
+use yew_router::{components::Link, Routable};
 
 use crate::{
     components::BookListItemInfo, get_member_self, pages::settings::SettingsRoute, request,
@@ -20,15 +20,21 @@ pub struct Property {
 
 pub enum Msg {
     Close,
-    SearchFor(String),
-    SearchResults(WrappingResponse<GetBookListResponse>),
+
+    SearchInput,
+    SearchResults(usize, WrappingResponse<GetBookListResponse>),
+
+    LibrariesResults(WrappingResponse<GetLibrariesResponse>),
 }
 
 pub struct NavbarModule {
-    left_items: Vec<(BaseRoute, DisplayType)>,
+    // left_items: Vec<(BaseRoute, DisplayType)>,
     right_items: Vec<(BaseRoute, DisplayType)>,
 
-    search_results: Option<GetBookListResponse>,
+    input_ref: NodeRef,
+
+    libraries: Option<GetLibrariesResponse>,
+    search_results: Vec<Option<GetBookListResponse>>,
     #[allow(clippy::type_complexity)]
     closure: Arc<Mutex<Option<Closure<dyn FnMut(MouseEvent)>>>>,
 }
@@ -39,20 +45,22 @@ impl Component for NavbarModule {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            left_items: vec![
-                // (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
-                // (BaseRoute::People, DisplayType::Icon("person", "Authors")),
-                // (
-                //     BaseRoute::Collections,
-                //     DisplayType::Icon("library_books", "My Collections"),
-                // ),
-            ],
+            // left_items: vec![
+            //     // (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
+            //     // (BaseRoute::People, DisplayType::Icon("person", "Authors")),
+            //     // (
+            //     //     BaseRoute::Collections,
+            //     //     DisplayType::Icon("library_books", "My Collections"),
+            //     // ),
+            // ],
             right_items: vec![(
                 BaseRoute::Settings,
                 DisplayType::Icon("settings", "Settings"),
             )],
 
-            search_results: None,
+            input_ref: NodeRef::default(),
+            libraries: None,
+            search_results: Vec::new(),
             closure: Arc::new(Mutex::new(None)),
         }
     }
@@ -60,26 +68,57 @@ impl Component for NavbarModule {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::Close => {
-                self.search_results = None;
+                self.search_results.clear();
+                self.libraries = None;
             }
 
-            Msg::SearchFor(value) => {
-                self.search_results = None;
+            Msg::SearchInput => {
+                // TODO: Remove if and properly handle.
+                if self.search_results.iter().all(|v| v.is_some()) {
+                    self.search_results.clear();
 
-                ctx.link().send_future(async move {
-                    Msg::SearchResults(
-                        request::get_books(None, Some(0), Some(20), {
-                            let mut search = FilterContainer::default();
-                            search.add_query_filter(value);
-                            Some(search)
-                        })
-                        .await,
-                    )
-                });
+                    ctx.link().send_future(async move {
+                        Msg::LibrariesResults(request::get_libraries().await)
+                    });
+                }
             }
 
-            Msg::SearchResults(resp) => match resp.ok() {
-                Ok(res) => self.search_results = Some(res),
+            Msg::SearchResults(index, resp) => match resp.ok() {
+                Ok(res) => self.search_results[index] = Some(res),
+                Err(err) => crate::display_error(err),
+            },
+
+            Msg::LibrariesResults(resp) => match resp.ok() {
+                Ok(res) => {
+                    self.search_results = vec![Option::None; res.items.len()];
+                    self.libraries = Some(res);
+
+                    let libraries = self.libraries.as_ref().unwrap();
+
+                    let limit = if libraries.items.len() > 1 { 5 } else { 10 };
+
+                    let mut search = FilterContainer::default();
+                    search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
+
+                    for (index, coll) in libraries.items.iter().enumerate() {
+                        let search = search.clone();
+                        let library_id = coll.id;
+
+                        ctx.link().send_future(async move {
+                            Msg::SearchResults(
+                                index,
+                                request::get_books(
+                                    Some(library_id),
+                                    Some(0),
+                                    Some(limit),
+                                    Some(search)
+                                )
+                                .await,
+                            )
+                        });
+                    }
+                }
+
                 Err(err) => crate::display_error(err),
             },
         }
@@ -92,8 +131,6 @@ impl Component for NavbarModule {
             return html! {};
         }
 
-        let node_ref = NodeRef::default();
-
         html! {
             <nav class={ classes!("navbar", "navbar-expand-lg", "text-bg-dark") }>
                 <div class="container-fluid">
@@ -102,14 +139,12 @@ impl Component for NavbarModule {
                     // </ul>
                     <form class="d-flex" role="search">
                         <div class="input-group">
-                            <input ref={ node_ref.clone() } class="form-control" type="search" placeholder="Search" aria-label="Search" />
+                            <input ref={ self.input_ref.clone() } class="form-control" type="search" placeholder="Search" aria-label="Search" />
                             <button class="btn btn-success" type="submit" onclick={
                                 ctx.link().callback(move |e: MouseEvent| {
                                     e.prevent_default();
 
-                                    let input = node_ref.cast::<HtmlInputElement>().unwrap();
-
-                                    Msg::SearchFor(input.value())
+                                    Msg::SearchInput
                                 })
                             }>{ "Search" }</button>
                         </div>
@@ -196,19 +231,48 @@ impl NavbarModule {
     }
 
     fn render_dropdown_results(&self) -> Html {
-        if let Some(resp) = self.search_results.as_ref() {
+        if let Some(libs) = self.libraries.as_ref() {
+            let mut search = FilterContainer::default();
+            search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
+            let query = serde_qs::to_string(&search).unwrap_throw();
+
             html! {
                 <div class="search-dropdown">
-                    {
-                        for resp.items.iter().map(|item| {
-                            html! {
-                                <BookListItemInfo
-                                    small=true
-                                    class="link-light"
-                                    to={ BaseRoute::ViewBook { book_id: item.id } }
-                                    image={ item.thumb_path.get_book_http_path().into_owned() }
-                                    title={ item.title.clone() }
-                                />
+                {
+                    for libs.items.iter().zip(self.search_results.iter()).map(|(lib, results)| {
+                        let url = BaseRoute::ViewLibrary { id: lib.id }.to_path();
+
+                        html! {
+                                <>
+                                    <div class="d-grid p-2">
+                                        // TODO: Use <Link />
+                                        <a
+                                            href={ format!("{url}?{query}") }
+                                            type="button"
+                                            class="btn btn-secondary"
+                                        >{ format!("View '{}' Library", lib.name) }</a>
+                                    </div>
+
+                                    {
+                                        if let Some(res) = results {
+                                            html! {
+                                                for res.items.iter().map(|item| html! {
+                                                    <BookListItemInfo
+                                                        small=true
+                                                        class="link-light"
+                                                        to={ BaseRoute::ViewBook { book_id: item.id } }
+                                                        image={ item.thumb_path.get_book_http_path().into_owned() }
+                                                        title={ item.title.clone() }
+                                                    />
+                                                })
+                                            }
+                                        } else {
+                                            html! {
+                                                <h6>{ "Loading..." }</h6>
+                                            }
+                                        }
+                                    }
+                                </>
                             }
                         })
                     }

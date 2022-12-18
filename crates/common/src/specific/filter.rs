@@ -53,7 +53,7 @@ impl FilterContainer {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterOperator {
     pub type_of: FilterTableType,
 
@@ -82,7 +82,7 @@ impl FilterOperator {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FilterModifier {
     IsNull,
     IsNotNull,
@@ -97,7 +97,7 @@ pub enum FilterModifier {
     DoesNotEqual,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FilterTableType {
     Id,
     Source,
@@ -109,7 +109,7 @@ pub enum FilterTableType {
     CreatedAt,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FilterValue {
     Ignored,
 
@@ -128,7 +128,7 @@ impl FilterValue {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ListValue {
     pub value: String,
     pub label: String,
