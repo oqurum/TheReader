@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+# Used to dictate that we should bundle everything in app folder.
+bundled = []
+
 [dependencies]
 common = { path = "../../global_common", features = ["backend"] }
 
