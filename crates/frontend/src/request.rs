@@ -356,22 +356,22 @@ pub async fn get_progress_for_book(id: BookId) -> WrappingResponse<ApiGetBookPro
 // Progress
 
 pub async fn update_book_progress(
-    book_id: FileId,
+    id: FileId,
     progression: &Progression,
 ) -> WrappingResponse<String> {
     fetch(
         "POST",
-        &format!("/api/file/{}/progress", book_id),
+        &format!("/api/file/{id}/progress"),
         Some(progression),
     )
     .await
     .unwrap_or_else(def)
 }
 
-pub async fn remove_book_progress(book_id: FileId) -> WrappingResponse<String> {
+pub async fn remove_book_progress(id: FileId) -> WrappingResponse<String> {
     fetch(
         "DELETE",
-        &format!("/api/file/{}/progress", book_id),
+        &format!("/api/file/{id}/progress"),
         Option::<&()>::None,
     )
     .await

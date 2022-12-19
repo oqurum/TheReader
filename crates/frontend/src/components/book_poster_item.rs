@@ -58,6 +58,8 @@ pub enum BookPosterItemMsg {
     RemoveBookFromCollection(BookId, CollectionId),
 
     UnMatch(BookId),
+    MarkAsRead,
+    MarkAsUnread,
 
     // Other
     AddOrRemoveItemFromEditing(BookId, bool),
@@ -126,6 +128,26 @@ impl Component for BookPosterItem {
             BookPosterItemMsg::UnMatch(book_id) => {
                 ctx.link().send_future(async move {
                     request::update_book(book_id, &api::PostBookBody::UnMatch).await;
+
+                    BookPosterItemMsg::Ignore
+                });
+            }
+
+            BookPosterItemMsg::MarkAsRead => {
+                let file_id = ctx.props().progress.as_ref().unwrap().1.id;
+
+                ctx.link().send_future(async move {
+                    request::update_book_progress(file_id, &Progression::Complete).await;
+
+                    BookPosterItemMsg::Ignore
+                });
+            }
+
+            BookPosterItemMsg::MarkAsUnread => {
+                let file_id = ctx.props().progress.as_ref().unwrap().1.id;
+
+                ctx.link().send_future(async move {
+                    request::remove_book_progress(file_id).await;
 
                     BookPosterItemMsg::Ignore
                 });
@@ -235,6 +257,7 @@ impl Component for BookPosterItem {
 
                                         { book_id }
                                         { is_matched }
+                                        progress={ ctx.props().progress.as_ref().map(|v| v.0) }
 
                                         event={ ctx.link().callback(move |e| {
                                             log::debug!("{e:?}");
@@ -247,6 +270,8 @@ impl Component for BookPosterItem {
                                                 DropdownInfoPopupEvent::RefreshMetadata => BookPosterItemMsg::UpdateBookById(book_id),
                                                 DropdownInfoPopupEvent::SearchFor => BookPosterItemMsg::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }),
                                                 DropdownInfoPopupEvent::Info => BookPosterItemMsg::ShowPopup(DisplayOverlayItem::Info { book_id }),
+                                                DropdownInfoPopupEvent::MarkAsRead => BookPosterItemMsg::MarkAsRead,
+                                                DropdownInfoPopupEvent::MarkAsUnread => BookPosterItemMsg::MarkAsUnread,
                                             }
                                         }) }
                                     />
@@ -424,6 +449,8 @@ pub enum DropdownInfoPopupEvent {
     RefreshMetadata,
     AddToCollection(CollectionId),
     RemoveFromCollection(CollectionId),
+    MarkAsUnread,
+    MarkAsRead,
     UnMatchBook,
     SearchFor,
     Info,
@@ -436,6 +463,7 @@ pub struct DropdownInfoPopupProps {
 
     pub book_id: BookId,
     pub is_matched: bool,
+    pub progress: Option<Progression>,
 
     pub event: Callback<DropdownInfoPopupEvent>,
 }
@@ -522,6 +550,36 @@ pub fn _dropdown_info(props: &DropdownInfoPopupProps) -> Html {
         <Popup type_of={ PopupType::AtPoint(props.pos_x, props.pos_y) } on_close={ props.event.reform(|_| DropdownInfoPopupEvent::Closed) }>
             <div class="dropdown-menu dropdown-menu-dark show">
                 // <PopupClose class="menu-item">{ "Start Reading" }</PopupClose>
+
+                {
+                    if props.progress != Some(Progression::Complete) {
+                        html! {
+                            <>
+                                <PopupClose class="dropdown-item" onclick={ on_click_prevdef_cb(
+                                    props.event.clone(),
+                                    |cb, _| cb.emit(DropdownInfoPopupEvent::MarkAsRead)
+                                ) }>{ "Mark As Read" }</PopupClose>
+                            </>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+
+                {
+                    if props.progress.is_some() {
+                        html! {
+                            <>
+                                <PopupClose class="dropdown-item" onclick={ on_click_prevdef_cb(
+                                    props.event.clone(),
+                                    |cb, _| cb.emit(DropdownInfoPopupEvent::MarkAsUnread)
+                                ) }>{ "Mark As Unread" }</PopupClose>
+                            </>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
 
                 <OwnerBarrier>
                 {

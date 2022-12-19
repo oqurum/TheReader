@@ -267,6 +267,9 @@ impl BookPage {
                                                     // TODO:
                                                     DropdownInfoPopupEvent::AddToCollection(_id) => Msg::ClosePopup,
                                                     DropdownInfoPopupEvent::RemoveFromCollection(_id) => Msg::ClosePopup,
+                                                    DropdownInfoPopupEvent::MarkAsRead => Msg::ClosePopup,
+                                                    DropdownInfoPopupEvent::MarkAsUnread => Msg::ClosePopup,
+
                                                     DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
                                                     DropdownInfoPopupEvent::RefreshMetadata => Msg::UpdateBook(book_id),
                                                     DropdownInfoPopupEvent::UnMatchBook => Msg::UnMatchBook(book_id),
