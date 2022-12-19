@@ -1,8 +1,9 @@
 use std::{path::PathBuf, rc::Rc, sync::Mutex};
 
-use common_local::{api, Chapter, FileId, MediaItem, Progression};
+use common_local::{api, Chapter, FileId, MediaItem, Progression, MemberReaderPreferences, reader::ReaderColor};
 use gloo_timers::callback::Timeout;
 use gloo_utils::{body, window};
+use num_enum::{TryFromPrimitive, IntoPrimitive};
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
     JsCast, UnwrapThrowExt,
@@ -68,23 +69,39 @@ macro_rules! get_previous_section_mut {
     };
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
 pub enum PageLoadType {
-    All,
+    All = 0,
     #[default]
     Select,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct ReaderSettings {
-    pub load_speed: usize,
     pub type_of: PageLoadType,
+    pub color: ReaderColor,
 
-    pub is_fullscreen: bool,
+    pub default_full_screen: bool,
+    pub auto_full_screen: bool,
     pub display: SectionDisplay,
     pub show_progress: bool,
 
     pub dimensions: (i32, i32),
+}
+
+impl From<MemberReaderPreferences> for ReaderSettings {
+    fn from(value: MemberReaderPreferences) -> Self {
+        Self {
+            type_of: PageLoadType::try_from(value.load_type).unwrap_throw(),
+            color: value.color,
+            default_full_screen: value.default_full_screen,
+            auto_full_screen: value.auto_full_screen,
+            display: SectionDisplay::from(value.display_type),
+            show_progress: value.always_show_progress,
+            dimensions: (value.width as i32, value.height as i32),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -590,7 +607,6 @@ impl Component for Reader {
                 if let SectionLoadProgress::Loaded(section) = &mut self.sections[chapter.value] {
                     section.on_load(
                         &mut self.cached_display,
-                        ctx.props().settings.dimensions,
                         &self.handle_js_redirect_clicks,
                         ctx,
                     );
@@ -1122,7 +1138,7 @@ impl Reader {
             }
 
             // TODO: Figure out what the last page of each book actually is.
-            v if v as usize == last_page && chapter == self.sections.len().saturating_sub(1) => {
+            v if v == last_page && chapter == self.sections.len().saturating_sub(1) => {
                 let value = Some(Progression::Complete);
 
                 *stored_prog.lock().unwrap() = value;

@@ -9,6 +9,7 @@ mod ext;
 mod http;
 pub mod specific;
 pub mod util;
+pub mod reader;
 
 pub use error::{Error, Result};
 pub use ext::*;
@@ -31,6 +32,16 @@ pub struct Member {
 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl Member {
+    pub fn parse_preferences(&self) -> Result<Option<MemberPreferences>> {
+        let Some(pref) = &self.preferences else {
+            return Ok(None);
+        };
+
+        Ok(Some(serde_json::from_str(pref)?))
+    }
 }
 
 // Used for People View

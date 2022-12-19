@@ -16,7 +16,7 @@ use common_local::{
     filter::FilterContainer,
     setup::SetupConfig,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Progression, SearchType,
+    CollectionId, FileId, LibraryId, Progression, SearchType, MemberPreferences,
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {
@@ -62,6 +62,21 @@ pub async fn update_member(options: UpdateMember) -> WrappingResponse<String> {
         .await
         .unwrap_or_else(def)
 }
+
+// Member Preferences
+
+pub async fn get_member_preferences() -> WrappingResponse<MemberPreferences> {
+    fetch("GET", "/api/preferences", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
+}
+
+pub async fn update_member_preferences(value: MemberPreferences) -> WrappingResponse<String> {
+    fetch("POST", "/api/preferences", Some(&value))
+        .await
+        .unwrap_or_else(def)
+}
+
 
 // Collections
 

@@ -130,6 +130,35 @@ impl NewMemberModel {
 }
 
 impl MemberModel {
+    pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
+        self.updated_at = Utc::now();
+
+        db.write().await.execute(
+            r#"
+            UPDATE members SET
+                name = ?2,
+                email = ?3,
+                password = ?4,
+                type_of = ?5,
+                permissions = ?6,
+                preferences = ?7,
+                updated_at = ?8
+            WHERE id = ?1"#,
+            params![
+                self.id,
+                &self.name,
+                &self.email,
+                &self.password,
+                &self.type_of,
+                &self.permissions,
+                &self.preferences,
+                self.updated_at,
+            ],
+        )?;
+
+        Ok(())
+    }
+
     pub async fn find_one_by_email(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()

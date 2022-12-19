@@ -4,7 +4,8 @@ use yew_router::Routable;
 mod admin;
 mod member;
 
-pub use admin::*;
+use admin::*;
+use member::*;
 
 use crate::get_member_self;
 
@@ -27,35 +28,38 @@ pub enum SettingsRoute {
 
     // General Routes
     #[at("/settings/general")]
-    General,
+    MemberGeneral,
+}
+
+impl SettingsRoute {
+    pub fn is_admin(&self) -> bool {
+        matches!(
+            self,
+            Self::AdminLibraries |
+            Self::AdminMembers |
+            Self::AdminMyServer |
+            Self::AdminTasks
+        )
+    }
 }
 
 pub fn switch_settings(route: SettingsRoute) -> Html {
     let member = get_member_self().unwrap();
 
     // TODO: Move once I have general settings.
-    if !member.permissions.is_owner() {
+    if route.is_admin() && !member.permissions.is_owner() {
         return html_container("No Permissions");
     }
 
     match route {
-        SettingsRoute::AdminLibraries => {
-            html! { <AdminLibrariesPage /> }
-        }
+        // Admin
+        SettingsRoute::AdminLibraries => html! { <AdminLibrariesPage /> },
+        SettingsRoute::AdminMembers => html! { <AdminMembersPage /> },
+        SettingsRoute::AdminMyServer => html! { <AdminMyServerPage /> },
+        SettingsRoute::AdminTasks => html! { <AdminTaskPage /> },
 
-        SettingsRoute::AdminMembers => {
-            html! { <AdminMembersPage /> }
-        }
-
-        SettingsRoute::AdminMyServer => {
-            html! { <AdminMyServerPage /> }
-        }
-
-        SettingsRoute::AdminTasks => {
-            html! { <AdminTaskPage /> }
-        }
-
-        SettingsRoute::General => html_container("Not Implemented"),
+        // Members
+        SettingsRoute::MemberGeneral => html! { <MemberGeneralPage /> },
     }
 }
 

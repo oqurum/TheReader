@@ -3,10 +3,9 @@ use web_sys::{HtmlElement, HtmlIFrameElement};
 use yew::Context;
 
 use super::{
-    color::SectionColor,
     js_update_iframe_after_load, update_iframe_size,
     util::{for_each_child_map, table::TableContainer},
-    CachedPage, Reader, SectionDisplay,
+    CachedPage, Reader, SectionDisplay, color,
 };
 
 pub enum SectionLoadProgress {
@@ -147,17 +146,18 @@ impl SectionContents {
     pub fn on_load(
         &mut self,
         cached_display: &mut SectionDisplay,
-        dimensions: (i32, i32),
         handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>,
         ctx: &Context<Reader>,
     ) {
-        SectionColor::Black.on_load(self);
+        let settings = &ctx.props().settings;
+
+        color::load_reader_color_into_section(&settings.color, self);
 
         // Shrink Tables
         self.cached_tables = for_each_child_map(&self.get_iframe_body().unwrap_throw(), &|v| {
             if v.local_name() == "table" {
                 let mut v = TableContainer::from(v);
-                v.update_if_needed(dimensions.1 as usize);
+                v.update_if_needed(settings.dimensions.1 as usize);
 
                 Some(v)
             } else {
@@ -170,7 +170,7 @@ impl SectionContents {
         cached_display.add_to_iframe(self.get_iframe(), ctx);
         cached_display.on_stop_viewing(self);
 
-        update_iframe_size(Some(dimensions), self.get_iframe());
+        update_iframe_size(Some(settings.dimensions), self.get_iframe());
     }
 }
 

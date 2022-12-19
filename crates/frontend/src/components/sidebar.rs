@@ -168,6 +168,10 @@ impl Sidebar {
                     ("Libraries", SettingsRoute::AdminLibraries),
                 ];
 
+                const MEMBERS_LOCATIONS: [(&str, SettingsRoute); 1] = [
+                    ("General", SettingsRoute::MemberGeneral),
+                ];
+
                 let cr = ctx.link().route::<SettingsRoute>().unwrap();
 
                 html! {
@@ -185,7 +189,7 @@ impl Sidebar {
                                 </h3>
                             </div>
 
-                            <ul class="nav nav-pills flex-column mb-auto">
+                            <ul class="nav nav-pills flex-column">
                                 { for ADMIN_LOCATIONS.iter().map(|&(title, route)| html! {
                                     <li class="nav-item">
                                         <Link<SettingsRoute> to={route} classes={ classes!("nav-link", (cr == route).then_some("active")) }>
@@ -195,6 +199,22 @@ impl Sidebar {
                                 }) }
                             </ul>
                         </OwnerBarrier>
+
+                        <div class="sidebar-item">
+                            <h3>
+                                { "Members" }
+                            </h3>
+                        </div>
+
+                        <ul class="nav nav-pills flex-column">
+                            { for MEMBERS_LOCATIONS.iter().map(|&(title, route)| html! {
+                                <li class="nav-item">
+                                    <Link<SettingsRoute> to={route} classes={ classes!("nav-link", (cr == route).then_some("active")) }>
+                                        <span class="title">{ title }</span>
+                                    </Link<SettingsRoute>>
+                                </li>
+                            }) }
+                        </ul>
                     </>
                 }
             }

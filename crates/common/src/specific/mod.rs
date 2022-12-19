@@ -12,10 +12,12 @@ pub mod filter;
 mod id;
 mod perms;
 pub mod setup;
+mod preferences;
 
 pub use edit::*;
 pub use id::*;
 pub use perms::*;
+pub use preferences::*;
 
 // TODO: Place this into own file.
 

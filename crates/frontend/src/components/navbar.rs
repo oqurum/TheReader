@@ -199,7 +199,7 @@ impl NavbarModule {
             {
                 SettingsRoute::AdminTasks
             } else {
-                SettingsRoute::General
+                SettingsRoute::MemberGeneral
             };
 
             match name {

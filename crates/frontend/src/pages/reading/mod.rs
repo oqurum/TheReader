@@ -19,11 +19,11 @@ use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::Element;
 use yew::{context::ContextHandle, prelude::*};
 
-use crate::components::reader::Reader;
+use crate::{components::reader::Reader, get_member_self};
 use crate::components::{notes::Notes, reader::OverlayEvent};
 use crate::{
     components::reader::{
-        DragType, LoadedChapters, PageLoadType, ReaderEvent, ReaderSettings, SectionDisplay,
+        DragType, LoadedChapters, ReaderEvent, ReaderSettings,
     },
     request, AppState,
 };
@@ -105,31 +105,30 @@ impl Component for ReadingBook {
             .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
             .expect("context to be set");
 
+        let mut reader_settings = ReaderSettings::from(get_member_self().unwrap().parse_preferences().unwrap().unwrap_or_default().desktop.reader);
+
         let (win_width, win_height) = (
             window().inner_width().unwrap_throw().as_f64().unwrap(),
             window().inner_height().unwrap_throw().as_f64().unwrap(),
         );
 
-        let (is_fullscreen, dimensions, display_toolbar) =
-            if win_width < 1100.0 || win_height < 720.0 {
+        let display_toolbar =
+            if reader_settings.auto_full_screen && (win_width < 1100.0 || win_height < 720.0) {
                 state.update_nav_visibility.emit(false);
-                (true, (0, 0), DisplayToolBars::Hidden)
+
+                // Full screen the reader if our width are small.
+                reader_settings.default_full_screen = true;
+
+                DisplayToolBars::Hidden
             } else {
-                (false, DEFAULT_DIMENSIONS, DisplayToolBars::Expanded)
+                DisplayToolBars::Expanded
             };
 
         Self {
             state,
             _listener,
 
-            reader_settings: ReaderSettings {
-                load_speed: 1000,
-                type_of: PageLoadType::Select,
-                is_fullscreen,
-                display: SectionDisplay::new_double(),
-                show_progress: false,
-                dimensions,
-            },
+            reader_settings,
             chapters: Rc::new(Mutex::new(LoadedChapters::new())),
             last_grabbed_count: 0,
             progress: Rc::new(Mutex::new(None)),
@@ -162,7 +161,7 @@ impl Component for ReadingBook {
             Msg::WindowResize => {
                 // We have the display_toolbar check here since the "zoom out" function will re-expand it.
                 // We want to ensure we don't "zoom out", resize, and have incorrect dimensions.
-                if self.reader_settings.is_fullscreen
+                if self.reader_settings.default_full_screen
                     && !self.display_toolbar.is_expanded()
                     && !self.state.is_navbar_visible
                 {
@@ -178,7 +177,7 @@ impl Component for ReadingBook {
                 // Replace old settings with new settings.
                 let old_settings = std::mem::replace(&mut self.reader_settings, new_settings);
 
-                if self.reader_settings.is_fullscreen {
+                if self.reader_settings.default_full_screen {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
 
                     // TODO: client_height is incorrect since the tools is set to absolute after this update.
@@ -187,7 +186,7 @@ impl Component for ReadingBook {
 
                     self.state.update_nav_visibility.emit(false);
                     self.display_toolbar = DisplayToolBars::Hidden;
-                } else if !old_settings.is_fullscreen {
+                } else if !old_settings.default_full_screen {
                     self.state.update_nav_visibility.emit(true);
                     self.display_toolbar = DisplayToolBars::Expanded;
 
@@ -268,7 +267,7 @@ impl Component for ReadingBook {
                             type_of, instant, ..
                         } = o_event
                         {
-                            if self.reader_settings.is_fullscreen && type_of == DragType::None {
+                            if self.reader_settings.default_full_screen && type_of == DragType::None {
                                 if let Some(dur) = instant {
                                     if dur.num_milliseconds() < 500
                                         && self.display_toolbar.is_expanded()
@@ -296,7 +295,7 @@ impl Component for ReadingBook {
         if let Some(book) = self.book.as_ref() {
             let mut book_class = String::from("book");
 
-            if self.reader_settings.is_fullscreen {
+            if self.reader_settings.default_full_screen {
                 book_class += " overlay-x overlay-y";
             }
 
@@ -304,7 +303,7 @@ impl Component for ReadingBook {
 
             html! {
                 <div class="reading-container">
-                    <div class={ book_class } style={ (self.display_toolbar.is_expanded() && self.reader_settings.is_fullscreen).then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
+                    <div class={ book_class } style={ (self.display_toolbar.is_expanded() && self.reader_settings.default_full_screen).then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
                         {
                             if let Some(visible) = self.sidebar_visible {
                                 match visible {
@@ -342,7 +341,7 @@ impl Component for ReadingBook {
                         />
                     </div>
 
-                    <div class={ classes!("tools", (self.reader_settings.is_fullscreen && !self.display_toolbar.is_expanded()).then_some("hidden")) }>
+                    <div class={ classes!("tools", (self.reader_settings.default_full_screen && !self.display_toolbar.is_expanded()).then_some("hidden")) }>
                         <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
                         <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>
@@ -366,7 +365,7 @@ impl Component for ReadingBook {
         }
 
         // TODO: This is a duplicate of Msg::WindowResize
-        if self.reader_settings.is_fullscreen
+        if self.reader_settings.default_full_screen
             && !self.display_toolbar.is_expanded()
             && !self.state.is_navbar_visible
         {

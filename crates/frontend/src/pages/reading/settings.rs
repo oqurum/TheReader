@@ -72,16 +72,16 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
                             .selected_index();
 
                         let mut inner = settings_inner.borrow_mut();
-                        inner.is_fullscreen = idx != 0;
+                        inner.default_full_screen = idx != 0;
 
-                        if !inner.is_fullscreen {
+                        if !inner.default_full_screen {
                             inner.dimensions = DEFAULT_DIMENSIONS;
                         }
 
                     })
                 }>
-                    <option selected={ !settings.borrow().is_fullscreen }>{ "Specified" }</option>
-                    <option selected={ settings.borrow().is_fullscreen }>{ "Full screen" }</option>
+                    <option selected={ !settings.borrow().default_full_screen }>{ "Specified" }</option>
+                    <option selected={ settings.borrow().default_full_screen }>{ "Full screen" }</option>
                 </select>
             </div>
         }
@@ -91,7 +91,7 @@ pub fn _settings_cont(props: &SettingsContainerProps) -> Html {
     let ref_height_input = use_node_ref();
 
     let screen_size_section = {
-        if settings.borrow().is_fullscreen {
+        if settings.borrow().default_full_screen {
             html! {}
         } else {
             let settings = settings.clone();
