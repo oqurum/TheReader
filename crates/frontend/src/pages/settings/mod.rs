@@ -7,8 +7,6 @@ mod member;
 use admin::*;
 use member::*;
 
-use crate::get_member_self;
-
 // TODO: Remove once I add General Routes
 #[allow(clippy::enum_variant_names)]
 #[derive(Routable, PartialEq, Eq, Clone, Copy, Debug)]
@@ -44,13 +42,6 @@ impl SettingsRoute {
 }
 
 pub fn switch_settings(route: SettingsRoute) -> Html {
-    let member = get_member_self().unwrap();
-
-    // TODO: Move once I have general settings.
-    if route.is_admin() && !member.permissions.is_owner() {
-        return html_container("No Permissions");
-    }
-
     match route {
         // Admin
         SettingsRoute::AdminLibraries => html! { <AdminLibrariesPage /> },
@@ -60,13 +51,5 @@ pub fn switch_settings(route: SettingsRoute) -> Html {
 
         // Members
         SettingsRoute::MemberGeneral => html! { <MemberGeneralPage /> },
-    }
-}
-
-fn html_container(value: &'static str) -> Html {
-    html! {
-        <div class="view-container">
-            <h1>{ value }</h1>
-        </div>
     }
 }

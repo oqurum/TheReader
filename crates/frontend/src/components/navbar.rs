@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, rc::Rc};
 
 use common::{api::WrappingResponse, util::does_parent_contain_class};
 use common_local::{api::{GetBookListResponse, GetLibrariesResponse}, filter::FilterContainer, ThumbnailStoreExt};
@@ -9,8 +9,8 @@ use yew::prelude::*;
 use yew_router::{components::Link, Routable};
 
 use crate::{
-    components::BookListItemInfo, get_member_self, pages::settings::SettingsRoute, request,
-    BaseRoute,
+    components::BookListItemInfo, pages::settings::SettingsRoute, request,
+    BaseRoute, AppState,
 };
 
 #[derive(PartialEq, Eq, Properties)]
@@ -25,9 +25,14 @@ pub enum Msg {
     SearchResults(usize, WrappingResponse<GetBookListResponse>),
 
     LibrariesResults(WrappingResponse<GetLibrariesResponse>),
+
+    ContextChanged(Rc<AppState>),
 }
 
 pub struct NavbarModule {
+    state: Rc<AppState>,
+    _listener: ContextHandle<Rc<AppState>>,
+
     // left_items: Vec<(BaseRoute, DisplayType)>,
     right_items: Vec<(BaseRoute, DisplayType)>,
 
@@ -43,8 +48,16 @@ impl Component for NavbarModule {
     type Message = Msg;
     type Properties = Property;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (state, _listener) = ctx
+            .link()
+            .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
+            .expect("context to be set");
+
         Self {
+            state,
+            _listener,
+
             // left_items: vec![
             //     // (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
             //     // (BaseRoute::People, DisplayType::Icon("person", "Authors")),
@@ -67,6 +80,8 @@ impl Component for NavbarModule {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::ContextChanged(state) => self.state = state,
+
             Msg::Close => {
                 self.search_results.clear();
                 self.libraries = None;
@@ -151,7 +166,7 @@ impl Component for NavbarModule {
                     </form>
 
                     <ul class="navbar-nav">
-                        { for self.right_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1)) }
+                        { for self.right_items.iter().map(|item| self.render_item(item.0.clone(), &item.1)) }
                     </ul>
                 </div>
 
@@ -191,9 +206,9 @@ impl Component for NavbarModule {
 }
 
 impl NavbarModule {
-    fn render_item(route: BaseRoute, name: &DisplayType) -> Html {
+    fn render_item(&self, route: BaseRoute, name: &DisplayType) -> Html {
         let inner = if route == BaseRoute::Settings {
-            let route = if get_member_self()
+            let route = if self.state.member.as_ref()
                 .map(|v| v.permissions.is_owner())
                 .unwrap_or_default()
             {

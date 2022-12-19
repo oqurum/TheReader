@@ -1,6 +1,8 @@
+use std::rc::Rc;
+
 use yew::prelude::*;
 
-use crate::get_member_self;
+use crate::AppState;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -9,7 +11,9 @@ pub struct Props {
 
 #[function_component(OwnerBarrier)]
 pub fn _owner_barrier(props: &Props) -> Html {
-    let Some(member) = get_member_self() else {
+    let state = use_context::<Rc<AppState>>().unwrap();
+
+    let Some(member) = state.member.as_ref() else {
         return html! {};
     };
 

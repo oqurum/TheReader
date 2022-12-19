@@ -1,26 +1,33 @@
+use std::rc::Rc;
+
 use gloo_timers::callback::Timeout;
 use gloo_utils::window;
 use yew::prelude::*;
 
-use crate::is_signed_in;
+use crate::AppState;
 
 pub struct LogoutPage;
 
 impl Component for LogoutPage {
-    type Message = ();
+    type Message = Rc<AppState>;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         Timeout::new(2_000, || {
             let _ = window().location().set_href("/auth/logout");
         })
         .forget();
 
-        if is_signed_in() {
+        let (state, _listener) = ctx
+            .link()
+            .context::<Rc<AppState>>(ctx.link().callback(|v| v))
+            .expect("context to be set");
+
+        if state.member.is_some() {
             html! {
                 <div class="login-container">
                     <div class="center-normal">

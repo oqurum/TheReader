@@ -1,10 +1,12 @@
+use std::rc::Rc;
+
 use common::api::WrappingResponse;
 use common_local::{MemberBasicPreferences, reader::ReaderColor, MemberPreferences};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
-use crate::{request, get_member_self, components::reader::PageLoadType};
+use crate::{request, components::reader::PageLoadType, AppState};
 
 pub enum Msg {
     // Request Results
@@ -13,11 +15,16 @@ pub enum Msg {
     // Events
     UpdateSettings(EditingType, Box<dyn Fn(&mut MemberBasicPreferences, serde_json::Value)>, serde_json::Value),
 
+    ContextChanged(Rc<AppState>),
+
     Submit,
     Ignore,
 }
 
 pub struct MemberGeneralPage {
+    state: Rc<AppState>,
+    _listener: ContextHandle<Rc<AppState>>,
+
     preferences: MemberPreferences,
 }
 
@@ -25,17 +32,26 @@ impl Component for MemberGeneralPage {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
-        let member = get_member_self().unwrap();
-        let preferences = member.parse_preferences().unwrap_throw().unwrap_or_default();
+    fn create(ctx: &Context<Self>) -> Self {
+        let (state, _listener) = ctx
+            .link()
+            .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
+            .expect("context to be set");
+
+        let preferences = state.member.as_ref().unwrap().parse_preferences().unwrap_throw().unwrap_or_default();
 
         Self {
+            state,
+            _listener,
+
             preferences,
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::ContextChanged(state) => self.state = state,
+
             Msg::PrefsResult(resp) => match resp.ok() {
                 Ok(resp) => self.preferences = resp,
                 Err(err) => crate::display_error(err),

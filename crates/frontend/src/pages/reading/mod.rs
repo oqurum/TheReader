@@ -19,17 +19,17 @@ use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::Element;
 use yew::{context::ContextHandle, prelude::*};
 
-use crate::{components::reader::Reader, get_member_self};
-use crate::components::{notes::Notes, reader::OverlayEvent};
 use crate::{
-    components::reader::{
-        DragType, LoadedChapters, ReaderEvent, ReaderSettings,
+    components::{
+        notes::Notes,
+        reader::{
+            DragType, LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader
+        }
     },
     request, AppState,
 };
 
 mod settings;
-
 use settings::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -105,7 +105,7 @@ impl Component for ReadingBook {
             .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
             .expect("context to be set");
 
-        let mut reader_settings = ReaderSettings::from(get_member_self().unwrap().parse_preferences().unwrap().unwrap_or_default().desktop.reader);
+        let mut reader_settings = ReaderSettings::from(state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default().desktop.reader);
 
         let (win_width, win_height) = (
             window().inner_width().unwrap_throw().as_f64().unwrap(),

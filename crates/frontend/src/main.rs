@@ -15,12 +15,12 @@ use common::{
 use common_local::{
     api,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Member,
+    CollectionId, FileId, LibraryId, Member, Permissions,
 };
 use gloo_utils::body;
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
-use yew::{html::Scope, prelude::*};
+use yew::prelude::*;
 use yew_router::prelude::*;
 
 use components::{NavbarModule, Sidebar};
@@ -33,26 +33,19 @@ mod util;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
+    pub member: Option<Member>,
+
     pub is_navbar_visible: bool,
     pub update_nav_visibility: Callback<bool>,
 }
 
 lazy_static! {
     pub static ref RUNNING_TASKS: Mutex<HashMap<TaskId, TaskInfo>> = Mutex::default();
-    pub static ref MEMBER_SELF: Arc<Mutex<Option<Member>>> = Arc::new(Mutex::new(None));
     static ref ERROR_POPUP: Arc<Mutex<Option<ApiErrorResponse>>> = Arc::new(Mutex::new(None));
 }
 
 thread_local! {
-    static MAIN_MODEL: Arc<Mutex<MaybeUninit<Scope<Model>>>> = Arc::new(Mutex::new(MaybeUninit::uninit()));
-}
-
-pub fn get_member_self() -> Option<Member> {
-    MEMBER_SELF.lock().unwrap().clone()
-}
-
-pub fn is_signed_in() -> bool {
-    get_member_self().is_some()
+    static MAIN_MODEL: Arc<Mutex<MaybeUninit<AppHandle<Model>>>> = Arc::new(Mutex::new(MaybeUninit::uninit()));
 }
 
 pub fn request_member_self() {
@@ -113,14 +106,13 @@ impl Component for Model {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let scope = ctx.link().clone();
-        MAIN_MODEL.with(move |v| *v.lock().unwrap() = MaybeUninit::new(scope));
-
         ctx.link()
             .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
 
         Self {
             state: Rc::new(AppState {
+                member: None,
+
                 is_navbar_visible: false,
                 update_nav_visibility: ctx.link().callback(Msg::UpdateNavVis),
             }),
@@ -146,9 +138,10 @@ impl Component for Model {
                         open_websocket_conn();
                     }
 
-                    Rc::make_mut(&mut self.state).is_navbar_visible = resp.member.is_some();
+                    let state = Rc::make_mut(&mut self.state);
 
-                    *MEMBER_SELF.lock().unwrap() = resp.member;
+                    state.is_navbar_visible = resp.member.is_some();
+                    state.member = resp.member;
                 }
 
                 self.has_loaded_member = !await_tasks;
@@ -183,14 +176,14 @@ impl Component for Model {
                     <ContextProvider<Rc<AppState>> context={ self.state.clone() }>
                     {
                         if self.has_loaded_member {
-                            log::debug!("RENDER");
+                            let member_permissions = self.state.member.as_ref().map(|v| v.permissions);
 
                             html! {
                                     <>
                                         <Sidebar visible={ self.state.is_navbar_visible } />
                                         <div class="outer-view-container flex-column">
                                             <NavbarModule visible={ self.state.is_navbar_visible } />
-                                            <Switch<BaseRoute> render={ switch_base } />
+                                            <Switch<BaseRoute> render={ move |route| switch_base(route, member_permissions) } />
                                         </div>
                                     </>
                                 }
@@ -263,10 +256,10 @@ pub enum BaseRoute {
     Dashboard,
 }
 
-fn switch_base(route: BaseRoute) -> Html {
+fn switch_base(route: BaseRoute, permissions: Option<Permissions>) -> Html {
     log::info!("{:?}", route);
 
-    if !is_signed_in() && route != BaseRoute::Setup {
+    if permissions.is_none() && route != BaseRoute::Setup {
         return html! { <pages::LoginPage /> };
     }
 
@@ -308,7 +301,13 @@ fn switch_base(route: BaseRoute) -> Html {
         }
 
         BaseRoute::Settings => {
-            html! { <Switch<pages::settings::SettingsRoute> render={ pages::settings::switch_settings } /> }
+            html! { <Switch<pages::settings::SettingsRoute> render={ move |route: pages::settings::SettingsRoute| {
+                if route.is_admin() && !permissions.unwrap().is_owner() {
+                    return html_container("No Permissions");
+                }
+
+                pages::settings::switch_settings(route)
+            } } /> }
         }
 
         BaseRoute::Setup => {
@@ -321,6 +320,15 @@ fn switch_base(route: BaseRoute) -> Html {
     }
 }
 
+fn html_container(value: &'static str) -> Html {
+    html! {
+        <div class="view-container">
+            <h1>{ value }</h1>
+        </div>
+    }
+}
+
+
 fn main() {
     wasm_logger::init(wasm_logger::Config::default());
 
@@ -328,5 +336,7 @@ fn main() {
 
     body().set_class_name("text-light d-flex");
 
-    yew::Renderer::<Model>::new().render();
+    let handle = yew::Renderer::<Model>::new().render();
+
+    MAIN_MODEL.with(move |v| *v.lock().unwrap() = MaybeUninit::new(handle));
 }

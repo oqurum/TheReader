@@ -18,7 +18,7 @@ pub use specific::*;
 
 // Member
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Member {
     pub id: MemberId,
 
