@@ -5,8 +5,8 @@ use common::{
 use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
 use yew_router::{
-    prelude::{Link, Navigator},
-    scope_ext::{NavigatorHandle, RouterScopeExt},
+    prelude::{Link, Location},
+    scope_ext::{RouterScopeExt, LocationHandle},
 };
 
 use crate::{
@@ -26,7 +26,7 @@ pub enum Msg {
     EditLibrary(LibraryId),
     HideEdit,
 
-    HistoryChange(Navigator),
+    LocationChange(Location),
 
     Ignore,
 }
@@ -36,7 +36,7 @@ pub struct Sidebar {
 
     library_editing: Option<LibraryId>,
 
-    _history_handle: Option<NavigatorHandle>,
+    _location_handle: Option<LocationHandle>,
 
     viewing: Viewing,
 }
@@ -58,9 +58,9 @@ impl Component for Sidebar {
             library_items: None,
             library_editing: None,
 
-            _history_handle: ctx
+            _location_handle: ctx
                 .link()
-                .add_navigator_listener(ctx.link().callback(Msg::HistoryChange)),
+                .add_location_listener(ctx.link().callback(Msg::LocationChange)),
         }
     }
 
@@ -68,8 +68,9 @@ impl Component for Sidebar {
         match msg {
             Msg::Ignore => return false,
 
-            Msg::HistoryChange(_nav) => {
+            Msg::LocationChange(_nav) => {
                 self.viewing = Viewing::get_from_route(ctx.link());
+                log::debug!("-- {:?}", self.viewing);
             }
 
             Msg::HideEdit => {
@@ -284,7 +285,7 @@ impl Sidebar {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum Viewing {
     Main,
     Settings,
