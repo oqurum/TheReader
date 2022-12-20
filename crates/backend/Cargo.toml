@@ -5,11 +5,23 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# TODO: Correct. Using two different bins pointing to same path to help build into own file name.
+[[bin]]
+name = "backend-bundled"
+path = "src/main.rs"
+required-features = ["bundled"]
+
+[[bin]]
+name = "books-backend"
+path = "src/main.rs"
+
 [features]
 # Used to dictate that we should bundle everything in app folder.
-bundled = []
+bundled = ["include_dir"]
 
 [dependencies]
+include_dir = { version = "0.7.3", optional = true }
+
 common = { path = "../../global_common", features = ["backend"] }
 
 common-local = { path = "../common", features = ["backend"] }

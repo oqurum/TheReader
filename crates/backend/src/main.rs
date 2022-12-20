@@ -11,6 +11,8 @@ use clap::Parser;
 use tracing::{info, subscriber::set_global_default, Level};
 use tracing_subscriber::FmtSubscriber;
 
+#[cfg(feature = "bundled")]
+mod bundle;
 pub mod cli;
 pub mod database;
 pub mod error;
@@ -37,6 +39,9 @@ async fn main() -> Result<()> {
 
     #[allow(clippy::expect_used)]
     set_global_default(subscriber).expect("setting default subscriber failed");
+
+    #[cfg(feature = "bundled")]
+    bundle::export().await?;
 
     let cli_args = CliArgs::parse();
 
