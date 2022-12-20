@@ -236,7 +236,7 @@ pub async fn init(database: &Database) -> Result<()> {
             "type_of"        INTEGER NOT NULL,
 
             "permissions"    TEXT NOT NULL,
-            "preferences"    TEXT NOT NULL,
+            "preferences"    TEXT,
 
             "created_at"     TEXT NOT NULL,
             "updated_at"     TEXT NOT NULL,
