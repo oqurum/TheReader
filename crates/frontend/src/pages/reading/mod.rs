@@ -343,7 +343,7 @@ impl Component for ReadingBook {
 
                     <div class={ classes!("tools", (self.reader_settings.default_full_screen && !self.display_toolbar.is_expanded()).then_some("hidden")) }>
                         <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
-                        <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
+                        // <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>
                 </div>
             }
