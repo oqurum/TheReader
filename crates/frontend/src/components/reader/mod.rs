@@ -274,8 +274,6 @@ impl Component for Reader {
 
                 // TODO: Check if we we changed pages to being with.
 
-                log::info!("transition");
-
                 self.after_page_change();
 
                 return Component::update(self, ctx, ReaderMsg::UploadProgress);
@@ -364,11 +362,6 @@ impl Component for Reader {
                                     if let Some(section) = self.get_current_section() {
                                         section.transitioning_page(self.drag_distance);
                                     }
-                                } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
-                                    return Component::update(self, ctx, ReaderMsg::PreviousPage);
-                                } else if let Some(section) = self.get_current_section() {
-                                    section.transitioning_page(0);
-                                    self.drag_distance = 0;
                                 }
                             }
 
@@ -380,17 +373,24 @@ impl Component for Reader {
                                     if let Some(section) = self.get_current_section() {
                                         section.transitioning_page(self.drag_distance);
                                     }
-                                } else if distance > PAGE_CHANGE_DRAG_AMOUNT {
-                                    return Component::update(self, ctx, ReaderMsg::NextPage);
-                                } else if let Some(section) = self.get_current_section() {
-                                    section.transitioning_page(0);
-                                    self.drag_distance = 0;
                                 }
                             }
 
-                            // Clicked on a[href]
                             DragType::None => {
-                                if type_of == DragType::None {
+                                if self.drag_distance != 0 && !dragging {
+                                    if self.drag_distance.unsigned_abs() > PAGE_CHANGE_DRAG_AMOUNT {
+                                        if self.drag_distance.is_positive() {
+                                            return Component::update(self, ctx, ReaderMsg::PreviousPage);
+                                        } else {
+                                            return Component::update(self, ctx, ReaderMsg::NextPage);
+                                        }
+                                    } else if let Some(section) = self.get_current_section() {
+                                        section.transitioning_page(0);
+                                        self.drag_distance = 0;
+                                    }
+                                    // Handle after dragging
+                                } else {
+                                    // Clicked on a[href]
                                     if let Some(dur) = instant {
                                         if dur.num_milliseconds() < 500 {
                                             if let Some(section) = self.get_current_section() {
