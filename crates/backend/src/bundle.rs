@@ -4,6 +4,8 @@ use crate::Result;
 
 static PUBLIC_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR../../../app/public");
 
+// TODO: Use a virtual directory?
+
 pub async fn export() -> Result<()> {
     std::fs::create_dir_all("./app/public")?;
 
