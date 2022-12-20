@@ -47,6 +47,26 @@ cd crates/frontend
 trunk watch --public-url "/dist" -d "../../app/public/dist"
 ```
 
+# Packaging
+Packaging will store the frontend in to the reader executable and extract files when ran.
+
+## Frontend:
+Execute this first
+
+To build:
+```bash
+cd crates/frontend
+trunk build --release --public-url "/dist" -d "../../app/public/dist"
+```
+
+## Backend:
+Inside **root folder** execute these commands:
+
+```bash
+cargo build --bin backend-bundled --release --features=bundled
+```
+
+The packaged executable will now be inside target/release
 
 
 # Gallery
