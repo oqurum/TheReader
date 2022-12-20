@@ -70,22 +70,22 @@ The packaged executable will now be inside target/release
 
 ## Overview
 
-![Overview](https://i.thick.at/RememberedReginaSpektor800.png)
+![Overview](https://i.thick.at/DishonorableRJD2117.png)
 
 
 ## Basic library viewer.
 
-![Home](https://i.thick.at/PublishedFarEastMovement196.jpeg)
+![Home](https://i.thick.at/AntagonizingFleance243.jpeg)
 
 
 ## Basic book viewer.
 
-![Book View](https://i.thick.at/OverviolentGratiano156.png)
+![Book View](https://i.thick.at/AntispasmodicCodyJinks427.png)
 
 
 ## Basic book reader.
 
-![Book Reader](https://i.thick.at/AntimodernistWildBoar735.png)
+![Book Reader](https://i.thick.at/SightlyWalkersShots711.png)
 
 
 ## It can even go fullscreen!
