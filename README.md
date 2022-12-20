@@ -2,15 +2,11 @@
 
 PRE-ALPHA Program.
 
-Lots of `.unwrap()`s which need to be removed.
-
 My intention will be to make it [Plex](https://plex.tv) for Books.
 
 TODO:
  - Utilize sqlite transactions for multi table changes.
- - Remove redundant functions. I started making this without a plan so there WILL be redundant things.
  - Implement database migrations
- - More `TODO`s in comments throughout the code
 
 
 # Running/Building
