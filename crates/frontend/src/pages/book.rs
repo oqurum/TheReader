@@ -184,7 +184,7 @@ impl BookPage {
                         <div class="col-sm-12 col-md metadata-container">
                             <div class="metadata">
                                 <h1 class="title">{ book.get_title() }</h1>
-                                <ExpandableContainerComponent>
+                                <ExpandableContainerComponent max_expanded_lines=11 overflow_scroll=true>
                                     { book.description.clone().unwrap_or_default() }
                                 </ExpandableContainerComponent>
                             </div>
