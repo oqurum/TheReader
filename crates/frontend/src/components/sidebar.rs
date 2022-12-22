@@ -97,13 +97,13 @@ impl Component for Sidebar {
 
         if let Some(items) = self.library_items.as_deref() {
             html! {
-                <div class="sidebar-container d-flex flex-column flex-shrink-0 p-3 text-bg-dark">
+                <div class="sidebar-container d-flex flex-column flex-shrink-0 p-2 text-bg-dark">
                     { self.render(items, ctx) }
                 </div>
             }
         } else {
             html! {
-                <div class="sidebar-container d-flex flex-column flex-shrink-0 p-3 text-bg-dark">
+                <div class="sidebar-container d-flex flex-column flex-shrink-0 p-2 text-bg-dark">
                     <h1>{ "..." }</h1>
                 </div>
             }
@@ -126,7 +126,7 @@ impl Sidebar {
         match self.viewing {
             Viewing::Main => html! {
                 <>
-                    <Link<BaseRoute> to={ BaseRoute::Dashboard } classes={ "d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none" }>
+                    <Link<BaseRoute> to={ BaseRoute::Dashboard } classes={ "d-flex align-items-center mb-3 me-md-auto text-white text-decoration-none" }>
                         <span class="fs-4">{ "Reader" }</span>
                     </Link<BaseRoute>>
 

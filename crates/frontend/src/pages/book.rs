@@ -154,8 +154,8 @@ impl BookPage {
 
             html! {
                 <div class="item-view-container">
-                    <div class="info-container">
-                        <div class="poster large">
+                    <div class="g-2 p-2 row">
+                        <div class="col-sm-5 poster large">
                             <div class="bottom-right">
                                 <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
                             </div>
@@ -181,7 +181,7 @@ impl BookPage {
 
                             <img class="rounded" src={ book.thumb_path.get_book_http_path().into_owned() } />
                         </div>
-                        <div class="metadata-container">
+                        <div class="col-sm-12 col-md metadata-container">
                             <div class="metadata">
                                 <h1 class="title">{ book.get_title() }</h1>
                                 <ExpandableContainerComponent>
@@ -193,13 +193,13 @@ impl BookPage {
 
                     <section>
                         <h2>{ "Files" }</h2>
-                        <div class="files-container">
+                        <div class="row">
                             {
                                 for media.iter().zip(progress.iter()).map(|(media, progress)| {
                                     // TODO: Add an "Are you sure?" for if we clicked on a non-progressed file.
 
                                     html! {
-                                        <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: media.id } } classes={ "file-item link-light" }>
+                                        <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: media.id } } classes={ "col-sm-12 col-md-6 col-lg-4 file-item link-light" }>
                                             <h5>{ media.file_name.clone() }</h5>
                                             <div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
                                             <div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
@@ -207,7 +207,7 @@ impl BookPage {
                                                 if let Some(&Progression::Ebook { chapter, .. }) = progress.as_ref() {
                                                     html! {
                                                         <div
-                                                            style="background-color: var(--bs-body-color);height: 5px;overflow: hidden;border-radius: 8px;"
+                                                            style="margin-top: 3px;background-color: var(--bs-body-color);height: 5px;overflow: hidden;border-radius: 8px;"
                                                             title={ format!("{chapter}/{}", media.chapter_count) }
                                                         >
                                                             <div style={format!("background-color: var(--bs-green); height: 100%; width: {}%;", chapter as f32 / media.chapter_count as f32 * 100.0)}></div>
