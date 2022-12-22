@@ -758,7 +758,7 @@ async fn overwrite_book_with_new_metadata(
             new_book_model.thumb_path = curr_book_model.thumb_path;
         }
 
-        if curr_book_model.description.is_some() {
+        if new_book_model.description.is_none() {
             new_book_model.description = curr_book_model.description;
         }
     }
