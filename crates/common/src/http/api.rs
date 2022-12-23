@@ -321,6 +321,7 @@ pub struct GetBookResponse {
 pub enum PostBookBody {
     UnMatch,
 
+    RefreshBookId,
     AutoMatchBookId,
     AutoMatchBookIdByFiles,
 

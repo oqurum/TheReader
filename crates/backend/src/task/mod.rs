@@ -216,6 +216,8 @@ impl Task for TaskLibraryScan {
 
 #[derive(Clone)]
 pub enum UpdatingBook {
+    /// Refresh the books Metadata.
+    Refresh(BookId),
     /// Update book by file info
     AutoUpdateBookIdByFiles(BookId),
     /// Update book w/ all steps. weither by source, files, or agent id.
@@ -287,6 +289,25 @@ impl Task for TaskUpdateInvalidBook {
                 let fm_book = BookModel::find_one_by_id(book_id, db).await?.unwrap();
 
                 Self::update_book_by_files(fm_book, &ActiveAgents::default(), db).await?;
+            }
+
+            UpdatingBook::Refresh(book_id) => {
+                info!(id = ?book_id, "Refresh Book");
+
+                send_message_to_clients(WebsocketNotification::update_task(
+                    task_id,
+                    TaskType::UpdatingBook {
+                        id: book_id,
+                        subtitle: None,
+                    },
+                    true,
+                ));
+
+                let book_model = BookModel::find_one_by_id(book_id, db).await?.unwrap();
+
+                if let Some(metadata) = get_metadata_by_source(&book_model.source).await? {
+                    overwrite_book_with_new_metadata(book_model, metadata, db).await?;
+                }
             }
 
             UpdatingBook::AutoUpdateBookId(book_id) => {

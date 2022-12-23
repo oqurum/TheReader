@@ -53,7 +53,7 @@ pub enum BookPosterItemMsg {
     ShowPopup(DisplayOverlayItem),
 
     // Popup Events
-    UpdateBookById(BookId),
+    RefreshBookById(BookId),
     AddBookToCollection(BookId, CollectionId),
     RemoveBookFromCollection(BookId, CollectionId),
 
@@ -101,9 +101,9 @@ impl Component for BookPosterItem {
                 }
             }
 
-            BookPosterItemMsg::UpdateBookById(book_id) => {
+            BookPosterItemMsg::RefreshBookById(book_id) => {
                 ctx.link().send_future(async move {
-                    request::update_book(book_id, &api::PostBookBody::AutoMatchBookId).await;
+                    request::update_book(book_id, &api::PostBookBody::RefreshBookId).await;
 
                     BookPosterItemMsg::Ignore
                 });
@@ -267,7 +267,7 @@ impl Component for BookPosterItem {
                                                 DropdownInfoPopupEvent::UnMatchBook => BookPosterItemMsg::UnMatch(book_id),
                                                 DropdownInfoPopupEvent::AddToCollection(id) => BookPosterItemMsg::AddBookToCollection(book_id, id),
                                                 DropdownInfoPopupEvent::RemoveFromCollection(id) => BookPosterItemMsg::RemoveBookFromCollection(book_id, id),
-                                                DropdownInfoPopupEvent::RefreshMetadata => BookPosterItemMsg::UpdateBookById(book_id),
+                                                DropdownInfoPopupEvent::RefreshMetadata => BookPosterItemMsg::RefreshBookById(book_id),
                                                 DropdownInfoPopupEvent::SearchFor => BookPosterItemMsg::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }),
                                                 DropdownInfoPopupEvent::Info => BookPosterItemMsg::ShowPopup(DisplayOverlayItem::Info { book_id }),
                                                 DropdownInfoPopupEvent::MarkAsRead => BookPosterItemMsg::MarkAsRead,

@@ -252,6 +252,12 @@ pub async fn update_book_info(
             ));
         }
 
+        api::PostBookBody::RefreshBookId => {
+            queue_task(task::TaskUpdateInvalidBook::new(
+                task::UpdatingBook::Refresh(book_id),
+            ));
+        }
+
         api::PostBookBody::AutoMatchBookIdByFiles => {
             queue_task(task::TaskUpdateInvalidBook::new(
                 task::UpdatingBook::AutoUpdateBookIdByFiles(book_id),
