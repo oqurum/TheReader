@@ -4,7 +4,7 @@ use common::{
     api::WrappingResponse,
     component::{
         multi_select::{MultiSelectEvent, MultiSelectItem, MultiSelectModule},
-        popup::{button::ButtonWithPopup, Popup, PopupClose, PopupType},
+        popup::{button::{ButtonWithPopup, ButtonPopupPosition}, Popup, PopupClose, PopupType},
     },
     BookId, PersonId,
 };
@@ -185,7 +185,7 @@ impl Component for MassSelectBar {
                             <span>{ items.len() } { " items selected" }</span>
                         </div>
                         <div class="center-content">
-                            <ButtonWithPopup class="menu-list">
+                            <ButtonWithPopup class="menu-list" position={ ButtonPopupPosition::Top }>
                                 <PopupClose class="menu-item" onclick={ ctx.link().callback(move |e: MouseEvent| {
                                     e.prevent_default();
                                     Msg::UpdateMultiple(api::PostBookBody::AutoMatchBookId)
@@ -201,7 +201,7 @@ impl Component for MassSelectBar {
                                 <PopupClose class="menu-item">{ "Delete" }</PopupClose>
                             </ButtonWithPopup>
 
-                            <button class="slim" onclick={ ctx.link().callback(move |e: MouseEvent| {
+                            <button class="btn btn-secondary btn-sm" onclick={ ctx.link().callback(move |e: MouseEvent| {
                                 e.prevent_default();
                                 Msg::ShowEditPopup(LocalPopupType::default_edit_books())
                             }) }>
@@ -209,7 +209,7 @@ impl Component for MassSelectBar {
                             </button>
                         </div>
                         <div class="right-content">
-                            <button class="slim" onclick={ ctx.props().on_deselect_all.clone() }>{ "Deselect All" }</button>
+                            <button class="btn btn-danger btn-sm" onclick={ ctx.props().on_deselect_all.clone() }>{ "Deselect All" }</button>
                         </div>
                     </div>
 
@@ -249,7 +249,7 @@ impl Component for MassSelectBar {
                                                     }
                                                 </MultiSelectModule<PersonId>>
 
-                                                <select onchange={ ctx.link().callback(|v: Event| Msg::EditPopupMsg(MsgEditPopup::UpdateEdit(
+                                                <select class="form-select" onchange={ ctx.link().callback(|v: Event| Msg::EditPopupMsg(MsgEditPopup::UpdateEdit(
                                                     Box::new(|e, v| { e.people_list_mod = ModifyValuesBy::from(v.parse::<u8>().unwrap()); }),
                                                     v.target_unchecked_into::<HtmlSelectElement>().selected_index().to_string()
                                                 ))) }>
@@ -260,7 +260,7 @@ impl Component for MassSelectBar {
                                             </div>
                                         </div>
 
-                                        <div class="footer">
+                                        <div class="modal-footer">
                                             <button class="btn btn-danger" onclick={ ctx.link().callback(|_| Msg::CloseEditPopup) }>{ "Cancel" }</button>
                                             <button class="btn btn-success" onclick={ ctx.link().callback(|_| Msg::EditPopupMsg(MsgEditPopup::Save)) }>{ "Save" }</button>
                                         </div>

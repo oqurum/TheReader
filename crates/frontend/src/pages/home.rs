@@ -99,7 +99,6 @@ impl Component for HomePage {
                                     for sec.items.iter().map(|item| {
                                         html! {
                                             <BookPosterItem
-                                                is_editing=false
                                                 is_updating=false
 
                                                 progress={ (item.progress, item.file.clone()) }
@@ -129,7 +128,6 @@ impl Component for HomePage {
                                                 for contents.iter().cloned().map(|item| {
                                                     html! {
                                                         <BookPosterItem
-                                                            is_editing=false
                                                             is_updating=false
 
                                                             { item }

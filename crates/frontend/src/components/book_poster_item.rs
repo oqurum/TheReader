@@ -33,8 +33,6 @@ pub struct BookPosterItemProps {
     pub progress: Option<(Progression, MediaItem)>,
 
     #[prop_or_default]
-    pub is_editing: bool,
-    #[prop_or_default]
     pub is_updating: bool,
     #[prop_or_default]
     pub disable_tools: bool,
@@ -43,7 +41,6 @@ pub struct BookPosterItemProps {
 impl PartialEq for BookPosterItemProps {
     fn eq(&self, other: &Self) -> bool {
         self.item == other.item
-            && self.is_editing == other.is_editing
             && self.is_updating == other.is_updating
     }
 }
@@ -317,8 +314,8 @@ impl BookPosterItem {
     fn render_tools(&self, ctx: &Context<Self>) -> Html {
         let &BookPosterItemProps {
             disable_tools,
-            is_editing,
             ref item,
+            ref editing_items,
             ..
         } = ctx.props();
 
@@ -363,29 +360,36 @@ impl BookPosterItem {
 
         html! {
             <>
-                <OwnerBarrier>
-                    <div class="top-left">
-                        <input
-                            checked={ is_editing }
-                            type="checkbox"
-                            onclick={ ctx.link().callback(move |e: MouseEvent| {
-                                e.prevent_default();
-                                e.stop_propagation();
+                {
+                    if let Some(editing_items) = editing_items.as_ref() {
+                        html! {
+                            <OwnerBarrier>
+                                <div class="top-left">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        checked={ editing_items.borrow().contains(&item.id) }
+                                        onmouseup={ ctx.link().callback(move |e: MouseEvent| {
+                                            let input = e.target_unchecked_into::<HtmlInputElement>();
 
-                                BookPosterItemMsg::Ignore
-                            }) }
-                            onmouseup={ ctx.link().callback(move |e: MouseEvent| {
-                                let input = e.target_unchecked_into::<HtmlInputElement>();
+                                            input.set_checked(!input.checked());
 
-                                let value = !input.checked();
+                                            BookPosterItemMsg::AddOrRemoveItemFromEditing(book_id, input.checked())
+                                        }) }
 
-                                input.set_checked(value);
-
-                                BookPosterItemMsg::AddOrRemoveItemFromEditing(book_id, value)
-                            }) }
-                        />
-                    </div>
-                </OwnerBarrier>
+                                        // Prevents Link redirect.
+                                        onclick={ Callback::from(move |e: MouseEvent| {
+                                            e.prevent_default();
+                                            e.stop_propagation();
+                                        }) }
+                                    />
+                                </div>
+                            </OwnerBarrier>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
 
                 <div class="bottom-right">
                     <span class="material-icons" onclick={ on_click_more } title="More Options">{ "more_horiz" }</span>

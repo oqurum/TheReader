@@ -263,16 +263,15 @@ impl Component for BookListComponent {
                     >
                         {
                             for items.iter().map(|item| {
-                                let is_editing = self.editing_items.borrow().contains(&item.id);
                                 let is_updating = self.task_items_updating.contains(&item.id);
 
                                 html! {
                                     <BookPosterItem
-                                        {is_editing}
                                         {is_updating}
 
                                         item={item.clone()}
                                         callback={ctx.link().callback(Msg::BookListItemEvent)}
+                                        editing_items={ self.editing_items.clone() }
                                     />
                                 }
                             })
