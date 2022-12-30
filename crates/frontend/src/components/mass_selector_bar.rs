@@ -188,7 +188,7 @@ impl Component for MassSelectBar {
                             <ButtonWithPopup class="menu-list" position={ ButtonPopupPosition::Top }>
                                 <PopupClose class="menu-item" onclick={ ctx.link().callback(move |e: MouseEvent| {
                                     e.prevent_default();
-                                    Msg::UpdateMultiple(api::PostBookBody::AutoMatchBookId)
+                                    Msg::UpdateMultiple(api::PostBookBody::RefreshBookId)
                                 }) }>
                                     { "Refresh Metadata" }
                                 </PopupClose>
