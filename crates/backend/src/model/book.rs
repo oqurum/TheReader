@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::{BookId, PersonId, Source, ThumbnailStore};
 use rusqlite::{params, OptionalExtension};
 
-use crate::{DatabaseAccess, Result};
+use crate::{DatabaseAccess, Result, config::get_config};
 use common_local::{
     filter::{FilterContainer, FilterModifier, FilterTableType},
     BookEdit, BookItemCached, DisplayBookItem, LibraryId,
@@ -41,9 +41,26 @@ pub struct BookModel {
 
 impl From<BookModel> for DisplayBookItem {
     fn from(val: BookModel) -> Self {
+        /// Get the public user-accessible url.
+        fn get_public_url(source: &Source, libby_url: Option<String>) -> Option<String> {
+            match source.agent.as_ref() {
+                "libby" => Some(format!("{}/book/{}", libby_url?, source.value)),
+                "googlebooks" => Some(format!("https://books.google.com/books?id={}", source.value)),
+                "openlibrary" => Some(format!("https://openlibrary.org/isbn/{}", source.value)),
+
+                _ => None,
+            }
+        }
+
         DisplayBookItem {
             id: val.id,
             library_id: val.library_id,
+            public_source_url: get_public_url(
+                &val.source,
+                Some(get_config().libby.url)
+                    .filter(|v| !v.is_empty())
+                    .map(|v| v.trim().to_string())
+            ),
             source: val.source,
             file_item_count: val.file_item_count,
             title: val.title,

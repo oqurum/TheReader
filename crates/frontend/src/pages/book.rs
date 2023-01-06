@@ -182,12 +182,23 @@ impl BookPage {
                             <img class="rounded" src={ book.thumb_path.get_book_http_path().into_owned() } />
                         </div>
                         <div class="col-sm-12 col-md metadata-container">
-                            <div class="metadata">
-                                <h1 class="title">{ book.get_title() }</h1>
-                                <ExpandableContainerComponent max_expanded_lines=11 overflow_scroll=true>
-                                    { book.description.clone().unwrap_or_default() }
-                                </ExpandableContainerComponent>
+                            <h1 class="title">{ book.get_title() }</h1>
+
+                            <div class="badge-list">
+                                {
+                                    if let Some(url) = book.public_source_url.clone() {
+                                        html! {
+                                            <a href={url} target="_blank" class="badge bg-secondary link-light">{ "Source" }</a>
+                                        }
+                                    } else {
+                                        html! {}
+                                    }
+                                }
                             </div>
+
+                            <ExpandableContainerComponent max_expanded_lines=11 overflow_scroll=true>
+                                { book.description.clone().unwrap_or_default() }
+                            </ExpandableContainerComponent>
                         </div>
                     </div>
 

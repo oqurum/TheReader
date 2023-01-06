@@ -129,6 +129,7 @@ pub struct DisplayBookItem {
 
     pub library_id: LibraryId,
 
+    pub public_source_url: Option<String>,
     pub source: Source,
     pub file_item_count: i64,
     pub title: Option<String>,
@@ -164,6 +165,7 @@ impl Default for DisplayBookItem {
         Self {
             id: Default::default(),
             library_id: Default::default(),
+            public_source_url: None,
             source: Source {
                 agent: Agent::new_owned(String::default()),
                 value: String::default(),
