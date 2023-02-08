@@ -202,10 +202,12 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
         );
     }
 
-    // TODO: Implement Mouse Move
-
     html! {
-        <canvas class="view-overlay" ref={ node } style="user-select: none;" />
+        <canvas
+            class="view-overlay"
+            ref={ node }
+            oncontextmenu={ Callback::from(|e: MouseEvent| e.prevent_default()) }
+        />
     }
 }
 

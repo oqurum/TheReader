@@ -98,6 +98,7 @@
 		> .view-overlay {
 			z-index: 99;
 			position: absolute;
+			user-select: none;
 			top: 0;
 			left: 0;
 			width: 100%;
