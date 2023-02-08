@@ -117,6 +117,8 @@ impl MemberGeneralPage {
         html! {
             <>
                 <h4>{ "Reader Settings" }</h4>
+
+                // Auto Full screen?
                 <div class="mb-3 form-check">
                     <input class="form-check-input" type="checkbox"
                         checked={ prefs.reader.auto_full_screen }
@@ -128,9 +130,25 @@ impl MemberGeneralPage {
                             )
                         }) }
                     />
-                    <label class="form-check-label">{ "Auto Full screen Reader" }</label>
+                    <label class="form-check-label">{ "Fullscreen Reader" }</label>
                 </div>
 
+                // Animate Page Transitions?
+                <div class="mb-3 form-check">
+                    <input class="form-check-input" type="checkbox"
+                        checked={ prefs.reader.animate_page_transitions }
+                        onchange={ ctx.link().callback(move |event: Event| {
+                            Msg::UpdateSettings(
+                                editing,
+                                Box::new(|pref, value| pref.reader.animate_page_transitions = value.as_bool().unwrap()),
+                                serde_json::Value::Bool(event.target_unchecked_into::<HtmlInputElement>().checked())
+                            )
+                        }) }
+                    />
+                    <label class="form-check-label">{ "Animate page transitions" }</label>
+                </div>
+
+                // Reader Color
                 <div class="mb-3">
                     <label class="form-label">{ "Reader Color" }</label>
                     <select class="form-select"
@@ -145,6 +163,35 @@ impl MemberGeneralPage {
                         <option selected={ prefs.reader.color == ReaderColor::Default }>{ "Default" }</option>
                         <option selected={ prefs.reader.color == ReaderColor::Black }>{ "Black" }</option>
                         // TODO: Rest.
+                    </select>
+                </div>
+
+                // Scale Type
+                <div class="mb-3">
+                    <label class="form-label">{ "Scale Type" }</label>
+                    <select class="form-select" disabled=true>
+                        <option>{ "Fit Screen" }</option>
+                        <option>{ "Stretch" }</option>
+                        <option>{ "Fit Width" }</option>
+                        <option>{ "Fit Height" }</option>
+                        <option>{ "Original Size" }</option>
+                    </select>
+                </div>
+
+                // Zoom Landscape Image
+                <div class="mb-3 form-check">
+                    <input class="form-check-input" type="checkbox" disabled=true />
+                    <label class="form-check-label">{ "Zoom Landscape Image" }</label>
+                </div>
+
+                // Zoom Start Position
+                <div class="mb-3">
+                    <label class="form-label">{ "Zoom Start Position" }</label>
+                    <select class="form-select" disabled=true>
+                        <option>{ "Automatic" }</option>
+                        <option>{ "Left" }</option>
+                        <option>{ "Right" }</option>
+                        <option>{ "Center" }</option>
                     </select>
                 </div>
 

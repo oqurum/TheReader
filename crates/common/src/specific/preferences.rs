@@ -22,9 +22,11 @@ pub struct MemberBasicPreferences {
 // Reader
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MemberReaderPreferences {
     pub always_show_progress: bool,
 
+    pub animate_page_transitions: bool,
     pub auto_full_screen: bool,
     pub default_full_screen: bool,
 
@@ -42,6 +44,7 @@ impl Default for MemberReaderPreferences {
     fn default() -> Self {
         Self {
             always_show_progress: false,
+            animate_page_transitions: true,
             auto_full_screen: false,
             default_full_screen: false,
             width: 1040,

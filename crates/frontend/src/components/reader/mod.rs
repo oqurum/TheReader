@@ -82,6 +82,7 @@ pub struct ReaderSettings {
     pub type_of: PageLoadType,
     pub color: ReaderColor,
 
+    pub animate_page_transitions: bool,
     pub default_full_screen: bool,
     pub auto_full_screen: bool,
     pub display: SectionDisplay,
@@ -95,6 +96,7 @@ impl From<MemberReaderPreferences> for ReaderSettings {
         Self {
             type_of: PageLoadType::try_from(value.load_type).unwrap_throw(),
             color: value.color,
+            animate_page_transitions: value.animate_page_transitions,
             default_full_screen: value.default_full_screen,
             auto_full_screen: value.auto_full_screen,
             display: SectionDisplay::from(value.display_type),
@@ -651,7 +653,7 @@ impl Component for Reader {
             ),
         };
 
-        let (frame_class, frame_style) = self.get_frame_class_and_style();
+        let (frame_class, frame_style) = self.get_frame_class_and_style(ctx);
 
         let link = ctx.link().clone();
         let link2 = ctx.link().clone();
@@ -800,7 +802,10 @@ impl Reader {
         }
     }
 
-    fn get_frame_class_and_style(&self) -> (&'static str, String) {
+    fn get_frame_class_and_style(&self, ctx: &Context<Self>) -> (&'static str, String) {
+        let animate_page_transitions = ctx.props().settings.animate_page_transitions;
+        let mut transition = Some("transition: left 0.5s ease 0s;").filter(|_| animate_page_transitions);
+
         if self.cached_display.is_scroll() {
             (
                 "frames",
@@ -808,12 +813,10 @@ impl Reader {
                     "top: calc(-{}% + {}px); {}",
                     self.viewing_chapter * 100,
                     self.drag_distance,
-                    Some("transition: top 0.5s ease 0s;").unwrap_or_default()
+                    transition.unwrap_or_default()
                 ),
             )
         } else {
-            let mut transition = Some("transition: left 0.5s ease 0s;");
-
             // Prevent empty pages when on the first or last page of a section.
             let amount = if self.drag_distance.is_positive() {
                 if self
