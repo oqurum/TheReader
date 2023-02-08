@@ -1251,6 +1251,9 @@ fn generate_pages(
     chapter: Chapter,
     scope: Scope<Reader>,
 ) -> SectionContents {
+    // TODO: Rework how we handle sections.
+    // Join sections with the same stylesheets into one.
+    // If next section is missing a stylesheet we'll join into previous iframe.
     let iframe = create_iframe();
 
     iframe.set_attribute("fetchPriority", "low").unwrap();
