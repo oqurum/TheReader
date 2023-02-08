@@ -1,4 +1,4 @@
-use std::{path::PathBuf, rc::Rc, sync::Mutex};
+use std::{path::PathBuf, rc::Rc, sync::Mutex, time::Duration};
 
 use common_local::{api, Chapter, FileId, MediaItem, Progression, MemberReaderPreferences, reader::ReaderColor};
 use gloo_timers::callback::Timeout;
@@ -347,8 +347,8 @@ impl Component for Reader {
                         }
                     }
 
-                    OverlayEvent::Release { x, y, instant } => {
-                        log::debug!("Input Release: {x}, {y}, took: {instant:?}");
+                    OverlayEvent::Release { x, y, width, height, instant } => {
+                        log::debug!("Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}");
 
                         if self.drag_distance != 0 {
                             if self.drag_distance.unsigned_abs() > PAGE_CHANGE_DRAG_AMOUNT {
@@ -362,6 +362,25 @@ impl Component for Reader {
                                 self.drag_distance = 0;
                             }
                             // Handle after dragging
+                        }
+
+                        // Handle Prev/Next Page Clicking
+                        else if let Some(duration) = instant {
+                            if duration.to_std().unwrap_throw() < Duration::from_millis(800) {
+                                let clickable_size = (width as f32 * 0.15) as i32;
+
+                                // Previous Page
+                                if x <= clickable_size {
+                                    log::debug!("Clicked Previous");
+                                    return Component::update(self, ctx, ReaderMsg::PreviousPage);
+                                }
+
+                                // Next Page
+                                else if x >= width - clickable_size {
+                                    log::debug!("Clicked Next");
+                                    return Component::update(self, ctx, ReaderMsg::NextPage);
+                                }
+                            }
                         }
                     }
 

@@ -344,8 +344,12 @@ impl ScrollDisplay {
 
                 link.send_message(ReaderMsg::HandleViewOverlay(OverlayEvent::Release {
                     instant: Some(duration),
+
                     x: e.x(),
                     y: e.y(),
+
+                    width: 0,
+                    height: 0,
                 }))
             }) as Box<dyn FnMut(MouseEvent)>);
 

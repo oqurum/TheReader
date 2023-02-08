@@ -14,8 +14,12 @@ pub enum OverlayEvent {
     // Mouse Release
     Release {
         instant: Option<Duration>,
+
         x: i32,
         y: i32,
+
+        width: i32,
+        height: i32,
     },
 
     // Mouse hovering over overlay.
@@ -63,6 +67,8 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
         let curr_event_state = curr_event_state.clone();
         let time_down = time_down.clone();
 
+        let canvas_node = node.clone();
+
         use_effect_with_deps(
             move |(swiping, direction, length_x, length_y, coords_start, coords_end)| {
                 let distance = match **direction {
@@ -99,10 +105,19 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
                     let (x, y) = **coords_start;
 
+                    let (width, height) = {
+                        let node = canvas_node.cast::<HtmlElement>().unwrap();
+
+                        (node.client_width(), node.client_height())
+                    };
+
                     event.emit(OverlayEvent::Release {
                         instant: Some(Utc::now().signed_duration_since(*time_down)),
                         x,
                         y,
+
+                        width,
+                        height,
                     });
                 }
                 || ()
@@ -121,6 +136,8 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
     {
         // Mouse
         let event = props.event.clone();
+
+        let canvas_node = node.clone();
 
         use_effect_with_deps(
             move |handle| {
@@ -158,10 +175,18 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                     } else if *curr_event_state {
                         curr_event_state.set(false);
 
+                        let (width, height) = {
+                            let node = canvas_node.cast::<HtmlElement>().unwrap();
+
+                            (node.client_width(), node.client_height())
+                        };
+
                         event.emit(OverlayEvent::Release {
                             instant: Some(Utc::now().signed_duration_since(*time_down)),
                             x: handle.coords_start.0,
                             y: handle.coords_start.1,
+
+                            width, height,
                         });
                     }
                 } else {
