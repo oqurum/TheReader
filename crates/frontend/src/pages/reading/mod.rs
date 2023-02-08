@@ -263,7 +263,7 @@ impl Component for ReadingBook {
             Msg::ReaderEvent(event) => {
                 match event {
                     ReaderEvent::ViewOverlay(o_event) => {
-                        if let OverlayEvent::Swipe {
+                        if let OverlayEvent::Drag {
                             type_of, instant, ..
                         } = o_event
                         {

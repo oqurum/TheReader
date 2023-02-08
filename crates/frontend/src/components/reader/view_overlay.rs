@@ -11,14 +11,22 @@ use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
 
 #[derive(Debug)]
 pub enum OverlayEvent {
-    MouseMove {
+    // Mouse Release
+    Release {
+        instant: Option<Duration>,
         x: i32,
         y: i32,
     },
 
-    Swipe {
+    // Mouse hovering over overlay.
+    Hover {
+        x: i32,
+        y: i32,
+    },
+
+    // Mouse Drag
+    Drag {
         type_of: DragType,
-        dragging: bool,
         instant: Option<Duration>,
         coords_start: (i32, i32),
         coords_end: (i32, i32),
@@ -80,9 +88,8 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
                     curr_event_state.set(true);
 
-                    event.emit(OverlayEvent::Swipe {
+                    event.emit(OverlayEvent::Drag {
                         type_of: direction,
-                        dragging: true,
                         instant: None,
                         coords_start: **coords_start,
                         coords_end: **coords_end,
@@ -90,12 +97,12 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                 } else if *curr_event_state {
                     curr_event_state.set(false);
 
-                    event.emit(OverlayEvent::Swipe {
-                        type_of: direction,
-                        dragging: false,
+                    let (x, y) = **coords_start;
+
+                    event.emit(OverlayEvent::Release {
                         instant: Some(Utc::now().signed_duration_since(*time_down)),
-                        coords_start: **coords_start,
-                        coords_end: **coords_end,
+                        x,
+                        y,
                     });
                 }
                 || ()
@@ -142,9 +149,8 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
                         curr_event_state.set(true);
 
-                        event.emit(OverlayEvent::Swipe {
+                        event.emit(OverlayEvent::Drag {
                             type_of: direction,
-                            dragging: true,
                             instant: None,
                             coords_start: *handle.coords_start,
                             coords_end: handle.coords_end.unwrap_or_default(),
@@ -152,16 +158,14 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                     } else if *curr_event_state {
                         curr_event_state.set(false);
 
-                        event.emit(OverlayEvent::Swipe {
-                            type_of: direction,
-                            dragging: false,
+                        event.emit(OverlayEvent::Release {
                             instant: Some(Utc::now().signed_duration_since(*time_down)),
-                            coords_start: *handle.coords_start,
-                            coords_end: handle.coords_end.unwrap_or_default(),
+                            x: handle.coords_start.0,
+                            y: handle.coords_start.1,
                         });
                     }
                 } else {
-                    event.emit(OverlayEvent::MouseMove {
+                    event.emit(OverlayEvent::Hover {
                         x: handle.coords_start.0,
                         y: handle.coords_start.1,
                     });
@@ -229,7 +233,7 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
 
         Rc::new(move || {
             if let Some(coords_end) = *coords_end {
-                (coords_start.0 - coords_end.0) as i32
+                coords_start.0 - coords_end.0
             } else {
                 0
             }
@@ -242,7 +246,7 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
 
         Rc::new(move || {
             if let Some(coords_end) = *coords_end {
-                (coords_start.1 - coords_end.1) as i32
+                coords_start.1 - coords_end.1
             } else {
                 0
             }
@@ -253,7 +257,7 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
         let diff_x = diff_x.clone();
         let diff_y = diff_y.clone();
 
-        Rc::new(move || diff_x().abs().max(diff_y().abs()) >= (threshold as i32))
+        Rc::new(move || diff_x().abs().max(diff_y().abs()) >= threshold)
     };
 
     {

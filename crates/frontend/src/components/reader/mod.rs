@@ -309,7 +309,7 @@ impl Component for Reader {
             ReaderMsg::HandleViewOverlay(event) => {
                 match event {
                     // Changes users' cursor if they're currently hovering over a redirect.
-                    OverlayEvent::MouseMove { x, y } => {
+                    OverlayEvent::Hover { x, y } => {
                         if !self.cached_display.is_scroll() {
                             let (x, y) = (x as f64, y as f64);
 
@@ -347,9 +347,26 @@ impl Component for Reader {
                         }
                     }
 
-                    OverlayEvent::Swipe {
+                    OverlayEvent::Release { x, y, instant } => {
+                        log::debug!("Input Release: {x}, {y}, took: {instant:?}");
+
+                        if self.drag_distance != 0 {
+                            if self.drag_distance.unsigned_abs() > PAGE_CHANGE_DRAG_AMOUNT {
+                                if self.drag_distance.is_positive() {
+                                    return Component::update(self, ctx, ReaderMsg::PreviousPage);
+                                } else {
+                                    return Component::update(self, ctx, ReaderMsg::NextPage);
+                                }
+                            } else if let Some(section) = self.get_current_section() {
+                                section.transitioning_page(0);
+                                self.drag_distance = 0;
+                            }
+                            // Handle after dragging
+                        }
+                    }
+
+                    OverlayEvent::Drag {
                         type_of,
-                        dragging,
                         instant,
                         coords_start,
                         ..
@@ -360,79 +377,61 @@ impl Component for Reader {
 
                             // Previous Page
                             DragType::Right(distance) => {
-                                if dragging {
-                                    self.drag_distance = distance as isize;
+                                self.drag_distance = distance as isize;
 
-                                    if let Some(section) = self.get_current_section() {
-                                        section.transitioning_page(self.drag_distance);
-                                    }
+                                if let Some(section) = self.get_current_section() {
+                                    section.transitioning_page(self.drag_distance);
                                 }
                             }
 
                             // Next Page
                             DragType::Left(distance) => {
-                                if dragging {
-                                    self.drag_distance = -(distance as isize);
+                                self.drag_distance = -(distance as isize);
 
-                                    if let Some(section) = self.get_current_section() {
-                                        section.transitioning_page(self.drag_distance);
-                                    }
+                                if let Some(section) = self.get_current_section() {
+                                    section.transitioning_page(self.drag_distance);
                                 }
                             }
 
                             DragType::None => {
-                                if self.drag_distance != 0 && !dragging {
-                                    if self.drag_distance.unsigned_abs() > PAGE_CHANGE_DRAG_AMOUNT {
-                                        if self.drag_distance.is_positive() {
-                                            return Component::update(self, ctx, ReaderMsg::PreviousPage);
-                                        } else {
-                                            return Component::update(self, ctx, ReaderMsg::NextPage);
-                                        }
-                                    } else if let Some(section) = self.get_current_section() {
-                                        section.transitioning_page(0);
-                                        self.drag_distance = 0;
-                                    }
-                                    // Handle after dragging
-                                } else {
-                                    // Clicked on a[href]
-                                    if let Some(dur) = instant {
-                                        if dur.num_milliseconds() < 500 {
-                                            if let Some(section) = self.get_current_section() {
-                                                let frame = section.get_iframe();
-                                                let document =
-                                                    frame.content_document().unwrap_throw();
-                                                let bb = frame.get_bounding_client_rect();
+                                // Clicked on a[href]
+                                if let Some(dur) = instant {
+                                    if dur.num_milliseconds() < 500 {
+                                        if let Some(section) = self.get_current_section() {
+                                            let frame = section.get_iframe();
+                                            let document =
+                                                frame.content_document().unwrap_throw();
+                                            let bb = frame.get_bounding_client_rect();
 
-                                                let (x, y) = (
-                                                    coords_start.0 as f64 - bb.x(),
-                                                    coords_start.1 as f64 - bb.y(),
-                                                );
+                                            let (x, y) = (
+                                                coords_start.0 as f64 - bb.x(),
+                                                coords_start.1 as f64 - bb.y(),
+                                            );
 
-                                                if let Some(element) =
-                                                    document.element_from_point(x as f32, y as f32)
+                                            if let Some(element) =
+                                                document.element_from_point(x as f32, y as f32)
+                                            {
+                                                fn contains_a_href(
+                                                    element: Element,
+                                                ) -> Option<HtmlElement>
                                                 {
-                                                    fn contains_a_href(
-                                                        element: Element,
-                                                    ) -> Option<HtmlElement>
+                                                    if element.local_name() == "a"
+                                                        && element.has_attribute("href")
                                                     {
-                                                        if element.local_name() == "a"
-                                                            && element.has_attribute("href")
-                                                        {
-                                                            Some(element.unchecked_into())
-                                                        } else if let Some(element) =
-                                                            element.parent_element()
-                                                        {
-                                                            contains_a_href(element)
-                                                        } else {
-                                                            None
-                                                        }
+                                                        Some(element.unchecked_into())
+                                                    } else if let Some(element) =
+                                                        element.parent_element()
+                                                    {
+                                                        contains_a_href(element)
+                                                    } else {
+                                                        None
                                                     }
+                                                }
 
-                                                    if let Some(element) = contains_a_href(element)
-                                                    {
-                                                        element.click();
-                                                        return false;
-                                                    }
+                                                if let Some(element) = contains_a_href(element)
+                                                {
+                                                    element.click();
+                                                    return false;
                                                 }
                                             }
                                         }
