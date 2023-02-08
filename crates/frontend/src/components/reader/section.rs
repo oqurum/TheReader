@@ -171,6 +171,8 @@ impl SectionContents {
         cached_display.on_stop_viewing(self);
 
         update_iframe_size(Some(settings.dimensions), self.get_iframe());
+
+        // TODO: Detect if there's a single image in the whole section. If so, expand across both page views and center.
     }
 }
 

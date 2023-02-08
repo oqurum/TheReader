@@ -268,10 +268,12 @@ impl Component for Reader {
             ReaderMsg::Ignore => return false,
 
             ReaderMsg::PageTransitionStart => {
+                log::debug!("Page Transition Start");
                 self.is_transitioning = true;
             }
 
             ReaderMsg::PageTransitionEnd => {
+                log::debug!("Page Transition End");
                 self.is_transitioning = false;
 
                 // TODO: Check if we we changed pages to being with.
