@@ -798,13 +798,9 @@ impl Reader {
                 {
                     match self.cached_display {
                         SectionDisplay::Double(_) | SectionDisplay::Single(_) => html! {
-                            <>
-                                <a onclick={ ctx.link().callback(|_| ReaderMsg::SetPage(0)) }>{ "First Page" }</a>
-                                <a onclick={ ctx.link().callback(|_| ReaderMsg::PreviousPage) }>{ "Previous Page" }</a>
+                            <div class="d-flex justify-content-center w-100">
                                 <span>{ "Page " } { self.current_page_pos() + 1 } { "/" } { page_count }</span>
-                                <a onclick={ ctx.link().callback(|_| ReaderMsg::NextPage) }>{ "Next Page" }</a>
-                                <a onclick={ ctx.link().callback(move |_| ReaderMsg::SetPage(page_count - 1)) }>{ "Last Page" }</a>
-                            </>
+                            </div>
                         },
 
                         SectionDisplay::Scroll(_) => html! {
