@@ -154,34 +154,6 @@ impl SectionContents {
             .unwrap();
     }
 
-    // pub fn initial_load(&self, sections: &mut [SectionLoadProgress]) {
-    //     // Insert Headers.
-
-    //     // Insert body
-    //     for section in sections {
-    //         if let Some(cont) = section.as_chapter() {
-    //             if cont.header_hash == self.header_hash {
-    //                 self.insert_section(cont);
-    //             }
-
-    //             section.convert_to_loaded();
-    //         }
-    //     }
-    // }
-
-    // pub fn insert_section(&self, section: &SectionContents) {
-    //     let doc = self.element.content_document().unwrap_throw();
-    //     let body = self.get_body().unwrap_throw();
-
-    //     {
-    //         let section_break = doc.create_element("div").unwrap_throw();
-    //         section_break.set_id(&format!("section-{}", section.chapter()));
-    //         body.append_child(&section_break).unwrap_throw();
-    //     }
-
-    //     body.append_with_str_1("nodes_1");
-    // }
-
     pub fn on_load(
         &mut self,
         cached_display: &mut SectionDisplay,
@@ -190,11 +162,13 @@ impl SectionContents {
     ) {
         // Insert chapters
         {
+            let doc = self.get_iframe().content_document().unwrap_throw();
+            let body = self.get_iframe_body().unwrap_throw();
             let mut inserted_header = false;
+
             for chapter in &self.chapters {
-                log::debug!("inserting chapter");
+                //  Insert Initial Header
                 if !inserted_header {
-                    let doc = self.get_iframe().content_document().unwrap_throw();
                     let head = self.get_iframe_head().unwrap_throw();
 
                     for item in &chapter.info.header_items {
@@ -221,6 +195,16 @@ impl SectionContents {
 
                     inserted_header = true;
                 }
+
+                // Append to body
+                {
+                    let section_break = doc.create_element("div").unwrap_throw();
+                    section_break.set_id(&format!("section-{}", chapter.value));
+                    body.append_child(&section_break).unwrap_throw();
+
+                    section_break.insert_adjacent_html("afterend", chapter.info.inner_body.trim()).unwrap_throw();
+                }
+
             }
         }
 
