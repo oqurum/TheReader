@@ -769,24 +769,27 @@ impl Component for Reader {
 
 impl Reader {
     fn load_surrounding_sections(&mut self, ctx: &Context<Self>) {
-        match ctx.props().settings.type_of {
-            PageLoadType::All => {
+        log::debug!("Page Load Type: {:?}", ctx.props().settings.type_of);
+
+        // TODO: Re-implement Select
+        // match ctx.props().settings.type_of {
+        //     PageLoadType::All => {
                 let chapter_count = ctx.props().book.chapter_count;
 
                 for chapter in 0..chapter_count {
                     self.load_section(chapter, ctx);
                 }
-            }
+        //     }
 
-            PageLoadType::Select => {
-                // Continue loading chapters
-                let start = self.viewing_chapter.saturating_sub(2);
+        //     PageLoadType::Select => {
+        //         // Continue loading chapters
+        //         let start = self.viewing_chapter.saturating_sub(2);
 
-                for chapter in start..start + 5 {
-                    self.load_section(chapter, ctx);
-                }
-            }
-        }
+        //         for chapter in start..start + 5 {
+        //             self.load_section(chapter, ctx);
+        //         }
+        //     }
+        // }
     }
 
     fn render_navbar(&self, ctx: &Context<Self>) -> Html {
@@ -891,27 +894,29 @@ impl Reader {
                     self.set_section(chapter as usize, ctx);
 
                     if char_pos != -1 {
-                        if let SectionLoadProgress::Loaded(section) =
-                            &mut self.sections[chapter as usize]
-                        {
-                            if self.cached_display.is_scroll() {
-                                if let Some(_element) = js_get_element_from_byte_position(
-                                    section.get_iframe(),
-                                    char_pos as usize,
-                                ) {
-                                    // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
-                                    // element.scroll_into_view();
-                                }
-                            } else {
-                                let page = js_get_page_from_byte_position(
-                                    section.get_iframe(),
-                                    char_pos as usize,
-                                );
+                        for sec in &mut self.sections {
+                            if let SectionLoadProgress::Loaded(section) = sec {
+                                if section.get_chapters().iter().any(|v| v.value == chapter as usize) {
+                                    if self.cached_display.is_scroll() {
+                                        if let Some(_element) = js_get_element_from_byte_position(
+                                            section.get_iframe(),
+                                            char_pos as usize,
+                                        ) {
+                                            // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
+                                            // element.scroll_into_view();
+                                        }
+                                    } else {
+                                        let page = js_get_page_from_byte_position(
+                                            section.get_iframe(),
+                                            char_pos as usize,
+                                        );
 
-                                log::debug!("use_progression - set page: {:?}", page);
+                                        log::debug!("use_progression - set page: {:?}", page);
 
-                                if let Some(page) = page {
-                                    self.cached_display.set_page(page, section);
+                                        if let Some(page) = page {
+                                            self.cached_display.set_page(page, section);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -962,12 +967,13 @@ impl Reader {
         self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
     }
 
-    fn next_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn next_page(&mut self, _ctx: &Context<Self>) -> bool {
         let viewing_chapter = self.viewing_chapter;
         let section_count = self.sections.len();
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.next_page(curr_sect) {
+                log::debug!("Next Page");
                 return true;
             } else {
                 curr_sect.transitioning_page(0);
@@ -977,6 +983,7 @@ impl Reader {
                 self.cached_display.on_stop_viewing(curr_sect);
 
                 self.viewing_chapter += 1;
+                log::debug!("Next Section");
 
                 // Make sure the next sections viewing page is zero.
                 if let Some(next_sect) = get_current_section_mut!(self) {
@@ -984,7 +991,8 @@ impl Reader {
                     self.cached_display.on_start_viewing(next_sect);
                 }
 
-                self.load_surrounding_sections(ctx);
+                // TODO: Disabled b/c of reader section generation rework.
+                // self.load_surrounding_sections(ctx);
 
                 return true;
             }
@@ -993,9 +1001,10 @@ impl Reader {
         false
     }
 
-    fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn previous_page(&mut self, _ctx: &Context<Self>) -> bool {
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.previous_page(curr_sect) {
+                log::debug!("Previous Page");
                 return true;
             } else {
                 curr_sect.transitioning_page(0);
@@ -1005,6 +1014,7 @@ impl Reader {
                 self.cached_display.on_stop_viewing(curr_sect);
 
                 self.viewing_chapter -= 1;
+                log::debug!("Previous Section");
 
                 // Make sure the next sections viewing page is maxed.
                 if let Some(next_sect) = get_current_section_mut!(self) {
@@ -1012,7 +1022,8 @@ impl Reader {
                     self.cached_display.on_start_viewing(next_sect);
                 }
 
-                self.load_surrounding_sections(ctx);
+                // TODO: Disabled b/c of reader section generation rework.
+                // self.load_surrounding_sections(ctx);
 
                 return true;
             }
@@ -1022,9 +1033,9 @@ impl Reader {
     }
 
     /// Expensive. Iterates through previous sections.
-    fn set_page(&mut self, new_total_page: usize, ctx: &Context<Self>) -> bool {
-        for chap in 0..ctx.props().book.chapter_count {
-            if let SectionLoadProgress::Loaded(section) = &mut self.sections[chap] {
+    fn set_page(&mut self, new_total_page: usize, _ctx: &Context<Self>) -> bool {
+        for section_index in 0..self.sections.len() {
+            if let SectionLoadProgress::Loaded(section) = &mut self.sections[section_index] {
                 // This should only happen if the page isn't loaded for some reason.
                 if new_total_page < section.gpi {
                     break;
@@ -1033,11 +1044,12 @@ impl Reader {
                 let local_page = new_total_page - section.gpi;
 
                 if local_page < section.page_count() {
-                    self.viewing_chapter = chap;
+                    self.viewing_chapter = section_index;
 
                     self.cached_display.set_page(local_page, section);
 
-                    self.load_surrounding_sections(ctx);
+                    // TODO: Disabled b/c of reader section generation rework.
+                    // self.load_surrounding_sections(ctx);
 
                     return true;
                 }
@@ -1077,7 +1089,8 @@ impl Reader {
             self.cached_display.set_page(0, section);
             self.cached_display.on_start_viewing(section);
 
-            self.load_surrounding_sections(ctx);
+            // TODO: Disabled b/c of reader section generation rework.
+            // self.load_surrounding_sections(ctx);
 
             true
         } else {
@@ -1221,22 +1234,22 @@ impl Reader {
         }
 
         // TODO: Load based on prev/next chapters instead of last section.
-        let chap = &chaps.chapters[chapter];
+        let curr_chap = &chaps.chapters[chapter];
 
         let section_index = self.sections.len();
 
         // Create or append section.
         let use_last_section = self.sections.last()
-            .and_then(|v| Some(v.as_chapter()?.header_hash == chap.info.header_hash))
+            .and_then(|v| Some(v.as_chapter()?.header_hash == curr_chap.info.header_hash))
             .unwrap_or_default();
 
         if let Some(section_frame) = use_last_section.then_some(self.sections.last_mut()).flatten() {
             if section_frame.is_waiting() {
-                log::info!("Generating Section {}", chap.value + 1);
+                log::info!("Generating Section {}", curr_chap.value + 1);
 
                 *section_frame = SectionLoadProgress::Loading(generate_section(
                     Some(ctx.props().settings.dimensions),
-                    chap.info.header_hash.clone(),
+                    curr_chap.info.header_hash.clone(),
                     section_index,
                     ctx.link().clone(),
                 ));
@@ -1244,7 +1257,7 @@ impl Reader {
         } else {
             self.sections.push(SectionLoadProgress::Loading(generate_section(
                 Some(ctx.props().settings.dimensions),
-                chap.info.header_hash.clone(),
+                curr_chap.info.header_hash.clone(),
                 section_index,
                 ctx.link().clone(),
             )));
@@ -1254,10 +1267,11 @@ impl Reader {
         match self.sections.last_mut() {
             Some(SectionLoadProgress::Loaded(_contents)) => {
                 // TODO: Insert into frame and update render.
+                // TODO: To update we'll have to implement element boundary updates.
             }
 
             Some(SectionLoadProgress::Loading(contents)) => {
-                contents.append_chapter(chap.clone());
+                contents.append_chapter(curr_chap.clone());
             }
 
             _ => ()

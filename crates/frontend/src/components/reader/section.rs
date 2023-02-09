@@ -106,6 +106,10 @@ impl SectionContents {
         self.chapters.push(value);
     }
 
+    pub fn get_chapters(&self) -> &[Rc<Chapter>] {
+        &self.chapters
+    }
+
     pub fn set_cached_pages(&mut self, value: Vec<CachedPage>) {
         self.cached_pages = value;
     }
@@ -198,11 +202,19 @@ impl SectionContents {
 
                 // Append to body
                 {
+                    // Start of Section Declaration
                     let section_break = doc.create_element("div").unwrap_throw();
-                    section_break.set_id(&format!("section-{}", chapter.value));
+                    section_break.class_list().add_1("reader-section-start").unwrap_throw();
+                    section_break.set_id(&format!("section-{}-start", chapter.value));
                     body.append_child(&section_break).unwrap_throw();
 
                     section_break.insert_adjacent_html("afterend", chapter.info.inner_body.trim()).unwrap_throw();
+
+                    // End of Section Declaration
+                    let section_break = doc.create_element("div").unwrap_throw();
+                    section_break.class_list().add_1("reader-section-end").unwrap_throw();
+                    section_break.set_id(&format!("section-{}-end", chapter.value));
+                    body.append_child(&section_break).unwrap_throw();
                 }
 
             }
