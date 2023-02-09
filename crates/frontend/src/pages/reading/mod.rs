@@ -225,13 +225,15 @@ impl Component for ReadingBook {
             },
 
             Msg::RetrievePages(resp) => match resp.ok() {
-                Ok(mut info) => {
+                Ok(info) => {
                     let mut chap_container = self.chapters.lock().unwrap();
 
                     self.last_grabbed_count = info.limit;
                     chap_container.total = info.total;
 
-                    chap_container.chapters.append(&mut info.items);
+                    for item in info.items {
+                        chap_container.chapters.push(Rc::new(item));
+                    }
                 }
 
                 Err(err) => crate::display_error(err),

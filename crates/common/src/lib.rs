@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, NaiveDate, Utc};
 use common::{Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore};
+use http::api::FileUnwrappedInfo;
 use serde::{Deserialize, Serialize};
 
 pub mod error;
@@ -238,6 +239,8 @@ pub enum Progression {
 pub struct Chapter {
     pub file_path: PathBuf,
     pub value: usize,
+
+    pub info: FileUnwrappedInfo,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

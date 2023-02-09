@@ -582,6 +582,7 @@ dependencies = [
  "base64",
  "binstall-zip",
  "blake3",
+ "common-local",
  "log",
  "mobi",
  "regex",

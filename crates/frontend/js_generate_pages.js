@@ -103,20 +103,12 @@ function canFlattenElement(element, bodyWidth) {
 }
 
 
-const LOAD_STYLES = [
-	// '/css/'
-];
-
-const LOAD_JS = [
-	// '/js/
-];
-
 /**
  * @param {HTMLIFrameElement} iframe
- * @param {number} chapter
+ * @param {string} chapter
  * @param {(number, string) => void} handle_redirect_click
 **/
-export function js_update_iframe_after_load(iframe, chapter, handle_redirect_click) {
+export function js_update_iframe_after_load(iframe, section_hash, handle_redirect_click) {
 	let document = iframe.contentDocument;
 
 	let started_at = Date.now();
@@ -128,23 +120,9 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 		// TODO: Use single listener for whole iframe.
 		element.addEventListener('click', event => {
 			event.preventDefault();
-			handle_redirect_click(chapter, path);
+			handle_redirect_click(section_hash, path);
 		});
 	});
-
-	for (const link of LOAD_STYLES) {
-		let external = document.createElement('link');
-		external.type = 'text/css';
-		external.rel = 'stylesheet';
-		external.href = link;
-		document.body.appendChild(external);
-	}
-
-	for (const link of LOAD_JS) {
-		let external = document.createElement('script');
-		external.src = link;
-		document.body.appendChild(external);
-	}
 
 	// Caching width here removes a second of render time. Caused by Reflow - width also shouldn't change.
 	let document_width = document.body.clientWidth;

@@ -1,5 +1,8 @@
+use std::rc::Rc;
+
+use common_local::Chapter;
 use wasm_bindgen::{prelude::Closure, UnwrapThrowExt};
-use web_sys::{HtmlElement, HtmlIFrameElement};
+use web_sys::{HtmlElement, HtmlIFrameElement, HtmlHeadElement};
 use yew::Context;
 
 use super::{
@@ -57,10 +60,11 @@ pub struct SectionContents {
     #[allow(dead_code)]
     on_load: Closure<dyn FnMut()>,
 
+    chapters: Vec<Rc<Chapter>>,
+
     cached_pages: Vec<CachedPage>,
 
     iframe: HtmlIFrameElement,
-    chapter: usize,
 
     /// Global Page Index
     pub gpi: usize,
@@ -68,18 +72,21 @@ pub struct SectionContents {
     pub viewing_page: usize,
 
     cached_tables: Vec<TableContainer>,
+
+    pub header_hash: String,
 }
 
 impl SectionContents {
-    pub fn new(chapter: usize, iframe: HtmlIFrameElement, on_load: Closure<dyn FnMut()>) -> Self {
+    pub fn new(header_hash: String, iframe: HtmlIFrameElement, on_load: Closure<dyn FnMut()>) -> Self {
         Self {
             on_load,
+            chapters: Vec::new(),
             cached_pages: Vec::new(),
             iframe,
-            chapter,
             gpi: 0,
             viewing_page: 0,
             cached_tables: Vec::new(),
+            header_hash,
         }
     }
 
@@ -89,6 +96,14 @@ impl SectionContents {
 
     pub fn get_iframe_body(&self) -> Option<HtmlElement> {
         self.get_iframe().content_document()?.body()
+    }
+
+    pub fn get_iframe_head(&self) -> Option<HtmlHeadElement> {
+        self.get_iframe().content_document()?.head()
+    }
+
+    pub fn append_chapter(&mut self, value: Rc<Chapter>) {
+        self.chapters.push(value);
     }
 
     pub fn set_cached_pages(&mut self, value: Vec<CachedPage>) {
@@ -101,10 +116,6 @@ impl SectionContents {
 
     pub fn viewing_page(&self) -> usize {
         self.viewing_page
-    }
-
-    pub fn chapter(&self) -> usize {
-        self.chapter
     }
 
     pub fn get_page_count_until(&self) -> usize {
@@ -143,12 +154,76 @@ impl SectionContents {
             .unwrap();
     }
 
+    // pub fn initial_load(&self, sections: &mut [SectionLoadProgress]) {
+    //     // Insert Headers.
+
+    //     // Insert body
+    //     for section in sections {
+    //         if let Some(cont) = section.as_chapter() {
+    //             if cont.header_hash == self.header_hash {
+    //                 self.insert_section(cont);
+    //             }
+
+    //             section.convert_to_loaded();
+    //         }
+    //     }
+    // }
+
+    // pub fn insert_section(&self, section: &SectionContents) {
+    //     let doc = self.element.content_document().unwrap_throw();
+    //     let body = self.get_body().unwrap_throw();
+
+    //     {
+    //         let section_break = doc.create_element("div").unwrap_throw();
+    //         section_break.set_id(&format!("section-{}", section.chapter()));
+    //         body.append_child(&section_break).unwrap_throw();
+    //     }
+
+    //     body.append_with_str_1("nodes_1");
+    // }
+
     pub fn on_load(
         &mut self,
         cached_display: &mut SectionDisplay,
-        handle_js_redirect_clicks: &Closure<dyn FnMut(usize, String)>,
+        handle_js_redirect_clicks: &Closure<dyn FnMut(String, String)>,
         ctx: &Context<Reader>,
     ) {
+        // Insert chapters
+        {
+            let mut inserted_header = false;
+            for chapter in &self.chapters {
+                log::debug!("inserting chapter");
+                if !inserted_header {
+                    let doc = self.get_iframe().content_document().unwrap_throw();
+                    let head = self.get_iframe_head().unwrap_throw();
+
+                    for item in &chapter.info.header_items {
+                        if item.name.to_lowercase() == "link" {
+                            let link = doc.create_element("link").unwrap_throw();
+
+                            for attr in &item.attributes {
+                                link.set_attribute(&attr.0, &attr.1).unwrap_throw();
+                            }
+
+                            head.append_with_node_1(&link).unwrap_throw();
+                        } else if item.name.to_lowercase() == "style" {
+                            let style = doc.create_element("style").unwrap_throw();
+
+                            for attr in &item.attributes {
+                                style.set_attribute(&attr.0, &attr.1).unwrap_throw();
+                            }
+
+                            style.set_text_content(item.chars.as_deref());
+
+                            head.append_with_node_1(&style).unwrap_throw();
+                        }
+                    }
+
+                    inserted_header = true;
+                }
+            }
+        }
+
         let settings = &ctx.props().settings;
 
         color::load_reader_color_into_section(&settings.color, self);
@@ -165,7 +240,7 @@ impl SectionContents {
             }
         });
 
-        js_update_iframe_after_load(self.get_iframe(), self.chapter, handle_js_redirect_clicks);
+        js_update_iframe_after_load(self.get_iframe(), &self.header_hash, handle_js_redirect_clicks);
 
         cached_display.add_to_iframe(self.get_iframe(), ctx);
         cached_display.on_stop_viewing(self);
@@ -178,6 +253,6 @@ impl SectionContents {
 
 impl PartialEq for SectionContents {
     fn eq(&self, other: &Self) -> bool {
-        self.chapter == other.chapter
+        self.header_hash == other.header_hash
     }
 }
