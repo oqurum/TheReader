@@ -245,7 +245,7 @@ impl Component for Reader {
             cached_display: ctx.props().settings.display.clone(),
             cached_dimensions: None,
             // Initialize with 1 section.
-            sections: vec![SectionLoadProgress::Waiting],
+            sections: Vec::new(),
             // sections: (0..ctx.props().book.chapter_count)
             //     .map(|_| SectionLoadProgress::Waiting)
             //     .collect(),
@@ -1116,7 +1116,7 @@ impl Reader {
     }
 
     fn get_current_section(&self) -> Option<&SectionContents> {
-        self.sections[self.viewing_chapter].as_chapter()
+        self.sections.get(self.viewing_chapter)?.as_chapter()
     }
 
     // TODO: Move to SectionLoadProgress and combine into upload_progress
