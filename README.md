@@ -5,6 +5,7 @@ PRE-ALPHA Program.
 My intention will be to make it [Plex](https://plex.tv) for Books.
 
 TODO:
+ - Better Separate Sections
  - Utilize sqlite transactions for multi table changes.
  - Implement database migrations
 
