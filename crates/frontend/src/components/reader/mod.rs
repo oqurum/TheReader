@@ -51,14 +51,14 @@ macro_rules! get_current_section_mut {
     ($self:ident) => {
         $self
             .sections
-            .get_mut($self.viewing_chapter)
+            .get_mut($self.viewing_section)
             .and_then(|v| v.as_chapter_mut())
     };
 }
 
 macro_rules! get_previous_section_mut {
     ($self:ident) => {
-        if let Some(chapter) = $self.viewing_chapter.checked_sub(1) {
+        if let Some(chapter) = $self.viewing_section.checked_sub(1) {
             $self
                 .sections
                 .get_mut(chapter)
@@ -186,7 +186,7 @@ pub struct Reader {
     sections: Vec<SectionLoadProgress>,
 
     /// The Chapter we're in
-    viewing_chapter: usize,
+    viewing_section: usize,
 
     _handle_keyboard: ElementEvent,
     handle_js_redirect_clicks: Closure<dyn FnMut(String, String)>,
@@ -252,7 +252,7 @@ impl Component for Reader {
             //     .map(|_| SectionLoadProgress::Waiting)
             //     .collect(),
 
-            viewing_chapter: 0,
+            viewing_section: 0,
             drag_distance: 0,
 
             // TODO: Move both into own struct
@@ -479,7 +479,7 @@ impl Component for Reader {
                 match type_of {
                     // Scrolling up
                     DragType::Up(_) => {
-                        if self.viewing_chapter != 0 {
+                        if self.viewing_section != 0 {
                             // TODO?: Ensure we've been stopped at the edge for at least 1 second before performing page change steps.
                             // Scrolling is split into 5 sections. You need to scroll up or down at least 3 time to change page to next after timeout.
                             // At 5 we switch automatically. It should also take 5 MAX to fill the current reader window.
@@ -504,7 +504,7 @@ impl Component for Reader {
 
                     // Scrolling down
                     DragType::Down(_) => {
-                        if self.viewing_chapter + 1 != self.sections.len() {
+                        if self.viewing_section + 1 != self.sections.len() {
                             let height = ctx.props().settings.dimensions.1 as isize / 5;
 
                             self.drag_distance -= height;
@@ -605,11 +605,11 @@ impl Component for Reader {
             }
 
             ReaderMsg::NextSection => {
-                if self.viewing_chapter + 1 == self.sections.len() {
+                if self.viewing_section + 1 == self.sections.len() {
                     return false;
                 }
 
-                self.set_section(self.viewing_chapter + 1, ctx);
+                self.set_section(self.viewing_section + 1, ctx);
 
                 self.upload_progress_and_emit(ctx);
 
@@ -617,11 +617,11 @@ impl Component for Reader {
             }
 
             ReaderMsg::PreviousSection => {
-                if self.viewing_chapter == 0 {
+                if self.viewing_section == 0 {
                     return false;
                 }
 
-                self.set_section(self.viewing_chapter - 1, ctx);
+                self.set_section(self.viewing_section - 1, ctx);
 
                 self.upload_progress_and_emit(ctx);
 
@@ -683,7 +683,7 @@ impl Component for Reader {
             ),
             SectionDisplay::Scroll(_) => format!(
                 "width: {}%;",
-                (self.viewing_chapter + 1) as f64 / section_count as f64 * 100.0
+                (self.viewing_section + 1) as f64 / section_count as f64 * 100.0
             ),
         };
 
@@ -750,7 +750,7 @@ impl Component for Reader {
         let props = ctx.props();
 
         if let Some(Progression::Ebook { chapter, .. }) = *ctx.props().progress.lock().unwrap() {
-            self.viewing_chapter = chapter as usize;
+            self.viewing_section = chapter as usize;
         }
 
         if self.cached_display != props.settings.display
@@ -825,7 +825,7 @@ impl Reader {
                             <>
                                 <a onclick={ ctx.link().callback(|_| ReaderMsg::SetPage(0)) }>{ "First Section" }</a>
                                 <a onclick={ ctx.link().callback(|_| ReaderMsg::PreviousPage) }>{ "Previous Section" }</a>
-                                <span><b>{ "Section " } { self.viewing_chapter + 1 } { "/" } { section_count }</b></span>
+                                <span><b>{ "Section " } { self.viewing_section + 1 } { "/" } { section_count }</b></span>
                                 <a onclick={ ctx.link().callback(|_| ReaderMsg::NextPage) }>{ "Next Section" }</a>
                                 <a onclick={ ctx.link().callback(move |_| ReaderMsg::SetPage(section_count - 1)) }>{ "Last Section" }</a>
                             </>
@@ -838,14 +838,29 @@ impl Reader {
 
     fn get_frame_class_and_style(&self, ctx: &Context<Self>) -> (&'static str, String) {
         let animate_page_transitions = ctx.props().settings.animate_page_transitions;
+
+        let chaps = ctx.props().chapters.lock().unwrap();
+        let hash = chaps.chapters.get(self.viewing_section).map(|v| v.info.header_hash.as_str());
+
         let mut transition = Some("transition: left 0.5s ease 0s;").filter(|_| animate_page_transitions);
 
         if self.cached_display.is_scroll() {
+            let viewing = self.sections.iter()
+                .enumerate()
+                .find_map(|(idx, sec)| {
+                    if sec.as_chapter()?.header_hash.as_str() == hash? {
+                        Some(idx)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default();
+
             (
                 "frames",
                 format!(
                     "top: calc(-{}% + {}px); {}",
-                    self.viewing_chapter * 100,
+                    viewing * 100,
                     self.drag_distance,
                     transition.unwrap_or_default()
                 ),
@@ -878,11 +893,22 @@ impl Reader {
                 0
             };
 
+            let viewing = self.sections.iter()
+                .enumerate()
+                .find_map(|(idx, sec)| {
+                    if sec.as_chapter()?.header_hash.as_str() == hash? {
+                        Some(idx)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default();
+
             (
                 "frames horizontal",
                 format!(
                     "left: calc(-{}% + {}px); {}",
-                    self.viewing_chapter * 100,
+                    viewing * 100,
                     amount,
                     transition.unwrap_or_default()
                 ),
@@ -902,7 +928,7 @@ impl Reader {
             if let Progression::Ebook { chapter, char_pos, .. } = prog {
                 let chapter = chapter as usize;
 
-                if self.viewing_chapter != chapter {
+                if self.viewing_section != chapter {
                     log::debug!("use_progression - set section: {chapter}");
 
                     // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
@@ -985,7 +1011,7 @@ impl Reader {
     }
 
     fn next_page(&mut self, _ctx: &Context<Self>) -> bool {
-        let viewing_chapter = self.viewing_chapter;
+        let viewing_chapter = self.viewing_section;
         let section_count = self.sections.len();
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
@@ -999,7 +1025,7 @@ impl Reader {
             if viewing_chapter + 1 != section_count {
                 self.cached_display.on_stop_viewing(curr_sect);
 
-                self.viewing_chapter += 1;
+                self.viewing_section += 1;
                 log::debug!("Next Section");
 
                 // Make sure the next sections viewing page is zero.
@@ -1027,10 +1053,10 @@ impl Reader {
                 curr_sect.transitioning_page(0);
             }
 
-            if self.viewing_chapter != 0 {
+            if self.viewing_section != 0 {
                 self.cached_display.on_stop_viewing(curr_sect);
 
-                self.viewing_chapter -= 1;
+                self.viewing_section -= 1;
                 log::debug!("Previous Section");
 
                 // Make sure the next sections viewing page is maxed.
@@ -1061,7 +1087,7 @@ impl Reader {
                 let local_page = new_total_page - section.gpi;
 
                 if local_page < section.page_count() {
-                    self.viewing_chapter = section_index;
+                    self.viewing_section = section_index;
 
                     self.cached_display.set_page(local_page, section);
 
@@ -1101,7 +1127,7 @@ impl Reader {
         }
 
         if let SectionLoadProgress::Loaded(section) = &mut self.sections[next_section] {
-            self.viewing_chapter = next_section;
+            self.viewing_section = next_section;
 
             self.cached_display.set_page(0, section);
             self.cached_display.on_start_viewing(section);
@@ -1146,7 +1172,7 @@ impl Reader {
     }
 
     fn get_current_section(&self) -> Option<&SectionContents> {
-        self.sections.get(self.viewing_chapter)?.as_chapter()
+        self.sections.get(self.viewing_section)?.as_chapter()
     }
 
     // TODO: Move to SectionLoadProgress and combine into upload_progress
@@ -1156,7 +1182,7 @@ impl Reader {
         // Could remove once we optimize the upload requests.
         if let Some(chap) = self
             .get_current_section()
-            .filter(|_| self.sections[self.viewing_chapter].is_loaded())
+            .filter(|_| self.sections[self.viewing_section].is_loaded())
         {
             self.upload_progress(chap.get_iframe(), ctx);
         }
@@ -1165,7 +1191,7 @@ impl Reader {
     // TODO: Move to SectionLoadProgress
     fn upload_progress(&self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = (
-            self.viewing_chapter,
+            self.viewing_section,
             self.get_current_section()
                 .map(|v| v.viewing_page())
                 .unwrap_or_default() as i64,
