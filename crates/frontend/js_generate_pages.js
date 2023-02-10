@@ -161,7 +161,7 @@ export function js_update_iframe_after_load(iframe, section_hash, handle_redirec
 		for (const element of tags) {
 			element.style.width = 'auto';
 			// FIX for long vertical images going past document height
-			element.style.maxHeight = document.body.clientHeight + 'px';
+			element.style.maxHeight = `calc(${document.body.clientHeight}px - 18px)`;
 			// FIX for long horizontal images
 			element.style.maxWidth = '100%';
 		}
