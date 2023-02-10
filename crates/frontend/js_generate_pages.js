@@ -76,6 +76,10 @@ const IGNORE_ELEMENT_NAMES = [
 function canFlattenElement(element, bodyWidth) {
 	// let cs = getComputedStyle(element);
 
+	if (element.classList.contains('reader-ignore')) {
+		return false;
+	}
+
 	if (!element.hasAttribute('border') && // No displayed border
 		!IGNORE_ELEMENT_NAMES.includes(element.localName) &&
 		element.children.length != 1 // TODO: Optimize. Fix for tableFlattening (<div>/<a> -> <a>)
