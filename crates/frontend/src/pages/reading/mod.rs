@@ -81,7 +81,7 @@ pub struct ReadingBook {
     reader_settings: ReaderSettings,
     progress: Rc<Mutex<Option<Progression>>>,
     book: Option<Rc<MediaItem>>,
-    chapters: Rc<Mutex<LoadedChapters>>,
+    chapters: LoadedChapters,
     last_grabbed_count: usize,
     // TODO: Cache pages
     auto_resize_cb: Option<Closure<dyn FnMut()>>,
@@ -129,7 +129,7 @@ impl Component for ReadingBook {
             _listener,
 
             reader_settings,
-            chapters: Rc::new(Mutex::new(LoadedChapters::new())),
+            chapters: LoadedChapters::new(),
             last_grabbed_count: 0,
             progress: Rc::new(Mutex::new(None)),
             book: None,
@@ -226,13 +226,11 @@ impl Component for ReadingBook {
 
             Msg::RetrievePages(resp) => match resp.ok() {
                 Ok(info) => {
-                    let mut chap_container = self.chapters.lock().unwrap();
-
                     self.last_grabbed_count = info.limit;
-                    chap_container.total = info.total;
+                    self.chapters.total = info.total;
 
                     for item in info.items {
-                        chap_container.chapters.push(Rc::new(item));
+                        self.chapters.chapters.push(Rc::new(item));
                     }
                 }
 
@@ -338,7 +336,7 @@ impl Component for ReadingBook {
                             settings={ self.reader_settings.clone() }
                             progress={ Rc::clone(&self.progress) }
                             book={ Rc::clone(book) }
-                            chapters={ Rc::clone(&self.chapters) }
+                            chapters={ self.chapters.clone() }
                             event={ ctx.link().callback(Msg::ReaderEvent) }
                         />
                     </div>

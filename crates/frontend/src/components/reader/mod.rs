@@ -48,21 +48,37 @@ extern "C" {
 }
 
 macro_rules! get_current_section_mut {
-    ($self:ident) => {
-        $self
-            .sections
-            .get_mut($self.viewing_section)
-            .and_then(|v| v.as_chapter_mut())
-    };
+    ($self:ident) => {{
+        let hash = $self.cached_sections.get($self.viewing_section).map(|v| v.info.header_hash.as_str());
+
+        $self.sections.iter_mut()
+            .find_map(|sec| {
+                let chap = sec.as_chapter_mut()?;
+
+                if chap.header_hash.as_str() == hash? {
+                    Some(chap)
+                } else {
+                    None
+                }
+            })
+    }};
 }
 
 macro_rules! get_previous_section_mut {
     ($self:ident) => {
         if let Some(chapter) = $self.viewing_section.checked_sub(1) {
-            $self
-                .sections
-                .get_mut(chapter)
-                .and_then(|v| v.as_chapter_mut())
+            let hash = $self.cached_sections.get(chapter).map(|v| v.info.header_hash.as_str());
+
+            $self.sections.iter_mut()
+                .find_map(|sec| {
+                    let chap = sec.as_chapter_mut()?;
+
+                    if chap.header_hash.as_str() == hash? {
+                        Some(chap)
+                    } else {
+                        None
+                    }
+                })
         } else {
             None
         }
@@ -113,6 +129,7 @@ pub struct CachedPage {
 }
 
 // Currently used to load in chapters to the Reader.
+#[derive(Clone)]
 pub struct LoadedChapters {
     pub total: usize,
     pub chapters: Vec<Rc<Chapter>>,
@@ -139,7 +156,7 @@ pub struct Property {
     pub event: Callback<ReaderEvent>,
 
     pub book: Rc<MediaItem>,
-    pub chapters: Rc<Mutex<LoadedChapters>>,
+    pub chapters: LoadedChapters,
 
     pub progress: Rc<Mutex<Option<Progression>>>,
 }
@@ -169,6 +186,7 @@ pub enum ReaderMsg {
     PreviousPage,
     SetPage(usize),
 
+    // TODO: Sections should be redefined as book chapters. We'll need to figure out where each chapter is.
     NextSection,
     PreviousSection,
     SetSection(usize),
@@ -181,6 +199,7 @@ pub struct Reader {
     // TODO: Should I cache it?
     cached_display: SectionDisplay,
     cached_dimensions: Option<(i32, i32)>,
+    cached_sections: Vec<Rc<Chapter>>,
 
     // All the sections the books has and the current cached info
     sections: Vec<SectionLoadProgress>,
@@ -246,6 +265,7 @@ impl Component for Reader {
         Self {
             cached_display: ctx.props().settings.display.clone(),
             cached_dimensions: None,
+            cached_sections: Vec::new(),
             // Initialize with 1 section.
             sections: Vec::new(),
             // sections: (0..ctx.props().book.chapter_count)
@@ -299,19 +319,15 @@ impl Component for Reader {
 
                 let file_path = PathBuf::from(file_path);
 
-                let chaps = ctx.props().chapters.lock().unwrap();
-
                 // TODO: Ensure we handle any paths which go to a parent directory. eg: "../file.html"
                 // let mut path = chaps.chapters.iter().find(|v| v.value == chapter).unwrap().file_path.clone();
                 // path.pop();
 
-                if let Some(chap) = chaps
-                    .chapters
+                if let Some(chap) = self.cached_sections
                     .iter()
                     .find(|v| v.file_path.ends_with(&file_path))
                     .cloned()
                 {
-                    drop(chaps);
                     self.set_section(chap.value, ctx);
                     // TODO: Handle id_name
                 }
@@ -504,7 +520,7 @@ impl Component for Reader {
 
                     // Scrolling down
                     DragType::Down(_) => {
-                        if self.viewing_section + 1 != self.sections.len() {
+                        if self.viewing_section + 1 != self.cached_sections.len() {
                             let height = ctx.props().settings.dimensions.1 as isize / 5;
 
                             self.drag_distance -= height;
@@ -749,6 +765,8 @@ impl Component for Reader {
     fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
         let props = ctx.props();
 
+        self.cached_sections = props.chapters.chapters.clone();
+
         if let Some(Progression::Ebook { chapter, .. }) = *ctx.props().progress.lock().unwrap() {
             self.viewing_section = chapter as usize;
         }
@@ -839,8 +857,7 @@ impl Reader {
     fn get_frame_class_and_style(&self, ctx: &Context<Self>) -> (&'static str, String) {
         let animate_page_transitions = ctx.props().settings.animate_page_transitions;
 
-        let chaps = ctx.props().chapters.lock().unwrap();
-        let hash = chaps.chapters.get(self.viewing_section).map(|v| v.info.header_hash.as_str());
+        let hash = self.cached_sections.get(self.viewing_section).map(|v| v.info.header_hash.as_str());
 
         let mut transition = Some("transition: left 0.5s ease 0s;").filter(|_| animate_page_transitions);
 
@@ -1010,7 +1027,7 @@ impl Reader {
         self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
     }
 
-    fn next_page(&mut self, _ctx: &Context<Self>) -> bool {
+    fn next_page(&mut self, ctx: &Context<Self>) -> bool {
         let viewing_chapter = self.viewing_section;
         let section_count = self.sections.len();
 
@@ -1044,7 +1061,7 @@ impl Reader {
         false
     }
 
-    fn previous_page(&mut self, _ctx: &Context<Self>) -> bool {
+    fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.previous_page(curr_sect) {
                 log::debug!("Previous Page");
@@ -1172,7 +1189,19 @@ impl Reader {
     }
 
     fn get_current_section(&self) -> Option<&SectionContents> {
-        self.sections.get(self.viewing_section)?.as_chapter()
+        let hash = self.cached_sections.get(self.viewing_section)
+            .map(|v| v.info.header_hash.as_str());
+
+        self.sections.iter()
+            .find_map(|sec| {
+                let chap = sec.as_chapter()?;
+
+                if chap.header_hash.as_str() == hash? {
+                    Some(chap)
+                } else {
+                    None
+                }
+            })
     }
 
     // TODO: Move to SectionLoadProgress and combine into upload_progress
@@ -1182,7 +1211,10 @@ impl Reader {
         // Could remove once we optimize the upload requests.
         if let Some(chap) = self
             .get_current_section()
-            .filter(|_| self.sections[self.viewing_section].is_loaded())
+            .filter(|sec|
+                self.sections.iter()
+                .find_map(|v| if v.as_chapter()?.header_hash == sec.header_hash { Some(v.is_loaded()) } else { None })
+                .unwrap_or_default())
         {
             self.upload_progress(chap.get_iframe(), ctx);
         }
@@ -1270,14 +1302,12 @@ impl Reader {
 
     // TODO: Move to SectionLoadProgress
     fn load_section(&mut self, chapter: usize, ctx: &Context<Self>) {
-        let chaps = ctx.props().chapters.lock().unwrap();
-
-        if chaps.chapters.len() <= chapter {
+        if self.cached_sections.len() <= chapter {
             return;
         }
 
         // TODO: Load based on prev/next chapters instead of last section.
-        let curr_chap = &chaps.chapters[chapter];
+        let curr_chap = &self.cached_sections[chapter];
 
         let section_index = self.sections.len();
 
