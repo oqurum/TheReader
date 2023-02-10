@@ -199,6 +199,8 @@ pub struct Reader {
 
     /// Are we switching Pages?
     is_transitioning: bool,
+
+    initial_progression_set: bool,
 }
 
 impl Component for Reader {
@@ -262,6 +264,7 @@ impl Component for Reader {
             handle_js_redirect_clicks,
             _handle_keyboard: link,
             is_transitioning: false,
+            initial_progression_set: false,
         }
     }
 
@@ -282,7 +285,13 @@ impl Component for Reader {
 
                 self.after_page_change();
 
-                return Component::update(self, ctx, ReaderMsg::UploadProgress);
+                // Page transitioning can happen on initial load of frames.
+                // We have to make sure we've changed the page after the frame loaded.
+                if self.initial_progression_set {
+                    return Component::update(self, ctx, ReaderMsg::UploadProgress);
+                } else {
+                    return false;
+                }
             }
 
             ReaderMsg::HandleJsRedirect(_section_hash, file_path, _id_name) => {
@@ -642,7 +651,10 @@ impl Component for Reader {
 
                 self.update_cached_pages();
 
-                self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
+                // TODO: Ensure this works.
+                if ctx.props().settings.type_of == PageLoadType::Select {
+                    self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
+                }
 
                 // Make sure the previous section is on the last page for better page turning on initial load.
                 if let Some(prev_sect) = get_previous_section_mut!(self) {
@@ -761,7 +773,10 @@ impl Component for Reader {
 
         self.load_surrounding_sections(ctx);
 
-        self.use_progression(*props.progress.lock().unwrap(), ctx);
+        // TODO: Ensure this works.
+        if ctx.props().settings.type_of == PageLoadType::Select {
+            self.use_progression(*props.progress.lock().unwrap(), ctx);
+        }
 
         true
     }
@@ -881,50 +896,52 @@ impl Reader {
             return;
         }
 
-        log::info!("{:?}", prog);
+        log::info!("use_progression: {:?}", prog);
 
         if let Some(prog) = prog {
-            match prog {
-                Progression::Ebook {
-                    chapter, char_pos, ..
-                } if self.viewing_chapter != chapter as usize => {
+            if let Progression::Ebook { chapter, char_pos, .. } = prog {
+                let chapter = chapter as usize;
+
+                if self.viewing_chapter != chapter {
                     log::debug!("use_progression - set section: {chapter}");
 
                     // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
-                    self.set_section(chapter as usize, ctx);
+                    self.set_section(chapter, ctx);
+                }
 
-                    if char_pos != -1 {
-                        for sec in &mut self.sections {
-                            if let SectionLoadProgress::Loaded(section) = sec {
-                                if section.get_chapters().iter().any(|v| v.value == chapter as usize) {
-                                    if self.cached_display.is_scroll() {
-                                        if let Some(_element) = js_get_element_from_byte_position(
-                                            section.get_iframe(),
-                                            char_pos as usize,
-                                        ) {
-                                            // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
-                                            // element.scroll_into_view();
-                                        }
-                                    } else {
-                                        let page = js_get_page_from_byte_position(
-                                            section.get_iframe(),
-                                            char_pos as usize,
-                                        );
+                if char_pos != -1 {
+                    for sec in &mut self.sections {
+                        if let SectionLoadProgress::Loaded(section) = sec {
+                            if section.get_chapters().iter().any(|v| v.value == chapter) {
+                                self.initial_progression_set = true;
 
-                                        log::debug!("use_progression - set page: {:?}", page);
+                                if self.cached_display.is_scroll() {
+                                    if let Some(_element) = js_get_element_from_byte_position(
+                                        section.get_iframe(),
+                                        char_pos as usize,
+                                    ) {
+                                        // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
+                                        // element.scroll_into_view();
+                                    }
+                                } else {
+                                    let page = js_get_page_from_byte_position(
+                                        section.get_iframe(),
+                                        char_pos as usize,
+                                    );
 
-                                        if let Some(page) = page {
-                                            self.cached_display.set_page(page, section);
-                                        }
+                                    log::debug!("use_progression - set page: {:?}", page);
+
+                                    if let Some(page) = page {
+                                        self.cached_display.set_page(page, section);
                                     }
                                 }
                             }
                         }
                     }
                 }
-
-                _ => (),
             }
+        } else {
+            self.initial_progression_set = true;
         }
     }
 
