@@ -1027,7 +1027,7 @@ impl Reader {
         self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
     }
 
-    fn next_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn next_page(&mut self, _ctx: &Context<Self>) -> bool {
         let viewing_chapter = self.viewing_section;
         let section_count = self.sections.len();
 
@@ -1061,7 +1061,7 @@ impl Reader {
         false
     }
 
-    fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn previous_page(&mut self, _ctx: &Context<Self>) -> bool {
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.previous_page(curr_sect) {
                 log::debug!("Previous Page");
@@ -1120,7 +1120,27 @@ impl Reader {
     }
 
     fn set_section(&mut self, next_section: usize, ctx: &Context<Self>) -> bool {
-        if self.sections[next_section].is_waiting() {
+        let hash = self.cached_sections.get(next_section)
+            .map(|v| v.info.header_hash.as_str());
+
+        // Retrieve next section index and frame.
+        let Some((next_section_index, next_section_frame)) = self.sections.iter()
+            .enumerate()
+            .find_map(|(i, sec)| {
+                if let Some((chap, other_hash)) = sec.as_chapter().zip(hash) {
+                    if chap.header_hash.as_str() == other_hash {
+                        Some((i, sec))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }) else {
+                return false;
+            };
+
+        if next_section_frame.is_waiting() {
             log::info!("Next Section is not loaded - {}", next_section + 1);
 
             self.load_section(next_section, ctx);
@@ -1139,11 +1159,12 @@ impl Reader {
             return false;
         }
 
+        // Stop viewing current section.
         if let Some(section) = self.get_current_section() {
             self.cached_display.on_stop_viewing(section);
         }
 
-        if let SectionLoadProgress::Loaded(section) = &mut self.sections[next_section] {
+        if let SectionLoadProgress::Loaded(section) = &mut self.sections[next_section_index] {
             self.viewing_section = next_section;
 
             self.cached_display.set_page(0, section);
