@@ -197,7 +197,7 @@ impl MemberGeneralPage {
 
                 <div class="mb-3">
                     <label class="form-label">{ "Load Sections By" }</label>
-                    <select class="form-select"
+                    <select class="form-select" disabled=true
                         onchange={ ctx.link().callback(move |event: Event| {
                             Msg::UpdateSettings(
                                 editing,
