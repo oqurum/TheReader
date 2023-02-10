@@ -204,7 +204,7 @@ impl SectionContents {
                 {
                     // Start of Section Declaration
                     let section_break = doc.create_element("div").unwrap_throw();
-                    // section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
+                    section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
                     section_break.class_list().add_2("reader-ignore", "reader-section-start").unwrap_throw();
                     section_break.set_id(&format!("section-{}-start", chapter.value));
                     body.append_child(&section_break).unwrap_throw();
@@ -213,7 +213,7 @@ impl SectionContents {
 
                     // End of Section Declaration
                     let section_break = doc.create_element("div").unwrap_throw();
-                    // section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
+                    section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
                     section_break.class_list().add_2("reader-ignore", "reader-section-end").unwrap_throw();
                     section_break.set_id(&format!("section-{}-end", chapter.value));
                     body.append_child(&section_break).unwrap_throw();

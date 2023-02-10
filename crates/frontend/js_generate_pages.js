@@ -172,7 +172,7 @@ export function js_update_iframe_after_load(iframe, section_hash, handle_redirec
 
 /**
  * @param {HTMLIFrameElement} iframe
- * @returns {number}
+ * @returns {[number, number]}
 **/
 export function js_get_current_byte_pos(iframe) {
 	let document = iframe.contentDocument;
@@ -180,9 +180,9 @@ export function js_get_current_byte_pos(iframe) {
 	let cs = getComputedStyle(document.body);
 
 	let left_amount = Math.abs(parseFloat(cs.left));
-	let width_amount = parseFloat(cs.width);
 
 	let byte_count = 0;
+	let last_section_id = -1;
 
 	/**
 	 *
@@ -190,9 +190,13 @@ export function js_get_current_byte_pos(iframe) {
 	 * @returns {boolean}
 	 */
 	function findTextPos(cont) {
-		if (cont.nodeType == Element.TEXT_NODE && cont.nodeValue.trim().length != 0) {
+		if (cont.nodeType == Node.ELEMENT_NODE && (cont.classList.contains('reader-section-start') || cont.classList.contains('reader-section-end'))) {
+			last_section_id = parseInt(cont.getAttribute('data-section-id'));
+		}
+
+		if (cont.nodeType == Node.TEXT_NODE && cont.nodeValue.trim().length != 0) {
 			// TODO: Will probably mess up if element takes up a full page.
-			if (left_amount - cont.parentElement.offsetLeft < width_amount / 2.0) {
+			if (left_amount - cont.parentElement.offsetLeft < 0) {
 				return true;
 			} else {
 				byte_count += cont.nodeValue.length;
@@ -209,7 +213,7 @@ export function js_get_current_byte_pos(iframe) {
 	}
 
 	if (findTextPos(document.body)) {
-		return byte_count;
+		return [byte_count, last_section_id];
 	} else {
 		return null;
 	}

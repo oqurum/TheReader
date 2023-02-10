@@ -1,6 +1,6 @@
 use std::{path::PathBuf, rc::Rc, sync::Mutex, time::Duration};
 
-use common_local::{api, Chapter, FileId, MediaItem, Progression, MemberReaderPreferences, reader::ReaderColor};
+use common_local::{Chapter, MediaItem, Progression, MemberReaderPreferences, reader::ReaderColor};
 use gloo_timers::callback::Timeout;
 use gloo_utils::{body, window};
 use num_enum::{TryFromPrimitive, IntoPrimitive};
@@ -30,7 +30,8 @@ extern "C" {
     // TODO: Sometimes will be 0. Example: if cover image is larger than body height. (Need to auto-resize.)
     fn get_iframe_page_count(iframe: &HtmlIFrameElement) -> usize;
 
-    fn js_get_current_byte_pos(iframe: &HtmlIFrameElement) -> Option<usize>;
+    // TODO: Use Struct instead. Returns (byte position, section index)
+    fn js_get_current_byte_pos(iframe: &HtmlIFrameElement) -> Option<Vec<usize>>;
     fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize)
         -> Option<usize>;
     fn js_get_element_from_byte_position(
@@ -65,24 +66,14 @@ macro_rules! get_current_section_mut {
 }
 
 macro_rules! get_previous_section_mut {
-    ($self:ident) => {
-        if let Some(chapter) = $self.viewing_section.checked_sub(1) {
-            let hash = $self.cached_sections.get(chapter).map(|v| v.info.header_hash.as_str());
-
-            $self.sections.iter_mut()
-                .find_map(|sec| {
-                    let chap = sec.as_chapter_mut()?;
-
-                    if chap.header_hash.as_str() == hash? {
-                        Some(chap)
-                    } else {
-                        None
-                    }
-                })
+    ($self:ident) => {{
+        let sec_index = $self.get_current_section_index();
+        if let Some(prev_index) = sec_index.checked_sub(1) {
+            $self.sections[prev_index].as_chapter_mut()
         } else {
             None
         }
-    };
+    }};
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
@@ -674,7 +665,7 @@ impl Component for Reader {
 
                 // Make sure the previous section is on the last page for better page turning on initial load.
                 if let Some(prev_sect) = get_previous_section_mut!(self) {
-                    self.cached_display.set_last_page(prev_sect)
+                    self.cached_display.set_last_page(prev_sect);
                 }
             }
         }
@@ -939,7 +930,7 @@ impl Reader {
             return;
         }
 
-        log::info!("use_progression: {:?}", prog);
+        log::debug!("use_progression: {:?}", prog);
 
         if let Some(prog) = prog {
             if let Progression::Ebook { chapter, char_pos, .. } = prog {
@@ -1225,6 +1216,24 @@ impl Reader {
             })
     }
 
+    fn get_current_section_index(&self) -> usize {
+        let hash = self.cached_sections.get(self.viewing_section)
+            .map(|v| v.info.header_hash.as_str());
+
+        self.sections.iter()
+            .enumerate()
+            .find_map(|(index, sec)| {
+                let chap = sec.as_chapter()?;
+
+                if chap.header_hash.as_str() == hash? {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
+    }
+
     // TODO: Move to SectionLoadProgress and combine into upload_progress
     fn upload_progress_and_emit(&self, ctx: &Context<Self>) {
         // Ensure our current chapter is fully loaded AND NOT loading.
@@ -1243,16 +1252,20 @@ impl Reader {
 
     // TODO: Move to SectionLoadProgress
     fn upload_progress(&self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
-        let (chapter, page, char_pos, book_id) = (
-            self.viewing_section,
-            self.get_current_section()
-                .map(|v| v.viewing_page())
-                .unwrap_or_default() as i64,
-            js_get_current_byte_pos(iframe)
-                .map(|v| v as i64)
-                .unwrap_or(-1),
-            ctx.props().book.id,
-        );
+        let (chapter, page, char_pos, book_id) = {
+            let (char_pos, viewing_section) = js_get_current_byte_pos(iframe)
+                .map(|v| (v[0] as i64, v[1]))
+                .unwrap_or((-1, self.viewing_section));
+
+            (
+                viewing_section,
+                self.get_current_section()
+                    .map(|v| v.viewing_page())
+                    .unwrap_or_default() as i64,
+                char_pos,
+                ctx.props().book.id,
+            )
+        };
 
         let last_page = self.page_count(ctx).saturating_sub(1);
 
