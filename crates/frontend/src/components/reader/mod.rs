@@ -612,11 +612,19 @@ impl Component for Reader {
             }
 
             ReaderMsg::NextSection => {
-                if self.viewing_section + 1 == self.sections.len() {
+                let new_section_index = self.get_current_section_index() + 1;
+
+                if new_section_index == self.sections.len() {
                     return false;
                 }
 
-                self.set_section(self.viewing_section + 1, ctx);
+                let next_section = if let Some(sec) = self.sections[new_section_index].as_chapter() {
+                    self.cached_sections.iter().position(|chap| chap.info.header_hash == sec.header_hash)
+                } else {
+                    None
+                };
+
+                self.set_section(next_section.unwrap_or(new_section_index), ctx);
 
                 self.upload_progress_and_emit(ctx);
 
@@ -624,11 +632,26 @@ impl Component for Reader {
             }
 
             ReaderMsg::PreviousSection => {
-                if self.viewing_section == 0 {
+                let Some(new_section_index) = self.get_current_section_index().checked_sub(1) else {
                     return false;
-                }
+                };
 
-                self.set_section(self.viewing_section - 1, ctx);
+                let next_section = if let Some(sec) = self.sections[new_section_index].as_chapter() {
+                    self.cached_sections.iter()
+                        .enumerate()
+                        .rev()
+                        .find_map(|(i, chap)| {
+                            if chap.info.header_hash == sec.header_hash {
+                                Some(i)
+                            } else {
+                                None
+                            }
+                        })
+                } else {
+                    None
+                };
+
+                self.set_section(next_section.unwrap_or(new_section_index), ctx);
 
                 self.upload_progress_and_emit(ctx);
 
