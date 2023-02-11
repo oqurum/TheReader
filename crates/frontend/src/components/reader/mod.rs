@@ -850,31 +850,18 @@ impl Reader {
     }
 
     fn render_navbar(&self, ctx: &Context<Self>) -> Html {
-        let page_count = self.page_count(ctx);
-        let section_count = ctx.props().book.chapter_count;
+        if self.cached_display.is_scroll() {
+            html! {}
+        } else {
+            let page_count = self.page_count(ctx);
 
-        html! {
-            <div class="navbar">
-                {
-                    match self.cached_display {
-                        SectionDisplay::Double(_) | SectionDisplay::Single(_) => html! {
-                            <div class="d-flex justify-content-center w-100">
-                                <span>{ "Page " } { self.current_page_pos() + 1 } { "/" } { page_count }</span>
-                            </div>
-                        },
-
-                        SectionDisplay::Scroll(_) => html! {
-                            <>
-                                <a onclick={ ctx.link().callback(|_| ReaderMsg::SetPage(0)) }>{ "First Section" }</a>
-                                <a onclick={ ctx.link().callback(|_| ReaderMsg::PreviousPage) }>{ "Previous Section" }</a>
-                                <span><b>{ "Section " } { self.viewing_section + 1 } { "/" } { section_count }</b></span>
-                                <a onclick={ ctx.link().callback(|_| ReaderMsg::NextPage) }>{ "Next Section" }</a>
-                                <a onclick={ ctx.link().callback(move |_| ReaderMsg::SetPage(section_count - 1)) }>{ "Last Section" }</a>
-                            </>
-                        }
-                    }
-                }
-            </div>
+            html! {
+                <div class="navbar">
+                    <div class="d-flex justify-content-center w-100">
+                        <span>{ "Page " } { self.current_page_pos() + 1 } { "/" } { page_count }</span>
+                    </div>
+                </div>
+            }
         }
     }
 
