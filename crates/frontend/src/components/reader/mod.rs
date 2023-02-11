@@ -384,7 +384,7 @@ impl Component for Reader {
 
                         // Handle Prev/Next Page Clicking
                         else if let Some(duration) = instant {
-                            if duration.to_std().unwrap_throw() < Duration::from_millis(800) {
+                            if !self.cached_display.is_scroll() && duration.to_std().unwrap_throw() < Duration::from_millis(800) {
                                 let clickable_size = (width as f32 * 0.15) as i32;
 
                                 // Previous Page
