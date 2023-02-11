@@ -25,3 +25,8 @@ body {
 .dropdown-item {
     cursor: pointer;
 }
+
+// FIX: When in fullscreen <body> will turn black. We add background here to prevent that.
+.outer-view-container {
+    background-color: var(--surface-2);
+}
