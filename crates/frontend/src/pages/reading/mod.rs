@@ -14,7 +14,7 @@ use common_local::{
     FileId, MediaItem, Progression,
 };
 use gloo_timers::callback::Timeout;
-use gloo_utils::window;
+use gloo_utils::{window, body};
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::Element;
 use yew::{context::ContextHandle, prelude::*};
@@ -26,7 +26,7 @@ use crate::{
             DragType, LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader
         }
     },
-    request, AppState,
+    request, AppState, util::ElementEvent,
 };
 
 mod settings;
@@ -91,6 +91,8 @@ pub struct ReadingBook {
     display_toolbar: DisplayToolBars,
     timeout: Option<Timeout>,
 
+    _on_fullscreen_event: ElementEvent,
+
     // Refs
     ref_book_container: NodeRef,
 }
@@ -112,17 +114,30 @@ impl Component for ReadingBook {
             window().inner_height().unwrap_throw().as_f64().unwrap(),
         );
 
+        // Full screen the reader if our screen size is too small or we automatically do it.
         let display_toolbar =
-            if reader_settings.auto_full_screen && (win_width < 1100.0 || win_height < 720.0) {
+            if reader_settings.auto_full_screen || win_width < 1200.0 || win_height < 720.0 {
                 state.update_nav_visibility.emit(false);
 
-                // Full screen the reader if our width are small.
                 reader_settings.default_full_screen = true;
 
                 DisplayToolBars::Hidden
             } else {
                 DisplayToolBars::Expanded
             };
+
+        let on_fullscreen_event = {
+            let link = ctx.link().clone();
+            let function: Closure<dyn FnMut(Event)> =
+                Closure::new(move |_: Event| link.send_message(Msg::WindowResize));
+
+            ElementEvent::link(
+                body().unchecked_into(),
+                function,
+                |e, f| e.add_event_listener_with_callback("fullscreenchange", f),
+                Box::new(|e, f| e.remove_event_listener_with_callback("fullscreenchange", f)),
+            )
+        };
 
         Self {
             state,
@@ -139,6 +154,8 @@ impl Component for ReadingBook {
             sidebar_visible: None,
             display_toolbar,
             timeout: None,
+
+            _on_fullscreen_event: on_fullscreen_event,
 
             ref_book_container: NodeRef::default(),
         }
@@ -168,6 +185,8 @@ impl Component for ReadingBook {
                     let cont = self.ref_book_container.cast::<Element>().unwrap();
                     self.reader_settings.dimensions =
                         (cont.client_width().max(0), cont.client_height().max(0));
+
+                    log::debug!("Window Resize: {:?}", self.reader_settings.dimensions);
                 } else {
                     return false;
                 }
@@ -372,6 +391,8 @@ impl Component for ReadingBook {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
                 self.reader_settings.dimensions =
                     (cont.client_width().max(0), cont.client_height().max(0));
+
+                log::debug!("Render Size: {:?}", self.reader_settings.dimensions);
             }
         }
     }
