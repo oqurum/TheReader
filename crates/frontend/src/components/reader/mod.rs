@@ -1331,7 +1331,13 @@ impl Reader {
                     page,
                 });
 
-                *stored_prog.lock().unwrap() = value;
+                let mut stored_prog = stored_prog.lock().unwrap();
+
+                if *stored_prog == value {
+                    return;
+                }
+
+                *stored_prog = value;
 
                 value
             }
