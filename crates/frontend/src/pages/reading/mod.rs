@@ -182,11 +182,15 @@ impl Component for ReadingBook {
                     && !self.display_toolbar.is_expanded()
                     && !self.state.is_navbar_visible
                 {
-                    let cont = self.ref_book_container.cast::<Element>().unwrap();
-                    self.reader_settings.dimensions =
-                        (cont.client_width().max(0), cont.client_height().max(0));
+                    // FIX: Using "if let" since container can be null if this is called before first render.
+                    if let Some(cont) = self.ref_book_container.cast::<Element>() {
+                        self.reader_settings.dimensions =
+                            (cont.client_width().max(0), cont.client_height().max(0));
 
-                    log::debug!("Window Resize: {:?}", self.reader_settings.dimensions);
+                        log::debug!("Window Resize: {:?}", self.reader_settings.dimensions);
+                    } else {
+                        log::debug!("Window Resize: book container doesn't exist");
+                    }
                 } else {
                     return false;
                 }
