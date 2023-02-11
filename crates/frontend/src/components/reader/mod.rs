@@ -52,7 +52,7 @@ macro_rules! get_current_section_mut {
     ($self:ident) => {{
         let hash = $self.cached_sections.get($self.viewing_section).map(|v| v.info.header_hash.as_str());
 
-        $self.sections.iter_mut()
+        $self.section_frames.iter_mut()
             .find_map(|sec| {
                 let chap = sec.as_chapter_mut()?;
 
@@ -67,9 +67,9 @@ macro_rules! get_current_section_mut {
 
 macro_rules! get_previous_section_mut {
     ($self:ident) => {{
-        let sec_index = $self.get_current_section_index();
+        let sec_index = $self.get_current_frame_index();
         if let Some(prev_index) = sec_index.checked_sub(1) {
-            $self.sections[prev_index].as_chapter_mut()
+            $self.section_frames[prev_index].as_chapter_mut()
         } else {
             None
         }
@@ -193,7 +193,7 @@ pub struct Reader {
     cached_sections: Vec<Rc<Chapter>>,
 
     // All the sections the books has and the current cached info
-    sections: Vec<SectionLoadProgress>,
+    section_frames: Vec<SectionLoadProgress>,
 
     /// The Chapter we're in
     viewing_section: usize,
@@ -266,7 +266,7 @@ impl Component for Reader {
             cached_dimensions: None,
             cached_sections: Vec::new(),
             // Initialize with 1 section.
-            sections: Vec::new(),
+            section_frames: Vec::new(),
             // sections: (0..ctx.props().book.chapter_count)
             //     .map(|_| SectionLoadProgress::Waiting)
             //     .collect(),
@@ -385,7 +385,7 @@ impl Component for Reader {
                                 } else {
                                     return Component::update(self, ctx, ReaderMsg::NextPage);
                                 }
-                            } else if let Some(section) = self.get_current_section() {
+                            } else if let Some(section) = self.get_current_frame() {
                                 section.transitioning_page(0);
                                 self.drag_distance = 0;
                             }
@@ -426,7 +426,7 @@ impl Component for Reader {
                             DragType::Right(distance) => {
                                 self.drag_distance = distance as isize;
 
-                                if let Some(section) = self.get_current_section() {
+                                if let Some(section) = self.get_current_frame() {
                                     section.transitioning_page(self.drag_distance);
                                 }
                             }
@@ -435,7 +435,7 @@ impl Component for Reader {
                             DragType::Left(distance) => {
                                 self.drag_distance = -(distance as isize);
 
-                                if let Some(section) = self.get_current_section() {
+                                if let Some(section) = self.get_current_frame() {
                                     section.transitioning_page(self.drag_distance);
                                 }
                             }
@@ -444,7 +444,7 @@ impl Component for Reader {
                                 // Clicked on a[href]
                                 if let Some(dur) = instant {
                                     if dur.num_milliseconds() < 500 {
-                                        if let Some(section) = self.get_current_section() {
+                                        if let Some(section) = self.get_current_frame() {
                                             let frame = section.get_iframe();
                                             let document =
                                                 frame.content_document().unwrap_throw();
@@ -622,13 +622,13 @@ impl Component for Reader {
             }
 
             ReaderMsg::NextSection => {
-                let new_section_index = self.get_current_section_index() + 1;
+                let new_section_index = self.get_current_frame_index() + 1;
 
-                if new_section_index == self.sections.len() {
+                if new_section_index == self.section_frames.len() {
                     return false;
                 }
 
-                let next_section = if let Some(sec) = self.sections[new_section_index].as_chapter() {
+                let next_section = if let Some(sec) = self.section_frames[new_section_index].as_chapter() {
                     self.cached_sections.iter().position(|chap| chap.info.header_hash == sec.header_hash)
                 } else {
                     None
@@ -642,11 +642,11 @@ impl Component for Reader {
             }
 
             ReaderMsg::PreviousSection => {
-                let Some(new_section_index) = self.get_current_section_index().checked_sub(1) else {
+                let Some(new_section_index) = self.get_current_frame_index().checked_sub(1) else {
                     return false;
                 };
 
-                let next_section = if let Some(sec) = self.sections[new_section_index].as_chapter() {
+                let next_section = if let Some(sec) = self.section_frames[new_section_index].as_chapter() {
                     self.cached_sections.iter()
                         .enumerate()
                         .rev()
@@ -672,12 +672,12 @@ impl Component for Reader {
 
             // Called after iframe is loaded.
             ReaderMsg::GenerateIFrameLoaded(section_index) => {
-                self.sections[section_index].convert_to_loaded();
+                self.section_frames[section_index].convert_to_loaded();
 
                 log::debug!("Generated Section Frame {}", section_index);
 
                 // Call on_load for the newly loaded frame.
-                if let SectionLoadProgress::Loaded(section) = &mut self.sections[section_index] {
+                if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[section_index] {
                     section.on_load(
                         &mut self.cached_display,
                         &self.handle_js_redirect_clicks,
@@ -754,10 +754,10 @@ impl Component for Reader {
                         ontransitionend={ Callback::from(move|_| link.send_message(ReaderMsg::PageTransitionEnd)) }
                     >
                         {
-                            for (0..self.sections.len())
+                            for (0..self.section_frames.len())
                                 .into_iter()
                                 .map(|i| {
-                                    if let Some(v) = self.sections[i].as_chapter() {
+                                    if let Some(v) = self.section_frames[i].as_chapter() {
                                         Html::VRef(v.get_iframe().clone().into())
                                     } else {
                                         html! {
@@ -802,7 +802,7 @@ impl Component for Reader {
             self.cached_dimensions = Some(props.settings.dimensions);
 
             // Refresh all page styles and sizes.
-            for prog in &self.sections {
+            for prog in &self.section_frames {
                 if let SectionLoadProgress::Loaded(section) = prog {
                     update_iframe_size(Some(props.settings.dimensions), section.get_iframe());
 
@@ -873,7 +873,7 @@ impl Reader {
         let mut transition = Some("transition: left 0.5s ease 0s;").filter(|_| animate_page_transitions);
 
         if self.cached_display.is_scroll() {
-            let viewing = self.sections.iter()
+            let viewing = self.section_frames.iter()
                 .enumerate()
                 .find_map(|(idx, sec)| {
                     if sec.as_chapter()?.header_hash.as_str() == hash? {
@@ -897,7 +897,7 @@ impl Reader {
             // Prevent empty pages when on the first or last page of a section.
             let amount = if self.drag_distance.is_positive() {
                 if self
-                    .get_current_section()
+                    .get_current_frame()
                     .map(|v| v.viewing_page() == 0)
                     .unwrap_or_default()
                 {
@@ -908,7 +908,7 @@ impl Reader {
                 }
             } else if self.drag_distance.is_negative() {
                 if self
-                    .get_current_section()
+                    .get_current_frame()
                     .map(|v| v.viewing_page() == v.page_count().saturating_sub(1))
                     .unwrap_or_default()
                 {
@@ -921,7 +921,7 @@ impl Reader {
                 0
             };
 
-            let viewing = self.sections.iter()
+            let viewing = self.section_frames.iter()
                 .enumerate()
                 .find_map(|(idx, sec)| {
                     if sec.as_chapter()?.header_hash.as_str() == hash? {
@@ -964,7 +964,7 @@ impl Reader {
                 }
 
                 if char_pos != -1 {
-                    for sec in &mut self.sections {
+                    for sec in &mut self.section_frames {
                         if let SectionLoadProgress::Loaded(section) = sec {
                             if section.get_chapters().iter().any(|v| v.value == chapter) {
                                 self.initial_progression_set = true;
@@ -999,15 +999,15 @@ impl Reader {
     }
 
     fn are_all_sections_generated(&self) -> bool {
-        self.sections.iter().all(|v| v.is_loaded())
+        self.section_frames.iter().all(|v| v.is_loaded())
     }
 
     fn update_cached_pages(&mut self) {
         let mut total_page_pos = 0;
 
         // TODO: Verify if needed. Or can we do values_mut() we need to have it in asc order
-        for chapter in 0..self.sections.len() {
-            if let SectionLoadProgress::Loaded(ele) = &mut self.sections[chapter] {
+        for chapter in 0..self.section_frames.len() {
+            if let SectionLoadProgress::Loaded(ele) = &mut self.section_frames[chapter] {
                 let page_count = get_iframe_page_count(ele.get_iframe()).max(1);
 
                 ele.gpi = total_page_pos;
@@ -1038,8 +1038,9 @@ impl Reader {
     }
 
     fn next_page(&mut self, _ctx: &Context<Self>) -> bool {
-        let viewing_chapter = self.viewing_section;
-        let section_count = self.sections.len();
+        let section_count = self.section_frames.len();
+
+        let frame_index = self.get_current_frame_index();
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.next_page(curr_sect) {
@@ -1049,10 +1050,12 @@ impl Reader {
                 curr_sect.transitioning_page(0);
             }
 
-            if viewing_chapter + 1 != section_count {
+            if frame_index + 1 != section_count {
                 self.cached_display.on_stop_viewing(curr_sect);
 
-                self.viewing_section += 1;
+                let (start, _) = self.get_frame_start_and_end_sections(frame_index + 1).unwrap();
+
+                self.viewing_section = start;
                 log::debug!("Next Section");
 
                 // Make sure the next sections viewing page is zero.
@@ -1072,6 +1075,8 @@ impl Reader {
     }
 
     fn previous_page(&mut self, _ctx: &Context<Self>) -> bool {
+        let frame_index = self.get_current_frame_index();
+
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.previous_page(curr_sect) {
                 log::debug!("Previous Page");
@@ -1080,10 +1085,12 @@ impl Reader {
                 curr_sect.transitioning_page(0);
             }
 
-            if self.viewing_section != 0 {
+            if frame_index != 0 {
                 self.cached_display.on_stop_viewing(curr_sect);
 
-                self.viewing_section -= 1;
+                let (_, end) = self.get_frame_start_and_end_sections(frame_index - 1).unwrap();
+
+                self.viewing_section = end;
                 log::debug!("Previous Section");
 
                 // Make sure the next sections viewing page is maxed.
@@ -1104,8 +1111,8 @@ impl Reader {
 
     /// Expensive. Iterates through previous sections.
     fn set_page(&mut self, new_total_page: usize, _ctx: &Context<Self>) -> bool {
-        for section_index in 0..self.sections.len() {
-            if let SectionLoadProgress::Loaded(section) = &mut self.sections[section_index] {
+        for section_index in 0..self.section_frames.len() {
+            if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[section_index] {
                 // This should only happen if the page isn't loaded for some reason.
                 if new_total_page < section.gpi {
                     break;
@@ -1134,7 +1141,7 @@ impl Reader {
             .map(|v| v.info.header_hash.as_str());
 
         // Retrieve next section index and frame.
-        let Some((next_section_index, next_section_frame)) = self.sections.iter()
+        let Some((next_section_index, next_section_frame)) = self.section_frames.iter()
             .enumerate()
             .find_map(|(i, sec)| {
                 if let Some((chap, other_hash)) = sec.as_chapter().zip(hash) {
@@ -1149,6 +1156,8 @@ impl Reader {
             }) else {
                 return false;
             };
+
+        log::debug!("Change Section {next_section_index}");
 
         if next_section_frame.is_waiting() {
             log::info!("Next Section is not loaded - {}", next_section + 1);
@@ -1170,11 +1179,11 @@ impl Reader {
         }
 
         // Stop viewing current section.
-        if let Some(section) = self.get_current_section() {
+        if let Some(section) = self.get_current_frame() {
             self.cached_display.on_stop_viewing(section);
         }
 
-        if let SectionLoadProgress::Loaded(section) = &mut self.sections[next_section_index] {
+        if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[next_section_index] {
             self.viewing_section = next_section;
 
             self.cached_display.set_page(0, section);
@@ -1190,7 +1199,7 @@ impl Reader {
     }
 
     fn after_page_change(&mut self) {
-        if let Some(section) = self.get_current_section() {
+        if let Some(section) = self.get_current_frame() {
             self.visible_redirect_rects =
                 js_get_visible_links(section.get_iframe(), self.cached_display.is_scroll());
         }
@@ -1202,7 +1211,7 @@ impl Reader {
 
         for index in 1..=section_count {
             if let Some(pos) = self
-                .sections
+                .section_frames
                 .get(section_count - index)
                 .and_then(|s| Some(s.as_loaded()?.get_page_count_until()))
             {
@@ -1214,16 +1223,16 @@ impl Reader {
     }
 
     fn current_page_pos(&self) -> usize {
-        self.get_current_section()
+        self.get_current_frame()
             .map(|s| s.gpi + s.viewing_page())
             .unwrap_or_default()
     }
 
-    fn get_current_section(&self) -> Option<&SectionContents> {
+    fn get_current_frame(&self) -> Option<&SectionContents> {
         let hash = self.cached_sections.get(self.viewing_section)
             .map(|v| v.info.header_hash.as_str());
 
-        self.sections.iter()
+        self.section_frames.iter()
             .find_map(|sec| {
                 let chap = sec.as_chapter()?;
 
@@ -1235,11 +1244,29 @@ impl Reader {
             })
     }
 
-    fn get_current_section_index(&self) -> usize {
+    fn get_frame_start_and_end_sections(&self, index: usize) -> Option<(usize, usize)> {
+        let frame = self.section_frames.get(index)?.as_chapter()?;
+
+        let mut start_index = None;
+
+        for (i, sec) in self.cached_sections.iter().enumerate() {
+            if start_index.is_none() {
+                if frame.header_hash == sec.info.header_hash {
+                    start_index = Some(i);
+                }
+            } else if frame.header_hash != sec.info.header_hash {
+                return Some((start_index?, i - 1));
+            }
+        }
+
+        Some((start_index?, self.cached_sections.len() - 1))
+    }
+
+    fn get_current_frame_index(&self) -> usize {
         let hash = self.cached_sections.get(self.viewing_section)
             .map(|v| v.info.header_hash.as_str());
 
-        self.sections.iter()
+        self.section_frames.iter()
             .enumerate()
             .find_map(|(index, sec)| {
                 let chap = sec.as_chapter()?;
@@ -1259,9 +1286,9 @@ impl Reader {
         // FIX: For first load of the reader. js_get_current_byte_pos needs the frame body to be loaded. Otherwise error.
         // Could remove once we optimize the upload requests.
         if let Some(chap) = self
-            .get_current_section()
+            .get_current_frame()
             .filter(|sec|
-                self.sections.iter()
+                self.section_frames.iter()
                 .find_map(|v| if v.as_chapter()?.header_hash == sec.header_hash { Some(v.is_loaded()) } else { None })
                 .unwrap_or_default())
         {
@@ -1283,7 +1310,7 @@ impl Reader {
 
             (
                 viewing_section,
-                self.get_current_section()
+                self.get_current_frame()
                     .map(|v| v.viewing_page())
                     .unwrap_or_default() as i64,
                 char_pos,
@@ -1303,7 +1330,7 @@ impl Reader {
             }
 
             // TODO: Figure out what the last page of each book actually is.
-            v if v == last_page && chapter == self.sections.len().saturating_sub(1) => {
+            v if v == last_page && chapter == self.section_frames.len().saturating_sub(1) => {
                 let value = Some(Progression::Complete);
 
                 *stored_prog.lock().unwrap() = value;
@@ -1373,14 +1400,14 @@ impl Reader {
         // TODO: Load based on prev/next chapters instead of last section.
         let curr_chap = &self.cached_sections[chapter];
 
-        let section_index = self.sections.len();
+        let section_index = self.section_frames.len();
 
         // Create or append section.
-        let use_last_section = self.sections.last()
+        let use_last_section = self.section_frames.last()
             .and_then(|v| Some(v.as_chapter()?.header_hash == curr_chap.info.header_hash))
             .unwrap_or_default();
 
-        if let Some(section_frame) = use_last_section.then_some(self.sections.last_mut()).flatten() {
+        if let Some(section_frame) = use_last_section.then_some(self.section_frames.last_mut()).flatten() {
             if section_frame.is_waiting() {
                 log::info!("Generating Section {}", curr_chap.value + 1);
 
@@ -1392,7 +1419,7 @@ impl Reader {
                 ));
             }
         } else {
-            self.sections.push(SectionLoadProgress::Loading(generate_section(
+            self.section_frames.push(SectionLoadProgress::Loading(generate_section(
                 Some(ctx.props().settings.dimensions),
                 curr_chap.info.header_hash.clone(),
                 section_index,
@@ -1401,7 +1428,7 @@ impl Reader {
         }
 
         // If last section was loaded.
-        match self.sections.last_mut() {
+        match self.section_frames.last_mut() {
             Some(SectionLoadProgress::Loaded(_contents)) => {
                 // TODO: Insert into frame and update render.
                 // TODO: To update we'll have to implement element boundary updates.
