@@ -27,10 +27,10 @@ impl SectionLoadProgress {
     }
 
     pub fn convert_to_loaded(&mut self) {
-        if let Self::Loading(v) = std::mem::replace(self, Self::Waiting) {
-            *self = Self::Loaded(v);
-        } else {
-            panic!("unable to convert")
+        match std::mem::replace(self, Self::Waiting) {
+            SectionLoadProgress::Loading(v) => *self = Self::Loaded(v),
+            SectionLoadProgress::Loaded(v) => *self = Self::Loaded(v),
+            SectionLoadProgress::Waiting => panic!("Shouldn't have tried to convert a waiting variant"),
         }
     }
 
