@@ -172,14 +172,21 @@ export function js_update_iframe_after_load(iframe, section_hash, handle_redirec
 
 /**
  * @param {HTMLIFrameElement} iframe
+ * @param {bool} is_vertical
  * @returns {[number, number]}
 **/
-export function js_get_current_byte_pos(iframe) {
+export function js_get_current_byte_pos(iframe, is_vertical) {
 	let document = iframe.contentDocument;
 
-	let cs = getComputedStyle(document.body);
+	// How much we've moved our current view.
+	let amount;
 
-	let left_amount = Math.abs(parseFloat(cs.left));
+	if (is_vertical) {
+		amount = document.body.scrollTop;
+	} else {
+		let cs = getComputedStyle(document.body);
+		amount = Math.abs(parseFloat(cs.left));
+	}
 
 	let byte_count = 0;
 	let last_section_id = -1;
@@ -196,7 +203,10 @@ export function js_get_current_byte_pos(iframe) {
 
 		if (cont.nodeType == Node.TEXT_NODE && cont.nodeValue.trim().length != 0) {
 			// TODO: Will probably mess up if element takes up a full page.
-			if (left_amount - cont.parentElement.offsetLeft < 0) {
+			if (
+				(is_vertical && (amount - cont.parentElement.offsetTop < 0)) ||
+				(!is_vertical && (amount - cont.parentElement.offsetLeft < 0))
+			) {
 				return true;
 			} else {
 				byte_count += cont.nodeValue.length;

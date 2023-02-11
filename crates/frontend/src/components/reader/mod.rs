@@ -1,7 +1,7 @@
 use std::{path::PathBuf, rc::Rc, sync::Mutex, time::Duration};
 
 use common_local::{Chapter, MediaItem, Progression, MemberReaderPreferences, reader::ReaderColor};
-use gloo_timers::callback::Timeout;
+use gloo_timers::callback::{Timeout, Interval};
 use gloo_utils::{body, window};
 use num_enum::{TryFromPrimitive, IntoPrimitive};
 use wasm_bindgen::{
@@ -31,7 +31,7 @@ extern "C" {
     fn get_iframe_page_count(iframe: &HtmlIFrameElement) -> usize;
 
     // TODO: Use Struct instead. Returns (byte position, section index)
-    fn js_get_current_byte_pos(iframe: &HtmlIFrameElement) -> Option<Vec<usize>>;
+    fn js_get_current_byte_pos(iframe: &HtmlIFrameElement, is_vertical: bool) -> Option<Vec<usize>>;
     fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize)
         -> Option<usize>;
     fn js_get_element_from_byte_position(
@@ -198,6 +198,8 @@ pub struct Reader {
     /// The Chapter we're in
     viewing_section: usize,
 
+    _interval: Interval,
+
     _handle_keyboard: ElementEvent,
     handle_js_redirect_clicks: Closure<dyn FnMut(String, String)>,
     cursor_type: &'static str,
@@ -246,11 +248,17 @@ impl Component for Reader {
                 }
             });
 
-        let link = ElementEvent::link(
+        let handle_keyboard = ElementEvent::link(
             window().unchecked_into(),
             handle_keyboard,
             |e, f| e.add_event_listener_with_callback("keydown", f),
             Box::new(|e, f| e.remove_event_listener_with_callback("keydown", f)),
+        );
+
+        let link = ctx.link().clone();
+        let interval = Interval::new(
+            10_000,
+            move || link.send_message(ReaderMsg::UploadProgress)
         );
 
         Self {
@@ -272,8 +280,10 @@ impl Component for Reader {
 
             scroll_change_page_timeout: None,
 
+            _interval: interval,
+
             handle_js_redirect_clicks,
-            _handle_keyboard: link,
+            _handle_keyboard: handle_keyboard,
             is_transitioning: false,
             initial_progression_set: false,
         }
@@ -973,12 +983,11 @@ impl Reader {
                                 self.initial_progression_set = true;
 
                                 if self.cached_display.is_scroll() {
-                                    if let Some(_element) = js_get_element_from_byte_position(
+                                    if let Some(element) = js_get_element_from_byte_position(
                                         section.get_iframe(),
                                         char_pos as usize,
                                     ) {
-                                        // TODO: Not scrolling properly. Is it somehow scrolling the div@frames html element?
-                                        // element.scroll_into_view();
+                                        element.scroll_into_view();
                                     }
                                 } else {
                                     let page = js_get_page_from_byte_position(
@@ -1258,7 +1267,7 @@ impl Reader {
     }
 
     // TODO: Move to SectionLoadProgress and combine into upload_progress
-    fn upload_progress_and_emit(&self, ctx: &Context<Self>) {
+    fn upload_progress_and_emit(&mut self, ctx: &Context<Self>) {
         // Ensure our current chapter is fully loaded AND NOT loading.
         // FIX: For first load of the reader. js_get_current_byte_pos needs the frame body to be loaded. Otherwise error.
         // Could remove once we optimize the upload requests.
@@ -1269,16 +1278,21 @@ impl Reader {
                 .find_map(|v| if v.as_chapter()?.header_hash == sec.header_hash { Some(v.is_loaded()) } else { None })
                 .unwrap_or_default())
         {
-            self.upload_progress(chap.get_iframe(), ctx);
+            // Clone to prevent immutable hold on self.
+            let iframe = chap.get_iframe().clone();
+
+            self.upload_progress(&iframe, ctx);
         }
     }
 
     // TODO: Move to SectionLoadProgress
-    fn upload_progress(&self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
+    fn upload_progress(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = {
-            let (char_pos, viewing_section) = js_get_current_byte_pos(iframe)
+            let (char_pos, viewing_section) = js_get_current_byte_pos(iframe, self.cached_display.is_scroll())
                 .map(|v| (v[0] as i64, v[1]))
                 .unwrap_or((-1, self.viewing_section));
+
+            self.viewing_section = viewing_section;
 
             (
                 viewing_section,
