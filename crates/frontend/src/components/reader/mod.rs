@@ -135,6 +135,14 @@ impl LoadedChapters {
     }
 }
 
+impl PartialEq for LoadedChapters {
+    fn eq(&self, other: &Self) -> bool {
+        self.total == other.total &&
+        self.chapters.len() == other.chapters.len() &&
+        self.chapters.iter().zip(other.chapters.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+    }
+}
+
 pub enum ReaderEvent {
     ViewOverlay(OverlayEvent),
 }
@@ -153,9 +161,12 @@ pub struct Property {
 }
 
 impl PartialEq for Property {
-    fn eq(&self, _other: &Self) -> bool {
-        // TODO
-        false
+    fn eq(&self, other: &Self) -> bool {
+        self.settings == other.settings &&
+        // self.event == other.event &&
+        Rc::ptr_eq(&self.book, &other.book) &&
+        self.chapters == other.chapters &&
+        Rc::ptr_eq(&self.progress, &other.progress)
     }
 }
 
@@ -378,6 +389,8 @@ impl Component for Reader {
                     OverlayEvent::Release { x, y, width, height, instant } => {
                         log::debug!("Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}");
 
+                        let orig_drag_distance = self.drag_distance;
+
                         if self.drag_distance != 0 {
                             if self.drag_distance.unsigned_abs() > PAGE_CHANGE_DRAG_AMOUNT {
                                 if self.drag_distance.is_positive() {
@@ -409,6 +422,10 @@ impl Component for Reader {
                                     return Component::update(self, ctx, ReaderMsg::NextPage);
                                 }
                             }
+                        }
+
+                        if orig_drag_distance == 0 {
+                            ctx.props().event.emit(ReaderEvent::ViewOverlay(event));
                         }
                     }
 
@@ -486,8 +503,6 @@ impl Component for Reader {
                                 }
                             }
                         }
-
-                        ctx.props().event.emit(ReaderEvent::ViewOverlay(event));
                     }
                 }
             }
@@ -1399,6 +1414,16 @@ impl Reader {
 
         // TODO: Load based on prev/next chapters instead of last section.
         let curr_chap = &self.cached_sections[chapter];
+
+        // Check if chapter is already in section, return.
+        // FIX: If the Properties changes this would be called again.
+        {
+            for sec in self.section_frames.iter().filter_map(|v| v.as_chapter()) {
+                if sec.get_chapters().iter().any(|v| v.value == curr_chap.value) {
+                    return;
+                }
+            }
+        }
 
         let section_index = self.section_frames.len();
 

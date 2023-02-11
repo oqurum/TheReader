@@ -286,11 +286,12 @@ impl Component for ReadingBook {
             Msg::ReaderEvent(event) => {
                 match event {
                     ReaderEvent::ViewOverlay(o_event) => {
-                        if let OverlayEvent::Drag {
-                            type_of, instant, ..
+                        if let OverlayEvent::Release {
+                            instant, ..
                         } = o_event
                         {
-                            if self.reader_settings.default_full_screen && type_of == DragType::None {
+                            if self.reader_settings.default_full_screen {
+                                // TODO: This is causing yew to "reload" the page.
                                 if let Some(dur) = instant {
                                     if dur.num_milliseconds() < 500
                                         && self.display_toolbar.is_expanded()
