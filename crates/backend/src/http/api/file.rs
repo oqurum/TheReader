@@ -34,7 +34,7 @@ pub async fn load_file_resource(
     let body = if res.configure_pages {
         match book.read_path_as_bytes(
             &resource_path,
-            Some(&format!("/api/file/{}/res", file_id)),
+            Some(&format!("/api/file/{file_id}/res")),
             Some(&[include_str!("../../../../../app/book_stylings.css")]),
         ) {
             Ok(v) => v,
@@ -106,9 +106,27 @@ pub async fn load_file_pages(
     for chap in start_chap..end_chap {
         book.set_chapter(chap);
 
+        let body = match book.read_page_as_bytes(
+            Some(&format!("/api/file/{file_id}/res")),
+            Some(&[include_str!("../../../../../app/book_stylings.css")]),
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                error!(
+                    error = ?e, chapter = chap,
+                    "read_path_as_bytes[configured]",
+                );
+
+                return Ok(web::Json(WrappingResponse::Error(common::api::ApiErrorResponse { description: String::from("errar") })));
+            }
+        };
+
+        let info = bookie::epub::extract_body_and_header_values(&body).unwrap();
+
         // TODO: Return file names along with Chapter. Useful for redirecting to certain chapter for <a> tags.
 
         items.push(Chapter {
+            info,
             file_path: book.get_page_path(),
             value: chap,
         });

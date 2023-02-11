@@ -3,6 +3,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
+use common_local::api::{FileUnwrappedHeaderType, FileUnwrappedInfo};
 use xml::{
     attribute::OwnedAttribute, name::OwnedName, reader::XmlEvent as ReaderEvent,
     writer::XmlEvent as WriterEvent, EmitterConfig, EventWriter,
@@ -38,7 +39,7 @@ where
 
     for event in reader {
         match event {
-            Err(e) => eprintln!("update_attributes_with: {}", e),
+            Err(e) => eprintln!("update_attributes_with: {e}"),
             Ok(v) => match v {
                 ReaderEvent::StartElement {
                     name,
@@ -104,6 +105,131 @@ where
 
     Ok(output)
 }
+
+
+fn insert_event(this: &mut FileUnwrappedHeaderType, event: ReaderEvent) {
+    match event {
+        ReaderEvent::ProcessingInstruction { name, data } => todo!("{name}, {data:?}"),
+        ReaderEvent::CData(d) => todo!("cd {d}"),
+        ReaderEvent::Comment(v) => todo!("com {v}"),
+        ReaderEvent::Characters(v) => this.chars.get_or_insert_with(String::default).push_str(&v),
+
+        _ => (),
+    }
+}
+
+
+pub fn extract_body_and_header_values(
+    input: &[u8],
+) -> Result<FileUnwrappedInfo> {
+    let reader = xml::ParserConfig::new()
+        .add_entity("nbsp", " ")
+        .add_entity("copy", "©")
+        .add_entity("reg", "®")
+        .create_reader(input);
+
+    let mut is_inside_body = false;
+    let mut body_output = Vec::new();
+    let mut body_writer = EmitterConfig::default()
+        .perform_indent(true)
+        .write_document_declaration(false)
+        .create_writer(&mut body_output);
+
+    let mut is_inside_head = false;
+    let mut header_items = Vec::new();
+    let mut section_hasher = blake3::Hasher::new();
+
+    for event in reader {
+        match event {
+            Err(e) => eprintln!("extract_body_and_header_values: {e}"),
+            Ok(v) => match v {
+                ReaderEvent::StartElement {
+                    name,
+                    attributes,
+                    namespace,
+                } => {
+                    if is_inside_head {
+                        header_items.push(FileUnwrappedHeaderType {
+                            name: name.borrow().local_name.to_string(),
+                            attributes: attributes.into_iter()
+                                .map(|v| (v.name.to_string(), v.value))
+                                .collect(),
+                            chars: None,
+                        });
+                    } else if is_inside_body {
+                        body_writer
+                            .write(WriterEvent::StartElement {
+                                attributes: Cow::Owned(attributes.iter().map(|v| v.borrow()).collect()),
+                                name: name.borrow(),
+                                namespace: Cow::Owned(namespace),
+                            })
+                            .unwrap();
+                    }
+
+                    if name.local_name.to_lowercase() == "head" {
+                        is_inside_head = true;
+                    }
+
+                    if name.local_name.to_lowercase() == "body" {
+                        is_inside_body = true;
+                    }
+                }
+
+                ReaderEvent::EndElement { name } => {
+                    if name.local_name.to_lowercase() == "body" {
+                        is_inside_body = false;
+                    }
+
+                    if name.local_name.to_lowercase() == "head" {
+                        is_inside_head = false;
+                    }
+
+                    if is_inside_body {
+                        body_writer.write(WriterEvent::end_element()).unwrap();
+                    }
+                }
+
+                v => {
+                    if is_inside_head {
+                        if let Some(header) = header_items.last_mut() {
+                            insert_event(header, v);
+                        }
+                    } else if is_inside_body {
+                        if let Some(v) = v.as_writer_event() {
+                            body_writer.write(v).unwrap();
+                        }
+                    }
+                }
+            },
+        }
+    }
+
+    // TODO: Order Header Items. If one of the sections' headers are in a different order the hash will be different.
+    for item in &header_items {
+        match item.name.to_lowercase().as_str() {
+            "style" => {
+                if let Some(chars) = item.chars.as_ref() {
+                    section_hasher.update(chars.as_bytes());
+                }
+            }
+
+            "link" => {
+                if let Some((_, link)) = item.attributes.iter().find(|(v, _)| v == "href") {
+                    section_hasher.update(link.as_bytes());
+                }
+            }
+
+            _ => ()
+        }
+    }
+
+    Ok(FileUnwrappedInfo {
+        header_items,
+        header_hash: section_hasher.finalize().to_string(),
+        inner_body: unsafe { String::from_utf8_unchecked(body_output) },
+    })
+}
+
 
 /// Updates the path `value` to include the internal zip `path`
 ///

@@ -20,20 +20,47 @@ pub fn for_each_child_map<E, V: Fn(&HtmlElement) -> Option<E>>(
     element: &HtmlElement,
     func: &V,
 ) -> Vec<E> {
-    let children = element.children();
+    fn inner_map<E, V: Fn(&HtmlElement) -> Option<E>>(
+        element: &HtmlElement,
+        func: &V,
+        items: &mut Vec<E>,
+    ) {
+        let children = element.children();
+
+        for i in 0..children.length() {
+            let child = children.item(i).unwrap_throw();
+            let child: HtmlElement = child.unchecked_into();
+
+            if let Some(v) = func(&child) {
+                items.push(v);
+            }
+
+            items.extend(for_each_child_map(&child, func));
+        }
+    }
 
     let mut items = Vec::new();
 
-    for i in 0..children.length() {
-        let child = children.item(i).unwrap_throw();
-        let child: HtmlElement = child.unchecked_into();
-
-        if let Some(v) = func(&child) {
-            items.push(v);
-        }
-
-        items.extend(for_each_child_map(&child, func));
+    if let Some(v) = func(element) {
+        items.push(v);
     }
 
+    inner_map(element, func, &mut items);
+
     items
+}
+
+
+pub fn for_each_sibling_until<V: Fn(&HtmlElement) -> bool>(element: &HtmlElement, func: &V) {
+    let mut sibling = element.next_element_sibling();
+
+    while let Some(node) = sibling {
+        let child: HtmlElement = node.unchecked_into();
+
+        if !func(&child) {
+            break;
+        }
+
+        sibling = child.next_element_sibling();
+    }
 }

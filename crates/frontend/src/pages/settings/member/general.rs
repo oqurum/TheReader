@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
-use common::api::WrappingResponse;
+use common::{api::WrappingResponse, component::select::{SelectModule, SelectItem}};
 use common_local::{MemberBasicPreferences, reader::ReaderColor, MemberPreferences};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
-use crate::{request, components::reader::PageLoadType, AppState};
+use crate::{request, components::reader::{PageLoadType, SectionDisplay}, AppState};
 
 pub enum Msg {
     // Request Results
@@ -166,6 +166,26 @@ impl MemberGeneralPage {
                     </select>
                 </div>
 
+                // Reader Display
+                <div class="mb-3">
+                    <label class="form-label">{ "Reader Display" }</label>
+                    <SelectModule<u8>
+                        default={ prefs.reader.display_type }
+                        class="form-select"
+                        onselect={ ctx.link().callback(move |value| {
+                            Msg::UpdateSettings(
+                                editing,
+                                Box::new(move |pref, _| pref.reader.display_type = value),
+                                serde_json::Value::Null
+                            )
+                        }) }
+                    >
+                        <SelectItem<u8> value=0 name="Single Page" />
+                        <SelectItem<u8> value=1 name="Double Page" />
+                        <SelectItem<u8> value=2 name="Scrolling Page" />
+                    </SelectModule<u8>>
+                </div>
+
                 // Scale Type
                 <div class="mb-3">
                     <label class="form-label">{ "Scale Type" }</label>
@@ -197,7 +217,7 @@ impl MemberGeneralPage {
 
                 <div class="mb-3">
                     <label class="form-label">{ "Load Sections By" }</label>
-                    <select class="form-select"
+                    <select class="form-select" disabled=true
                         onchange={ ctx.link().callback(move |event: Event| {
                             Msg::UpdateSettings(
                                 editing,

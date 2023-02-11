@@ -269,6 +269,21 @@ pub struct BookProgression {
 
 pub type GetChaptersResponse = QueryListResponse<Chapter>;
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FileUnwrappedInfo {
+    pub header_items: Vec<FileUnwrappedHeaderType>,
+    /// The combined Hash of <style text()>, <link @href>,
+    pub header_hash: String,
+    pub inner_body: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FileUnwrappedHeaderType {
+    pub name: String,
+    pub attributes: Vec<(String, String)>,
+    pub chars: Option<String>,
+}
+
 // People
 
 pub type GetPeopleResponse = QueryListResponse<Person>;

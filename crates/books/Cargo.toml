@@ -12,6 +12,8 @@ filesystem = ["binstall-zip"]
 
 
 [dependencies]
+common-local = { path = "../common" }
+
 serde = { workspace = true }
 serde-xml-rs = { workspace = true }
 

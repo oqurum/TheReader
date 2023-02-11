@@ -76,6 +76,10 @@ const IGNORE_ELEMENT_NAMES = [
 function canFlattenElement(element, bodyWidth) {
 	// let cs = getComputedStyle(element);
 
+	if (element.classList.contains('reader-ignore')) {
+		return false;
+	}
+
 	if (!element.hasAttribute('border') && // No displayed border
 		!IGNORE_ELEMENT_NAMES.includes(element.localName) &&
 		element.children.length != 1 // TODO: Optimize. Fix for tableFlattening (<div>/<a> -> <a>)
@@ -103,20 +107,12 @@ function canFlattenElement(element, bodyWidth) {
 }
 
 
-const LOAD_STYLES = [
-	// '/css/'
-];
-
-const LOAD_JS = [
-	// '/js/
-];
-
 /**
  * @param {HTMLIFrameElement} iframe
- * @param {number} chapter
+ * @param {string} chapter
  * @param {(number, string) => void} handle_redirect_click
 **/
-export function js_update_iframe_after_load(iframe, chapter, handle_redirect_click) {
+export function js_update_iframe_after_load(iframe, section_hash, handle_redirect_click) {
 	let document = iframe.contentDocument;
 
 	let started_at = Date.now();
@@ -128,23 +124,9 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 		// TODO: Use single listener for whole iframe.
 		element.addEventListener('click', event => {
 			event.preventDefault();
-			handle_redirect_click(chapter, path);
+			handle_redirect_click(section_hash, path);
 		});
 	});
-
-	for (const link of LOAD_STYLES) {
-		let external = document.createElement('link');
-		external.type = 'text/css';
-		external.rel = 'stylesheet';
-		external.href = link;
-		document.body.appendChild(external);
-	}
-
-	for (const link of LOAD_JS) {
-		let external = document.createElement('script');
-		external.src = link;
-		document.body.appendChild(external);
-	}
 
 	// Caching width here removes a second of render time. Caused by Reflow - width also shouldn't change.
 	let document_width = document.body.clientWidth;
@@ -179,7 +161,7 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 		for (const element of tags) {
 			element.style.width = 'auto';
 			// FIX for long vertical images going past document height
-			element.style.maxHeight = document.body.clientHeight + 'px';
+			element.style.maxHeight = `calc(${document.body.clientHeight}px - 18px)`;
 			// FIX for long horizontal images
 			element.style.maxWidth = '100%';
 		}
@@ -190,17 +172,24 @@ export function js_update_iframe_after_load(iframe, chapter, handle_redirect_cli
 
 /**
  * @param {HTMLIFrameElement} iframe
- * @returns {number}
+ * @param {bool} is_vertical
+ * @returns {[number, number]}
 **/
-export function js_get_current_byte_pos(iframe) {
+export function js_get_current_byte_pos(iframe, is_vertical) {
 	let document = iframe.contentDocument;
 
-	let cs = getComputedStyle(document.body);
+	// How much we've moved our current view.
+	let amount;
 
-	let left_amount = Math.abs(parseFloat(cs.left));
-	let width_amount = parseFloat(cs.width);
+	if (is_vertical) {
+		amount = document.body.scrollTop;
+	} else {
+		let cs = getComputedStyle(document.body);
+		amount = Math.abs(parseFloat(cs.left));
+	}
 
 	let byte_count = 0;
+	let last_section_id = -1;
 
 	/**
 	 *
@@ -208,9 +197,16 @@ export function js_get_current_byte_pos(iframe) {
 	 * @returns {boolean}
 	 */
 	function findTextPos(cont) {
-		if (cont.nodeType == Element.TEXT_NODE && cont.nodeValue.trim().length != 0) {
+		if (cont.nodeType == Node.ELEMENT_NODE && (cont.classList.contains('reader-section-start') || cont.classList.contains('reader-section-end'))) {
+			last_section_id = parseInt(cont.getAttribute('data-section-id'));
+		}
+
+		if (cont.nodeType == Node.TEXT_NODE && cont.nodeValue.trim().length != 0) {
 			// TODO: Will probably mess up if element takes up a full page.
-			if (left_amount - cont.parentElement.offsetLeft < width_amount / 2.0) {
+			if (
+				(is_vertical && (amount - cont.parentElement.offsetTop < 0)) ||
+				(!is_vertical && (amount - cont.parentElement.offsetLeft < 0))
+			) {
 				return true;
 			} else {
 				byte_count += cont.nodeValue.length;
@@ -227,7 +223,7 @@ export function js_get_current_byte_pos(iframe) {
 	}
 
 	if (findTextPos(document.body)) {
-		return byte_count;
+		return [byte_count, last_section_id];
 	} else {
 		return null;
 	}
