@@ -14,6 +14,7 @@ use common_local::{
     ws::{TaskId, TaskType, WebsocketNotification},
     CollectionId, DisplayItem,
 };
+use js_sys::Date;
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
 
@@ -60,6 +61,7 @@ pub struct BookListComponent {
     total_media_count: usize,
 
     is_fetching_media_items: bool,
+    last_request: f64,
 
     book_list_ref: NodeRef,
 
@@ -84,6 +86,7 @@ impl Component for BookListComponent {
             total_media_count: 0,
 
             is_fetching_media_items: false,
+            last_request: 0.0,
 
             book_list_ref: NodeRef::default(),
 
@@ -184,7 +187,7 @@ impl Component for BookListComponent {
             }
 
             Msg::RequestMediaItems => {
-                if self.is_fetching_media_items {
+                if self.is_fetching_media_items || Date::now() - self.last_request < 3500.0 {
                     return false;
                 }
 
@@ -206,6 +209,7 @@ impl Component for BookListComponent {
 
             Msg::MediaListResults(resp) => {
                 self.is_fetching_media_items = false;
+                self.last_request = Date::now();
 
                 match resp.ok() {
                     Ok(mut resp) => {
