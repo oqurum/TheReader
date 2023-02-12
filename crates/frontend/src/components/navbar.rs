@@ -164,7 +164,7 @@ impl Component for NavbarModule {
                     // <ul class="navbar-nav">
                     //     { for self.left_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1)) }
                     // </ul>
-                    <form class="d-flex" role="search">
+                    <form class="d-flex col-8 col-sm-auto" role="search">
                         <div class="input-group">
                             <input ref={ self.input_ref.clone() } class="form-control" type="search" placeholder="Search" aria-label="Search" />
                             <button class="btn btn-success" type="submit" onclick={
