@@ -50,7 +50,7 @@ impl Default for MemberReaderPreferences {
             width: 1040,
             height: 548,
             text_size: 0,
-            color: ReaderColor::default(),
+            color: ReaderColor::Black,
             // SectionDisplay::Double
             display_type: 1,
             // PageLoadType::Select
