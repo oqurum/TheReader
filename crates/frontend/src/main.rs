@@ -17,9 +17,10 @@ use common_local::{
     ws::{TaskId, TaskInfo},
     CollectionId, FileId, LibraryId, Member, Permissions,
 };
-use gloo_utils::body;
+use gloo_utils::{body, document};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
+use wasm_bindgen::UnwrapThrowExt;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -261,6 +262,13 @@ fn switch_base(route: BaseRoute, permissions: Option<Permissions>) -> Html {
 
     if permissions.is_none() && route != BaseRoute::Setup {
         return html! { <pages::LoginPage /> };
+    }
+
+    {
+        // Close Sidebar if open
+        if let Some(sidebar) = document().get_element_by_id("sidebarToggle") {
+            let _ = sidebar.class_list().remove_1("show");
+        }
     }
 
     match route {

@@ -147,8 +147,20 @@ impl Component for NavbarModule {
         }
 
         html! {
-            <nav class={ classes!("navbar", "navbar-expand-lg", "text-bg-dark") }>
+            <nav class={ classes!("navbar", "navbar-expand-sm", "text-bg-dark") }>
                 <div class="container-fluid">
+                    <button
+                        class="navbar-toggler navbar-dark"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#sidebarToggle"
+                        aria-controls="sidebarToggle"
+                        aria-expanded="false"
+                        aria-label="Toggle sidebar"
+                    >
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
                     // <ul class="navbar-nav">
                     //     { for self.left_items.iter().map(|item| Self::render_item(item.0.clone(), &item.1)) }
                     // </ul>

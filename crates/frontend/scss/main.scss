@@ -30,3 +30,21 @@ body {
 .outer-view-container {
     background-color: var(--surface-2);
 }
+
+.sidebar-container.collapse.show,
+.sidebar-container.collapsing {
+    position: fixed;
+    height: 100vh;
+    margin-top: 62px;
+    z-index: 999;
+}
+
+@media (min-width: 576px) {
+    .sidebar-container.collapse.show,
+    .sidebar-container.collapsing {
+        position: unset;
+        height: unset;
+        margin-top: unset;
+        z-index: unset;
+    }
+}

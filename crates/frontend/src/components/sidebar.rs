@@ -97,13 +97,13 @@ impl Component for Sidebar {
 
         if let Some(items) = self.library_items.as_deref() {
             html! {
-                <div class="sidebar-container d-flex flex-column flex-shrink-0 p-2 text-bg-dark">
+                <div class="sidebar-container d-sm-flex flex-column flex-shrink-0 p-2 text-bg-dark collapse collapse-horizontal" id="sidebarToggle">
                     { self.render(items, ctx) }
                 </div>
             }
         } else {
             html! {
-                <div class="sidebar-container d-flex flex-column flex-shrink-0 p-2 text-bg-dark">
+                <div class="sidebar-container d-sm-flex flex-column flex-shrink-0 p-2 text-bg-dark collapse collapse-horizontal" id="sidebarToggle">
                     <h1>{ "..." }</h1>
                 </div>
             }
