@@ -1,6 +1,5 @@
 // TODO: Better security. Simple Proof of Concept.
 
-use actix_identity::Identity;
 use actix_web::web;
 use actix_web::HttpMessage;
 use actix_web::HttpRequest;
@@ -24,6 +23,8 @@ use crate::model::member::NewMemberModel;
 use crate::Error;
 use crate::WebResult;
 
+use super::MemberCookie;
+
 pub static PASSWORD_PATH: &str = "/auth/password";
 
 #[derive(Serialize, Deserialize)]
@@ -35,11 +36,22 @@ pub struct PostPasswordCallback {
 pub async fn post_password_oauth(
     request: HttpRequest,
     query: web::Json<PostPasswordCallback>,
-    identity: Option<Identity>,
+    member_cookie: Option<MemberCookie>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<String>> {
-    if identity.is_some() {
-        return Err(ApiErrorResponse::new("Already logged in").into());
+    // If we're currently logged in as a guest.
+    let mut guest_member = None;
+
+    if let Some(cookie) = &member_cookie {
+        let member = cookie.fetch(&db.basic()).await?;
+
+        if let Some(member) = member {
+            if !member.type_of.is_guest() {
+                return Err(ApiErrorResponse::new("Already logged in").into());
+            }
+
+            guest_member = Some(member);
+        }
     }
 
     let PostPasswordCallback {
@@ -55,6 +67,8 @@ pub async fn post_password_oauth(
     let mut member = if let Some(value) =
         MemberModel::find_one_by_email(&email_str, &db.basic()).await?
     {
+        // TODO: Check if we're currently logged in as a guest member?
+
         if !value.type_of.is_invited() && value.type_of != MemberAuthType::Password {
             return Err(ApiErrorResponse::new(
                 "Member does not have a local password associated with it.",
@@ -67,6 +81,10 @@ pub async fn post_password_oauth(
         } else {
             return Err(ApiErrorResponse::new("Unable to very password hash for account").into());
         }
+    } else if let Some(mut guest_member) = guest_member {
+        guest_member.convert_to_email(email_str);
+
+        guest_member
     } else if !get_config().has_admin_account {
         // Double check that we don't already have users in the database.
         if MemberModel::count(&db.basic()).await? != 0 {

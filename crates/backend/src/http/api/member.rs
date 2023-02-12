@@ -24,27 +24,31 @@ pub async fn load_member_self(
                 member: Some(member.into()),
             },
         )))
-    } else if get_config().is_public_access {
-        // TODO: Utilize IP. If we have 20+ guest members on the same ip we'll clear them. It'll prevent mass-creation of guest accounts.
-
-        let member = NewMemberModel::new_guest();
-
-        let member = member.insert(&db.basic()).await?;
-
-        // TODO: Consolidate these 3 in function inside Auth.
-        let auth = AuthModel::new(Some(member.id));
-
-        auth.insert(&db.basic()).await?;
-
-        remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
-
-        Ok(web::Json(WrappingResponse::okay(
-            api::GetMemberSelfResponse {
-                member: Some(member.into()),
-            },
-        )))
     } else {
-        Ok(web::Json(WrappingResponse::error("Not Signed in.")))
+        let config = get_config();
+
+        if config.has_admin_account && config.is_public_access {
+            // TODO: Utilize IP. If we have 20+ guest members on the same ip we'll clear them. It'll prevent mass-creation of guest accounts.
+
+            let member = NewMemberModel::new_guest();
+
+            let member = member.insert(&db.basic()).await?;
+
+            // TODO: Consolidate these 3 in function inside Auth.
+            let auth = AuthModel::new(Some(member.id));
+
+            auth.insert(&db.basic()).await?;
+
+            remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
+
+            Ok(web::Json(WrappingResponse::okay(
+                api::GetMemberSelfResponse {
+                    member: Some(member.into()),
+                },
+            )))
+        } else {
+            Ok(web::Json(WrappingResponse::error("Not Signed in.")))
+        }
     }
 }
 

@@ -159,6 +159,22 @@ impl NewMemberModel {
 }
 
 impl MemberModel {
+    /// Converts to email account.
+    ///
+    /// NOTE: Changes type to Pending Invite.
+    pub fn convert_to_email(&mut self, email: String) {
+        let name = if let Some(v) = email.split_once('@').map(|v| v.0) {
+            v.to_string()
+        } else {
+            email.clone()
+        };
+
+        self.name = name;
+        self.email = email;
+        self.type_of = MemberAuthType::Invite;
+        self.permissions = Permissions::basic();
+    }
+
     pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
         self.updated_at = Utc::now();
 

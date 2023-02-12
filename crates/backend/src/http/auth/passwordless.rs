@@ -2,7 +2,6 @@
 
 // TODO: Better security. Simple Proof of Concept.
 
-use actix_identity::Identity;
 use actix_web::{http::header, HttpResponse};
 use actix_web::{web, HttpMessage, HttpRequest};
 use common::api::{ApiErrorResponse, WrappingResponse};
@@ -23,6 +22,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::database::Database;
 
+use super::MemberCookie;
+
 pub static PASSWORDLESS_PATH: &str = "/auth/passwordless";
 pub static PASSWORDLESS_PATH_CB: &str = "/auth/passwordless/response";
 
@@ -34,10 +35,25 @@ pub struct PostPasswordlessCallback {
 pub async fn post_passwordless_oauth(
     req: HttpRequest,
     query: web::Json<PostPasswordlessCallback>,
-    identity: Option<Identity>,
+    member_cookie: Option<MemberCookie>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    if identity.is_some() || !is_setup() {
+    // If we're currently logged in as a guest.
+    let mut guest_member = None;
+
+    if let Some(cookie) = &member_cookie {
+        let member = cookie.fetch(&db.basic()).await?;
+
+        if let Some(member) = member {
+            if !member.type_of.is_guest() {
+                return Err(ApiErrorResponse::new("Already logged in").into());
+            }
+
+            guest_member = Some(member);
+        }
+    }
+
+    if !is_setup() {
         return Err(ApiErrorResponse::new("Already logged in").into());
     }
 
@@ -46,7 +62,7 @@ pub async fn post_passwordless_oauth(
     } = query.into_inner();
     email_str = email_str.trim().to_string();
 
-    if MemberModel::find_one_by_email(&email_str, &db.basic())
+    if guest_member.is_none() && MemberModel::find_one_by_email(&email_str, &db.basic())
         .await?
         .is_none()
         && get_config().has_admin_account
@@ -88,7 +104,12 @@ pub async fn post_passwordless_oauth(
         .map_err(Error::from)?
     );
 
-    let main_html = render_email(proto, host, &email_config.display_name, &auth_callback_url);
+    let main_html = render_email(
+        proto,
+        host,
+        &email_config.display_name,
+        &auth_callback_url
+    );
 
     auth_model.insert(&db.basic()).await?;
 
@@ -106,16 +127,26 @@ pub struct QueryCallback {
 pub async fn get_passwordless_oauth_callback(
     request: HttpRequest,
     query: web::Query<QueryCallback>,
-    identity: Option<Identity>,
+    member_cookie: Option<MemberCookie>,
     db: web::Data<Database>,
 ) -> WebResult<HttpResponse> {
-    if identity.is_some() {
-        return Ok(HttpResponse::Found()
-            .append_header((header::LOCATION, "/"))
-            .finish());
+    // If we're currently logged in as a guest.
+    let mut guest_member = None;
+
+    if let Some(cookie) = &member_cookie {
+        let member = cookie.fetch(&db.basic()).await?;
+
+        if let Some(member) = member {
+            if !member.type_of.is_guest() {
+                return Err(ApiErrorResponse::new("Already logged in").into());
+            }
+
+            guest_member = Some(member);
+        }
     }
 
     let QueryCallback { oauth_token, email } = query.into_inner();
+    let email = email.trim().to_string();
 
     // Verify that's is a proper email address.
     let address = email.parse::<Address>().map_err(Error::from)?;
@@ -126,6 +157,10 @@ pub async fn get_passwordless_oauth_callback(
             MemberModel::find_one_by_email(&email, &db.basic()).await?
         {
             value
+        } else if let Some(mut guest_member) = guest_member {
+            guest_member.convert_to_email(email);
+
+            guest_member
         } else if !get_config().has_admin_account {
             // Double check that we don't already have users in the database.
             if MemberModel::count(&db.basic()).await? != 0 {

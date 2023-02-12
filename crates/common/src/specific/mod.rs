@@ -37,6 +37,10 @@ impl MemberAuthType {
     pub fn is_invited(self) -> bool {
         matches!(self, Self::Invite)
     }
+
+    pub fn is_guest(self) -> bool {
+        matches!(self, Self::Guest)
+    }
 }
 
 #[cfg(feature = "backend")]
