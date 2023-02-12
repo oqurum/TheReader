@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     database::{Database, DatabaseAccess},
     model::{auth::AuthModel, member::MemberModel},
-    InternalError, Result, WebError,
+    InternalError, Result, WebError, config::get_config,
 };
 
 pub mod password;
@@ -163,7 +163,7 @@ where
             let (r, mut pl) = req.into_parts();
 
             // Should we ignore the check?
-            if r.path() == "/api/setup" || r.path() == "/api/directory" {
+            if r.path() == "/api/setup" || r.path() == "/api/directory" || get_config().is_public_access {
                 return srv
                     .call(ServiceRequest::from_parts(r, pl))
                     .await

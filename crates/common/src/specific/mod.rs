@@ -30,6 +30,7 @@ pub enum MemberAuthType {
     External = 1,
     Passwordless = 2,
     Password = 3,
+    Guest = 4,
 }
 
 impl MemberAuthType {

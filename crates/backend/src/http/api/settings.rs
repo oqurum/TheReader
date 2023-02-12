@@ -267,6 +267,7 @@ async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
         authenticators: value.authenticators,
 
         has_admin_account: false,
+        is_public_access: false,
     };
 
     tokio::fs::write(CONFIG_PATH, toml_edit::ser::to_string_pretty(&config)?).await?;

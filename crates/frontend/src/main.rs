@@ -257,7 +257,7 @@ pub enum BaseRoute {
 }
 
 fn switch_base(route: BaseRoute, permissions: Option<Permissions>) -> Html {
-    log::info!("{:?}", route);
+    log::info!("route: {route:?} perms: {permissions:?}");
 
     if permissions.is_none() && route != BaseRoute::Setup {
         return html! { <pages::LoginPage /> };

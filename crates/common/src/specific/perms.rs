@@ -12,6 +12,7 @@ bitflags! {
     pub struct GroupPermissions: u64 {
         const OWNER             = 1 << 0;
         const BASIC             = 1 << 1;
+        const GUEST             = 1 << 2;
     }
 }
 
@@ -25,6 +26,12 @@ impl Permissions {
     pub fn empty() -> Self {
         Self {
             group: GroupPermissions::empty(),
+        }
+    }
+
+    pub fn guest() -> Self {
+        Self {
+            group: GroupPermissions::GUEST,
         }
     }
 

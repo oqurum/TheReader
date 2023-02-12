@@ -1,5 +1,8 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use chrono::{DateTime, Utc};
 use common::MemberId;
+use rand::Rng;
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
@@ -7,6 +10,8 @@ use common_local::{MemberAuthType, Permissions};
 use serde::Serialize;
 
 use super::{AdvRow, TableRow};
+
+pub static GUEST_INDEX: AtomicUsize = AtomicUsize::new(1);
 
 pub struct NewMemberModel {
     pub name: String,
@@ -23,6 +28,30 @@ pub struct NewMemberModel {
 }
 
 impl NewMemberModel {
+    pub fn new_guest() -> Self {
+        let email = format!(
+            "guest.account{}{}@oqurum.io",
+            rand::thread_rng().gen_range(10_000usize..999_999),
+            GUEST_INDEX.fetch_add(1, Ordering::Relaxed),
+        );
+
+        let name = if let Some(v) = email.split_once('@').map(|v| v.0) {
+            v.to_string()
+        } else {
+            email.clone()
+        };
+
+        Self {
+            name,
+            email,
+            type_of: MemberAuthType::Guest,
+            permissions: Permissions::guest(),
+            preferences: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
     pub fn from_email(email: String) -> Self {
         // TODO: unzip once stable
         let name = if let Some(v) = email.split_once('@').map(|v| v.0) {

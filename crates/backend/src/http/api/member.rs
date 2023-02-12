@@ -1,27 +1,51 @@
-use actix_web::{get, post, web};
+use actix_web::{get, post, web, HttpRequest, HttpMessage};
 use common::api::{ApiErrorResponse, WrappingResponse};
 use common_local::api;
 
 use crate::{
     database::Database,
-    http::{JsonResponse, MemberCookie},
-    model::member::{MemberModel, NewMemberModel},
-    WebResult,
+    http::{JsonResponse, MemberCookie, remember_member_auth},
+    model::{member::{MemberModel, NewMemberModel}, auth::AuthModel},
+    WebResult, config::get_config,
 };
 
 // TODO: Add body requests for specifics
 #[get("/member")]
 pub async fn load_member_self(
-    member: MemberCookie,
+    request: HttpRequest,
+    member: Option<MemberCookie>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetMemberSelfResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    if let Some(member) = &member {
+        let member = member.fetch_or_error(&db.basic()).await?;
 
-    Ok(web::Json(WrappingResponse::okay(
-        api::GetMemberSelfResponse {
-            member: Some(member.into()),
-        },
-    )))
+        Ok(web::Json(WrappingResponse::okay(
+            api::GetMemberSelfResponse {
+                member: Some(member.into()),
+            },
+        )))
+    } else if get_config().is_public_access {
+        // TODO: Utilize IP. If we have 20+ guest members on the same ip we'll clear them. It'll prevent mass-creation of guest accounts.
+
+        let member = NewMemberModel::new_guest();
+
+        let member = member.insert(&db.basic()).await?;
+
+        // TODO: Consolidate these 3 in function inside Auth.
+        let auth = AuthModel::new(Some(member.id));
+
+        auth.insert(&db.basic()).await?;
+
+        remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
+
+        Ok(web::Json(WrappingResponse::okay(
+            api::GetMemberSelfResponse {
+                member: Some(member.into()),
+            },
+        )))
+    } else {
+        Ok(web::Json(WrappingResponse::error("Not Signed in.")))
+    }
 }
 
 #[post("/member")]

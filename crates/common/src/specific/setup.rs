@@ -20,6 +20,7 @@ impl SetupConfig {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     pub server: ConfigServer,
     #[serde(default)]
@@ -28,6 +29,7 @@ pub struct Config {
     pub authenticators: Authenticators,
 
     pub has_admin_account: bool,
+    pub is_public_access: bool,
 }
 
 impl Config {
