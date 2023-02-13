@@ -87,7 +87,7 @@ impl Table {
         if table_rect.height().ceil() as usize > max_height {
             if self.contains_body() {
                 if self.contains_multiple_bodies() {
-                    log::error!("Currently not handling multiple bodies.");
+                    error!("Currently not handling multiple bodies.");
                 } else if let Some(body) = self.items.iter().find(|v| v.local_name() == "tbody") {
                     let body_rect = body.get_bounding_client_rect();
 
@@ -154,7 +154,7 @@ impl Table {
                     return new_tables;
                 }
             } else {
-                log::error!("Doesn't contain body");
+                error!("Doesn't contain body");
             }
         }
 
@@ -183,26 +183,26 @@ impl Table {
     fn clear(&self) {
         if self.contains_body() {
             if self.contains_multiple_bodies() {
-                log::error!("Currently not handling multiple bodies.");
+                error!("Currently not handling multiple bodies.");
             } else if let Some(body) = self.items.iter().find(|v| v.local_name() == "tbody") {
                 while let Some(child) = body.first_child() {
                     body.remove_child(&child).unwrap_throw();
                 }
             }
         } else {
-            log::error!("Doesn't contain body");
+            error!("Doesn't contain body");
         }
     }
 
     fn prepend(&self, node: &Node) {
         if self.contains_body() {
             if self.contains_multiple_bodies() {
-                log::error!("Currently not handling multiple bodies.");
+                error!("Currently not handling multiple bodies.");
             } else if let Some(body) = self.items.iter().find(|v| v.local_name() == "tbody") {
                 body.prepend_with_node_1(node).unwrap_throw();
             }
         } else {
-            log::error!("Doesn't contain body");
+            error!("Doesn't contain body");
         }
     }
 }

@@ -63,7 +63,7 @@ impl Component for Notes {
             Msg::Ignore => (),
 
             Msg::OnAutoSave => {
-                log::info!("Auto Save");
+                info!("Auto Save");
 
                 self.timeout = None;
 

@@ -187,9 +187,9 @@ impl Component for ReadingBook {
                         self.reader_settings.dimensions =
                             (cont.client_width().max(0), cont.client_height().max(0));
 
-                        log::debug!("Window Resize: {:?}", self.reader_settings.dimensions);
+                        debug!("Window Resize: {:?}", self.reader_settings.dimensions);
                     } else {
-                        log::debug!("Window Resize: book container doesn't exist");
+                        debug!("Window Resize: book container doesn't exist");
                     }
                 } else {
                     return false;
@@ -397,7 +397,7 @@ impl Component for ReadingBook {
                 self.reader_settings.dimensions =
                     (cont.client_width().max(0), cont.client_height().max(0));
 
-                log::debug!("Render Size: {:?}", self.reader_settings.dimensions);
+                debug!("Render Size: {:?}", self.reader_settings.dimensions);
             }
         }
     }

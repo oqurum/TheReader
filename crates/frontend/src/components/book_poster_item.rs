@@ -257,7 +257,7 @@ impl Component for BookPosterItem {
                                         progress={ ctx.props().progress.as_ref().map(|v| v.0) }
 
                                         event={ ctx.link().callback(move |e| {
-                                            log::debug!("{e:?}");
+                                            debug!("{e:?}");
 
                                             match e {
                                                 DropdownInfoPopupEvent::Closed => BookPosterItemMsg::ClosePopup,

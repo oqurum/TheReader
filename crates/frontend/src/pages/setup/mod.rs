@@ -93,7 +93,7 @@ impl Component for SetupPage {
 
             SetupPageMessage::AfterSentConfigError(err) => {
                 self.is_waiting_for_resp = false;
-                log::error!("{}", err.description);
+                error!("{}", err.description);
                 // TODO: Temporary way to show errors.
                 crate::display_error(err);
             }

@@ -1,5 +1,7 @@
 #![allow(clippy::let_unit_value, clippy::type_complexity)]
 
+#[macro_use(info, debug, error)] extern crate log;
+
 use std::{
     collections::HashMap,
     mem::MaybeUninit,
@@ -258,7 +260,7 @@ pub enum BaseRoute {
 }
 
 fn switch_base(route: BaseRoute, permissions: Option<Permissions>) -> Html {
-    log::info!("route: {route:?} perms: {permissions:?}");
+    info!("route: {route:?} perms: {permissions:?}");
 
     if permissions.is_none() && route != BaseRoute::Setup {
         return html! { <pages::LoginPage /> };
@@ -340,7 +342,7 @@ fn html_container(value: &'static str) -> Html {
 fn main() {
     wasm_logger::init(wasm_logger::Config::default());
 
-    log::debug!("starting...");
+    debug!("starting...");
 
     body().set_class_name("text-light d-flex");
 

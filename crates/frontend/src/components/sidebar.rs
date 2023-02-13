@@ -70,7 +70,7 @@ impl Component for Sidebar {
 
             Msg::LocationChange(_nav) => {
                 self.viewing = Viewing::get_from_route(ctx.link());
-                log::debug!("-- {:?}", self.viewing);
+                debug!("-- {:?}", self.viewing);
             }
 
             Msg::HideEdit => {

@@ -305,12 +305,12 @@ impl Component for Reader {
             ReaderMsg::Ignore => return false,
 
             ReaderMsg::PageTransitionStart => {
-                log::debug!("Page Transition Start: {}", self.drag_distance);
+                debug!("Page Transition Start: {}", self.drag_distance);
                 self.is_transitioning = true;
             }
 
             ReaderMsg::PageTransitionEnd => {
-                log::debug!("Page Transition End: {}", self.drag_distance);
+                debug!("Page Transition End: {}", self.drag_distance);
                 self.is_transitioning = false;
 
                 // TODO: Check if we we changed pages to being with.
@@ -327,7 +327,7 @@ impl Component for Reader {
             }
 
             ReaderMsg::HandleJsRedirect(_section_hash, file_path, _id_name) => {
-                log::debug!("ReaderMsg::HandleJsRedirect(section_hash: {_section_hash}, file_path: {file_path:?}, id_name: {_id_name:?})");
+                debug!("ReaderMsg::HandleJsRedirect(section_hash: {_section_hash}, file_path: {file_path:?}, id_name: {_id_name:?})");
 
                 let file_path = PathBuf::from(file_path);
 
@@ -387,7 +387,7 @@ impl Component for Reader {
                     }
 
                     OverlayEvent::Release { x, y, width, height, instant } => {
-                        log::debug!("Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}");
+                        debug!("Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}");
 
                         let orig_drag_distance = self.drag_distance;
 
@@ -412,13 +412,13 @@ impl Component for Reader {
 
                                 // Previous Page
                                 if x <= clickable_size {
-                                    log::debug!("Clicked Previous");
+                                    debug!("Clicked Previous");
                                     return Component::update(self, ctx, ReaderMsg::PreviousPage);
                                 }
 
                                 // Next Page
                                 else if x >= width - clickable_size {
-                                    log::debug!("Clicked Next");
+                                    debug!("Clicked Next");
                                     return Component::update(self, ctx, ReaderMsg::NextPage);
                                 }
                             }
@@ -689,7 +689,7 @@ impl Component for Reader {
             ReaderMsg::GenerateIFrameLoaded(section_index) => {
                 self.section_frames[section_index].convert_to_loaded();
 
-                log::debug!("Generated Section Frame {}", section_index);
+                debug!("Generated Section Frame {}", section_index);
 
                 // Call on_load for the newly loaded frame.
                 if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[section_index] {
@@ -841,7 +841,7 @@ impl Component for Reader {
 
 impl Reader {
     fn load_surrounding_sections(&mut self, ctx: &Context<Self>) {
-        log::debug!("Page Load Type: {:?}", ctx.props().settings.type_of);
+        debug!("Page Load Type: {:?}", ctx.props().settings.type_of);
 
         // TODO: Re-implement Select
         // match ctx.props().settings.type_of {
@@ -965,14 +965,14 @@ impl Reader {
             return;
         }
 
-        log::debug!("use_progression: {:?}", prog);
+        debug!("use_progression: {:?}", prog);
 
         if let Some(prog) = prog {
             if let Progression::Ebook { chapter, char_pos, .. } = prog {
                 let chapter = chapter as usize;
 
                 if self.viewing_section != chapter {
-                    log::debug!("use_progression - set section: {chapter}");
+                    debug!("use_progression - set section: {chapter}");
 
                     // TODO: utilize page. Main issue is resizing the reader w/h will return a different page. Hence the char_pos.
                     self.set_section(chapter, ctx);
@@ -997,7 +997,7 @@ impl Reader {
                                         char_pos as usize,
                                     );
 
-                                    log::debug!("use_progression - set page: {:?}", page);
+                                    debug!("use_progression - set page: {:?}", page);
 
                                     if let Some(page) = page {
                                         self.cached_display.set_page(page, section);
@@ -1044,7 +1044,7 @@ impl Reader {
     }
 
     fn on_all_frames_generated(&mut self, ctx: &Context<Self>) {
-        log::info!("All Frames Generated");
+        info!("All Frames Generated");
         // Double check page counts before proceeding.
         self.update_cached_pages();
 
@@ -1059,7 +1059,7 @@ impl Reader {
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.next_page(curr_sect) {
-                log::debug!("Next Page");
+                debug!("Next Page");
                 return true;
             } else {
                 curr_sect.transitioning_page(0);
@@ -1071,7 +1071,7 @@ impl Reader {
                 let (start, _) = self.get_frame_start_and_end_sections(frame_index + 1).unwrap();
 
                 self.viewing_section = start;
-                log::debug!("Next Section");
+                debug!("Next Section");
 
                 // Make sure the next sections viewing page is zero.
                 if let Some(next_sect) = get_current_section_mut!(self) {
@@ -1094,7 +1094,7 @@ impl Reader {
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
             if self.cached_display.previous_page(curr_sect) {
-                log::debug!("Previous Page");
+                debug!("Previous Page");
                 return true;
             } else {
                 curr_sect.transitioning_page(0);
@@ -1106,7 +1106,7 @@ impl Reader {
                 let (_, end) = self.get_frame_start_and_end_sections(frame_index - 1).unwrap();
 
                 self.viewing_section = end;
-                log::debug!("Previous Section");
+                debug!("Previous Section");
 
                 // Make sure the next sections viewing page is maxed.
                 if let Some(next_sect) = get_current_section_mut!(self) {
@@ -1172,10 +1172,10 @@ impl Reader {
                 return false;
             };
 
-        log::debug!("Change Section {next_section_index}");
+        debug!("Change Section {next_section_index}");
 
         if next_section_frame.is_waiting() {
-            log::info!("Next Section is not loaded - {}", next_section + 1);
+            info!("Next Section is not loaded - {}", next_section + 1);
 
             self.load_section(next_section, ctx);
 
@@ -1434,7 +1434,7 @@ impl Reader {
 
         if let Some(section_frame) = use_last_section.then_some(self.section_frames.last_mut()).flatten() {
             if section_frame.is_waiting() {
-                log::info!("Generating Section {}", curr_chap.value + 1);
+                info!("Generating Section {}", curr_chap.value + 1);
 
                 *section_frame = SectionLoadProgress::Loading(generate_section(
                     Some(ctx.props().settings.dimensions),

@@ -24,7 +24,7 @@ pub fn open_websocket_conn() {
         .unwrap_throw()
         .starts_with("https");
 
-    log::info!("Secure? {secure}");
+    info!("Secure? {secure}");
 
     let ws_type = if secure { "wss" } else { "ws" };
 
@@ -32,7 +32,7 @@ pub fn open_websocket_conn() {
 
     let ws = WebSocket::open(&url).unwrap();
 
-    log::info!("Connected to WS: {}", url);
+    info!("Connected to WS: {}", url);
 
     // Split Websocket
     let (write, read) = ws.split();
@@ -51,7 +51,7 @@ fn create_outgoing_writer(
     spawn_local(async move {
         while let Some(s) = receive.next().await {
             if !s.is_pong() {
-                log::debug!("WEBSOCKET [OUTGOING]: {:?}", s);
+                debug!("WEBSOCKET [OUTGOING]: {:?}", s);
             }
 
             write
@@ -60,7 +60,7 @@ fn create_outgoing_writer(
                 .unwrap();
         }
 
-        log::debug!("WebSocket Send Closed");
+        debug!("WebSocket Send Closed");
     });
 }
 
@@ -79,7 +79,7 @@ fn create_incoming_reader(
                     if resp.is_ping() {
                         send_back.send(WebsocketResponse::Pong).await.unwrap();
                     } else if let WebsocketResponse::Notification(v) = resp {
-                        log::debug!("WEBSOCKET [INCOMING] Text: {:?}", v);
+                        debug!("WEBSOCKET [INCOMING] Text: {:?}", v);
                         event_bus.send(v);
                     }
                 }
@@ -88,12 +88,12 @@ fn create_incoming_reader(
                     let decoded = std::str::from_utf8(&b);
 
                     if let Ok(val) = decoded {
-                        log::debug!("WEBSOCKET [INCOMING] Bytes: {}", val);
+                        debug!("WEBSOCKET [INCOMING] Bytes: {}", val);
                     }
                 }
 
                 Err(e) => {
-                    log::error!("Websocket: {:?}", e);
+                    error!("Websocket: {:?}", e);
                     send_back.close_channel();
 
                     TimeoutFuture::new(10_000).await;
@@ -105,6 +105,6 @@ fn create_incoming_reader(
             }
         }
 
-        log::debug!("WebSocket Receive Closed");
+        debug!("WebSocket Receive Closed");
     });
 }
