@@ -1,8 +1,8 @@
 use common::{
     api::WrappingResponse,
-    component::popup::{Popup, PopupType},
+    component::{popup::{Popup, PopupType}, select::{SelectModule, SelectItem}},
 };
-use common_local::{api, BasicLibrary, LibraryId};
+use common_local::{api, BasicLibrary, LibraryId, LibraryType};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_list;
@@ -156,11 +156,13 @@ pub struct NewLibraryProps {
 #[function_component(NewLibrary)]
 fn new_library(props: &NewLibraryProps) -> Html {
     let library_name = use_state(String::new);
+    let library_type = use_state(|| LibraryType::Book);
     let directories = use_list(Vec::<String>::new());
 
     let on_create = {
         let dirs = directories.clone();
         let name = library_name.clone();
+        let library_type = library_type.clone();
 
         props.callback.reform(move |_| {
             Msg::RequestUpdateOptions(
@@ -168,6 +170,7 @@ fn new_library(props: &NewLibraryProps) -> Html {
                 api::ModifyOptionsBody {
                     library: Some(BasicLibrary {
                         id: None,
+                        type_of: *library_type,
                         name: Some(name.to_string()),
                         directories: Some(dirs.current().to_vec()),
                     }),
@@ -198,6 +201,12 @@ fn new_library(props: &NewLibraryProps) -> Html {
         })
     };
 
+    let on_change_select = {
+        let lib_type = library_type.setter();
+
+        Callback::from(move |e| lib_type.set(e))
+    };
+
     html! {
         <Popup
             // classes=""
@@ -211,6 +220,17 @@ fn new_library(props: &NewLibraryProps) -> Html {
             <div class="modal-body">
                 <div class="mb-3 input-group">
                     <input class="form-control" type="text" name="library-name" placeholder="Library Name" onchange={ on_change_lib_name } />
+                </div>
+
+                <div class="mb-3 input-group">
+                    <SelectModule<LibraryType>
+                        class="form-select"
+                        onselect={ on_change_select }
+                    >
+                        <SelectItem<LibraryType> value={ LibraryType::Book } name="Book" />
+                        <SelectItem<LibraryType> value={ LibraryType::ComicBook } name="Comic Book" />
+                    </SelectModule<LibraryType>>
+
                     <button class="btn btn-success btn-sm" onclick={ on_create }>{"Create"}</button>
                 </div>
 

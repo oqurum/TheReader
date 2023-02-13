@@ -1,5 +1,5 @@
-use common::component::PopupClose;
-use common_local::{api::UpdateLibrary, LibraryId};
+use common::component::{PopupClose, select::{SelectModule, SelectItem}};
+use common_local::{api::UpdateLibrary, LibraryId, LibraryType};
 use web_sys::{Event, HtmlInputElement};
 use yew::prelude::*;
 use yew_hooks::{use_async, use_async_with_options, UseAsyncOptions};
@@ -150,6 +150,18 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
                                 <div class="mb-3">
                                     <label class="form-label" for="asdf">{ "Library Name: " }</label>
                                     <input class="form-control" placeholder="Library Name" type="text" value={ library.name.clone() } onchange={ on_change_name } />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="asdf">{ "Library Type: " }</label>
+                                    <SelectModule<LibraryType>
+                                        class="form-select"
+                                        default={ library.type_of }
+                                        disabled=true
+                                    >
+                                        <SelectItem<LibraryType> value={ LibraryType::Book } name="Book" />
+                                        <SelectItem<LibraryType> value={ LibraryType::ComicBook } name="Comic Book" />
+                                    </SelectModule<LibraryType>>
                                 </div>
 
                                 <div class="mb-3">

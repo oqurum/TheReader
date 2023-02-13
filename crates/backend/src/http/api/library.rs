@@ -22,6 +22,7 @@ async fn load_library_list(
                     id: file.id,
 
                     name: file.name,
+                    type_of: file.type_of,
 
                     created_at: file.created_at.timestamp_millis(),
                     scanned_at: file.scanned_at.timestamp_millis(),
@@ -49,6 +50,7 @@ async fn load_library_id(
         id: model.id,
 
         name: model.name,
+        type_of: model.type_of,
 
         created_at: model.created_at.timestamp_millis(),
         scanned_at: model.scanned_at.timestamp_millis(),

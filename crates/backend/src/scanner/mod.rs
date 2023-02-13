@@ -57,13 +57,13 @@ pub async fn library_scan(
                     None => (file_name, String::new()),
                 };
 
-                send_message_to_clients(WebsocketNotification::update_task(
-                    task_id,
-                    TaskType::LibraryScan(file_name.clone()),
-                    true,
-                ));
+                if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) && library.type_of.is_filetype_valid(file_type.as_str()) {
+                    send_message_to_clients(WebsocketNotification::update_task(
+                        task_id,
+                        TaskType::LibraryScan(file_name.clone()),
+                        true,
+                    ));
 
-                if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) {
                     let file_size = fs::metadata(&path).await?.len();
 
                     checked_items += 1;

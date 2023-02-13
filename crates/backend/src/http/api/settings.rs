@@ -7,7 +7,7 @@ use common::api::{
 };
 use common_local::{
     api,
-    setup::{Config, LibraryConnection, SetupConfig},
+    setup::{Config, LibraryConnection, SetupConfig}, LibraryType,
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -95,6 +95,7 @@ pub async fn save_initial_setup(
 
         let lib = NewLibraryModel {
             name: format!("New Library #{library_count}"),
+            type_of: LibraryType::Book, // TODO: Specify type.
             created_at: now,
             scanned_at: now,
             updated_at: now,

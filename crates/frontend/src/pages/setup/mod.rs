@@ -239,6 +239,8 @@ impl SetupPage {
                     />
                 </div>
 
+                // TODO: Multiple Libraries.
+                // TODO: Specify Library Type.
                 <div class="mb-3">
                     <label class="form-label" for="our-directory">{ "Search Directory" }</label>
                     <FileSearchComponent

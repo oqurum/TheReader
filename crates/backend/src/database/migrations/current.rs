@@ -25,6 +25,7 @@ pub async fn init(database: &Database) -> Result<()> {
             "id"                 INTEGER NOT NULL UNIQUE,
 
             "name"               TEXT UNIQUE,
+            "type_of"            INT NOT NULL,
 
             "scanned_at"         TEXT NOT NULL,
             "created_at"         TEXT NOT NULL,

@@ -3,12 +3,13 @@ use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
 use crate::{DatabaseAccess, Result};
-use common_local::LibraryId;
+use common_local::{LibraryId, LibraryType};
 
 use super::{directory::DirectoryModel, AdvRow, TableRow};
 
 pub struct NewLibraryModel {
     pub name: String,
+    pub type_of: LibraryType,
 
     pub scanned_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
@@ -20,6 +21,7 @@ pub struct LibraryModel {
     pub id: LibraryId,
 
     pub name: String,
+    pub type_of: LibraryType,
 
     pub scanned_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
@@ -31,6 +33,7 @@ impl TableRow<'_> for LibraryModel {
         Ok(Self {
             id: row.next()?,
             name: row.next()?,
+            type_of: LibraryType::try_from(row.next::<i32>()?).unwrap(),
             scanned_at: row.next()?,
             created_at: row.next()?,
             updated_at: row.next()?,
@@ -43,9 +46,10 @@ impl NewLibraryModel {
         let lock = db.write().await;
 
         lock.execute(
-            r#"INSERT INTO library (name, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)"#,
+            r#"INSERT INTO library (name, type_of, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4)"#,
             params![
                 &self.name,
+                i32::from(self.type_of),
                 self.scanned_at,
                 self.created_at,
                 self.updated_at,
@@ -55,6 +59,7 @@ impl NewLibraryModel {
         Ok(LibraryModel {
             id: LibraryId::from(lock.last_insert_rowid() as usize),
             name: self.name,
+            type_of: self.type_of,
             scanned_at: self.scanned_at,
             created_at: self.created_at,
             updated_at: self.updated_at,

@@ -30,6 +30,7 @@ async fn load_options(
             .map(|lib| LibraryColl {
                 id: lib.id,
                 name: lib.name,
+                type_of: lib.type_of,
                 scanned_at: lib.scanned_at.timestamp_millis(),
                 created_at: lib.created_at.timestamp_millis(),
                 updated_at: lib.updated_at.timestamp_millis(),
@@ -73,6 +74,7 @@ async fn update_options_add(
         if let Some(name) = library.name {
             let lib = NewLibraryModel {
                 name,
+                type_of: library.type_of,
                 created_at: Utc::now(),
                 scanned_at: Utc::now(),
                 updated_at: Utc::now(),

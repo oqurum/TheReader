@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, NaiveDate, Utc};
 use common::{Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore};
 use http::api::FileUnwrappedInfo;
+use num_enum::{TryFromPrimitive, IntoPrimitive};
 use serde::{Deserialize, Serialize};
 
 pub mod error;
@@ -243,10 +244,29 @@ pub struct Chapter {
     pub info: FileUnwrappedInfo,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum LibraryType {
+    Book = 1,
+    ComicBook = 2,
+    // TODO: PDF's. What do they fall under? Documents?
+}
+
+impl LibraryType {
+    pub fn is_filetype_valid(self, value: &str) -> bool {
+        match self {
+            LibraryType::Book => ["epub", "mobi", "azw", "azw3", "kfx"].contains(&value),
+            LibraryType::ComicBook => ["cbz", "cbr", "cbt", "cba", "cb7"].contains(&value),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LibraryColl {
     pub id: LibraryId,
     pub name: String,
+
+    pub type_of: LibraryType,
 
     pub scanned_at: i64,
     pub created_at: i64,
@@ -259,6 +279,8 @@ pub struct LibraryColl {
 pub struct BasicLibrary {
     pub id: Option<LibraryId>,
     pub name: Option<String>,
+
+    pub type_of: LibraryType,
 
     pub directories: Option<Vec<String>>,
 }
