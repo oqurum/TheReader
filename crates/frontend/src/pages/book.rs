@@ -328,7 +328,60 @@ impl BookPage {
             }
         } else {
             html! {
-                <h1>{ "Loading..." }</h1>
+                <div class="item-view-container">
+                    <div class="g-2 p-2 row">
+                        <div class="col-sm-5 poster large">
+                            <img class="rounded placeholder" />
+                        </div>
+                        <div class="col-sm-12 col-md metadata-container placeholder-glow">
+                            <h4 class="title placeholder col-2"></h4>
+
+                            <div class="badge-list mb-2">
+                                <a class="badge placeholder">{ "EMPTY" }</a>
+                            </div>
+
+                            <div class="d-flex flex-column">
+                                <div class="placeholder col-3 mb-1"></div>
+                                <div class="placeholder col-3 mb-1"></div>
+                                <div class="placeholder col-2 mb-1"></div>
+                                <div class="placeholder col-3"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <section>
+                        <h2>{ "Files" }</h2>
+                        <div class="row">
+                            {
+                                for (0..2).map(|_| {
+                                    html! {
+                                        <a class={ "d-flex flex-column col-sm-12 col-md-6 col-lg-4 link-light placeholder-glow" }>
+                                            <h5 class="placeholder col-6"></h5>
+                                            <h6 class="placeholder col-4"></h6>
+                                            <div class="placeholder col-3"></div>
+                                        </a>
+                                    }
+                                })
+                            }
+                        </div>
+                    </section>
+
+                    <section>
+                        <h2>{ "People" }</h2>
+                        <div class="authors-container">
+                            {
+                                for (0..2).into_iter().map(|_| {
+                                    html! {
+                                        <div class="person-container placeholder-glow">
+                                            <div class="photo"><img class="placeholder" /></div>
+                                            <span class="title placeholder"></span>
+                                        </div>
+                                    }
+                                })
+                            }
+                        </div>
+                    </section>
+                </div>
             }
         }
     }

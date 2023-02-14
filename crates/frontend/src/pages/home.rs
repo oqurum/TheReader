@@ -119,7 +119,7 @@ impl Component for HomePage {
                     for self.libraries.iter()
                         .map(|lib| html! {
                             <>
-                                <h3>{ lib.name.clone() }</h3>
+                                <h3>{ format!("Recently Added In {}", lib.name) }</h3>
                                 {
                                     if let Some(contents) = self.library_items.get(&lib.id) {
                                         html! {

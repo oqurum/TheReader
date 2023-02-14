@@ -22,6 +22,19 @@ use crate::{
 
 use super::{BookListScope, OwnerBarrier};
 
+pub fn render_placeholder_item() -> Html {
+    html! {
+        <div class="book-list-item is-placeholder placeholder-glow">
+            <div class="poster placeholder"></div>
+            <div class="info">
+                <a class="author placeholder"></a>
+                <a class="title placeholder"></a>
+            </div>
+        </div>
+    }
+}
+
+
 #[derive(Properties)]
 pub struct BookPosterItemProps {
     // TODO: Convert to Either<DisplayItem, BookProgression> and remove progress field.

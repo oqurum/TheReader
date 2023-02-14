@@ -20,7 +20,7 @@ use yew_agent::{Bridge, Bridged};
 
 use crate::{request, services::WsEventBus};
 
-use super::book_poster_item::{BookPosterItem, BookPosterItemMsg};
+use super::book_poster_item::{BookPosterItem, BookPosterItemMsg, render_placeholder_item};
 use super::MassSelectBar;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -255,9 +255,6 @@ impl Component for BookListComponent {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         if let Some(items) = self.media_items.as_deref() {
-            // TODO: Placeholders
-            // let remaining = (self.total_media_count as usize - items.len()).min(50);
-
             html! {
                 <>
                     <InfiniteScroll
@@ -280,7 +277,6 @@ impl Component for BookListComponent {
                                 }
                             })
                         }
-                        // { for (0..remaining).map(|_| Self::render_placeholder_item()) }
                     </InfiniteScroll>
 
                     <MassSelectBar
@@ -292,7 +288,12 @@ impl Component for BookListComponent {
             }
         } else {
             html! {
-                <h1>{ "Loading..." }</h1>
+                <InfiniteScroll
+                    class="book-list normal"
+                    event={ Callback::from(|_| {}) }
+                >
+                    { for (0..20).map(|_| render_placeholder_item()) }
+                </InfiniteScroll>
             }
         }
     }
@@ -305,18 +306,6 @@ impl Component for BookListComponent {
 }
 
 impl BookListComponent {
-    // fn render_placeholder_item() -> Html {
-    //     html! {
-    //         <div class="book-list-item placeholder">
-    //             <div class="poster"></div>
-    //             <div class="info">
-    //                 <a class="author"></a>
-    //                 <a class="title"></a>
-    //             </div>
-    //         </div>
-    //     }
-    // }
-
     pub fn can_req_more(&self) -> bool {
         let count = self
             .media_items
@@ -324,6 +313,6 @@ impl BookListComponent {
             .map(|v| v.len())
             .unwrap_or_default();
 
-        count != 0 && count != self.total_media_count as usize
+        count != 0 && count != self.total_media_count
     }
 }
