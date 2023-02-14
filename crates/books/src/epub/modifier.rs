@@ -110,7 +110,8 @@ where
 fn insert_event(this: &mut FileUnwrappedHeaderType, event: ReaderEvent) {
     match event {
         ReaderEvent::ProcessingInstruction { name, data } => todo!("{name}, {data:?}"),
-        ReaderEvent::CData(d) => todo!("cd {d}"),
+        // TODO: Determine if this is correct.
+        ReaderEvent::CData(v) => this.chars.get_or_insert_with(String::default).push_str(&v),
         ReaderEvent::Comment(v) => todo!("com {v}"),
         ReaderEvent::Characters(v) => this.chars.get_or_insert_with(String::default).push_str(&v),
 
