@@ -504,6 +504,10 @@ impl Component for Reader {
                             }
                         }
                     }
+
+                    OverlayEvent::Hold { since, x, y } => {
+                        // debug!("{x} {y} {since:?}");
+                    }
                 }
             }
 

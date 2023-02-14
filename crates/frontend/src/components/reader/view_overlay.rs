@@ -1,17 +1,21 @@
 use std::rc::Rc;
 
 use chrono::{Duration, Utc};
+use gloo_timers::callback::Interval;
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{DomRect, HtmlElement, MouseEvent};
 use yew::{
     function_component, hook, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state_eq,
-    Callback, Html, NodeRef, Properties, UseStateHandle,
+    Callback, Html, NodeRef, Properties, UseStateHandle, use_state,
 };
 use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
 
+const THRESHOLD: i32 = 5;
+
+
 #[derive(Debug)]
 pub enum OverlayEvent {
-    // Mouse Release
+    /// Mouse Release
     Release {
         instant: Option<Duration>,
 
@@ -22,19 +26,27 @@ pub enum OverlayEvent {
         height: i32,
     },
 
-    // Mouse hovering over overlay.
+    /// Mouse hovering over overlay.
     Hover {
         x: i32,
         y: i32,
     },
 
-    // Mouse Drag
+    /// Mouse Drag
     Drag {
         type_of: DragType,
         instant: Option<Duration>,
         coords_start: (i32, i32),
         coords_end: (i32, i32),
     },
+
+    /// Hold Event.
+    Hold {
+        since: Duration,
+
+        x: i32,
+        y: i32,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,16 +68,19 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
     let node = use_node_ref();
     let state = use_swipe(node.clone());
     let state2 = use_mouse(node.clone());
+    //
 
     let time_down = use_state_eq(Utc::now);
 
     let curr_event_state = use_state_eq(|| false);
+    let mouse_held_ticker = use_state(|| None);
 
     {
         // Swipe
         let event = props.event.clone();
         let curr_event_state = curr_event_state.clone();
         let time_down = time_down.clone();
+        let mouse_held_ticker = mouse_held_ticker.clone();
 
         let canvas_node = node.clone();
 
@@ -90,9 +105,25 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                 if **swiping {
                     if !*curr_event_state {
                         time_down.set(Utc::now());
+
+                        if mouse_held_ticker.is_none() {
+                            let event = event.clone();
+                            let coords = coords_start.clone();
+                            mouse_held_ticker.set(Some(Interval::new(100, move || {
+                                event.emit(OverlayEvent::Hold {
+                                    since: Utc::now().signed_duration_since(*time_down),
+                                    x: coords.0,
+                                    y: coords.1,
+                                });
+                            })));
+                        }
                     }
 
                     curr_event_state.set(true);
+
+                    if direction != DragType::None {
+                        mouse_held_ticker.set(None);
+                    }
 
                     event.emit(OverlayEvent::Drag {
                         type_of: direction,
@@ -102,6 +133,7 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                     });
                 } else if *curr_event_state {
                     curr_event_state.set(false);
+                    mouse_held_ticker.set(None);
 
                     let (x, y) = **coords_start;
 
@@ -162,9 +194,25 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                     if *handle.dragging {
                         if !*curr_event_state {
                             time_down.set(Utc::now());
+
+                            if mouse_held_ticker.is_none() {
+                                let event = event.clone();
+                                let coords = *handle.coords_start;
+                                mouse_held_ticker.set(Some(Interval::new(100, move || {
+                                    event.emit(OverlayEvent::Hold {
+                                        since: Utc::now().signed_duration_since(*time_down),
+                                        x: coords.0,
+                                        y: coords.1,
+                                    });
+                                })));
+                            }
                         }
 
                         curr_event_state.set(true);
+
+                        if direction != DragType::None {
+                            mouse_held_ticker.set(None);
+                        }
 
                         event.emit(OverlayEvent::Drag {
                             type_of: direction,
@@ -174,6 +222,7 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                         });
                     } else if *curr_event_state {
                         curr_event_state.set(false);
+                        mouse_held_ticker.set(None);
 
                         let (width, height) = {
                             let node = canvas_node.cast::<HtmlElement>().unwrap();
@@ -252,8 +301,6 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
     let length_x = use_state_eq(|| 0);
     let length_y = use_state_eq(|| 0);
 
-    let threshold = 5;
-
     let diff_x = {
         let coords_start = coords_start.clone();
         let coords_end = coords_end.clone();
@@ -284,7 +331,7 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
         let diff_x = diff_x.clone();
         let diff_y = diff_y.clone();
 
-        Rc::new(move || diff_x().abs().max(diff_y().abs()) >= threshold)
+        Rc::new(move || diff_x().abs().max(diff_y().abs()) >= THRESHOLD)
     };
 
     {
