@@ -7,7 +7,6 @@ use std::{
 
 use common::{
     api::WrappingResponse,
-    component::{Popup, PopupType},
 };
 use common_local::{
     api::{self, GetChaptersResponse},
@@ -20,44 +19,16 @@ use web_sys::Element;
 use yew::{context::ContextHandle, prelude::*};
 
 use crate::{
-    components::{
-        notes::Notes,
-        reader::{
-            DragType, LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader
-        }
+    components::reader::{
+        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader
     },
     request, AppState, util::ElementEvent,
 };
 
-mod settings;
-use settings::*;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum LocalPopupType {
-    Notes,
-    Settings,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum DisplayToolBars {
-    Hidden,
-    Expanded,
-}
-
-impl DisplayToolBars {
-    pub fn is_expanded(self) -> bool {
-        matches!(self, Self::Expanded)
-    }
-}
 
 pub enum Msg {
     // Event
     WindowResize,
-
-    ClosePopup,
-    ShowPopup(LocalPopupType),
-
-    ChangeReaderSettings(ReaderSettings),
 
     // Send
     ReaderEvent(ReaderEvent),
@@ -86,9 +57,6 @@ pub struct ReadingBook {
     // TODO: Cache pages
     auto_resize_cb: Option<Closure<dyn FnMut()>>,
 
-    sidebar_visible: Option<LocalPopupType>,
-
-    display_toolbar: DisplayToolBars,
     timeout: Option<Timeout>,
 
     _on_fullscreen_event: ElementEvent,
@@ -115,16 +83,11 @@ impl Component for ReadingBook {
         );
 
         // Full screen the reader if our screen size is too small or we automatically do it.
-        let display_toolbar =
-            if reader_settings.auto_full_screen || win_width < 1200.0 || win_height < 720.0 {
-                state.update_nav_visibility.emit(false);
+        if reader_settings.auto_full_screen || win_width < 1200.0 || win_height < 720.0 {
+            state.update_nav_visibility.emit(false);
 
-                reader_settings.default_full_screen = true;
-
-                DisplayToolBars::Hidden
-            } else {
-                DisplayToolBars::Expanded
-            };
+            reader_settings.default_full_screen = true;
+        }
 
         let on_fullscreen_event = {
             let link = ctx.link().clone();
@@ -151,8 +114,6 @@ impl Component for ReadingBook {
 
             auto_resize_cb: None,
 
-            sidebar_visible: None,
-            display_toolbar,
             timeout: None,
 
             _on_fullscreen_event: on_fullscreen_event,
@@ -179,7 +140,6 @@ impl Component for ReadingBook {
                 // We have the display_toolbar check here since the "zoom out" function will re-expand it.
                 // We want to ensure we don't "zoom out", resize, and have incorrect dimensions.
                 if self.reader_settings.default_full_screen
-                    && !self.display_toolbar.is_expanded()
                     && !self.state.is_navbar_visible
                 {
                     // FIX: Using "if let" since container can be null if this is called before first render.
@@ -195,57 +155,6 @@ impl Component for ReadingBook {
                     return false;
                 }
             }
-
-            Msg::ChangeReaderSettings(new_settings) => {
-                // Replace old settings with new settings.
-                let old_settings = std::mem::replace(&mut self.reader_settings, new_settings);
-
-                if self.reader_settings.default_full_screen {
-                    let cont = self.ref_book_container.cast::<Element>().unwrap();
-
-                    // TODO: client_height is incorrect since the tools is set to absolute after this update.
-                    self.reader_settings.dimensions =
-                        (cont.client_width().max(0), cont.client_height().max(0));
-
-                    self.state.update_nav_visibility.emit(false);
-                    self.display_toolbar = DisplayToolBars::Hidden;
-                } else if !old_settings.default_full_screen {
-                    self.state.update_nav_visibility.emit(true);
-                    self.display_toolbar = DisplayToolBars::Expanded;
-
-                    self.reader_settings.dimensions = (
-                        Some(self.reader_settings.dimensions.0)
-                            .filter(|v| *v > 0)
-                            .unwrap_or_else(|| {
-                                self.ref_book_container
-                                    .cast::<Element>()
-                                    .unwrap()
-                                    .client_width()
-                                    .max(0) / 2
-                            }),
-                        Some(self.reader_settings.dimensions.1)
-                            .filter(|v| *v > 0)
-                            .unwrap_or_else(|| {
-                                self.ref_book_container
-                                    .cast::<Element>()
-                                    .unwrap()
-                                    .client_height()
-                                    .max(0) / 2
-                            }),
-                    );
-                }
-            }
-
-            Msg::ClosePopup => {
-                self.sidebar_visible = None;
-            }
-
-            Msg::ShowPopup(type_of) => match self.sidebar_visible {
-                Some(v) if v == type_of => {
-                    self.sidebar_visible = None;
-                }
-                _ => self.sidebar_visible = Some(type_of),
-            },
 
             Msg::RetrievePages(resp) => match resp.ok() {
                 Ok(info) => {
@@ -293,15 +202,7 @@ impl Component for ReadingBook {
                             if self.reader_settings.default_full_screen {
                                 // TODO: This is causing yew to "reload" the page.
                                 if let Some(dur) = instant {
-                                    if dur.num_milliseconds() < 500
-                                        && self.display_toolbar.is_expanded()
-                                    {
-                                        self.display_toolbar = DisplayToolBars::Hidden;
-                                        self.state.update_nav_visibility.emit(false);
-                                    } else {
-                                        self.display_toolbar = DisplayToolBars::Expanded;
-                                        self.state.update_nav_visibility.emit(true);
-                                    }
+                                    self.state.update_nav_visibility.emit(dur.num_milliseconds() > 500);
                                 }
                             }
                         }
@@ -327,35 +228,7 @@ impl Component for ReadingBook {
 
             html! {
                 <div class="reading-container">
-                    <div class={ book_class } style={ (self.display_toolbar.is_expanded() && self.reader_settings.default_full_screen).then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
-                        {
-                            if let Some(visible) = self.sidebar_visible {
-                                match visible {
-                                    LocalPopupType::Notes => html! {
-                                        <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::ClosePopup) }>
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">{ "Notes" }</h5>
-                                            </div>
-
-                                            <div class="modal-body">
-                                                <Notes book={ Rc::clone(book) } />
-                                            </div>
-                                        </Popup>
-                                    },
-
-                                    LocalPopupType::Settings => html! {
-                                        <SettingsContainer
-                                            scope={ ctx.link().clone() }
-                                            reader_dimensions={ self.reader_settings.dimensions }
-                                            reader_settings={ self.reader_settings.clone() }
-                                        />
-                                    },
-                                }
-                            } else {
-                                html! {}
-                            }
-                        }
-
+                    <div class={ book_class } style={ self.reader_settings.default_full_screen.then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
                         <Reader
                             settings={ self.reader_settings.clone() }
                             progress={ Rc::clone(&self.progress) }
@@ -363,11 +236,6 @@ impl Component for ReadingBook {
                             chapters={ self.chapters.clone() }
                             event={ ctx.link().callback(Msg::ReaderEvent) }
                         />
-                    </div>
-
-                    <div class={ classes!("tools", (self.reader_settings.default_full_screen && !self.display_toolbar.is_expanded()).then_some("hidden")) }>
-                        <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Notebook" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Notes)) }>{ "📝" }</button>
-                        // <button class="btn btn-sm btn-secondary tool-item" title="Open/Close the Settings" onclick={ ctx.link().callback(|_| Msg::ShowPopup(LocalPopupType::Settings)) }>{ "⚙️" }</button>
                     </div>
                 </div>
             }
@@ -389,9 +257,7 @@ impl Component for ReadingBook {
         }
 
         // TODO: This is a duplicate of Msg::WindowResize
-        if self.reader_settings.default_full_screen
-            && !self.display_toolbar.is_expanded()
-            && !self.state.is_navbar_visible
+        if self.reader_settings.default_full_screen && !self.state.is_navbar_visible
         {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
                 self.reader_settings.dimensions =
