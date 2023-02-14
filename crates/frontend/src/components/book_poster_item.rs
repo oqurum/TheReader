@@ -42,6 +42,7 @@ impl PartialEq for BookPosterItemProps {
     fn eq(&self, other: &Self) -> bool {
         self.item == other.item
             && self.is_updating == other.is_updating
+            && self.disable_tools == other.disable_tools
     }
 }
 
@@ -186,7 +187,7 @@ impl Component for BookPosterItem {
         };
 
         html! {
-            <div class="book-list-item">
+            <div class="book-list-item" key={ item.id.to_string() }>
                 <Link<BaseRoute> to={ route_to } classes="poster link-light">
                     { self.render_tools(ctx) }
                     <img src={ item.thumb_path.get_book_http_path().into_owned() } />
