@@ -155,7 +155,7 @@ impl BookPage {
             html! {
                 <div class="item-view-container">
                     <div class="g-2 p-2 row">
-                        <div class="col-sm-5 poster large">
+                        <div class="poster large p-0">
                             <div class="bottom-right">
                                 <span class="material-icons" onclick={on_click_more} title="More Options">{ "more_horiz" }</span>
                             </div>
@@ -330,7 +330,7 @@ impl BookPage {
             html! {
                 <div class="item-view-container">
                     <div class="g-2 p-2 row">
-                        <div class="col-sm-5 poster large">
+                        <div class="poster large p-0">
                             <img class="rounded placeholder" />
                         </div>
                         <div class="col-sm-12 col-md metadata-container placeholder-glow">
