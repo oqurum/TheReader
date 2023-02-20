@@ -228,7 +228,7 @@ impl Component for ReadingBook {
 
             html! {
                 <div class="reading-container">
-                    <div class={ book_class } style={ self.reader_settings.default_full_screen.then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
+                    <div class={ book_class } style={ (self.reader_settings.default_full_screen && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
                         <Reader
                             settings={ self.reader_settings.clone() }
                             progress={ Rc::clone(&self.progress) }

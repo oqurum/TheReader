@@ -77,6 +77,9 @@
 	}
 
 	.toolbar {
+		position: absolute;
+		bottom: 0;
+		width: 100%;
 		font-size: 12px;
 		font-weight: bold;
 		padding: 0px 5px;
