@@ -753,8 +753,6 @@ impl Component for Reader {
 
         html! {
             <div class="reader">
-                { self.render_navbar(ctx) }
-
                 <div class="pages" style={ pages_style.clone() }>
                     {
                         if !self.cached_display.is_scroll() {
@@ -789,6 +787,8 @@ impl Component for Reader {
                         }
                     </div>
                 </div>
+
+                { self.render_toolbar(ctx) }
 
                 {
                     if ctx.props().settings.show_progress {
@@ -868,16 +868,14 @@ impl Reader {
         // }
     }
 
-    fn render_navbar(&self, ctx: &Context<Self>) -> Html {
+    fn render_toolbar(&self, _ctx: &Context<Self>) -> Html {
         if self.cached_display.is_scroll() {
             html! {}
         } else {
-            let page_count = self.page_count(ctx);
-
             html! {
-                <div class="navbar">
-                    <div class="d-flex justify-content-center w-100">
-                        <span>{ "Page " } { self.current_page_pos() + 1 } { "/" } { page_count }</span>
+                <div class="toolbar">
+                    <div class="d-flex w-100">
+                        <span>{ "Page " } { self.current_page_pos() + 1 }</span>
                     </div>
                 </div>
             }
