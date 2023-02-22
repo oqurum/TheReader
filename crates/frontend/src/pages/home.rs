@@ -89,6 +89,14 @@ impl Component for HomePage {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <div class="view-container">
+                <div class="card text-bg-dark mb-3">
+                    <div class="card-body">
+                        <h1>{ "Demo Reader" }</h1>
+                        <span>{ "This is the demo for my book reader project. " }</span>
+                        <span>{ "All books are non-copyrighted and/or are now in the public domain" }</span>
+                    </div>
+                </div>
+
                 {
                     if let Some(sec) = self.section_progressing.as_ref().filter(|v| !v.items.is_empty()) {
                         html! {
