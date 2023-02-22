@@ -99,6 +99,14 @@ impl NewCollectionModel {
 }
 
 impl CollectionModel {
+    pub async fn count_by_member_id(id: MemberId, db: &dyn DatabaseAccess) -> Result<usize> {
+        Ok(db.write().await.query_row(
+            "SELECT COUNT(*) FROM collection WHERE member_id = ?1",
+            params![id],
+            |r| r.get(0)
+        )?)
+    }
+
     pub async fn find_by_member_id(id: MemberId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
         let this = db.read().await;
 

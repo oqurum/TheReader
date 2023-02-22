@@ -10,7 +10,6 @@ pub mod file;
 pub mod image;
 pub mod library;
 pub mod member;
-pub mod note;
 pub mod person;
 pub mod person_alt;
 pub mod progress;

@@ -21,6 +21,8 @@ use crate::{
     Error, WebResult,
 };
 
+const QUERY_LIMIT: usize = 100;
+
 // Get List Of People and Search For People
 #[get("/people")]
 pub async fn load_author_list(
@@ -28,7 +30,7 @@ pub async fn load_author_list(
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetPeopleResponse>> {
     let offset = query.offset.unwrap_or(0);
-    let limit = query.offset.unwrap_or(50);
+    let limit = query.offset.unwrap_or(50).min(QUERY_LIMIT);
 
     // Return Searched People
     if let Some(query) = query.query.as_deref() {

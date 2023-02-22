@@ -194,6 +194,8 @@ impl FileProgressionModel {
 
     pub async fn get_member_progression_and_books(
         member_id: MemberId,
+        offset: usize,
+        limit: usize,
         db: &dyn DatabaseAccess,
     ) -> Result<Vec<(Self, BookModel)>> {
         let read = db.read().await;
@@ -203,10 +205,11 @@ impl FileProgressionModel {
             SELECT * FROM file_progression
             JOIN book ON book.id = file_progression.book_id
             WHERE user_id = ?1 AND type_of = ?2
-            ORDER BY updated_at DESC",
+            ORDER BY updated_at DESC
+            LIMIT ?3 OFFSET ?4",
         )?;
 
-        let rows = statement.query_map(params![member_id, 1], |v| {
+        let rows = statement.query_map(params![member_id, 1, limit, offset], |v| {
             let mut row = AdvRow::from(v);
 
             Ok((Self::create(&mut row)?, BookModel::create(&mut row)?))

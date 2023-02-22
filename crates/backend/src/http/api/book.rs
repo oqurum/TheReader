@@ -33,6 +33,8 @@ use crate::{
     Error, WebResult,
 };
 
+const QUERY_LIMIT: usize = 100;
+
 #[get("/books")]
 pub async fn load_book_list(
     query: QsQuery<api::BookListQuery>,
@@ -51,7 +53,7 @@ pub async fn load_book_list(
             &filters,
             query.library,
             query.offset.unwrap_or(0),
-            query.limit.unwrap_or(50),
+            query.limit.unwrap_or(50).min(QUERY_LIMIT),
             &db.basic(),
         )
         .await?
@@ -84,7 +86,12 @@ pub async fn load_book_preset_list(
             let mut items = Vec::new();
 
             for (a, book) in
-                FileProgressionModel::get_member_progression_and_books(member.id, &db.basic())
+                FileProgressionModel::get_member_progression_and_books(
+                    member.id,
+                    query.offset.unwrap_or(0),
+                    query.limit.unwrap_or(50).min(QUERY_LIMIT),
+                    &db.basic()
+                )
                     .await?
             {
                 let file = FileModel::find_one_by_id(a.file_id, &db.basic())
@@ -320,8 +327,15 @@ pub async fn download_book(
 #[get("/book/{id}/posters")]
 async fn get_book_posters(
     path: web::Path<BookId>,
+    member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetPosterByBookIdResponse>> {
+    let member = member.fetch_or_error(&db.basic()).await?;
+
+    if !member.permissions.is_owner() {
+        return Err(ApiErrorResponse::new("Not owner").into());
+    }
+
     let book = BookModel::find_one_by_id(*path, &db.basic())
         .await?
         .unwrap();
@@ -456,7 +470,15 @@ async fn get_book_progress(
 #[get("/book/search")]
 pub async fn book_search(
     body: web::Query<api::GetBookSearch>,
+    member: MemberCookie,
+    db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookSearchResponse>> {
+    let member = member.fetch_or_error(&db.basic()).await?;
+
+    if !member.permissions.is_owner() {
+        return Err(ApiErrorResponse::new("Not owner").into());
+    }
+
     let search = metadata::search_all_agents(
         &body.query,
         match body.search_type {

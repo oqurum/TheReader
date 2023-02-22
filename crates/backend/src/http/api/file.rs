@@ -4,14 +4,12 @@ use actix_web::{delete, get, post, web, HttpResponse};
 
 use common::api::WrappingResponse;
 use common_local::{api, Chapter, FileId, Progression};
-use futures::TryStreamExt;
 use reqwest::header::HeaderValue;
 use tracing::error;
 
 use crate::database::Database;
 use crate::http::{JsonResponse, MemberCookie};
 use crate::model::file::FileModel;
-use crate::model::note::FileNoteModel;
 use crate::model::progress::FileProgressionModel;
 use crate::{Result, WebResult};
 
@@ -197,7 +195,7 @@ pub async fn load_file_debug(
             Ok(HttpResponse::Ok().body(
                 book.get_files()
                     .into_iter()
-                    .map(|v| format!("<a href=\"{}\">{}</a>", v, v))
+                    .map(|v| format!("<a href=\"{v}\">{v}</a>"))
                     .collect::<Vec<_>>()
                     .join("<br/>"),
             ))
@@ -254,49 +252,5 @@ pub async fn progress_file_delete(
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
     FileProgressionModel::delete_one(member.member_id(), *file_id, &db.basic()).await?;
-    Ok(web::Json(WrappingResponse::okay("success")))
-}
-
-// Notes
-
-#[get("/file/{id}/notes")]
-pub async fn notes_file_get(
-    file_id: web::Path<FileId>,
-    member: MemberCookie,
-    db: web::Data<Database>,
-) -> WebResult<JsonResponse<api::ApiGetFileNotesByIdResponse>> {
-    let v = FileNoteModel::find_one(*file_id, member.member_id(), &db.basic()).await?;
-    Ok(web::Json(WrappingResponse::okay(v.map(|v| v.data))))
-}
-
-#[post("/file/{id}/notes")]
-pub async fn notes_file_add(
-    file_id: web::Path<FileId>,
-    mut payload: web::Payload,
-    member: MemberCookie,
-    db: web::Data<Database>,
-) -> WebResult<JsonResponse<&'static str>> {
-    let mut body = web::BytesMut::new();
-    while let Some(chunk) = payload.try_next().await? {
-        body.extend_from_slice(&chunk);
-    }
-
-    let data = unsafe { String::from_utf8_unchecked(body.to_vec()) };
-
-    FileNoteModel::new(*file_id, member.member_id(), data)
-        .insert_or_update(&db.basic())
-        .await?;
-
-    Ok(web::Json(WrappingResponse::okay("success")))
-}
-
-#[delete("/file/{id}/notes")]
-pub async fn notes_file_delete(
-    file_id: web::Path<FileId>,
-    member: MemberCookie,
-    db: web::Data<Database>,
-) -> WebResult<JsonResponse<&'static str>> {
-    FileNoteModel::delete_one(*file_id, member.member_id(), &db.basic()).await?;
-
     Ok(web::Json(WrappingResponse::okay("success")))
 }

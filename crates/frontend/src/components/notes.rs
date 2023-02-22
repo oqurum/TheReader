@@ -44,12 +44,7 @@ impl Component for Notes {
     type Message = Msg;
     type Properties = Property;
 
-    fn create(ctx: &Context<Self>) -> Self {
-        let book_id = ctx.props().book.id;
-
-        ctx.link()
-            .send_future(async move { Msg::RetrieveNotes(request::get_book_notes(book_id).await) });
-
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             is_initiated: false,
             contents: <JsValue as JsValueSerdeExt>::from_serde(&json!([])).unwrap(),
@@ -74,11 +69,7 @@ impl Component for Notes {
                         .as_string()
                         .unwrap();
 
-                    ctx.link().send_future(async move {
-                        request::update_book_notes(book_id, body).await;
-
-                        Msg::Ignore
-                    });
+                    // TODO: Update Notes
                 }
             }
 

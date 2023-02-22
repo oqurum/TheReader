@@ -41,9 +41,6 @@ pub fn api_route() -> Scope<
         .service(file::load_file_resource)
         .service(file::progress_file_add)
         .service(file::progress_file_delete)
-        .service(file::notes_file_get)
-        .service(file::notes_file_add)
-        .service(file::notes_file_delete)
         .service(file::download_file)
         // Image
         .service(image::get_local_image)

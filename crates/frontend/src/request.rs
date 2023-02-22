@@ -378,24 +378,6 @@ pub async fn remove_book_progress(id: FileId) -> WrappingResponse<String> {
     .unwrap_or_else(def)
 }
 
-// Notes
-
-pub async fn get_book_notes(book_id: FileId) -> WrappingResponse<ApiGetFileNotesByIdResponse> {
-    fetch(
-        "GET",
-        &format!("/api/file/{}/notes", book_id),
-        Option::<&()>::None,
-    )
-    .await
-    .unwrap_or_else(def)
-}
-
-pub async fn update_book_notes(book_id: FileId, data: String) -> WrappingResponse<String> {
-    fetch("POST", &format!("/api/file/{}/notes", book_id), Some(&data))
-        .await
-        .unwrap_or_else(def)
-}
-
 // Image
 
 pub async fn get_posters_for(img_id_type: ImageIdType) -> WrappingResponse<GetPostersResponse> {

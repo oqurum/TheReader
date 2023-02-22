@@ -84,11 +84,17 @@ async fn load_collection_id_books(
 
 #[post("/collection")]
 async fn new_collection(
-    web::Json(body): web::Json<api::NewCollectionBody>,
+    web::Json(mut body): web::Json<api::NewCollectionBody>,
     member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetCollectionIdResponse>> {
     let member = member.fetch_or_error(&db.basic()).await?;
+
+    body.name.truncate(30);
+
+    if let Some(desc) = body.description.as_mut() {
+        desc.truncate(100);
+    }
 
     let model = NewCollectionModel {
         member_id: member.id,

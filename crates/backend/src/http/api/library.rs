@@ -1,10 +1,10 @@
 use actix_web::{get, post, web};
-use common::api::WrappingResponse;
+use common::api::{WrappingResponse, ApiErrorResponse};
 use common_local::{api, LibraryColl, LibraryId};
 
 use crate::{
     database::Database,
-    http::JsonResponse,
+    http::{JsonResponse, MemberCookie},
     model::{directory::DirectoryModel, library::LibraryModel},
     WebResult,
 };
@@ -66,9 +66,16 @@ async fn load_library_id(
 async fn update_library_id(
     id: web::Path<LibraryId>,
     body: web::Json<api::UpdateLibrary>,
+    member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<&'static str>> {
     let body = body.into_inner();
+
+    let member = member.fetch_or_error(&db.basic()).await?;
+
+    if !member.permissions.is_owner() {
+        return Err(ApiErrorResponse::new("Not owner").into());
+    }
 
     let mut model = LibraryModel::find_one_by_id(*id, &db.basic())
         .await?
