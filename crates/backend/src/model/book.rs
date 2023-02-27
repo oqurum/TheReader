@@ -5,7 +5,7 @@ use rusqlite::{params, OptionalExtension};
 use crate::{DatabaseAccess, Result, config::get_config};
 use common_local::{
     filter::{FilterContainer, FilterModifier, FilterTableType},
-    BookEdit, BookItemCached, DisplayBookItem, LibraryId,
+    BookEdit, BookItemCached, DisplayBookItem, LibraryId, LibraryType,
 };
 use serde::Serialize;
 
@@ -16,6 +16,8 @@ pub struct BookModel {
     pub id: BookId,
 
     pub library_id: LibraryId,
+
+    pub type_of: LibraryType,
 
     pub source: Source,
     pub file_item_count: i64,
@@ -55,6 +57,7 @@ impl From<BookModel> for DisplayBookItem {
         DisplayBookItem {
             id: val.id,
             library_id: val.library_id,
+            type_of: val.type_of,
             public_source_url: get_public_url(
                 &val.source,
                 Some(get_config().libby.url)
@@ -84,6 +87,7 @@ impl TableRow<'_> for BookModel {
         Ok(Self {
             id: row.next()?,
             library_id: row.next()?,
+            type_of: LibraryType::try_from(row.next::<i32>()?).unwrap(),
             source: Source::try_from(row.next::<String>()?).unwrap(),
             file_item_count: row.next()?,
             title: row.next()?,
@@ -94,7 +98,7 @@ impl TableRow<'_> for BookModel {
             all_thumb_urls: Vec::new(),
             cached: row
                 .next_opt::<String>()?
-                .map(|v| BookItemCached::from_string(&v))
+                .map(BookItemCached::from_string)
                 .unwrap_or_default(),
             available_at: row.next()?,
             year: row.next()?,
@@ -118,15 +122,16 @@ impl BookModel {
             db.write().await.execute(
                 r#"
                 INSERT INTO book (
-                    library_id, source, file_item_count,
+                    library_id, type_of, source, file_item_count,
                     title, original_title, description, rating, thumb_url,
                     cached,
                     available_at, year,
                     refreshed_at, created_at, updated_at, deleted_at
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)"#,
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
                 params![
                     self.library_id,
+                    i32::from(self.type_of),
                     self.source.to_string(),
                     &self.file_item_count,
                     &self.title,
@@ -170,7 +175,7 @@ impl BookModel {
                 title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
                 cached = ?10,
                 available_at = ?11, year = ?12,
-                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15
+                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15, type_of = ?16
             WHERE id = ?1"#,
             params![
                 self.id,
@@ -188,6 +193,7 @@ impl BookModel {
                 self.refreshed_at,
                 self.updated_at,
                 self.deleted_at,
+                i32::from(self.type_of),
             ],
         )?;
 
@@ -387,7 +393,7 @@ impl BookModel {
 
         // Library ID
         if let Some(library) = library {
-            f_comp.push(format!("library_id={} ", library));
+            f_comp.push(format!("library_id={library} "));
         }
 
         for fil in &filter.filters {
@@ -427,8 +433,8 @@ impl BookModel {
                             "title {} '%{}%' ESCAPE '{}' ",
                             get_modifier(fil.type_of, fil.modifier),
                             query
-                                .replace('%', &format!("{}%", escape_char))
-                                .replace('_', &format!("{}_", escape_char)),
+                                .replace('%', &format!("{escape_char}%"))
+                                .replace('_', &format!("{escape_char}_")),
                             escape_char
                         ));
                     }

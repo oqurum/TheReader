@@ -465,6 +465,7 @@ impl From<FoundItem> for BookModel {
         BookModel {
             id: BookId::none(),
             library_id: LibraryId::none(),
+            type_of: 1.try_into().unwrap(),
             source: val.source,
             file_item_count: 1,
             title: val.title.clone(),

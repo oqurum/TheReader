@@ -1,11 +1,13 @@
+use std::path::PathBuf;
+
 use common::{
     api::WrappingResponse,
-    component::{popup::{Popup, PopupType}, select::{SelectModule, SelectItem}},
+    component::{popup::{Popup, PopupType}, select::{SelectModule, SelectItem}, FileSearchComponent, FileSearchEvent, FileSearchRequest, file_search::FileInfo},
 };
 use common_local::{api, BasicLibrary, LibraryId, LibraryType};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
-use yew_hooks::use_list;
+use yew_hooks::{use_list, use_async};
 
 use crate::{components::edit::library::LibraryEdit, request};
 
@@ -159,6 +161,33 @@ fn new_library(props: &NewLibraryProps) -> Html {
     let library_type = use_state(|| LibraryType::Book);
     let directories = use_list(Vec::<String>::new());
 
+    let dir_req_state = use_state(|| Option::<FileSearchRequest>::None);
+    let dir_req_state2 = dir_req_state.clone();
+    let dir_req_async = use_async(async move {
+        if let Some(req) = dir_req_state2.as_ref() {
+            match request::get_directory_contents(req.path.display().to_string()).await.ok() {
+                Ok(v) => {
+                    req.update.emit((
+                        Some(v.path),
+                        v.items.into_iter()
+                            .map(|v| FileInfo {
+                                title: v.title,
+                                path: v.path,
+                                is_file: v.is_file,
+                            })
+                            .collect()
+                    ));
+                }
+
+                Err(_) => {
+                    req.update.emit((None, Vec::new()));
+                }
+            }
+        }
+
+        Result::<(), ()>::Ok(())
+    });
+
     let on_create = {
         let dirs = directories.clone();
         let name = library_name.clone();
@@ -182,13 +211,16 @@ fn new_library(props: &NewLibraryProps) -> Html {
 
     let on_new_dir_path = {
         let dirs = directories.clone();
-        Callback::from(move |e: KeyboardEvent| {
-            if e.key() == "Enter" {
-                let input = e.target_unchecked_into::<HtmlInputElement>();
+        Callback::from(move |v: FileSearchEvent| {
+            match v {
+                FileSearchEvent::Request(req) => {
+                    dir_req_state.set(Some(req));
+                    dir_req_async.run();
+                }
 
-                dirs.push(input.value());
-
-                input.set_value("");
+                FileSearchEvent::Submit(directory) => {
+                    dirs.push(directory.display().to_string().replace('\\', "/"));
+                }
             }
         })
     };
@@ -218,25 +250,24 @@ fn new_library(props: &NewLibraryProps) -> Html {
             </div>
 
             <div class="modal-body">
-                <div class="mb-3 input-group">
+                <div class="mb-3">
                     <input class="form-control" type="text" name="library-name" placeholder="Library Name" onchange={ on_change_lib_name } />
                 </div>
 
-                <div class="mb-3 input-group">
+                <div class="mb-3">
                     <SelectModule<LibraryType>
                         class="form-select"
                         onselect={ on_change_select }
+                        default={ *library_type }
                     >
                         <SelectItem<LibraryType> value={ LibraryType::Book } name="Book" />
-                        <SelectItem<LibraryType> value={ LibraryType::ComicBook } name="Comic Book" />
+                        <SelectItem<LibraryType> value={ LibraryType::ComicBook } name="Comic Book" disabled=true />
                     </SelectModule<LibraryType>>
-
-                    <button class="btn btn-success btn-sm" onclick={ on_create }>{"Create"}</button>
                 </div>
 
                 <h5>{ "Directories" }</h5>
 
-                <div class="directories">
+                <div class="directories mb-3">
                     {
                         for directories.current()
                             .iter()
@@ -256,10 +287,17 @@ fn new_library(props: &NewLibraryProps) -> Html {
                         )
                     }
 
-                    <input class="form-control" onkeypress={ on_new_dir_path } />
+                    <FileSearchComponent
+                        is_popup=true
+                        init_location={ PathBuf::from("/") }
+                        on_event={ on_new_dir_path }
+                    />
+                </div>
+
+                <div>
+                    <button class="btn btn-success btn-sm" onclick={ on_create }>{"Create"}</button>
                 </div>
             </div>
-
         </Popup>
     }
 }
