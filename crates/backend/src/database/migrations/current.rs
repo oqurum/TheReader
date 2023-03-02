@@ -85,6 +85,8 @@ pub async fn init(database: &Database) -> Result<()> {
 
             "type_of"             INT NOT NULL,
 
+            "parent_id"           INTEGER REFERENCES book("id") ON DELETE CASCADE,
+
             "source"              TEXT,
             "file_item_count"     INTEGER,
             "title"               TEXT,
@@ -94,6 +96,7 @@ pub async fn init(database: &Database) -> Result<()> {
             "thumb_url"           TEXT,
 
             "cached"              TEXT,
+            "index"               INTEGER,
 
             "available_at"        TEXT,
             "year"                INTEGER,

@@ -496,6 +496,8 @@ impl From<FoundItem> for BookModel {
             deleted_at: None,
             available_at: val.available_at.map(|v| Utc.timestamp_millis(v)),
             year: val.year,
+            parent_id: None,
+            index: None,
         }
     }
 }

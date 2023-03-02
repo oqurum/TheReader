@@ -18,6 +18,7 @@ pub struct BookModel {
     pub library_id: LibraryId,
 
     pub type_of: BookType,
+    pub parent_id: Option<BookId>,
 
     pub source: Source,
     pub file_item_count: i64,
@@ -31,6 +32,7 @@ pub struct BookModel {
 
     // TODO: Make table for all tags. Include publisher in it. Remove country.
     pub cached: BookItemCached,
+    pub index: Option<i64>,
 
     pub refreshed_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
@@ -88,6 +90,7 @@ impl TableRow<'_> for BookModel {
             id: row.next()?,
             library_id: row.next()?,
             type_of: BookType::try_from(row.next::<i32>()?).unwrap(),
+            parent_id: row.next_opt()?,
             source: Source::try_from(row.next::<String>()?).unwrap(),
             file_item_count: row.next()?,
             title: row.next()?,
@@ -100,6 +103,7 @@ impl TableRow<'_> for BookModel {
                 .next_opt::<String>()?
                 .map(BookItemCached::from_string)
                 .unwrap_or_default(),
+            index: row.next_opt()?,
             available_at: row.next()?,
             year: row.next()?,
             refreshed_at: row.next()?,
@@ -122,9 +126,9 @@ impl BookModel {
             db.write().await.execute(
                 r#"
                 INSERT INTO book (
-                    library_id, type_of, source, file_item_count,
+                    library_id, type_of, parent_id, source, file_item_count,
                     title, original_title, description, rating, thumb_url,
-                    cached,
+                    cached, index,
                     available_at, year,
                     refreshed_at, created_at, updated_at, deleted_at
                 )
@@ -132,6 +136,7 @@ impl BookModel {
                 params![
                     self.library_id,
                     i32::from(self.type_of),
+                    self.parent_id,
                     self.source.to_string(),
                     &self.file_item_count,
                     &self.title,
@@ -140,6 +145,7 @@ impl BookModel {
                     &self.rating,
                     self.thumb_path.as_value(),
                     &self.cached.as_string_optional(),
+                    &self.index,
                     &self.available_at,
                     &self.year,
                     self.refreshed_at,
@@ -175,7 +181,7 @@ impl BookModel {
                 title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
                 cached = ?10,
                 available_at = ?11, year = ?12,
-                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15, type_of = ?16
+                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15, type_of = ?16, parent_id = ?17, index = ?18
             WHERE id = ?1"#,
             params![
                 self.id,
@@ -194,6 +200,8 @@ impl BookModel {
                 self.updated_at,
                 self.deleted_at,
                 i32::from(self.type_of),
+                self.parent_id,
+                self.index,
             ],
         )?;
 
