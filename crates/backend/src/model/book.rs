@@ -5,7 +5,7 @@ use rusqlite::{params, OptionalExtension};
 use crate::{DatabaseAccess, Result, config::get_config};
 use common_local::{
     filter::{FilterContainer, FilterModifier, FilterTableType},
-    BookEdit, BookItemCached, DisplayBookItem, LibraryId, LibraryType,
+    BookEdit, BookItemCached, DisplayBookItem, LibraryId, BookType,
 };
 use serde::Serialize;
 
@@ -17,7 +17,7 @@ pub struct BookModel {
 
     pub library_id: LibraryId,
 
-    pub type_of: LibraryType,
+    pub type_of: BookType,
 
     pub source: Source,
     pub file_item_count: i64,
@@ -87,7 +87,7 @@ impl TableRow<'_> for BookModel {
         Ok(Self {
             id: row.next()?,
             library_id: row.next()?,
-            type_of: LibraryType::try_from(row.next::<i32>()?).unwrap(),
+            type_of: BookType::try_from(row.next::<i32>()?).unwrap(),
             source: Source::try_from(row.next::<String>()?).unwrap(),
             file_item_count: row.next()?,
             title: row.next()?,

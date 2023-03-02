@@ -130,7 +130,7 @@ pub struct DisplayBookItem {
     pub id: BookId,
 
     pub library_id: LibraryId,
-    pub type_of: LibraryType,
+    pub type_of: BookType,
 
     pub public_source_url: Option<String>,
     pub source: Source,
@@ -169,7 +169,7 @@ impl Default for DisplayBookItem {
         Self {
             id: Default::default(),
             library_id: Default::default(),
-            type_of: LibraryType::Book,
+            type_of: BookType::Book,
             public_source_url: None,
             source: Source {
                 agent: Agent::new_owned(String::default()),
@@ -263,6 +263,17 @@ impl LibraryType {
         }
     }
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
+#[repr(i32)]
+pub enum BookType {
+    Book = 1,
+
+    ComicBook = 2,
+    ComicBookIssue = 3,
+}
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LibraryColl {

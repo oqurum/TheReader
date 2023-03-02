@@ -19,7 +19,7 @@ use chrono::{TimeZone, Utc};
 use common::parse_book_id;
 use common_local::{
     ws::{TaskId, TaskType, WebsocketNotification},
-    LibraryId, LibraryType,
+    LibraryId, LibraryType, BookType,
 };
 use tokio::fs;
 use tracing::{error, info, trace, debug};
@@ -362,6 +362,7 @@ async fn file_match_or_create_comic_book(
         let mut book_model: BookModel = meta.into();
 
         book_model.library_id = library_id;
+        book_model.type_of = BookType::ComicBook;
 
         // TODO: Store Publisher inside Database
         book_model.cached = book_model
