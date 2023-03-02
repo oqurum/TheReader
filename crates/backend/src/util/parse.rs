@@ -20,6 +20,9 @@ lazy_static! {
     // ch(apter)01, ch(apter) 1
     static ref CHAPTER_NUMBER: Regex = RegexBuilder::new(r"ch(?:apter)?\s?\d+").case_insensitive(true).build().unwrap();
 
+    // prologue01, prologue 1
+    static ref PROLOGUE_NUMBER: Regex = RegexBuilder::new(r"prologue?\s?\d+").case_insensitive(true).build().unwrap();
+
     // vol(ume)1, vol1-2, vol 1, vol 1-vol2, vol 1-vol 2, vol #1, vol #1-vol#2, vol #1-vol #2
     static ref VOLUME_NUMBER: Regex = RegexBuilder::new(r"vol(?:ume)?\s?#?\d+(?:-(?:vol(?:ume)?)?\s?#?\d+)?").case_insensitive(true).build().unwrap();
 
@@ -106,6 +109,7 @@ fn strip_text<V: ToString>(value: V) -> String {
     value = CHAPTER_NUMBER.replace_all(&value, "").to_string();
     value = ARCHIVE_EXTENSION.replace_all(&value, "").to_string();
     value = LANGUAGE_CODE.replace_all(&value, "").to_string();
+    value = PROLOGUE_NUMBER.replace_all(&value, "").to_string();
 
     // Remove text in brackets.
     while let Some((l_index, r_index)) = value.find('[').and_then(|index| Some((index, value.chars().skip(index).position(|c| c == ']')?))) {
