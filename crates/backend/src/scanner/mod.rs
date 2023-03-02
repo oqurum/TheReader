@@ -3,7 +3,7 @@ use std::{collections::VecDeque, path::{PathBuf, Path}, time::UNIX_EPOCH};
 use crate::{
     database::DatabaseAccess,
     http::send_message_to_clients,
-    metadata::{get_metadata_from_files, MetadataReturned},
+    metadata::{get_metadata_from_files, MetadataReturned, search_and_return_first_valid_agent, SearchItem, search_all_agents, google_books::GoogleBooksMetadata, Metadata, get_metadata_by_source, openlibrary::OpenLibraryMetadata},
     model::{
         book::BookModel,
         book_person::BookPersonModel,
@@ -12,7 +12,7 @@ use crate::{
         image::{ImageLinkModel, UploadedImageModel},
         library::LibraryModel,
     },
-    Result,
+    Result, parse::extract_name_from_path, util,
 };
 use bookie::BookSearch;
 use chrono::{TimeZone, Utc};
@@ -282,8 +282,113 @@ async fn file_match_or_create_comic_book(
     let local_path = file.path.strip_prefix(&root_dir_path.display().to_string().replace("\\", "/"))
         .expect("File Path is not a child of the root directory");
 
-    debug!("{:?}", local_path);
-    debug!("{:?}", file);
+    let stripped_book_name = extract_name_from_path(local_path);
+
+    debug!("{stripped_book_name:?} - {local_path:?}");
+
+    let file_id = file.id;
+
+    // TODO: Cache the searches.
+
+    // We have to search by the comic book title.
+    let items = search_all_agents(
+        &stripped_book_name,
+        common_local::SearchFor::Book(common_local::SearchForBooksBy::Title),
+        &Default::default(),
+    ).await?;
+
+    let mut source = None;
+
+    // Find first exact match in the OpenLibrary Agent.
+    if let Some(source2) = items.iter().find_map(|(agent, items)| {
+        if agent == &OpenLibraryMetadata.get_agent() {
+            items.iter()
+            .find_map(|item| {
+                if let Some(book) = item.as_book() {
+                    if let Some(title) = book.title.as_deref() {
+                        if title == stripped_book_name {
+                            return Some(book.source.clone());
+                        }
+                    }
+                }
+
+                None
+            })
+        } else {
+            None
+        }
+    })
+    {
+        source = Some(source2);
+    } else {
+        let sim = items.sort_items_by_similarity(&stripped_book_name);
+
+        // Find closest match in the OpenLibrary Agent.
+        if let Some(item) = sim.iter().find_map(|&(amt, ref item)| {
+            if let Some(book) = item.as_book() {
+                if amt > 0.75 && book.source.agent == OpenLibraryMetadata.get_agent() {
+                    return Some(item);
+                }
+            }
+
+            None
+        })
+        {
+            source = Some(item.as_book().unwrap().source.clone());
+        }
+        // Just find closest match in any Agent.
+        else if let Some(&(amt, ref found)) = sim.first() {
+            if amt > 0.75 {
+                source = Some(found.as_book().unwrap().source.clone());
+            }
+        }
+    }
+
+    debug!("Source: {source:?}");
+
+    let Some(source) = source else {
+        return Ok(());
+    };
+
+    if let Some(mut ret) = get_metadata_by_source(&source).await? {
+        let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
+
+        let MetadataReturned {
+            meta,
+            publisher,
+            ..
+        } = ret;
+
+        let mut book_model: BookModel = meta.into();
+
+        book_model.library_id = library_id;
+
+        // TODO: Store Publisher inside Database
+        book_model.cached = book_model
+            .cached
+            .publisher_optional(publisher)
+            .author_optional(main_author);
+
+        let book_model = book_model.insert_or_increment(db).await?;
+        FileModel::update_book_id(file_id, book_model.id, db).await?;
+
+        if let Some(thumb_path) = book_model.thumb_path.as_value() {
+            if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
+                ImageLinkModel::new_book(image.id, book_model.id)
+                    .insert(db)
+                    .await?;
+            }
+        }
+
+        for person_id in author_ids {
+            BookPersonModel {
+                book_id: book_model.id,
+                person_id,
+            }
+            .insert_or_ignore(db)
+            .await?;
+        }
+    }
 
     Ok(())
 }

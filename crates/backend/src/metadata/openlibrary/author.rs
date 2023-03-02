@@ -112,6 +112,7 @@ pub mod json {
         pub personal_name: Option<String>,
         pub source_records: Option<Vec<String>>,
         pub alternate_names: Option<Vec<String>>,
+        pub photograph: Option<String>,
         pub photos: Option<Vec<i64>>,
         pub key: String,
         pub website: Option<String>,

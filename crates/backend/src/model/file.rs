@@ -3,7 +3,7 @@ use common::BookId;
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
-use common_local::{FileId, LibraryId, MediaItem};
+use common_local::{FileId, LibraryId, MediaItem, LibraryType};
 use serde::Serialize;
 
 use super::{book::BookModel, AdvRow, TableRow};
@@ -144,6 +144,10 @@ impl NewFileModel {
 }
 
 impl FileModel {
+    pub fn is_file_type_comic(&self) -> bool {
+        LibraryType::ComicBook.is_filetype_valid(&self.file_type)
+    }
+
     pub async fn exists(path: &str, hash: &str, db: &dyn DatabaseAccess) -> Result<bool> {
         Ok(db.read().await.query_row(
             r#"SELECT EXISTS(SELECT id FROM file WHERE path = ?1 OR hash = ?2)"#,

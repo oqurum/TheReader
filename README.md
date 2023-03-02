@@ -9,6 +9,7 @@ TODO:
  - Better Separation of books' Sections
  - Utilize sqlite transactions for multi table changes.
  - Implement database migrations
+ - Cache & Clear external searches for each task ran
 
 
 # Running/Building
