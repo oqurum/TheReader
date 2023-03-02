@@ -222,8 +222,6 @@ async fn file_match_or_create_book(
 ) -> Result<()> {
     let file_id = file.id;
 
-    let file_name = file.file_name.clone();
-
     let meta = get_metadata_from_files(&[file], &Default::default()).await?;
 
     if let Some(mut ret) = meta {
@@ -241,8 +239,6 @@ async fn file_match_or_create_book(
         }
 
         let mut book_model: BookModel = meta.into();
-        // TODO: Fix this. This is a hack to remove the extension.
-        book_model.title = Some(file_name);
 
         book_model.library_id = library_id;
 
