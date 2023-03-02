@@ -222,12 +222,11 @@ impl OpenLibraryMetadata {
 
         // TODO: Parse record.publish_date | Millions of different variations. No specifics' were followed.
 
-        let Some(source_id) = book_info.isbn_13.as_ref().and_then(|v| {
+        let source_id = book_info.isbn_13.as_ref().and_then(|v| {
             v.first()
                 .or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first()))
-        }) else {
-            return Ok(None);
-        };
+                .map(|v| v.to_string())
+        }).unwrap_or_else(|| id.value().to_string());
 
         Ok(Some(MetadataReturned {
             authors: Some(authors).filter(|v| !v.is_empty()),

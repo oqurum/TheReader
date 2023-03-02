@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::{model::file::FileModel, Result};
 use async_trait::async_trait;
 use bookie::BookSearch;
@@ -34,10 +32,7 @@ impl Metadata for LocalMetadata {
                 let title = book
                     .find(BookSearch::Title)
                     .map(|mut v| v.remove(0))
-                    .or_else(|| {
-                        let path = PathBuf::from(&file.path);
-                        Some(path.file_name()?.to_str()?.to_string())
-                    });
+                    .unwrap_or_else(|| file.file_name.clone());
 
                 let thumb_file_data = book
                     .find(BookSearch::CoverImage)
@@ -68,7 +63,7 @@ impl Metadata for LocalMetadata {
                 (
                     FoundItem {
                         source: source.try_into()?,
-                        title,
+                        title: Some(title),
                         description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
                         rating: 0.0,
                         thumb_locations: thumb_file_data.unwrap_or_default(),

@@ -204,7 +204,7 @@ impl FileProgressionModel {
             r"
             SELECT * FROM file_progression
             JOIN book ON book.id = file_progression.book_id
-            WHERE user_id = ?1 AND type_of = ?2
+            WHERE user_id = ?1 AND file_progression.type_of = ?2
             ORDER BY updated_at DESC
             LIMIT ?3 OFFSET ?4",
         )?;

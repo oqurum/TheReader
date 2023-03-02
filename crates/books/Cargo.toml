@@ -22,6 +22,7 @@ mobi = "0.7"
 xml-rs = "0.8"
 # serde_json = { workspace = true }
 log = { workspace = true }
+tracing = "0.1"
 thiserror = { workspace = true }
 
 binstall-zip = { version = "0.6", optional = true }

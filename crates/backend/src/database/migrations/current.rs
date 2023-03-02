@@ -83,6 +83,8 @@ pub async fn init(database: &Database) -> Result<()> {
 
             "library_id"          INTEGER,
 
+            "type_of"             INT NOT NULL,
+
             "source"              TEXT,
             "file_item_count"     INTEGER,
             "title"               TEXT,

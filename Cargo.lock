@@ -589,6 +589,7 @@ dependencies = [
  "serde",
  "serde-xml-rs",
  "thiserror",
+ "tracing",
  "urlencoding",
  "xml-rs",
 ]

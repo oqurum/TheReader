@@ -130,6 +130,7 @@ pub struct DisplayBookItem {
     pub id: BookId,
 
     pub library_id: LibraryId,
+    pub type_of: LibraryType,
 
     pub public_source_url: Option<String>,
     pub source: Source,
@@ -162,11 +163,13 @@ impl DisplayBookItem {
     }
 }
 
+// TODO: Remove.
 impl Default for DisplayBookItem {
     fn default() -> Self {
         Self {
             id: Default::default(),
             library_id: Default::default(),
+            type_of: LibraryType::Book,
             public_source_url: None,
             source: Source {
                 agent: Agent::new_owned(String::default()),
