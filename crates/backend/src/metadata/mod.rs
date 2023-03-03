@@ -6,7 +6,7 @@ use std::{
 use crate::{
     config::get_config,
     model::{
-        book::BookModel,
+        book::NewBookModel,
         book_person::BookPersonModel,
         file::FileModel,
         person::{NewPersonModel, PersonModel},
@@ -16,7 +16,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use chrono::{NaiveDate, TimeZone, Utc};
-use common::{Agent, BookId, Either, PersonId, Source, ThumbnailStore};
+use common::{Agent, Either, PersonId, Source, ThumbnailStore};
 use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;
 use tracing::error;
@@ -467,10 +467,9 @@ pub struct FoundItem {
     pub year: Option<i64>,
 }
 
-impl From<FoundItem> for BookModel {
+impl From<FoundItem> for NewBookModel {
     fn from(val: FoundItem) -> Self {
-        BookModel {
-            id: BookId::none(),
+        NewBookModel {
             library_id: LibraryId::none(),
             type_of: 1.try_into().unwrap(),
             source: val.source,

@@ -5,7 +5,7 @@ use crate::{
     http::send_message_to_clients,
     metadata::{get_metadata_from_files, MetadataReturned, search_all_agents, Metadata, get_metadata_by_source, openlibrary::OpenLibraryMetadata},
     model::{
-        book::BookModel,
+        book::{BookModel, NewBookModel},
         book_person::BookPersonModel,
         directory::DirectoryModel,
         file::{FileModel, NewFileModel},
@@ -16,7 +16,7 @@ use crate::{
 };
 use bookie::BookSearch;
 use chrono::{TimeZone, Utc};
-use common::{parse_book_id, BookId};
+use common::parse_book_id;
 use common_local::{
     ws::{TaskId, TaskType, WebsocketNotification},
     LibraryId, LibraryType, BookType,
@@ -238,7 +238,7 @@ async fn file_match_or_create_book(
             item.download(db).await?;
         }
 
-        let mut book_model: BookModel = meta.into();
+        let mut book_model: NewBookModel = meta.into();
 
         book_model.library_id = library_id;
 
@@ -279,8 +279,11 @@ async fn file_match_or_create_comic_book(
     library_id: LibraryId,
     db: &dyn DatabaseAccess,
 ) -> Result<()> {
-    let local_path = file.path.strip_prefix(&root_dir_path.display().to_string().replace("\\", "/"))
-        .expect("File Path is not a child of the root directory");
+    let Some(local_path) = file.path.strip_prefix(&root_dir_path.display().to_string().replace('\\', "/")) else {
+        error!("File Path is not a child of the root directory");
+
+        return Ok(());
+    };
 
     let stripped_book_name = extract_name_from_path(local_path);
 
@@ -359,7 +362,7 @@ async fn file_match_or_create_comic_book(
 
         // TODO: Make BookModel creation more readable.
 
-        let mut book_model: BookModel = meta.into();
+        let mut book_model: NewBookModel = meta.into();
 
         book_model.library_id = library_id;
         book_model.type_of = BookType::ComicBook;
@@ -373,7 +376,7 @@ async fn file_match_or_create_comic_book(
         // Either find the main book, or create it.
         let main_book_id = match BookModel::find_one_by_source(&source, db).await? {
             Some(book) => book.id,
-            None => book_model.insert_or_increment(db).await?.id,
+            None => book_model.clone().insert_or_increment(db).await?.id,
         };
 
         debug!("Main Book ID: {main_book_id:?}");
@@ -393,12 +396,12 @@ async fn file_match_or_create_comic_book(
         let (sec_book_id, book_index, is_prologue) = match volume_type {
             VolumeType::Prologue(i) => match BookModel::find_one_by_parent_id_and_index(main_book_id, 0, db).await? {
                 Some(v) => (v.id, i, true),
-                None => (BookModel::new_section(true, library_id, main_book_id, source).insert(db).await?, i, true)
+                None => (NewBookModel::new_section(true, library_id, main_book_id, source).insert(db).await?.id, i, true)
             }
 
             VolumeType::Volume(i) => match BookModel::find_one_by_parent_id_and_index(main_book_id, 1, db).await? {
                 Some(v) => (v.id, i, false),
-                None => (BookModel::new_section(false, library_id, main_book_id, source).insert(db).await?, i, false)
+                None => (NewBookModel::new_section(false, library_id, main_book_id, source).insert(db).await?.id, i, false)
             }
 
             VolumeType::Unknown(_) => todo!(),
@@ -413,7 +416,6 @@ async fn file_match_or_create_comic_book(
         let sub_book_model = match BookModel::find_one_by_parent_id_and_index(sec_book_id, book_index as usize, db).await? {
             Some(v) => v,
             None => {
-                book_model.id = BookId::none();
                 book_model.library_id = library_id;
                 book_model.type_of = BookType::ComicBookChapter;
                 book_model.parent_id = Some(sec_book_id);
@@ -425,9 +427,7 @@ async fn file_match_or_create_comic_book(
                 ));
                 book_model.original_title = book_model.title.clone();
 
-                book_model.id = book_model.insert(db).await?;
-
-                book_model
+                book_model.insert(db).await?
             }
         };
 

@@ -12,6 +12,38 @@ use serde::Serialize;
 use super::{book_person::BookPersonModel, AdvRow, TableRow};
 
 #[derive(Debug, Clone, Serialize)]
+pub struct NewBookModel {
+    pub library_id: LibraryId,
+
+    pub type_of: BookType,
+    pub parent_id: Option<BookId>,
+
+    pub source: Source,
+    pub file_item_count: i64,
+    pub title: Option<String>,
+    pub original_title: Option<String>,
+    pub description: Option<String>,
+    pub rating: f64,
+
+    pub thumb_path: ThumbnailStore,
+    pub all_thumb_urls: Vec<String>,
+
+    // TODO: Make table for all tags. Include publisher in it. Remove country.
+    pub cached: BookItemCached,
+    pub index: Option<i64>,
+
+    pub refreshed_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+
+    pub available_at: Option<DateTime<Utc>>,
+    pub year: Option<i64>,
+}
+
+
+
+#[derive(Debug, Clone, Serialize)]
 pub struct BookModel {
     pub id: BookId,
 
@@ -114,7 +146,7 @@ impl TableRow<'_> for BookModel {
     }
 }
 
-impl BookModel {
+impl NewBookModel {
     pub fn new_section(
         is_prologue: bool,
         library_id: LibraryId,
@@ -124,7 +156,6 @@ impl BookModel {
         let now = Utc::now();
 
         Self {
-            id: BookId::default(),
             library_id,
             type_of: BookType::ComicBookSection,
             parent_id: Some(parent_id),
@@ -147,7 +178,7 @@ impl BookModel {
         }
     }
 
-    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<BookId> {
+    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<BookModel> {
         let writer = db.write().await;
 
         writer.execute(
@@ -182,35 +213,51 @@ impl BookModel {
             ],
         )?;
 
-        Ok(BookId::from(writer.last_insert_rowid() as usize))
+        Ok(self.set_id(BookId::from(writer.last_insert_rowid() as usize)))
     }
 
-    pub async fn insert_or_increment(&self, db: &dyn DatabaseAccess) -> Result<Self> {
-        let table_book = if self.id != 0 {
-            Self::find_one_by_id(self.id, db).await?
-        } else {
-            Self::find_one_by_source(&self.source, db).await?
-        };
-
-        if table_book.is_none() {
-            self.insert(db).await?;
-
-            return Ok(Self::find_one_by_source(&self.source, db).await?.unwrap());
-        } else if self.id != 0 {
-            db.write().await.execute(
-                r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
-                params![self.id],
-            )?;
-        } else {
+    pub async fn insert_or_increment(self, db: &dyn DatabaseAccess) -> Result<BookModel> {
+        if let Some(mut table_book) = BookModel::find_one_by_source(&self.source, db).await? {
             db.write().await.execute(
                 r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
                 params![self.source.to_string()],
             )?;
-        }
 
-        Ok(table_book.unwrap())
+            table_book.file_item_count += 1;
+
+            Ok(table_book)
+        } else {
+            self.insert(db).await
+        }
     }
 
+    pub fn set_id(self, id: BookId) -> BookModel {
+        BookModel {
+            id,
+            library_id: self.library_id,
+            type_of: self.type_of,
+            parent_id: self.parent_id,
+            source: self.source,
+            file_item_count: self.file_item_count,
+            title: self.title,
+            original_title: self.original_title,
+            description: self.description,
+            rating: self.rating,
+            thumb_path: self.thumb_path,
+            all_thumb_urls: self.all_thumb_urls,
+            cached: self.cached,
+            index: self.index,
+            available_at: self.available_at,
+            year: self.year,
+            refreshed_at: self.refreshed_at,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            deleted_at: self.deleted_at,
+        }
+    }
+}
+
+impl BookModel {
     pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
         self.updated_at = Utc::now();
 
@@ -244,6 +291,17 @@ impl BookModel {
                 self.index,
             ],
         )?;
+
+        Ok(())
+    }
+
+    pub async fn increment(id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
+        if let Some(model) = Self::find_one_by_id(id, db).await? {
+            db.write().await.execute(
+                r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
+                params![id],
+            )?;
+        }
 
         Ok(())
     }

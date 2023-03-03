@@ -4,7 +4,7 @@ use common::{BookId, Source};
 use common_local::{LibraryId, ws::{WebsocketNotification, TaskType, TaskId}, SearchFor, SearchForBooksBy, filter::FilterContainer};
 use tracing::info;
 
-use crate::{DatabaseAccess, Result, metadata::{ActiveAgents, get_metadata_by_source, search_and_return_first_valid_agent, SearchItem, MetadataReturned, get_metadata_from_files, search_all_agents}, model::{book::BookModel, file::FileModel, book_person::BookPersonModel, image::{UploadedImageModel, ImageLinkModel}}, http::send_message_to_clients, sort_by_similarity, Task};
+use crate::{DatabaseAccess, Result, metadata::{ActiveAgents, get_metadata_by_source, search_and_return_first_valid_agent, SearchItem, MetadataReturned, get_metadata_from_files, search_all_agents}, model::{book::{BookModel, NewBookModel}, file::FileModel, book_person::BookPersonModel, image::{UploadedImageModel, ImageLinkModel}}, http::send_message_to_clients, sort_by_similarity, Task};
 
 
 #[derive(Clone)]
@@ -239,7 +239,7 @@ impl Task for TaskUpdateInvalidBook {
                                     item.download(db).await?;
                                 }
 
-                                let mut new_book: BookModel = meta.into();
+                                let mut new_book: NewBookModel = meta.into();
 
                                 // TODO: Store Publisher inside Database
                                 new_book.cached = new_book
@@ -324,7 +324,8 @@ impl Task for TaskUpdateInvalidBook {
                                 item.download(db).await?;
                             }
 
-                            let mut book: BookModel = meta.into();
+                            let book: NewBookModel = meta.into();
+                            let mut book = book.set_id(old_book.id);
 
                             // TODO: Store Publisher inside Database
                             book.cached = book
@@ -332,7 +333,6 @@ impl Task for TaskUpdateInvalidBook {
                                 .publisher_optional(publisher)
                                 .author_optional(main_author);
 
-                            book.id = old_book.id;
                             book.library_id = old_book.library_id;
                             book.file_item_count = old_book.file_item_count;
                             book.rating = old_book.rating;
@@ -541,7 +541,8 @@ async fn overwrite_book_with_new_metadata(
         }
     }
 
-    let mut new_book_model: BookModel = meta.into();
+    let new_book_model: NewBookModel = meta.into();
+    let mut new_book_model = new_book_model.set_id(curr_book_model.id);
 
     // TODO: Store Publisher inside Database
     new_book_model.cached = new_book_model
@@ -550,7 +551,6 @@ async fn overwrite_book_with_new_metadata(
         .author_optional(main_author);
 
     // Update New Book with old one
-    new_book_model.id = curr_book_model.id;
     new_book_model.library_id = curr_book_model.library_id;
     new_book_model.deleted_at = curr_book_model.deleted_at;
     new_book_model.file_item_count = curr_book_model.file_item_count;
