@@ -317,6 +317,16 @@ impl BookModel {
             .optional()?)
     }
 
+    pub async fn find_by_parent_id(id: BookId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
+        let this = db.read().await;
+
+        let mut conn = this.prepare("SELECT * FROM book WHERE parent_id = ?1")?;
+
+        let map = conn.query_map([id], |v| BookModel::from_row(v))?;
+
+        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
     pub async fn find_one_by_parent_id_and_index(id: BookId, index: usize, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
         Ok(db
             .read()
@@ -449,6 +459,13 @@ impl BookModel {
         let orig_len = sql.len();
 
         let mut f_comp = Vec::new();
+
+        // TODO: Remove Hardcoded value
+        f_comp.push(format!(
+            "(type_of = {} OR type_of = {}) ",
+            BookType::Book as u8,
+            BookType::ComicBook as u8,
+        ));
 
         // Library ID
         if let Some(library) = library {

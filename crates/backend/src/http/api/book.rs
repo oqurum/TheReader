@@ -12,7 +12,7 @@ use common::{
 };
 use common_local::{
     api::{self, BookPresetListType, BookProgression},
-    DisplayItem, ModifyValuesBy, Poster, SearchFor, SearchForBooksBy, SearchType,
+    DisplayItem, ModifyValuesBy, Poster, SearchFor, SearchForBooksBy, SearchType, BookType,
 };
 use serde_qs::actix::QsQuery;
 
@@ -211,20 +211,71 @@ pub async fn load_book_info(
     let mut found_progression = false;
     let (mut media, mut progress) = (Vec::new(), Vec::new());
 
-    for file in FileModel::find_by_book_id(book.id, &db.basic()).await? {
-        let prog = if !found_progression {
-            let prog =
-                FileProgressionModel::find_one(member.member_id(), file.id, &db.basic()).await?;
+    if book.type_of == BookType::Book {
+        for file in FileModel::find_by_book_id(book.id, &db.basic()).await? {
+            let prog = if !found_progression {
+                let prog =
+                    FileProgressionModel::find_one(member.member_id(), file.id, &db.basic()).await?;
 
-            found_progression = prog.is_some();
+                found_progression = prog.is_some();
 
-            prog
-        } else {
-            None
-        };
+                prog
+            } else {
+                None
+            };
 
-        media.push(file.into());
-        progress.push(prog.map(|v| v.into()));
+            media.push(file.into());
+            progress.push(prog.map(|v| v.into()));
+        }
+    } else {
+        let db_rw = db.basic();
+
+        let (mut proc_media, mut proc_progress) = (Vec::new(), Vec::new());
+        let (mut proc_pro_media, mut proc_pro_progress) = (Vec::new(), Vec::new());
+
+        // If we're viewing a comic
+        for section_model in BookModel::find_by_parent_id(book.id, &db_rw).await? {
+            for file_model in BookModel::find_by_parent_id(section_model.id, &db_rw).await? {
+                // Copy of above
+                for file in FileModel::find_by_book_id(file_model.id, &db_rw).await? {
+                    let prog = if !found_progression {
+                        let prog =
+                            FileProgressionModel::find_one(member.member_id(), file.id, &db_rw).await?;
+
+                        found_progression = prog.is_some();
+
+                        prog
+                    } else {
+                        None
+                    };
+
+                    if section_model.index.unwrap() == 0 {
+                        proc_pro_media.push((file_model.index.unwrap(), file));
+                        proc_pro_progress.push((file_model.index.unwrap(), prog));
+                    } else {
+                        proc_media.push((file_model.index.unwrap(), file));
+                        proc_progress.push((file_model.index.unwrap(), prog));
+                    }
+                }
+            }
+        }
+
+        // Sort by index
+        proc_media.sort_by_key(|&(i, _)| i);
+        proc_progress.sort_by_key(|&(i, _)| i);
+        proc_pro_media.sort_by_key(|&(i, _)| i);
+        proc_pro_progress.sort_by_key(|&(i, _)| i);
+
+        // Place into main vec
+        for (file, prog) in proc_pro_media.into_iter().zip(proc_pro_progress.into_iter()) {
+            media.push(file.1.into());
+            progress.push(prog.1.map(|v| v.into()));
+        }
+
+        for (file, prog) in proc_media.into_iter().zip(proc_progress.into_iter()) {
+            media.push(file.1.into());
+            progress.push(prog.1.map(|v| v.into()));
+        }
     }
 
     let people = PersonModel::find_by_book_id(book.id, &db.basic()).await?;
