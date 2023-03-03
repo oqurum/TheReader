@@ -6,40 +6,104 @@ const WORD_DELIMITER: [char; 8] = [' ', '_', '-', '.', ',', '=', '\'', '|'];
 const SPECIAL_CHARS: [char; 4] = ['&', ':', '\\', '/'];
 const USELESS: [char; 3] = [' ', '_', '-'];
 
+// TODO: Remember, usually the first word is the title, so we should be able to use that to determine the series name too.
+
 lazy_static! {
-    // t01, t1, t01-t02, t1-t2
-    static ref TOME_NUMBER: Regex = RegexBuilder::new(r"t#?\d+(?:-t?\d+)?").case_insensitive(true).build().unwrap();
-    // tome 01, tome 1, tome 01-02, tome 1-2
-    static ref TOME_NUMBER_WITH_TEXT: Regex = RegexBuilder::new(r"tome #?\d+(?:-\d+)?").case_insensitive(true).build().unwrap();
+    /// t01, t1, t01-t02, t1-t2
+    static ref TOME_NUMBER: Regex = RegexBuilder::new(r"t#?(\d+)(?:-t?(\d+))?").case_insensitive(true).build().unwrap();
+    /// tome 01, tome 1, tome 01-02, tome 1-2
+    static ref TOME_NUMBER_WITH_TEXT: Regex = RegexBuilder::new(r"tome #?(\d+)(?:-(\d+))?").case_insensitive(true).build().unwrap();
 
-    // p01, p1, p01-p02, p1-p2
-    static ref PART_NUMBER: Regex = RegexBuilder::new(r"p#?\d+(?:-p?\d+)?").case_insensitive(true).build().unwrap();
-    // part 01, part 1, part 01-02, part 1-2
-    static ref PART_NUMBER_WITH_TEXT: Regex = RegexBuilder::new(r"part #?\d+(?:-\d+)?").case_insensitive(true).build().unwrap();
+    /// p01, p1, p01-p02, p1-p2
+    static ref PART_NUMBER: Regex = RegexBuilder::new(r"p#?(\d+)(?:-p?(\d+))?").case_insensitive(true).build().unwrap();
+    /// part 01, part 1, part 01-02, part 1-2
+    static ref PART_NUMBER_WITH_TEXT: Regex = RegexBuilder::new(r"part #?(\d+)(?:-(\d+))?").case_insensitive(true).build().unwrap();
 
-    // ch(apter)01, ch(apter) 1
-    static ref CHAPTER_NUMBER: Regex = RegexBuilder::new(r"ch(?:apter)?\s?\d+").case_insensitive(true).build().unwrap();
+    /// ch(apter)01, ch(apter) 1
+    static ref CHAPTER_NUMBER: Regex = RegexBuilder::new(r"ch(?:apter)?\s?(\d+)").case_insensitive(true).build().unwrap();
 
-    // prologue01, prologue 1
-    static ref PROLOGUE_NUMBER: Regex = RegexBuilder::new(r"prologue?\s?\d+").case_insensitive(true).build().unwrap();
+    /// prologue01, prologue 1
+    static ref PROLOGUE_NUMBER: Regex = RegexBuilder::new(r"prologue?\s?(\d+)").case_insensitive(true).build().unwrap();
 
-    // vol(ume)1, vol1-2, vol 1, vol 1-vol2, vol 1-vol 2, vol #1, vol #1-vol#2, vol #1-vol #2
-    static ref VOLUME_NUMBER: Regex = RegexBuilder::new(r"vol(?:ume)?\s?#?\d+(?:-(?:vol(?:ume)?)?\s?#?\d+)?").case_insensitive(true).build().unwrap();
+    /// vol(ume)1, vol1-2, vol 1, vol 1-vol2, vol 1-vol 2, vol #1, vol #1-vol#2, vol #1-vol #2, vol. 1
+    static ref VOLUME_NUMBER: Regex = RegexBuilder::new(r"vol\.?(?:ume)?\s?#?(\d+)(?:-(?:vol\.?(?:ume)?)?\s?#?(\d+))?").case_insensitive(true).build().unwrap();
 
-    // v01, v1, v01-v02, v1-v2
-    static ref VOLUME_NUMBER_SHORT: Regex = RegexBuilder::new(r"v\s?#?\d+(?:-v?\d+)?").case_insensitive(true).build().unwrap();
+    /// v01, v1, v01-v02, v1-v2
+    static ref VOLUME_NUMBER_SHORT: Regex = RegexBuilder::new(r"v\.?\s?#?(\d+)(?:-v?(\d+))?").case_insensitive(true).build().unwrap();
 
-    // .cbz, .cbr, .cb7, .cbt, .cba
+    /// .cbz, .cbr, .cb7, .cbt, .cba
     static ref ARCHIVE_EXTENSION: Regex = RegexBuilder::new(r"\.?(?:cbz|cbr|cb7|cbt|cba)(?:/[a-zA-Z0-9]+)?").case_insensitive(true).build().unwrap();
 
-    // 001-9999
+    /// 001-9999
     static ref MULTIPLE_CHAPTERS: Regex = RegexBuilder::new(r"#?\d+-\d+").case_insensitive(true).build().unwrap();
 
-    // Language code. E.g. EN, FR, DE, ES, JP, CN, KR, etc.
+    /// Language code. E.g. EN, FR, DE, ES, JP, CN, KR, etc.
     static ref LANGUAGE_CODE: Regex = RegexBuilder::new(r"\s[A-Z]{2}(?:\s|$)").case_insensitive(false).build().unwrap();
 
-    // Disk letter. E.g. C:, D:, etc.
+    /// Disk letter. E.g. C:, D:, etc.
     static ref DISK_LETTER: Regex = RegexBuilder::new(r"[A-Z]:/").case_insensitive(false).build().unwrap();
+}
+
+pub fn extract_comic_volume(value: &str) -> Option<VolumeType> {
+    fn find_one(value: &str) -> Option<VolumeType> {
+        let regerts = [
+            (0, &*PROLOGUE_NUMBER),
+            (1, &*VOLUME_NUMBER),
+            (1, &*VOLUME_NUMBER_SHORT),
+            (1, &*CHAPTER_NUMBER),
+            (1, &*TOME_NUMBER),
+            (1, &*TOME_NUMBER_WITH_TEXT),
+            (1, &*PART_NUMBER),
+            (1, &*PART_NUMBER_WITH_TEXT),
+        ];
+
+        for (t, regex) in regerts {
+            if let Some(cap) = regex.captures(value) {
+                // TODO: Handle multiple chapter parts. Eg. ch01-ch02
+                if cap.get(0)?.as_str().contains('-') {
+                    continue;
+                }
+
+                if let Some(num) = cap.get(1) {
+                    return Some(match t {
+                        0 => VolumeType::Prologue(num.as_str().parse().unwrap()),
+                        1 => VolumeType::Volume(num.as_str().parse().unwrap()),
+                        _ => unreachable!(),
+                    });
+                }
+            }
+        }
+
+        None
+    }
+
+    // Try to find a volume number.
+    match find_one(value) {
+        Some(v) => Some(v),
+        None => {
+            // Ensure we aren't dealing with multiple chapters.
+            if MULTIPLE_CHAPTERS.is_match(value) {
+                return None;
+            }
+
+            let mut value = value.to_string();
+            remove_filler(&mut value);
+
+            lazy_static! {
+                static ref NUMBER: Regex = Regex::new(r"\d+").unwrap();
+            }
+
+            let mut last_found = None;
+
+            // We want the last number. It's most likely the volume number.
+            // Otherwise we could end up with a number from the Comic Book Title.
+            for found in NUMBER.find_iter(&value) {
+                last_found = Some(VolumeType::Unknown(found.as_str().parse().unwrap()));
+            }
+
+            last_found
+        }
+    }
 }
 
 pub fn extract_name_from_path<V: AsRef<str>>(value: V) -> String {
@@ -111,6 +175,21 @@ fn strip_text<V: ToString>(value: V) -> String {
     value = LANGUAGE_CODE.replace_all(&value, "").to_string();
     value = PROLOGUE_NUMBER.replace_all(&value, "").to_string();
 
+    remove_filler(&mut value);
+
+    // Remove double spaces.
+    value = value.replace("  ", " ");
+
+    // Remove concurrent dashes.
+    value = value.replace("- -", "-");
+
+    value
+}
+
+/// Remove filler words from the value.
+///
+/// For Example: Bracketed text, text in parentheses, etc.
+fn remove_filler(value: &mut String) {
     // Remove text in brackets.
     while let Some((l_index, r_index)) = value.find('[').and_then(|index| Some((index, value.chars().skip(index).position(|c| c == ']')?))) {
         value.drain(l_index..=l_index + r_index);
@@ -125,16 +204,16 @@ fn strip_text<V: ToString>(value: V) -> String {
     if let Some(amount) = value.chars().rev().position(|v| !USELESS.contains(&v)) {
         value.drain(value.len() - amount..);
     }
-
-    // Remove double spaces.
-    value = value.replace("  ", " ");
-
-    // Remove concurrent dashes.
-    value = value.replace("- -", "-");
-
-    value
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VolumeType {
+    /// Prologues are before the first chapter.
+    Prologue(u32),
+    Volume(u32),
+    /// We don't know what the volume type it is.
+    Unknown(u32),
+}
 
 #[cfg(test)]
 mod tests {
@@ -156,5 +235,24 @@ mod tests {
         assert_eq!("fairytail", extract_name_from_path("fairytail_vol1"));
         assert_eq!("Name Here", extract_name_from_path("Name Here (115 tomes) FR CBZ/002 - Name Here (Info 1994)"));
         assert_eq!("Name Here", extract_name_from_path("Name Here (115 tomes) EN CBZ/001-100/002 - Name Here (Info 1994)"));
+    }
+
+    #[test]
+    fn extract_volume() {
+        // Volume Tests
+        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - Tome 01"));
+        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - T1"));
+        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - Vol. 1"));
+        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - Volume 1"));
+
+        // Prologue Tests
+        assert_eq!(Some(VolumeType::Prologue(1)), extract_comic_volume("One Piece - Prologue 1"));
+
+        // Unknown Tests
+        assert_eq!(Some(VolumeType::Unknown(1)), extract_comic_volume("One Piece - Item 1"));
+        assert_eq!(Some(VolumeType::Unknown(1)), extract_comic_volume("One Piece - Item 1 (Hinata) (2011) [Digital-1598] [Manga FR] (PapriKa)"));
+
+        // Invalid Multiple Volumes
+        assert_eq!(None, extract_comic_volume("One Piece - T2-3"));
     }
 }

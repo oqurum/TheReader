@@ -3,7 +3,7 @@ use std::{collections::VecDeque, path::{PathBuf, Path}, time::UNIX_EPOCH};
 use crate::{
     database::DatabaseAccess,
     http::send_message_to_clients,
-    metadata::{get_metadata_from_files, MetadataReturned, search_and_return_first_valid_agent, SearchItem, search_all_agents, google_books::GoogleBooksMetadata, Metadata, get_metadata_by_source, openlibrary::OpenLibraryMetadata},
+    metadata::{get_metadata_from_files, MetadataReturned, search_all_agents, Metadata, get_metadata_by_source, openlibrary::OpenLibraryMetadata},
     model::{
         book::BookModel,
         book_person::BookPersonModel,
@@ -12,11 +12,11 @@ use crate::{
         image::{ImageLinkModel, UploadedImageModel},
         library::LibraryModel,
     },
-    Result, parse::extract_name_from_path, util,
+    Result, parse::{extract_name_from_path, extract_comic_volume, VolumeType},
 };
 use bookie::BookSearch;
 use chrono::{TimeZone, Utc};
-use common::parse_book_id;
+use common::{parse_book_id, BookId};
 use common_local::{
     ws::{TaskId, TaskType, WebsocketNotification},
     LibraryId, LibraryType, BookType,
@@ -28,7 +28,7 @@ pub static WHITELISTED_FILE_TYPES: [&str; 2] = ["epub", "cbz"];
 
 pub async fn library_scan(
     library: &LibraryModel,
-    mut directories: Vec<DirectoryModel>,
+    directories: Vec<DirectoryModel>,
     task_id: TaskId,
     db: &dyn DatabaseAccess,
 ) -> Result<()> {
@@ -286,8 +286,6 @@ async fn file_match_or_create_comic_book(
 
     debug!("{stripped_book_name:?} - {local_path:?}");
 
-    let file_id = file.id;
-
     // TODO: Cache the searches.
 
     // We have to search by the comic book title.
@@ -359,6 +357,8 @@ async fn file_match_or_create_comic_book(
             ..
         } = ret;
 
+        // TODO: Make BookModel creation more readable.
+
         let mut book_model: BookModel = meta.into();
 
         book_model.library_id = library_id;
@@ -370,12 +370,76 @@ async fn file_match_or_create_comic_book(
             .publisher_optional(publisher)
             .author_optional(main_author);
 
-        let book_model = book_model.insert_or_increment(db).await?;
-        FileModel::update_book_id(file_id, book_model.id, db).await?;
+        // Either find the main book, or create it.
+        let main_book_id = match BookModel::find_one_by_source(&source, db).await? {
+            Some(book) => book.id,
+            None => book_model.insert_or_increment(db).await?.id,
+        };
 
-        if let Some(thumb_path) = book_model.thumb_path.as_value() {
+        debug!("Main Book ID: {main_book_id:?}");
+
+
+        let Some(volume_type) = extract_comic_volume(&file.file_name) else {
+            // TODO: How to handle this?
+            // We don't know what volume this is.
+
+            error!("Unable to extract volume from file name: {:?}", file.file_name);
+
+            return Ok(());
+        };
+
+
+        // Either find the section book, or create it.
+        let (sec_book_id, book_index, is_prologue) = match volume_type {
+            VolumeType::Prologue(i) => match BookModel::find_one_by_parent_id_and_index(main_book_id, 0, db).await? {
+                Some(v) => (v.id, i, true),
+                None => (BookModel::new_section(true, library_id, main_book_id, source).insert(db).await?, i, true)
+            }
+
+            VolumeType::Volume(i) => match BookModel::find_one_by_parent_id_and_index(main_book_id, 1, db).await? {
+                Some(v) => (v.id, i, false),
+                None => (BookModel::new_section(false, library_id, main_book_id, source).insert(db).await?, i, false)
+            }
+
+            VolumeType::Unknown(_) => todo!(),
+        };
+
+        debug!("Section Book ID: {sec_book_id:?} - Index: {book_index}");
+
+        // Multiple index by 10 so we can define .5 chapters.
+        let book_index = book_index as i64 * 10;
+
+        // Now we can officially find or create the sub book.
+        let sub_book_model = match BookModel::find_one_by_parent_id_and_index(sec_book_id, book_index as usize, db).await? {
+            Some(v) => v,
+            None => {
+                book_model.id = BookId::none();
+                book_model.library_id = library_id;
+                book_model.type_of = BookType::ComicBookChapter;
+                book_model.parent_id = Some(sec_book_id);
+                book_model.index = Some(book_index);
+                book_model.title = Some(format!(
+                    "{} - {}",
+                    if is_prologue { "Prologue" } else { "Chapter" },
+                    book_index / 10
+                ));
+                book_model.original_title = book_model.title.clone();
+
+                book_model.id = book_model.insert(db).await?;
+
+                book_model
+            }
+        };
+
+        debug!("Update File Id");
+
+        FileModel::update_book_id(file.id, sub_book_model.id, db).await?;
+
+        debug!("Updated File Id");
+
+        if let Some(thumb_path) = sub_book_model.thumb_path.as_value() {
             if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
-                ImageLinkModel::new_book(image.id, book_model.id)
+                ImageLinkModel::new_book(image.id, sub_book_model.id)
                     .insert(db)
                     .await?;
             }
@@ -383,7 +447,7 @@ async fn file_match_or_create_comic_book(
 
         for person_id in author_ids {
             BookPersonModel {
-                book_id: book_model.id,
+                book_id: sub_book_model.id,
                 person_id,
             }
             .insert_or_ignore(db)

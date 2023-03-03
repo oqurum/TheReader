@@ -270,8 +270,12 @@ impl LibraryType {
 pub enum BookType {
     Book = 1,
 
+    /// The main book.
     ComicBook = 2,
-    ComicBookIssue = 3,
+    /// For either Prologue or Chapter
+    ComicBookSection = 3,
+    /// The chapters of the book.
+    ComicBookChapter = 4,
 }
 
 

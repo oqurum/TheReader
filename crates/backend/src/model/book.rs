@@ -115,6 +115,76 @@ impl TableRow<'_> for BookModel {
 }
 
 impl BookModel {
+    pub fn new_section(
+        is_prologue: bool,
+        library_id: LibraryId,
+        parent_id: BookId,
+        source: Source,
+    ) -> Self {
+        let now = Utc::now();
+
+        Self {
+            id: BookId::default(),
+            library_id,
+            type_of: BookType::ComicBookSection,
+            parent_id: Some(parent_id),
+            source,
+            file_item_count: 0,
+            title: None,
+            original_title: None,
+            description: None,
+            rating: 0.0,
+            thumb_path: ThumbnailStore::None,
+            all_thumb_urls: Vec::new(),
+            cached: BookItemCached::default(),
+            index: Some(if is_prologue { 0 } else { 1 }),
+            refreshed_at: now,
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
+            available_at: None,
+            year: None,
+        }
+    }
+
+    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<BookId> {
+        let writer = db.write().await;
+
+        writer.execute(
+            r#"
+            INSERT INTO book (
+                library_id, type_of, parent_id, source, file_item_count,
+                title, original_title, description, rating, thumb_url,
+                cached, "index",
+                available_at, year,
+                refreshed_at, created_at, updated_at, deleted_at
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)"#,
+            params![
+                self.library_id,
+                i32::from(self.type_of),
+                self.parent_id,
+                self.source.to_string(),
+                &self.file_item_count,
+                &self.title,
+                &self.original_title,
+                &self.description,
+                &self.rating,
+                self.thumb_path.as_value(),
+                &self.cached.as_string_optional(),
+                &self.index,
+                &self.available_at,
+                &self.year,
+                self.refreshed_at,
+                self.created_at,
+                self.updated_at,
+                self.deleted_at,
+            ],
+        )?;
+
+        Ok(BookId::from(writer.last_insert_rowid() as usize))
+    }
+
     pub async fn insert_or_increment(&self, db: &dyn DatabaseAccess) -> Result<Self> {
         let table_book = if self.id != 0 {
             Self::find_one_by_id(self.id, db).await?
@@ -123,37 +193,7 @@ impl BookModel {
         };
 
         if table_book.is_none() {
-            db.write().await.execute(
-                r#"
-                INSERT INTO book (
-                    library_id, type_of, parent_id, source, file_item_count,
-                    title, original_title, description, rating, thumb_url,
-                    cached, index,
-                    available_at, year,
-                    refreshed_at, created_at, updated_at, deleted_at
-                )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
-                params![
-                    self.library_id,
-                    i32::from(self.type_of),
-                    self.parent_id,
-                    self.source.to_string(),
-                    &self.file_item_count,
-                    &self.title,
-                    &self.original_title,
-                    &self.description,
-                    &self.rating,
-                    self.thumb_path.as_value(),
-                    &self.cached.as_string_optional(),
-                    &self.index,
-                    &self.available_at,
-                    &self.year,
-                    self.refreshed_at,
-                    self.created_at,
-                    self.updated_at,
-                    self.deleted_at,
-                ],
-            )?;
+            self.insert(db).await?;
 
             return Ok(Self::find_one_by_source(&self.source, db).await?.unwrap());
         } else if self.id != 0 {
@@ -260,8 +300,8 @@ impl BookModel {
             .read()
             .await
             .query_row(
-                r#"SELECT * FROM book WHERE source = ?1"#,
-                params![source.to_string()],
+                r#"SELECT * FROM book WHERE source = ?1 AND (type_of = ?2 OR type_of = ?3)"#,
+                params![source.to_string(), i32::from(BookType::Book), i32::from(BookType::ComicBook)],
                 |v| BookModel::from_row(v),
             )
             .optional()?)
@@ -274,6 +314,17 @@ impl BookModel {
             .query_row(r#"SELECT * FROM book WHERE id = ?1"#, params![id], |v| {
                 BookModel::from_row(v)
             })
+            .optional()?)
+    }
+
+    pub async fn find_one_by_parent_id_and_index(id: BookId, index: usize, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
+        Ok(db
+            .read()
+            .await
+            .query_row(
+                "SELECT * FROM book WHERE parent_id = ?1 AND \"index\" = ?2",
+                params![id, index as i32],
+                |v| BookModel::from_row(v))
             .optional()?)
     }
 
