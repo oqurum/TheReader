@@ -98,7 +98,15 @@ pub fn extract_comic_volume(value: &str) -> Option<VolumeType> {
             // We want the last number. It's most likely the volume number.
             // Otherwise we could end up with a number from the Comic Book Title.
             for found in NUMBER.find_iter(&value) {
-                last_found = Some(VolumeType::Unknown(found.as_str().parse().unwrap()));
+                let lower = value.to_lowercase();
+
+                if lower.contains("prologue") {
+                    last_found = Some(VolumeType::Prologue(found.as_str().parse().unwrap()));
+                } else if lower.contains("chapter") || lower.contains("volume") || lower.contains("tome") {
+                    last_found = Some(VolumeType::Volume(found.as_str().parse().unwrap()));
+                } else {
+                    last_found = Some(VolumeType::Unknown(found.as_str().parse().unwrap()));
+                }
             }
 
             last_found
