@@ -57,3 +57,14 @@ body.color-black {
 	background-color: black !important;
 	color: #c9c9c9 !important;
 }
+
+// Using a float to make other elements (mostly) ignore the div.
+.reader-ignore {
+	float: left !important;
+}
+
+// Comics
+.comic-strip {
+	width: 100% !important;
+	text-align: center !important;
+}

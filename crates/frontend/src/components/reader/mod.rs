@@ -441,6 +441,7 @@ impl Component for Reader {
 
                             // Previous Page
                             DragType::Right(distance) => {
+                                // TODO: Prevent drags from going past start
                                 self.drag_distance = distance as isize;
 
                                 if let Some(section) = self.get_current_frame() {
@@ -450,6 +451,7 @@ impl Component for Reader {
 
                             // Next Page
                             DragType::Left(distance) => {
+                                // TODO: Prevent drags from going past end
                                 self.drag_distance = -(distance as isize);
 
                                 if let Some(section) = self.get_current_frame() {
@@ -708,7 +710,7 @@ impl Component for Reader {
                     self.on_all_frames_generated(ctx);
                 }
 
-                self.update_cached_pages();
+                self.update_cached_pages(ctx.props());
 
                 // TODO: Ensure this works.
                 if ctx.props().settings.type_of == PageLoadType::Select {
@@ -829,7 +831,7 @@ impl Component for Reader {
                 }
             }
 
-            self.update_cached_pages();
+            self.update_cached_pages(ctx.props());
         }
 
         self.load_surrounding_sections(ctx);
@@ -1019,13 +1021,18 @@ impl Reader {
         self.section_frames.iter().all(|v| v.is_loaded())
     }
 
-    fn update_cached_pages(&mut self) {
+    fn update_cached_pages(&mut self, props: &<Self as Component>::Properties) {
         let mut total_page_pos = 0;
 
         // TODO: Verify if needed. Or can we do values_mut() we need to have it in asc order
         for chapter in 0..self.section_frames.len() {
             if let SectionLoadProgress::Loaded(ele) = &mut self.section_frames[chapter] {
-                let page_count = get_iframe_page_count(ele.get_iframe()).max(1);
+                let page_count = if props.book.is_comic_book() {
+                    self.cached_sections.len()
+                } else {
+                    get_iframe_page_count(ele.get_iframe()).max(1)
+                };
+
 
                 ele.gpi = total_page_pos;
 
@@ -1048,7 +1055,7 @@ impl Reader {
     fn on_all_frames_generated(&mut self, ctx: &Context<Self>) {
         info!("All Frames Generated");
         // Double check page counts before proceeding.
-        self.update_cached_pages();
+        self.update_cached_pages(ctx.props());
 
         // TODO: Move to Msg::GenerateIFrameLoaded so it's only in a single place.
         self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
@@ -1439,6 +1446,7 @@ impl Reader {
                 info!("Generating Section {}", curr_chap.value + 1);
 
                 *section_frame = SectionLoadProgress::Loading(generate_section(
+                    !ctx.props().book.is_comic_book(),
                     Some(ctx.props().settings.dimensions),
                     curr_chap.info.header_hash.clone(),
                     section_index,
@@ -1447,6 +1455,7 @@ impl Reader {
             }
         } else {
             self.section_frames.push(SectionLoadProgress::Loading(generate_section(
+                !ctx.props().book.is_comic_book(),
                 Some(ctx.props().settings.dimensions),
                 curr_chap.info.header_hash.clone(),
                 section_index,
@@ -1479,6 +1488,7 @@ fn create_iframe() -> HtmlIFrameElement {
 }
 
 fn generate_section(
+    is_text_contents: bool,
     book_dimensions: Option<(i32, i32)>,
     header_hash: String,
     section_index: usize,
@@ -1513,7 +1523,7 @@ fn generate_section(
 
     iframe.set_onload(Some(f.as_ref().unchecked_ref()));
 
-    SectionContents::new(header_hash, iframe, f)
+    SectionContents::new(is_text_contents, header_hash, iframe, f)
 }
 
 fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameElement) {
@@ -1528,10 +1538,10 @@ fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameEl
 
     iframe
         .style()
-        .set_property("width", &format!("{}px", width))
+        .set_property("width", &format!("{width}px"))
         .unwrap();
     iframe
         .style()
-        .set_property("height", &format!("{}px", height))
+        .set_property("height", &format!("{height}px"))
         .unwrap();
 }

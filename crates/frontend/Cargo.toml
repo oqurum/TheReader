@@ -37,7 +37,7 @@ gloo-timers = "0.2"
 js-sys = "0.3"
 
 chrono = { workspace = true, features = ["wasmbind"] }
-base64 = "0.13"
+base64 = { workspace = true }
 lazy_static = "1.4"
 urlencoding = { workspace = true }
 num_enum = { workspace = true }

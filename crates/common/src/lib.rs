@@ -217,6 +217,12 @@ pub struct MediaItem {
     pub deleted_at: Option<i64>,
 }
 
+impl MediaItem {
+    pub fn is_comic_book(&self) -> bool {
+        LibraryType::ComicBook.is_filetype_valid(&self.file_type)
+    }
+}
+
 impl PartialEq for MediaItem {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id

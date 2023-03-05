@@ -23,6 +23,7 @@ serde-xml-rs = "0.6"
 rand = "0.8"
 num_enum = "0.5"
 regex = "1.6"
+base64 = "0.13"
 
 # Backend Specific
 rusqlite = "0.28"

@@ -607,6 +607,7 @@ dependencies = [
  "actix-web-actors",
  "anyhow",
  "async-trait",
+ "base64",
  "bcrypt",
  "bookie",
  "chrono",

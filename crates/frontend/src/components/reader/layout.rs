@@ -14,9 +14,13 @@ static PAGE_DISPLAYS: [&str; 3] = ["single-page", "double-page", "scrolling-page
 
 #[derive(Debug, Clone)]
 pub enum SectionDisplay {
+    // Optimized Text Layouts
     Single(PageDisplay),
     Double(PageDisplay),
     Scroll(ScrollDisplay),
+
+    // Optimized Image Layouts
+    // TODO:
 }
 
 impl SectionDisplay {

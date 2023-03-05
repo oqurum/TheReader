@@ -1,8 +1,11 @@
+use std::io::Cursor;
+
 use actix_files::NamedFile;
 use actix_web::http::header::ContentDisposition;
 use actix_web::{delete, get, post, web, HttpResponse};
 
 use common::api::WrappingResponse;
+use common_local::api::{FileUnwrappedInfo, FileUnwrappedHeaderType};
 use common_local::{api, Chapter, FileId, Progression};
 use reqwest::header::HeaderValue;
 use tracing::error;
@@ -12,6 +15,8 @@ use crate::http::{JsonResponse, MemberCookie};
 use crate::model::file::FileModel;
 use crate::model::progress::FileProgressionModel;
 use crate::{Result, WebResult};
+
+const BOOK_STYLING: &str = include_str!("../../../../../app/book_stylings.css");
 
 // Load Book Resources
 
@@ -33,7 +38,7 @@ pub async fn load_file_resource(
         match book.read_path_as_bytes(
             &resource_path,
             Some(&format!("/api/file/{file_id}/res")),
-            Some(&[include_str!("../../../../../app/book_stylings.css")]),
+            Some(&[BOOK_STYLING]),
         ) {
             Ok(v) => v,
             Err(e) => {
@@ -106,7 +111,7 @@ pub async fn load_file_pages(
 
         let body = match book.read_page_as_bytes(
             Some(&format!("/api/file/{file_id}/res")),
-            Some(&[include_str!("../../../../../app/book_stylings.css")]),
+            Some(&[BOOK_STYLING]),
         ) {
             Ok(v) => v,
             Err(e) => {
@@ -119,13 +124,35 @@ pub async fn load_file_pages(
             }
         };
 
-        let info = bookie::epub::extract_body_and_header_values(&body).unwrap();
+        let file_path = book.get_page_path();
+
+        let info = if file.is_file_type_comic() {
+            let (width, height) = image::io::Reader::new(Cursor::new(body))
+                .with_guessed_format()?
+                .into_dimensions()?;
+
+            FileUnwrappedInfo {
+                header_items: vec![
+                    FileUnwrappedHeaderType {
+                        name: String::from("style"),
+                        attributes: Vec::new(),
+                        chars: Some(String::from(BOOK_STYLING))
+                    }
+                ],
+                header_hash: String::from("ignored"),
+                inner_body: format!(r#"<div class="comic-strip"><img src="/api/file/{file_id}/res/{}" data-width="{width}" data-height="{height}" /></div>"#, file_path.display())
+                //format!("data:image;charset=utf-8;base64,{}", base64::encode(body))
+            }
+        } else {
+            bookie::epub::extract_body_and_header_values(&body).unwrap()
+        };
+
 
         // TODO: Return file names along with Chapter. Useful for redirecting to certain chapter for <a> tags.
 
         items.push(Chapter {
             info,
-            file_path: book.get_page_path(),
+            file_path,
             value: chap,
         });
     }

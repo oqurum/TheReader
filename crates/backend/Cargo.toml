@@ -54,6 +54,7 @@ tracing-subscriber = "0.3"
 tracing-actix-web = "0.6"
 tracing = "0.1"
 
+base64 = { workspace = true }
 bcrypt = "0.13"
 sha2 = "0.10"
 strsim = "0.10"

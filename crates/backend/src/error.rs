@@ -68,12 +68,7 @@ impl ResponseError for WebError {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
         let resp_value = match self {
             Self::ApiResponse(r) => WrappingResponse::<()>::Error(r.clone()),
-
-            this => {
-                let mut description = String::new();
-                let _ = write!(&mut description, "{}", this);
-                WrappingResponse::<()>::error(description)
-            }
+            this => WrappingResponse::<()>::error(format!("{this}"))
         };
 
         let mut res = actix_web::HttpResponse::new(self.status_code());
@@ -86,6 +81,18 @@ impl ResponseError for WebError {
         res.set_body(actix_web::body::BoxBody::new(
             serde_json::to_string(&resp_value).unwrap(),
         ))
+    }
+}
+
+impl From<IoError> for WebError {
+    fn from(e: IoError) -> Self {
+        Self::All(Error::Io(e))
+    }
+}
+
+impl From<ImageError> for WebError {
+    fn from(e: ImageError) -> Self {
+        Self::All(Error::Image(e))
     }
 }
 

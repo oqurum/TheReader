@@ -60,6 +60,8 @@ pub struct SectionContents {
     #[allow(dead_code)]
     on_load: Closure<dyn FnMut()>,
 
+    is_text_contents: bool,
+
     chapters: Vec<Rc<Chapter>>,
 
     cached_pages: Vec<CachedPage>,
@@ -77,16 +79,17 @@ pub struct SectionContents {
 }
 
 impl SectionContents {
-    pub fn new(header_hash: String, iframe: HtmlIFrameElement, on_load: Closure<dyn FnMut()>) -> Self {
+    pub fn new(is_text_contents: bool, header_hash: String, iframe: HtmlIFrameElement, on_load: Closure<dyn FnMut()>) -> Self {
         Self {
+            iframe,
             on_load,
+            header_hash,
+            is_text_contents,
             chapters: Vec::new(),
             cached_pages: Vec::new(),
-            iframe,
             gpi: 0,
             viewing_page: 0,
             cached_tables: Vec::new(),
-            header_hash,
         }
     }
 

@@ -20,7 +20,7 @@ use yew::{context::ContextHandle, prelude::*};
 
 use crate::{
     components::reader::{
-        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader
+        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, SectionDisplay
     },
     request, AppState, util::ElementEvent,
 };
@@ -181,6 +181,11 @@ impl Component for ReadingBook {
                         ctx.link().send_future(async move {
                             Msg::RetrievePages(request::get_book_pages(file_id, 0, end).await)
                         });
+                    }
+
+                    // TODO: Remove this once we have a better way to handle this.
+                    if resp.media.is_comic_book() {
+                        self.reader_settings.display = SectionDisplay::new_single();
                     }
 
                     self.book = Some(Rc::new(resp.media));
