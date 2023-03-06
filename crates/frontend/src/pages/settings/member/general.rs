@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use common::{api::WrappingResponse, component::select::{SelectModule, SelectItem}};
-use common_local::{MemberBasicPreferences, reader::{ReaderColor, LayoutType}, MemberPreferences};
+use common_local::{MemberBasicPreferences, reader::{ReaderColor, LayoutType, ReaderLoadType}, MemberPreferences};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
-use crate::{request, components::reader::PageLoadType, AppState};
+use crate::{request, AppState};
 
 pub enum Msg {
     // Request Results
@@ -216,19 +216,23 @@ impl MemberGeneralPage {
                 </div>
 
                 <div class="mb-3">
+                    // ReaderLoadType
                     <label class="form-label">{ "Load Sections By" }</label>
-                    <select class="form-select" disabled=true
-                        onchange={ ctx.link().callback(move |event: Event| {
+                    <SelectModule<ReaderLoadType>
+                        disabled=true
+                        default={ prefs.reader.load_type }
+                        class="form-select"
+                        onselect={ ctx.link().callback(move |value| {
                             Msg::UpdateSettings(
                                 editing,
-                                Box::new(|pref, value| pref.reader.load_type = value.as_u64().unwrap() as u8),
-                                serde_json::Value::Number(event.target_unchecked_into::<HtmlSelectElement>().selected_index().into())
+                                Box::new(move |pref, _| pref.reader.load_type = value),
+                                serde_json::Value::Null
                             )
                         }) }
                     >
-                        <option selected={ prefs.reader.load_type == u8::from(PageLoadType::All) }>{ "All" }</option>
-                        <option selected={ prefs.reader.load_type == u8::from(PageLoadType::Select) }>{ "Select" }</option>
-                    </select>
+                        <SelectItem<ReaderLoadType> value={ ReaderLoadType::All } name="All" />
+                        <SelectItem<ReaderLoadType> value={ ReaderLoadType::Select } name="Select" />
+                    </SelectModule<ReaderLoadType>>
                 </div>
             </>
         }

@@ -1,9 +1,8 @@
-use std::{path::PathBuf, rc::Rc, sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard}, time::Duration};
+use std::{path::PathBuf, rc::Rc, sync::Mutex, time::Duration};
 
-use common_local::{Chapter, MediaItem, Progression, MemberReaderPreferences, reader::{ReaderColor, LayoutType}};
+use common_local::{Chapter, MediaItem, Progression, reader::{LayoutType, ReaderLoadType}};
 use gloo_timers::callback::{Timeout, Interval};
 use gloo_utils::{body, window};
-use num_enum::{TryFromPrimitive, IntoPrimitive};
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
     JsCast, UnwrapThrowExt,
@@ -18,7 +17,9 @@ pub mod layout;
 pub mod section;
 pub mod util;
 pub mod view_overlay;
+mod settings;
 
+pub use settings::*;
 pub use self::layout::LayoutDisplay;
 use self::section::{SectionContents, SectionLoadProgress};
 pub use self::view_overlay::{DragType, OverlayEvent, ViewOverlay};
@@ -74,66 +75,6 @@ macro_rules! get_previous_section_mut {
             None
         }
     }};
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
-#[repr(u8)]
-pub enum PageLoadType {
-    All = 0,
-    #[default]
-    Select,
-}
-
-#[derive(Clone)]
-pub struct SharedReaderSettings(Rc<RwLock<ReaderSettings>>);
-
-impl SharedReaderSettings {
-    pub fn new(value: ReaderSettings) -> Self {
-        Self(Rc::new(RwLock::new(value)))
-    }
-
-    pub fn read(&self) -> RwLockReadGuard<'_, ReaderSettings> {
-        self.0.read().unwrap_throw()
-    }
-
-    pub fn write(&self) -> RwLockWriteGuard<'_, ReaderSettings> {
-        self.0.write().unwrap_throw()
-    }
-}
-
-impl PartialEq for SharedReaderSettings {
-    fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-#[derive(Default, PartialEq)]
-pub struct ReaderSettings {
-    pub type_of: PageLoadType,
-    pub color: ReaderColor,
-
-    pub animate_page_transitions: bool,
-    pub default_full_screen: bool,
-    pub auto_full_screen: bool,
-    pub display: LayoutDisplay,
-    pub show_progress: bool,
-
-    pub dimensions: (i32, i32),
-}
-
-impl From<MemberReaderPreferences> for ReaderSettings {
-    fn from(value: MemberReaderPreferences) -> Self {
-        Self {
-            type_of: PageLoadType::try_from(value.load_type).unwrap_throw(),
-            color: value.color,
-            animate_page_transitions: value.animate_page_transitions,
-            default_full_screen: value.default_full_screen,
-            auto_full_screen: value.auto_full_screen,
-            display: LayoutDisplay::from(value.display_type),
-            show_progress: value.always_show_progress,
-            dimensions: (value.width as i32, value.height as i32),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -304,9 +245,6 @@ impl Component for Reader {
             cached_sections: Vec::new(),
             // Initialize with 1 section.
             section_frames: Vec::new(),
-            // sections: (0..ctx.props().book.chapter_count)
-            //     .map(|_| SectionLoadProgress::Waiting)
-            //     .collect(),
 
             viewing_section: 0,
             drag_distance: 0,
@@ -798,7 +736,7 @@ impl Component for Reader {
                 self.update_cached_pages(ctx.props());
 
                 // TODO: Ensure this works.
-                if self.settings.read().type_of == PageLoadType::Select {
+                if self.settings.read().type_of == ReaderLoadType::Select {
                     self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
                 }
 
@@ -925,7 +863,7 @@ impl Component for Reader {
         self.load_surrounding_sections(ctx);
 
         // TODO: Ensure this works.
-        if self.settings.read().type_of == PageLoadType::Select {
+        if self.settings.read().type_of == ReaderLoadType::Select {
             self.use_progression(*props.progress.lock().unwrap(), ctx);
         }
 
@@ -939,7 +877,7 @@ impl Reader {
 
         // TODO: Re-implement Select
         // match self.settings.read().type_of {
-        //     PageLoadType::All => {
+        //     ReaderLoadType::All => {
                 let chapter_count = ctx.props().book.chapter_count;
 
                 for chapter in 0..chapter_count {
@@ -947,7 +885,7 @@ impl Reader {
                 }
         //     }
 
-        //     PageLoadType::Select => {
+        //     ReaderLoadType::Select => {
         //         // Continue loading chapters
         //         let start = self.viewing_chapter.saturating_sub(2);
 

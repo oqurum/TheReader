@@ -32,6 +32,13 @@ impl ReaderColor {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum ReaderLoadType {
+    All = 0,
+    #[default]
+    Select,
+}
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
