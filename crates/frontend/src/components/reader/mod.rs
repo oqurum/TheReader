@@ -1,4 +1,4 @@
-use std::{path::PathBuf, rc::Rc, sync::Mutex, time::Duration};
+use std::{path::PathBuf, rc::Rc, sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard}, time::Duration};
 
 use common_local::{Chapter, MediaItem, Progression, MemberReaderPreferences, reader::ReaderColor};
 use gloo_timers::callback::{Timeout, Interval};
@@ -20,7 +20,7 @@ pub mod util;
 pub mod view_overlay;
 
 pub use self::layout::SectionDisplay;
-use self::section::{SectionContents, SectionLoadProgress};
+use self::{section::{SectionContents, SectionLoadProgress}, layout::SectionDisplayType};
 pub use self::view_overlay::{DragType, OverlayEvent, ViewOverlay};
 
 const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
@@ -84,7 +84,30 @@ pub enum PageLoadType {
     Select,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Clone)]
+pub struct SharedReaderSettings(Rc<RwLock<ReaderSettings>>);
+
+impl SharedReaderSettings {
+    pub fn new(value: ReaderSettings) -> Self {
+        Self(Rc::new(RwLock::new(value)))
+    }
+
+    pub fn read(&self) -> RwLockReadGuard<'_, ReaderSettings> {
+        self.0.read().unwrap_throw()
+    }
+
+    pub fn write(&self) -> RwLockWriteGuard<'_, ReaderSettings> {
+        self.0.write().unwrap_throw()
+    }
+}
+
+impl PartialEq for SharedReaderSettings {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+#[derive(Default, PartialEq)]
 pub struct ReaderSettings {
     pub type_of: PageLoadType,
     pub color: ReaderColor,
@@ -149,8 +172,6 @@ pub enum ReaderEvent {
 
 #[derive(Properties)]
 pub struct Property {
-    pub settings: ReaderSettings,
-
     // Callbacks
     pub event: Callback<ReaderEvent>,
 
@@ -162,7 +183,6 @@ pub struct Property {
 
 impl PartialEq for Property {
     fn eq(&self, other: &Self) -> bool {
-        self.settings == other.settings &&
         // self.event == other.event &&
         Rc::ptr_eq(&self.book, &other.book) &&
         self.chapters == other.chapters &&
@@ -171,6 +191,8 @@ impl PartialEq for Property {
 }
 
 pub enum ReaderMsg {
+    SettingsUpdate(SharedReaderSettings),
+
     GenerateIFrameLoaded(usize),
 
     // Event
@@ -197,9 +219,6 @@ pub enum ReaderMsg {
 }
 
 pub struct Reader {
-    // Cached from External Source
-    // TODO: Should I cache it?
-    cached_display: SectionDisplay,
     cached_dimensions: Option<(i32, i32)>,
     cached_sections: Vec<Rc<Chapter>>,
 
@@ -224,6 +243,9 @@ pub struct Reader {
     is_transitioning: bool,
 
     initial_progression_set: bool,
+
+    settings: SharedReaderSettings,
+    _settings_listener: ContextHandle<SharedReaderSettings>
 }
 
 impl Component for Reader {
@@ -272,8 +294,12 @@ impl Component for Reader {
             move || link.send_message(ReaderMsg::UploadProgress)
         );
 
+        let (settings, _settings_listener) = ctx
+            .link()
+            .context::<SharedReaderSettings>(ctx.link().callback(ReaderMsg::SettingsUpdate))
+            .expect("context to be set");
+
         Self {
-            cached_display: ctx.props().settings.display.clone(),
             cached_dimensions: None,
             cached_sections: Vec::new(),
             // Initialize with 1 section.
@@ -297,12 +323,20 @@ impl Component for Reader {
             _handle_keyboard: handle_keyboard,
             is_transitioning: false,
             initial_progression_set: false,
+
+            settings,
+            _settings_listener,
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             ReaderMsg::Ignore => return false,
+
+            ReaderMsg::SettingsUpdate(settings) => {
+                self.settings = settings;
+                return true;
+            }
 
             ReaderMsg::PageTransitionStart => {
                 debug!("Page Transition Start: {}", self.drag_distance);
@@ -349,7 +383,7 @@ impl Component for Reader {
                 match event {
                     // Changes users' cursor if they're currently hovering over a redirect.
                     OverlayEvent::Hover { x, y } => {
-                        if !self.cached_display.is_scroll() {
+                        if !self.settings.read().display.is_scroll() {
                             let (x, y) = (x as f64, y as f64);
 
                             let mut was_found = false;
@@ -399,7 +433,7 @@ impl Component for Reader {
                                     return Component::update(self, ctx, ReaderMsg::NextPage);
                                 }
                             } else if let Some(section) = self.get_current_frame() {
-                                ctx.props().settings.display.transitioning_page(0, section);
+                                self.settings.read().display.transitioning_page(0, section);
                                 self.drag_distance = 0;
                             }
                             // Handle after dragging
@@ -407,7 +441,7 @@ impl Component for Reader {
 
                         // Handle Prev/Next Page Clicking
                         else if let Some(duration) = instant {
-                            if !self.cached_display.is_scroll() && duration.to_std().unwrap_throw() < Duration::from_millis(800) {
+                            if !self.settings.read().display.is_scroll() && duration.to_std().unwrap_throw() < Duration::from_millis(800) {
                                 let clickable_size = (width as f32 * 0.15) as i32;
 
                                 // Previous Page
@@ -445,7 +479,7 @@ impl Component for Reader {
                                 self.drag_distance = distance as isize;
 
                                 if let Some(section) = self.get_current_frame() {
-                                    ctx.props().settings.display.transitioning_page(self.drag_distance, section);
+                                    self.settings.read().display.transitioning_page(self.drag_distance, section);
                                 }
                             }
 
@@ -455,7 +489,7 @@ impl Component for Reader {
                                 self.drag_distance = -(distance as isize);
 
                                 if let Some(section) = self.get_current_frame() {
-                                    ctx.props().settings.display.transitioning_page(self.drag_distance, section);
+                                    self.settings.read().display.transitioning_page(self.drag_distance, section);
                                 }
                             }
 
@@ -522,13 +556,13 @@ impl Component for Reader {
                             // Scrolling is split into 5 sections. You need to scroll up or down at least 3 time to change page to next after timeout.
                             // At 5 we switch automatically. It should also take 5 MAX to fill the current reader window.
 
-                            let height = ctx.props().settings.dimensions.1 as isize / 5;
+                            let height = self.settings.read().dimensions.1 as isize / 5;
 
                             self.drag_distance += height;
 
                             if self.drag_distance / height == 5 {
                                 self.drag_distance = 0;
-                                self.previous_page(ctx);
+                                self.previous_page();
                             } else {
                                 // After 500 ms of no scroll activity reset position ( self.drag_distance ?? ) to ZERO.
                                 let link = ctx.link().clone();
@@ -543,13 +577,13 @@ impl Component for Reader {
                     // Scrolling down
                     DragType::Down(_) => {
                         if self.viewing_section + 1 != self.cached_sections.len() {
-                            let height = ctx.props().settings.dimensions.1 as isize / 5;
+                            let height = self.settings.read().dimensions.1 as isize / 5;
 
                             self.drag_distance -= height;
 
                             if self.drag_distance.abs() / height == 5 {
                                 self.drag_distance = 0;
-                                self.previous_page(ctx);
+                                self.previous_page();
                             } else {
                                 // After 500 ms of no scroll activity reset position ( self.drag_distance ?? ) to ZERO.
                                 let link = ctx.link().clone();
@@ -566,67 +600,67 @@ impl Component for Reader {
             }
 
             ReaderMsg::UpdateDragDistance => {
-                let height = ctx.props().settings.dimensions.1 as isize / 5;
+                let height = self.settings.read().dimensions.1 as isize / 5;
 
                 if self.drag_distance.abs() / height >= 3 {
                     if self.drag_distance.is_positive() {
                         self.drag_distance = 0;
-                        self.previous_page(ctx);
+                        self.previous_page();
                     } else {
                         self.drag_distance = 0;
-                        self.next_page(ctx);
+                        self.next_page();
                     }
                 } else {
                     self.drag_distance = 0;
                 }
             }
 
-            ReaderMsg::SetPage(new_page) => match self.cached_display {
-                SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
+            ReaderMsg::SetPage(new_page) => match { let v = self.settings.read().display.as_type(); v } {
+                SectionDisplayType::Single | SectionDisplayType::Double => {
                     return self
-                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)), ctx);
+                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
                 }
 
-                SectionDisplay::Scroll(_) => {
+                SectionDisplayType::Scroll => {
                     return Component::update(self, ctx, ReaderMsg::SetSection(new_page));
                 }
 
-                SectionDisplay::Image(_) => {
+                SectionDisplayType::Image => {
                     return self
-                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)), ctx);
+                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
                 }
             },
 
             ReaderMsg::NextPage => {
-                match self.cached_display {
-                    SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
-                        if self.current_page_pos(ctx.props()) + 1 == self.page_count(ctx) {
+                match { let v = self.settings.read().display.as_type(); v } {
+                    SectionDisplayType::Single | SectionDisplayType::Double => {
+                        if self.current_page_pos() + 1 == self.page_count(ctx) {
                             return false;
                         }
 
-                        self.next_page(ctx);
+                        self.next_page();
                     }
 
-                    SectionDisplay::Scroll(_) => {
+                    SectionDisplayType::Scroll => {
                         return Component::update(self, ctx, ReaderMsg::NextSection);
                     }
 
-                    SectionDisplay::Image(_) => {
-                        match ctx.props().settings.display.get_movement() {
+                    SectionDisplayType::Image => {
+                        match self.settings.read().display.get_movement() {
                             layout::PageMovement::LeftToRight => {
-                                if self.current_page_pos(ctx.props()) + 1 == self.page_count(ctx) {
+                                if self.current_page_pos() + 1 == self.page_count(ctx) {
                                     return false;
                                 }
                             }
 
                             layout::PageMovement::RightToLeft => {
-                                if self.current_page_pos(ctx.props()) == 0 {
+                                if self.current_page_pos() == 0 {
                                     return false;
                                 }
                             }
                         }
 
-                        self.next_page(ctx);
+                        self.next_page();
                     }
                 }
 
@@ -634,35 +668,35 @@ impl Component for Reader {
             }
 
             ReaderMsg::PreviousPage => {
-                match self.cached_display {
-                    SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
-                        if self.current_page_pos(ctx.props()) == 0 {
+                match { let v = self.settings.read().display.as_type(); v } {
+                    SectionDisplayType::Single | SectionDisplayType::Double => {
+                        if self.current_page_pos() == 0 {
                             return false;
                         }
 
-                        self.previous_page(ctx);
+                        self.previous_page();
                     }
 
-                    SectionDisplay::Scroll(_) => {
+                    SectionDisplayType::Scroll => {
                         return Component::update(self, ctx, ReaderMsg::PreviousSection);
                     }
 
-                    SectionDisplay::Image(_) => {
-                        match ctx.props().settings.display.get_movement() {
+                    SectionDisplayType::Image => {
+                        match self.settings.read().display.get_movement() {
                             layout::PageMovement::LeftToRight => {
-                                if self.current_page_pos(ctx.props()) == 0 {
+                                if self.current_page_pos() == 0 {
                                     return false;
                                 }
                             }
 
                             layout::PageMovement::RightToLeft => {
-                                if self.current_page_pos(ctx.props()) + 1 == self.page_count(ctx) {
+                                if self.current_page_pos() + 1 == self.page_count(ctx) {
                                     return false;
                                 }
                             }
                         }
 
-                        self.previous_page(ctx);
+                        self.previous_page();
                     }
                 }
 
@@ -741,8 +775,8 @@ impl Component for Reader {
                 // Call on_load for the newly loaded frame.
                 if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[section_index] {
                     section.on_load(
-                        &mut self.cached_display,
                         &self.handle_js_redirect_clicks,
+                        &mut self.settings.write(),
                         ctx,
                     );
                 }
@@ -754,13 +788,13 @@ impl Component for Reader {
                 self.update_cached_pages(ctx.props());
 
                 // TODO: Ensure this works.
-                if ctx.props().settings.type_of == PageLoadType::Select {
+                if self.settings.read().type_of == PageLoadType::Select {
                     self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
                 }
 
                 // Make sure the previous section is on the last page for better page turning on initial load.
                 if let Some(prev_sect) = get_previous_section_mut!(self) {
-                    self.cached_display.set_last_page(prev_sect);
+                    self.settings.write().display.set_last_page(prev_sect);
                 }
             }
         }
@@ -774,14 +808,14 @@ impl Component for Reader {
 
         let pages_style = format!(
             "width: {}px; height: {}px;",
-            ctx.props().settings.dimensions.0,
-            ctx.props().settings.dimensions.1
+            self.settings.read().dimensions.0,
+            self.settings.read().dimensions.1
         );
 
-        let progress_percentage = match self.cached_display {
+        let progress_percentage = match self.settings.read().display {
             SectionDisplay::Double(_) | SectionDisplay::Single(_) => format!(
                 "width: {}%;",
-                (self.current_page_pos(ctx.props()) + 1) as f64 / page_count as f64 * 100.0
+                (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0
             ),
 
             SectionDisplay::Scroll(_) => format!(
@@ -791,11 +825,11 @@ impl Component for Reader {
 
             SectionDisplay::Image(_) => format!(
                 "width: {}%;",
-                (self.current_page_pos(ctx.props()) + 1) as f64 / page_count as f64 * 100.0
+                (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0
             )
         };
 
-        let (frame_class, frame_style) = self.get_frame_class_and_style(ctx);
+        let (frame_class, frame_style) = self.get_frame_class_and_style();
 
         let link = ctx.link().clone();
         let link2 = ctx.link().clone();
@@ -804,7 +838,7 @@ impl Component for Reader {
             <div class="reader">
                 <div class="pages" style={ pages_style.clone() }>
                     {
-                        if !self.cached_display.is_scroll() {
+                        if !self.settings.read().display.is_scroll() {
                             html! {
                                 <ViewOverlay event={ ctx.link().callback(ReaderMsg::HandleViewOverlay) } />
                             }
@@ -837,10 +871,10 @@ impl Component for Reader {
                     </div>
                 </div>
 
-                { self.render_toolbar(ctx) }
+                { self.render_toolbar() }
 
                 {
-                    if ctx.props().settings.show_progress {
+                    if self.settings.read().show_progress {
                         html! {
                             <div class="progress">
                                 <div class="prog-bar" style={ progress_percentage }></div>
@@ -863,18 +897,15 @@ impl Component for Reader {
             self.viewing_section = chapter as usize;
         }
 
-        if self.cached_display != props.settings.display
-            || self.cached_dimensions != Some(props.settings.dimensions)
-        {
-            self.cached_display = props.settings.display.clone();
-            self.cached_dimensions = Some(props.settings.dimensions);
+        if self.cached_dimensions != Some(self.settings.read().dimensions) {
+            self.cached_dimensions = Some(self.settings.read().dimensions);
 
             // Refresh all page styles and sizes.
             for prog in &self.section_frames {
                 if let SectionLoadProgress::Loaded(section) = prog {
-                    update_iframe_size(Some(props.settings.dimensions), section.get_iframe());
+                    update_iframe_size(Some(self.settings.read().dimensions), section.get_iframe());
 
-                    self.cached_display.add_to_iframe(section.get_iframe(), ctx);
+                    self.settings.write().display.add_to_iframe(section.get_iframe(), ctx);
                 }
             }
 
@@ -884,7 +915,7 @@ impl Component for Reader {
         self.load_surrounding_sections(ctx);
 
         // TODO: Ensure this works.
-        if ctx.props().settings.type_of == PageLoadType::Select {
+        if self.settings.read().type_of == PageLoadType::Select {
             self.use_progression(*props.progress.lock().unwrap(), ctx);
         }
 
@@ -894,10 +925,10 @@ impl Component for Reader {
 
 impl Reader {
     fn load_surrounding_sections(&mut self, ctx: &Context<Self>) {
-        debug!("Page Load Type: {:?}", ctx.props().settings.type_of);
+        debug!("Page Load Type: {:?}", self.settings.read().type_of);
 
         // TODO: Re-implement Select
-        // match ctx.props().settings.type_of {
+        // match self.settings.read().type_of {
         //     PageLoadType::All => {
                 let chapter_count = ctx.props().book.chapter_count;
 
@@ -917,28 +948,28 @@ impl Reader {
         // }
     }
 
-    fn render_toolbar(&self, ctx: &Context<Self>) -> Html {
-        if self.cached_display.is_scroll() {
+    fn render_toolbar(&self) -> Html {
+        if self.settings.read().display.is_scroll() {
             html! {}
         } else {
             html! {
                 <div class="toolbar">
                     <div class="d-flex w-100">
-                        <span>{ "Page " } { self.current_page_pos(ctx.props()) + 1 }</span>
+                        <span>{ "Page " } { self.current_page_pos() + 1 }</span>
                     </div>
                 </div>
             }
         }
     }
 
-    fn get_frame_class_and_style(&self, ctx: &Context<Self>) -> (&'static str, String) {
-        let animate_page_transitions = ctx.props().settings.animate_page_transitions;
+    fn get_frame_class_and_style(&self) -> (&'static str, String) {
+        let animate_page_transitions = self.settings.read().animate_page_transitions;
 
         let hash = self.cached_sections.get(self.viewing_section).map(|v| v.info.header_hash.as_str());
 
         let mut transition = Some("transition: left 0.5s ease 0s;").filter(|_| animate_page_transitions);
 
-        if self.cached_display.is_scroll() {
+        if self.settings.read().display.is_scroll() {
             let viewing = self.section_frames.iter()
                 .enumerate()
                 .find_map(|(idx, sec)| {
@@ -961,12 +992,12 @@ impl Reader {
             )
         } else {
             // Prevent empty pages when on the first or last page of a section.
-            let amount = match ctx.props().settings.display.get_movement() {
+            let amount = match self.settings.read().display.get_movement() {
                 // If we're moving right to left, we're on the first page, and we're not on the last frame.
                 layout::PageMovement::RightToLeft if self.drag_distance.is_negative() => {
                     if self
                         .get_current_frame()
-                        .map(|v| ctx.props().settings.display.viewing_page(v) == 0)
+                        .map(|v| self.settings.read().display.viewing_page(v) == 0)
                         .unwrap_or_default() &&
                         self.section_frames.len() > self.viewing_section + 1
                     {
@@ -980,7 +1011,7 @@ impl Reader {
                 layout::PageMovement::LeftToRight if self.drag_distance.is_positive() => {
                     if self
                         .get_current_frame()
-                        .map(|v| ctx.props().settings.display.viewing_page(v) == 0)
+                        .map(|v| self.settings.read().display.viewing_page(v) == 0)
                         .unwrap_or_default()
                     {
                         self.drag_distance
@@ -993,7 +1024,7 @@ impl Reader {
                 layout::PageMovement::RightToLeft if self.drag_distance.is_positive() => {
                     if self
                         .get_current_frame()
-                        .map(|v| ctx.props().settings.display.viewing_page(v) == v.page_count().saturating_sub(1))
+                        .map(|v| self.settings.read().display.viewing_page(v) == v.page_count().saturating_sub(1))
                         .unwrap_or_default()
                     {
                         self.drag_distance
@@ -1006,7 +1037,7 @@ impl Reader {
                 layout::PageMovement::LeftToRight if self.drag_distance.is_negative() => {
                     if self
                         .get_current_frame()
-                        .map(|v| ctx.props().settings.display.viewing_page(v) == v.page_count().saturating_sub(1))
+                        .map(|v| self.settings.read().display.viewing_page(v) == v.page_count().saturating_sub(1))
                         .unwrap_or_default()
                     {
                         self.drag_distance
@@ -1067,7 +1098,7 @@ impl Reader {
                             if section.get_chapters().iter().any(|v| v.value == chapter) {
                                 self.initial_progression_set = true;
 
-                                if self.cached_display.is_scroll() {
+                                if self.settings.read().display.is_scroll() {
                                     if let Some(element) = js_get_element_from_byte_position(
                                         section.get_iframe(),
                                         char_pos as usize,
@@ -1083,7 +1114,7 @@ impl Reader {
                                     debug!("use_progression - set page: {:?}", page);
 
                                     if let Some(page) = page {
-                                        self.cached_display.set_page(page, section);
+                                        self.settings.write().display.set_page(page, section);
                                     }
                                 }
                             }
@@ -1138,27 +1169,27 @@ impl Reader {
 
         // We set the page again to ensure we're transitioned on the correct page.
         // This is needed for RTL reading.
-        self.set_page(0, ctx);
+        self.set_page(0);
 
         // TODO: Move to Msg::GenerateIFrameLoaded so it's only in a single place.
         self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
     }
 
-    fn next_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn next_page(&mut self) -> bool {
         let section_count = self.section_frames.len();
 
         let frame_index = self.get_current_frame_index();
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
-            if self.cached_display.next_page(curr_sect) {
+            if self.settings.write().display.next_page(curr_sect) {
                 debug!("Next Page");
                 return true;
             } else {
-                ctx.props().settings.display.transitioning_page(0, curr_sect);
+                self.settings.read().display.transitioning_page(0, curr_sect);
             }
 
             if frame_index + 1 != section_count {
-                self.cached_display.on_stop_viewing(curr_sect);
+                self.settings.read().display.on_stop_viewing(curr_sect);
 
                 let (start, _) = self.get_frame_start_and_end_sections(frame_index + 1).unwrap();
 
@@ -1167,8 +1198,10 @@ impl Reader {
 
                 // Make sure the next sections viewing page is zero.
                 if let Some(next_sect) = get_current_section_mut!(self) {
-                    self.cached_display.set_page(0, next_sect);
-                    self.cached_display.on_start_viewing(next_sect);
+                    let mut settings = self.settings.write();
+
+                    settings.display.set_page(0, next_sect);
+                    settings.display.on_start_viewing(next_sect);
                 }
 
                 // TODO: Disabled b/c of reader section generation rework.
@@ -1181,19 +1214,19 @@ impl Reader {
         false
     }
 
-    fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
+    fn previous_page(&mut self) -> bool {
         let frame_index = self.get_current_frame_index();
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
-            if self.cached_display.previous_page(curr_sect) {
+            if self.settings.write().display.previous_page(curr_sect) {
                 debug!("Previous Page");
                 return true;
             } else {
-                ctx.props().settings.display.transitioning_page(0, curr_sect);
+                self.settings.read().display.transitioning_page(0, curr_sect);
             }
 
             if frame_index != 0 {
-                self.cached_display.on_stop_viewing(curr_sect);
+                self.settings.read().display.on_stop_viewing(curr_sect);
 
                 let (_, end) = self.get_frame_start_and_end_sections(frame_index - 1).unwrap();
 
@@ -1202,8 +1235,10 @@ impl Reader {
 
                 // Make sure the next sections viewing page is maxed.
                 if let Some(next_sect) = get_current_section_mut!(self) {
-                    self.cached_display.set_last_page(next_sect);
-                    self.cached_display.on_start_viewing(next_sect);
+                    let mut settings = self.settings.write();
+
+                    settings.display.set_last_page(next_sect);
+                    settings.display.on_start_viewing(next_sect);
                 }
 
                 // TODO: Disabled b/c of reader section generation rework.
@@ -1217,7 +1252,9 @@ impl Reader {
     }
 
     /// Expensive. Iterates through previous sections.
-    fn set_page(&mut self, new_total_page: usize, _ctx: &Context<Self>) -> bool {
+    fn set_page(&mut self, new_total_page: usize) -> bool {
+        let mut settings = self.settings.write();
+
         for section_index in 0..self.section_frames.len() {
             if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[section_index] {
                 // This should only happen if the page isn't loaded for some reason.
@@ -1230,7 +1267,7 @@ impl Reader {
                 if local_page < section.page_count() {
                     self.viewing_section = section_index;
 
-                    self.cached_display.set_page(local_page, section);
+                    settings.display.set_page(local_page, section);
 
                     // TODO: Disabled b/c of reader section generation rework.
                     // self.load_surrounding_sections(ctx);
@@ -1287,14 +1324,16 @@ impl Reader {
 
         // Stop viewing current section.
         if let Some(section) = self.get_current_frame() {
-            self.cached_display.on_stop_viewing(section);
+            self.settings.read().display.on_stop_viewing(section);
         }
 
         if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[next_section_index] {
             self.viewing_section = next_section;
 
-            self.cached_display.set_page(0, section);
-            self.cached_display.on_start_viewing(section);
+            let mut settings = self.settings.write();
+
+            settings.display.set_page(0, section);
+            settings.display.on_start_viewing(section);
 
             // TODO: Disabled b/c of reader section generation rework.
             // self.load_surrounding_sections(ctx);
@@ -1308,7 +1347,7 @@ impl Reader {
     fn after_page_change(&mut self) {
         if let Some(section) = self.get_current_frame() {
             self.visible_redirect_rects =
-                js_get_visible_links(section.get_iframe(), self.cached_display.is_scroll());
+                js_get_visible_links(section.get_iframe(), self.settings.read().display.is_scroll());
         }
     }
 
@@ -1329,9 +1368,9 @@ impl Reader {
         0
     }
 
-    fn current_page_pos(&self, props: &<Self as Component>::Properties) -> usize {
+    fn current_page_pos(&self) -> usize {
         self.get_current_frame()
-            .map(|s| s.gpi + props.settings.display.viewing_page(s))
+            .map(|s| s.gpi + self.settings.read().display.viewing_page(s))
             .unwrap_or_default()
     }
 
@@ -1409,7 +1448,7 @@ impl Reader {
     // TODO: Move to SectionLoadProgress
     fn upload_progress(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = {
-            let (char_pos, viewing_section) = js_get_current_byte_pos(iframe, self.cached_display.is_scroll())
+            let (char_pos, viewing_section) = js_get_current_byte_pos(iframe, self.settings.read().display.is_scroll())
                 .map(|v| (v[0] as i64, v[1]))
                 .unwrap_or((-1, self.viewing_section));
 
@@ -1418,7 +1457,7 @@ impl Reader {
             (
                 viewing_section,
                 self.get_current_frame()
-                    .map(|v| ctx.props().settings.display.viewing_page(v))
+                    .map(|v| self.settings.read().display.viewing_page(v))
                     .unwrap_or_default() as i64,
                 char_pos,
                 ctx.props().book.id,
@@ -1491,7 +1530,7 @@ impl Reader {
     //     }
     //
     //     *sec = SectionLoadProgress::Loading(generate_section(
-    //         Some(ctx.props().settings.dimensions),
+    //         Some(self.settings.read().dimensions),
     //         ctx.props().book.id,
     //         chap,
     //         ctx.link().clone(),
@@ -1529,8 +1568,7 @@ impl Reader {
                 info!("Generating Section {}", curr_chap.value + 1);
 
                 *section_frame = SectionLoadProgress::Loading(generate_section(
-                    !ctx.props().book.is_comic_book(),
-                    Some(ctx.props().settings.dimensions),
+                    Some(self.settings.read().dimensions),
                     curr_chap.info.header_hash.clone(),
                     section_index,
                     ctx.link().clone(),
@@ -1538,8 +1576,7 @@ impl Reader {
             }
         } else {
             self.section_frames.push(SectionLoadProgress::Loading(generate_section(
-                !ctx.props().book.is_comic_book(),
-                Some(ctx.props().settings.dimensions),
+                Some(self.settings.read().dimensions),
                 curr_chap.info.header_hash.clone(),
                 section_index,
                 ctx.link().clone(),
@@ -1571,7 +1608,6 @@ fn create_iframe() -> HtmlIFrameElement {
 }
 
 fn generate_section(
-    is_text_contents: bool,
     book_dimensions: Option<(i32, i32)>,
     header_hash: String,
     section_index: usize,
@@ -1606,7 +1642,7 @@ fn generate_section(
 
     iframe.set_onload(Some(f.as_ref().unchecked_ref()));
 
-    SectionContents::new(is_text_contents, header_hash, iframe, f)
+    SectionContents::new(header_hash, iframe, f)
 }
 
 fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameElement) {

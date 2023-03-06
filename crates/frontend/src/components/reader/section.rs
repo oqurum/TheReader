@@ -12,7 +12,7 @@ use yew::Context;
 use super::{
     js_update_iframe_after_load, update_iframe_size,
     util::{for_each_child_map, table::TableContainer},
-    CachedPage, Reader, SectionDisplay, color,
+    CachedPage, Reader, color, ReaderSettings,
 };
 
 pub enum SectionLoadProgress {
@@ -64,8 +64,6 @@ pub struct SectionContents {
     #[allow(dead_code)]
     on_load: Closure<dyn FnMut()>,
 
-    is_text_contents: bool,
-
     chapters: Vec<Rc<Chapter>>,
 
     cached_pages: Vec<CachedPage>,
@@ -86,12 +84,11 @@ pub struct SectionContents {
 }
 
 impl SectionContents {
-    pub fn new(is_text_contents: bool, header_hash: String, iframe: HtmlIFrameElement, on_load: Closure<dyn FnMut()>) -> Self {
+    pub fn new(header_hash: String, iframe: HtmlIFrameElement, on_load: Closure<dyn FnMut()>) -> Self {
         Self {
             iframe,
             on_load,
             header_hash,
-            is_text_contents,
             chapters: Vec::new(),
             cached_pages: Vec::new(),
             gpi: 0,
@@ -134,8 +131,8 @@ impl SectionContents {
 
     pub fn on_load(
         &mut self,
-        cached_display: &mut SectionDisplay,
         handle_js_redirect_clicks: &Closure<dyn FnMut(String, String)>,
+        settings: &mut ReaderSettings,
         ctx: &Context<Reader>,
     ) {
         // Insert chapters
@@ -196,8 +193,6 @@ impl SectionContents {
             }
         }
 
-        let settings = &ctx.props().settings;
-
         color::load_reader_color_into_section(&settings.color, self);
 
         // Shrink Tables
@@ -214,8 +209,8 @@ impl SectionContents {
 
         js_update_iframe_after_load(self.get_iframe(), &self.header_hash, handle_js_redirect_clicks);
 
-        cached_display.add_to_iframe(self.get_iframe(), ctx);
-        cached_display.on_stop_viewing(self);
+        settings.display.add_to_iframe(self.get_iframe(), ctx);
+        settings.display.on_stop_viewing(self);
 
         update_iframe_size(Some(settings.dimensions), self.get_iframe());
 

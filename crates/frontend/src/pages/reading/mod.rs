@@ -20,7 +20,7 @@ use yew::{context::ContextHandle, prelude::*};
 
 use crate::{
     components::reader::{
-        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, SectionDisplay, layout::PageMovement
+        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, SectionDisplay, layout::PageMovement, SharedReaderSettings
     },
     request, AppState, util::ElementEvent,
 };
@@ -49,7 +49,7 @@ pub struct ReadingBook {
     state: Rc<AppState>,
     _listener: ContextHandle<Rc<AppState>>,
 
-    reader_settings: ReaderSettings,
+    reader_settings: SharedReaderSettings,
     progress: Rc<Mutex<Option<Progression>>>,
     book: Option<Rc<MediaItem>>,
     chapters: LoadedChapters,
@@ -106,7 +106,7 @@ impl Component for ReadingBook {
             state,
             _listener,
 
-            reader_settings,
+            reader_settings: SharedReaderSettings::new(reader_settings),
             chapters: LoadedChapters::new(),
             last_grabbed_count: 0,
             progress: Rc::new(Mutex::new(None)),
@@ -137,17 +137,19 @@ impl Component for ReadingBook {
             }
 
             Msg::WindowResize => {
+                let mut settings = self.reader_settings.write();
+
                 // We have the display_toolbar check here since the "zoom out" function will re-expand it.
                 // We want to ensure we don't "zoom out", resize, and have incorrect dimensions.
-                if self.reader_settings.default_full_screen
+                if settings.default_full_screen
                     && !self.state.is_navbar_visible
                 {
                     // FIX: Using "if let" since container can be null if this is called before first render.
                     if let Some(cont) = self.ref_book_container.cast::<Element>() {
-                        self.reader_settings.dimensions =
+                        settings.dimensions =
                             (cont.client_width().max(0), cont.client_height().max(0));
 
-                        debug!("Window Resize: {:?}", self.reader_settings.dimensions);
+                        debug!("Window Resize: {:?}", settings.dimensions);
                     } else {
                         debug!("Window Resize: book container doesn't exist");
                     }
@@ -185,7 +187,7 @@ impl Component for ReadingBook {
 
                     // TODO: Remove this once we have a better way to handle this.
                     if resp.media.is_comic_book() {
-                        self.reader_settings.display = SectionDisplay::new_image(PageMovement::RightToLeft);
+                        self.reader_settings.write().display = SectionDisplay::new_image(PageMovement::RightToLeft);
                     }
 
                     self.book = Some(Rc::new(resp.media));
@@ -204,7 +206,7 @@ impl Component for ReadingBook {
                             instant, ..
                         } = o_event
                         {
-                            if self.reader_settings.default_full_screen {
+                            if self.reader_settings.read().default_full_screen {
                                 // TODO: This is causing yew to "reload" the page.
                                 if let Some(dur) = instant {
                                     self.state.update_nav_visibility.emit(dur.num_milliseconds() > 500);
@@ -225,22 +227,29 @@ impl Component for ReadingBook {
         if let Some(book) = self.book.as_ref() {
             let mut book_class = String::from("book");
 
-            if self.reader_settings.default_full_screen {
+            let settings = self.reader_settings.read();
+
+            if settings.default_full_screen {
                 book_class += " overlay-x overlay-y";
             }
+
+            let style = (settings.default_full_screen && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;");
+
+            drop(settings);
 
             // TODO: Loading screen until sections have done initial generation.
 
             html! {
                 <div class="reading-container">
-                    <div class={ book_class } style={ (self.reader_settings.default_full_screen && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;") } ref={ self.ref_book_container.clone() }>
-                        <Reader
-                            settings={ self.reader_settings.clone() }
-                            progress={ Rc::clone(&self.progress) }
-                            book={ Rc::clone(book) }
-                            chapters={ self.chapters.clone() }
-                            event={ ctx.link().callback(Msg::ReaderEvent) }
-                        />
+                    <div class={ book_class } {style} ref={ self.ref_book_container.clone() }>
+                        <ContextProvider<SharedReaderSettings> context={ self.reader_settings.clone() }>
+                            <Reader
+                                progress={ Rc::clone(&self.progress) }
+                                book={ Rc::clone(book) }
+                                chapters={ self.chapters.clone() }
+                                event={ ctx.link().callback(Msg::ReaderEvent) }
+                            />
+                        </ContextProvider<SharedReaderSettings>>
                     </div>
                 </div>
             }
@@ -261,14 +270,16 @@ impl Component for ReadingBook {
                 .send_future(async move { Msg::RetrieveBook(request::get_book_info(id).await) });
         }
 
+        let mut settings = self.reader_settings.write();
+
         // TODO: This is a duplicate of Msg::WindowResize
-        if self.reader_settings.default_full_screen && !self.state.is_navbar_visible
+        if settings.default_full_screen && !self.state.is_navbar_visible
         {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
-                self.reader_settings.dimensions =
+                settings.dimensions =
                     (cont.client_width().max(0), cont.client_height().max(0));
 
-                debug!("Render Size: {:?}", self.reader_settings.dimensions);
+                debug!("Render Size: {:?}", settings.dimensions);
             }
         }
     }

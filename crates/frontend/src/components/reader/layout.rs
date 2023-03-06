@@ -20,7 +20,15 @@ pub enum PageMovement {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SectionDisplayType {
+    Single,
+    Double,
+    Scroll,
+    Image,
+}
+
+
 pub enum SectionDisplay {
     // Optimized Text Layouts
     Single(PageDisplay),
@@ -48,6 +56,15 @@ impl SectionDisplay {
 
     pub fn new_image(value: PageMovement) -> Self {
         Self::Image(ImageDisplay::new("image-page", value))
+    }
+
+    pub fn as_type(&self) -> SectionDisplayType {
+        match self {
+            SectionDisplay::Single(_) => SectionDisplayType::Single,
+            SectionDisplay::Double(_) => SectionDisplayType::Double,
+            SectionDisplay::Scroll(_) => SectionDisplayType::Scroll,
+            SectionDisplay::Image(_) => SectionDisplayType::Image,
+        }
     }
 
     pub fn add_to_iframe(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Reader>) {
@@ -316,31 +333,11 @@ impl PageDisplay {
     }
 }
 
-// TODO: Remove
-impl Clone for PageDisplay {
-    fn clone(&self) -> Self {
-        Self {
-            count: self.count,
-            class_name: self.class_name,
-            _events: Vec::new(),
-        }
-    }
-}
-
-impl std::fmt::Debug for PageDisplay {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PageDisplay")
-            .field("count", &self.count)
-            .finish()
-    }
-}
 
 // Scroll Display
 
 pub struct ScrollDisplay {
     class_name: &'static str,
-
-    change_page_timeout: Option<Timeout>,
 
     _events: Vec<ElementEvent>,
 }
@@ -350,7 +347,6 @@ impl ScrollDisplay {
         Self {
             class_name,
 
-            change_page_timeout: None,
             _events: Vec::new(),
         }
     }
@@ -504,25 +500,6 @@ impl ScrollDisplay {
             .unchecked_into();
 
         el.style().remove_property("overflow").unwrap_throw();
-    }
-}
-
-// TODO: Remove
-impl Clone for ScrollDisplay {
-    fn clone(&self) -> Self {
-        Self {
-            class_name: self.class_name,
-            change_page_timeout: None,
-            _events: Vec::new(),
-        }
-    }
-}
-
-impl std::fmt::Debug for ScrollDisplay {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ScrollDisplay")
-            .field("change_page_timeout", &self.change_page_timeout)
-            .finish()
     }
 }
 
@@ -725,25 +702,5 @@ impl ImageDisplay {
             PageMovement::LeftToRight => section.page_offset,
             PageMovement::RightToLeft => (section.page_count() - section.page_offset).saturating_sub(1),
         }
-    }
-}
-
-
-// TODO: Remove
-impl Clone for ImageDisplay {
-    fn clone(&self) -> Self {
-        Self {
-            class_name: self.class_name,
-            movement: self.movement,
-            _events: Vec::new(),
-        }
-    }
-}
-
-impl std::fmt::Debug for ImageDisplay {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PageDisplay")
-            .field("movement", &self.movement)
-            .finish()
     }
 }
