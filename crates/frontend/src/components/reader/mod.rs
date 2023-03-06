@@ -1007,7 +1007,7 @@ impl Reader {
                 layout::PageMovement::RightToLeft if self.drag_distance.is_negative() => {
                     if self
                         .get_current_frame()
-                        .map(|v| self.settings.read().display.viewing_page(v) == 0)
+                        .map(|v| v.page_offset == 0)
                         .unwrap_or_default() &&
                         self.section_frames.len() > self.viewing_section + 1
                     {
@@ -1021,7 +1021,7 @@ impl Reader {
                 layout::PageMovement::LeftToRight if self.drag_distance.is_positive() => {
                     if self
                         .get_current_frame()
-                        .map(|v| self.settings.read().display.viewing_page(v) == 0)
+                        .map(|v| v.page_offset == 0)
                         .unwrap_or_default()
                     {
                         self.drag_distance
@@ -1034,7 +1034,7 @@ impl Reader {
                 layout::PageMovement::RightToLeft if self.drag_distance.is_positive() => {
                     if self
                         .get_current_frame()
-                        .map(|v| self.settings.read().display.viewing_page(v) == v.page_count().saturating_sub(1))
+                        .map(|v| v.page_offset == v.page_count().saturating_sub(1))
                         .unwrap_or_default()
                     {
                         self.drag_distance
@@ -1047,7 +1047,7 @@ impl Reader {
                 layout::PageMovement::LeftToRight if self.drag_distance.is_negative() => {
                     if self
                         .get_current_frame()
-                        .map(|v| self.settings.read().display.viewing_page(v) == v.page_count().saturating_sub(1))
+                        .map(|v| v.page_offset == v.page_count().saturating_sub(1))
                         .unwrap_or_default()
                     {
                         self.drag_distance
@@ -1380,7 +1380,7 @@ impl Reader {
 
     fn current_page_pos(&self) -> usize {
         self.get_current_frame()
-            .map(|s| s.gpi + self.settings.read().display.viewing_page(s))
+            .map(|s| s.gpi + s.page_offset)
             .unwrap_or_default()
     }
 
@@ -1467,7 +1467,7 @@ impl Reader {
             (
                 viewing_section,
                 self.get_current_frame()
-                    .map(|v| self.settings.read().display.viewing_page(v))
+                    .map(|v| v.page_offset)
                     .unwrap_or_default() as i64,
                 char_pos,
                 ctx.props().book.id,
