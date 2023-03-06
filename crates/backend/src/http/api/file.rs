@@ -127,7 +127,7 @@ pub async fn load_file_pages(
         let file_path = book.get_page_path();
 
         let info = if file.is_file_type_comic() {
-            let (width, height) = image::io::Reader::new(Cursor::new(body))
+            let (width, height) = image::io::Reader::new(Cursor::new(&body))
                 .with_guessed_format()?
                 .into_dimensions()?;
 
@@ -140,8 +140,10 @@ pub async fn load_file_pages(
                     }
                 ],
                 header_hash: String::from("ignored"),
-                inner_body: format!(r#"<div class="comic-strip"><img src="/api/file/{file_id}/res/{}" data-width="{width}" data-height="{height}" /></div>"#, file_path.display())
-                //format!("data:image;charset=utf-8;base64,{}", base64::encode(body))
+                inner_body: format!(
+                    r#"<div class="comic-strip"><img src="data:image;charset=utf-8;base64,{}" data-width="{width}" data-height="{height}" /></div>"#,
+                    base64::encode(body)
+                )
             }
         } else {
             bookie::epub::extract_body_and_header_values(&body).unwrap()

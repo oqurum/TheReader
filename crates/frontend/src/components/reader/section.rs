@@ -1,3 +1,7 @@
+//! A Section is a collection of chapters that are displayed in a single iframe.
+//!
+//! Each section has a unique header hash that is used to identify it.
+
 use std::rc::Rc;
 
 use common_local::Chapter;
@@ -71,7 +75,10 @@ pub struct SectionContents {
     /// Global Page Index
     pub gpi: usize,
 
-    pub viewing_page: usize,
+    /// Page offset for the current chapter
+    ///
+    /// We call this the "page offset" because it can be displaying a different page for RTL or LTR reading.
+    pub page_offset: usize,
 
     cached_tables: Vec<TableContainer>,
 
@@ -88,7 +95,7 @@ impl SectionContents {
             chapters: Vec::new(),
             cached_pages: Vec::new(),
             gpi: 0,
-            viewing_page: 0,
+            page_offset: 0,
             cached_tables: Vec::new(),
         }
     }
@@ -121,44 +128,8 @@ impl SectionContents {
         self.cached_pages.len()
     }
 
-    pub fn viewing_page(&self) -> usize {
-        self.viewing_page
-    }
-
     pub fn get_page_count_until(&self) -> usize {
         self.gpi + self.page_count()
-    }
-
-    pub fn transitioning_page(&self, amount: isize) {
-        let body = self.iframe.content_document().unwrap().body().unwrap();
-
-        // Prevent empty pages when on the first or last page of a section.
-        let amount = if (amount.is_positive() && self.viewing_page == 0)
-            || (amount.is_negative() && self.viewing_page == self.page_count().saturating_sub(1))
-        {
-            0
-        } else {
-            amount
-        };
-
-        if amount == 0 {
-            body.style()
-                .set_property("transition", "left 0.5s ease 0s")
-                .unwrap();
-        } else {
-            body.style().remove_property("transition").unwrap();
-        }
-
-        body.style()
-            .set_property(
-                "left",
-                &format!(
-                    "calc(-{}% - {}px)",
-                    100 * self.viewing_page,
-                    self.viewing_page as isize * 10 - amount
-                ),
-            )
-            .unwrap();
     }
 
     pub fn on_load(

@@ -12,13 +12,23 @@ html {
 
 body {
 	column-fill: auto !important;
-	column-count: 2 !important;
 	column-gap: 10px !important;
 	position: relative !important;
 	overflow: hidden !important;
 	margin: 0 !important;
 	padding: 0 !important;
 	height: calc(100% - 20px) !important;
+}
+
+body.image-page {
+	display: flex;
+	flex-direction: row;
+	column-fill: unset !important;
+	column-gap: unset !important;
+}
+
+body.image-page.move-right-to-left {
+	flex-direction: row-reverse;
 }
 
 body.single-page {
@@ -30,7 +40,6 @@ body.double-page {
 }
 
 body.scrolling-page {
-	column-count: unset !important;
 	overflow: auto !important;
 	height: auto !important;
 }
@@ -65,6 +74,7 @@ body.color-black {
 
 /*  Comics */
 .comic-strip {
-	width: 100% !important;
+	width: calc(100vw - 10px) !important;
+	min-width: calc(100vw - 10px) !important;
 	text-align: center !important;
 }

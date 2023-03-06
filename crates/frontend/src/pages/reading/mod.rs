@@ -20,7 +20,7 @@ use yew::{context::ContextHandle, prelude::*};
 
 use crate::{
     components::reader::{
-        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, SectionDisplay
+        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, SectionDisplay, layout::PageMovement
     },
     request, AppState, util::ElementEvent,
 };
@@ -185,7 +185,7 @@ impl Component for ReadingBook {
 
                     // TODO: Remove this once we have a better way to handle this.
                     if resp.media.is_comic_book() {
-                        self.reader_settings.display = SectionDisplay::new_single();
+                        self.reader_settings.display = SectionDisplay::new_image(PageMovement::RightToLeft);
                     }
 
                     self.book = Some(Rc::new(resp.media));

@@ -399,7 +399,7 @@ impl Component for Reader {
                                     return Component::update(self, ctx, ReaderMsg::NextPage);
                                 }
                             } else if let Some(section) = self.get_current_frame() {
-                                section.transitioning_page(0);
+                                ctx.props().settings.display.transitioning_page(0, section);
                                 self.drag_distance = 0;
                             }
                             // Handle after dragging
@@ -445,7 +445,7 @@ impl Component for Reader {
                                 self.drag_distance = distance as isize;
 
                                 if let Some(section) = self.get_current_frame() {
-                                    section.transitioning_page(self.drag_distance);
+                                    ctx.props().settings.display.transitioning_page(self.drag_distance, section);
                                 }
                             }
 
@@ -455,7 +455,7 @@ impl Component for Reader {
                                 self.drag_distance = -(distance as isize);
 
                                 if let Some(section) = self.get_current_frame() {
-                                    section.transitioning_page(self.drag_distance);
+                                    ctx.props().settings.display.transitioning_page(self.drag_distance, section);
                                 }
                             }
 
@@ -590,12 +590,17 @@ impl Component for Reader {
                 SectionDisplay::Scroll(_) => {
                     return Component::update(self, ctx, ReaderMsg::SetSection(new_page));
                 }
+
+                SectionDisplay::Image(_) => {
+                    return self
+                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)), ctx);
+                }
             },
 
             ReaderMsg::NextPage => {
                 match self.cached_display {
                     SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
-                        if self.current_page_pos() + 1 == self.page_count(ctx) {
+                        if self.current_page_pos(ctx.props()) + 1 == self.page_count(ctx) {
                             return false;
                         }
 
@@ -605,6 +610,24 @@ impl Component for Reader {
                     SectionDisplay::Scroll(_) => {
                         return Component::update(self, ctx, ReaderMsg::NextSection);
                     }
+
+                    SectionDisplay::Image(_) => {
+                        match ctx.props().settings.display.get_movement() {
+                            layout::PageMovement::LeftToRight => {
+                                if self.current_page_pos(ctx.props()) + 1 == self.page_count(ctx) {
+                                    return false;
+                                }
+                            }
+
+                            layout::PageMovement::RightToLeft => {
+                                if self.current_page_pos(ctx.props()) == 0 {
+                                    return false;
+                                }
+                            }
+                        }
+
+                        self.next_page(ctx);
+                    }
                 }
 
                 self.drag_distance = 0;
@@ -613,7 +636,7 @@ impl Component for Reader {
             ReaderMsg::PreviousPage => {
                 match self.cached_display {
                     SectionDisplay::Single(_) | SectionDisplay::Double(_) => {
-                        if self.current_page_pos() == 0 {
+                        if self.current_page_pos(ctx.props()) == 0 {
                             return false;
                         }
 
@@ -622,6 +645,24 @@ impl Component for Reader {
 
                     SectionDisplay::Scroll(_) => {
                         return Component::update(self, ctx, ReaderMsg::PreviousSection);
+                    }
+
+                    SectionDisplay::Image(_) => {
+                        match ctx.props().settings.display.get_movement() {
+                            layout::PageMovement::LeftToRight => {
+                                if self.current_page_pos(ctx.props()) == 0 {
+                                    return false;
+                                }
+                            }
+
+                            layout::PageMovement::RightToLeft => {
+                                if self.current_page_pos(ctx.props()) + 1 == self.page_count(ctx) {
+                                    return false;
+                                }
+                            }
+                        }
+
+                        self.previous_page(ctx);
                     }
                 }
 
@@ -740,12 +781,18 @@ impl Component for Reader {
         let progress_percentage = match self.cached_display {
             SectionDisplay::Double(_) | SectionDisplay::Single(_) => format!(
                 "width: {}%;",
-                (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0
+                (self.current_page_pos(ctx.props()) + 1) as f64 / page_count as f64 * 100.0
             ),
+
             SectionDisplay::Scroll(_) => format!(
                 "width: {}%;",
                 (self.viewing_section + 1) as f64 / section_count as f64 * 100.0
             ),
+
+            SectionDisplay::Image(_) => format!(
+                "width: {}%;",
+                (self.current_page_pos(ctx.props()) + 1) as f64 / page_count as f64 * 100.0
+            )
         };
 
         let (frame_class, frame_style) = self.get_frame_class_and_style(ctx);
@@ -870,14 +917,14 @@ impl Reader {
         // }
     }
 
-    fn render_toolbar(&self, _ctx: &Context<Self>) -> Html {
+    fn render_toolbar(&self, ctx: &Context<Self>) -> Html {
         if self.cached_display.is_scroll() {
             html! {}
         } else {
             html! {
                 <div class="toolbar">
                     <div class="d-flex w-100">
-                        <span>{ "Page " } { self.current_page_pos() + 1 }</span>
+                        <span>{ "Page " } { self.current_page_pos(ctx.props()) + 1 }</span>
                     </div>
                 </div>
             }
@@ -914,30 +961,62 @@ impl Reader {
             )
         } else {
             // Prevent empty pages when on the first or last page of a section.
-            let amount = if self.drag_distance.is_positive() {
-                if self
-                    .get_current_frame()
-                    .map(|v| v.viewing_page() == 0)
-                    .unwrap_or_default()
-                {
-                    transition = None;
-                    self.drag_distance
-                } else {
-                    0
+            let amount = match ctx.props().settings.display.get_movement() {
+                // If we're moving right to left, we're on the first page, and we're not on the last frame.
+                layout::PageMovement::RightToLeft if self.drag_distance.is_negative() => {
+                    if self
+                        .get_current_frame()
+                        .map(|v| ctx.props().settings.display.viewing_page(v) == 0)
+                        .unwrap_or_default() &&
+                        self.section_frames.len() > self.viewing_section + 1
+                    {
+                        self.drag_distance
+                    } else {
+                        transition = None;
+                        0
+                    }
                 }
-            } else if self.drag_distance.is_negative() {
-                if self
-                    .get_current_frame()
-                    .map(|v| v.viewing_page() == v.page_count().saturating_sub(1))
-                    .unwrap_or_default()
-                {
-                    transition = None;
-                    self.drag_distance
-                } else {
-                    0
+
+                layout::PageMovement::LeftToRight if self.drag_distance.is_positive() => {
+                    if self
+                        .get_current_frame()
+                        .map(|v| ctx.props().settings.display.viewing_page(v) == 0)
+                        .unwrap_or_default()
+                    {
+                        self.drag_distance
+                    } else {
+                        transition = None;
+                        0
+                    }
                 }
-            } else {
-                0
+
+                layout::PageMovement::RightToLeft if self.drag_distance.is_positive() => {
+                    if self
+                        .get_current_frame()
+                        .map(|v| ctx.props().settings.display.viewing_page(v) == v.page_count().saturating_sub(1))
+                        .unwrap_or_default()
+                    {
+                        self.drag_distance
+                    } else {
+                        transition = None;
+                        0
+                    }
+                }
+
+                layout::PageMovement::LeftToRight if self.drag_distance.is_negative() => {
+                    if self
+                        .get_current_frame()
+                        .map(|v| ctx.props().settings.display.viewing_page(v) == v.page_count().saturating_sub(1))
+                        .unwrap_or_default()
+                    {
+                        self.drag_distance
+                    } else {
+                        transition = None;
+                        0
+                    }
+                }
+
+                _ => 0,
             };
 
             let viewing = self.section_frames.iter()
@@ -1057,11 +1136,15 @@ impl Reader {
         // Double check page counts before proceeding.
         self.update_cached_pages(ctx.props());
 
+        // We set the page again to ensure we're transitioned on the correct page.
+        // This is needed for RTL reading.
+        self.set_page(0, ctx);
+
         // TODO: Move to Msg::GenerateIFrameLoaded so it's only in a single place.
         self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
     }
 
-    fn next_page(&mut self, _ctx: &Context<Self>) -> bool {
+    fn next_page(&mut self, ctx: &Context<Self>) -> bool {
         let section_count = self.section_frames.len();
 
         let frame_index = self.get_current_frame_index();
@@ -1071,7 +1154,7 @@ impl Reader {
                 debug!("Next Page");
                 return true;
             } else {
-                curr_sect.transitioning_page(0);
+                ctx.props().settings.display.transitioning_page(0, curr_sect);
             }
 
             if frame_index + 1 != section_count {
@@ -1098,7 +1181,7 @@ impl Reader {
         false
     }
 
-    fn previous_page(&mut self, _ctx: &Context<Self>) -> bool {
+    fn previous_page(&mut self, ctx: &Context<Self>) -> bool {
         let frame_index = self.get_current_frame_index();
 
         if let Some(curr_sect) = get_current_section_mut!(self) {
@@ -1106,7 +1189,7 @@ impl Reader {
                 debug!("Previous Page");
                 return true;
             } else {
-                curr_sect.transitioning_page(0);
+                ctx.props().settings.display.transitioning_page(0, curr_sect);
             }
 
             if frame_index != 0 {
@@ -1246,9 +1329,9 @@ impl Reader {
         0
     }
 
-    fn current_page_pos(&self) -> usize {
+    fn current_page_pos(&self, props: &<Self as Component>::Properties) -> usize {
         self.get_current_frame()
-            .map(|s| s.gpi + s.viewing_page())
+            .map(|s| s.gpi + props.settings.display.viewing_page(s))
             .unwrap_or_default()
     }
 
@@ -1335,7 +1418,7 @@ impl Reader {
             (
                 viewing_section,
                 self.get_current_frame()
-                    .map(|v| v.viewing_page())
+                    .map(|v| ctx.props().settings.display.viewing_page(v))
                     .unwrap_or_default() as i64,
                 char_pos,
                 ctx.props().book.id,
