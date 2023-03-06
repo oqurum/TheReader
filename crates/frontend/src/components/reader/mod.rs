@@ -339,11 +339,21 @@ impl Component for Reader {
             }
 
             ReaderMsg::PageTransitionStart => {
+                // TODO FIX: Keyboard shortcut may some reason it may double.
+                if self.is_transitioning {
+                    return false;
+                }
+
                 debug!("Page Transition Start: {}", self.drag_distance);
                 self.is_transitioning = true;
             }
 
             ReaderMsg::PageTransitionEnd => {
+                // TODO FIX: Keyboard shortcut may some reason it may double.
+                if !self.is_transitioning {
+                    return false;
+                }
+
                 debug!("Page Transition End: {}", self.drag_distance);
                 self.is_transitioning = false;
 
