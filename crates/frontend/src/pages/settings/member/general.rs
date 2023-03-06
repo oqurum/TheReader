@@ -6,7 +6,7 @@ use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
 
-use crate::{request, components::reader::{PageLoadType, SectionDisplay}, AppState};
+use crate::{request, components::reader::PageLoadType, AppState};
 
 pub enum Msg {
     // Request Results

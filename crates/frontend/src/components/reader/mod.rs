@@ -19,8 +19,8 @@ pub mod section;
 pub mod util;
 pub mod view_overlay;
 
-pub use self::layout::SectionDisplay;
-use self::{section::{SectionContents, SectionLoadProgress}, layout::SectionDisplayType};
+pub use self::layout::LayoutDisplay;
+use self::{section::{SectionContents, SectionLoadProgress}, layout::LayoutType};
 pub use self::view_overlay::{DragType, OverlayEvent, ViewOverlay};
 
 const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
@@ -115,7 +115,7 @@ pub struct ReaderSettings {
     pub animate_page_transitions: bool,
     pub default_full_screen: bool,
     pub auto_full_screen: bool,
-    pub display: SectionDisplay,
+    pub display: LayoutDisplay,
     pub show_progress: bool,
 
     pub dimensions: (i32, i32),
@@ -129,7 +129,7 @@ impl From<MemberReaderPreferences> for ReaderSettings {
             animate_page_transitions: value.animate_page_transitions,
             default_full_screen: value.default_full_screen,
             auto_full_screen: value.auto_full_screen,
-            display: SectionDisplay::from(value.display_type),
+            display: LayoutDisplay::from(value.display_type),
             show_progress: value.always_show_progress,
             dimensions: (value.width as i32, value.height as i32),
         }
@@ -626,16 +626,16 @@ impl Component for Reader {
             }
 
             ReaderMsg::SetPage(new_page) => match { let v = self.settings.read().display.as_type(); v } {
-                SectionDisplayType::Single | SectionDisplayType::Double => {
+                LayoutType::Single | LayoutType::Double => {
                     return self
                         .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
                 }
 
-                SectionDisplayType::Scroll => {
+                LayoutType::Scroll => {
                     return Component::update(self, ctx, ReaderMsg::SetSection(new_page));
                 }
 
-                SectionDisplayType::Image => {
+                LayoutType::Image => {
                     return self
                         .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
                 }
@@ -643,7 +643,7 @@ impl Component for Reader {
 
             ReaderMsg::NextPage => {
                 match { let v = self.settings.read().display.as_type(); v } {
-                    SectionDisplayType::Single | SectionDisplayType::Double => {
+                    LayoutType::Single | LayoutType::Double => {
                         if self.current_page_pos() + 1 == self.page_count(ctx) {
                             return false;
                         }
@@ -651,11 +651,11 @@ impl Component for Reader {
                         self.next_page();
                     }
 
-                    SectionDisplayType::Scroll => {
+                    LayoutType::Scroll => {
                         return Component::update(self, ctx, ReaderMsg::NextSection);
                     }
 
-                    SectionDisplayType::Image => {
+                    LayoutType::Image => {
                         match self.settings.read().display.get_movement() {
                             layout::PageMovement::LeftToRight => {
                                 if self.current_page_pos() + 1 == self.page_count(ctx) {
@@ -679,7 +679,7 @@ impl Component for Reader {
 
             ReaderMsg::PreviousPage => {
                 match { let v = self.settings.read().display.as_type(); v } {
-                    SectionDisplayType::Single | SectionDisplayType::Double => {
+                    LayoutType::Single | LayoutType::Double => {
                         if self.current_page_pos() == 0 {
                             return false;
                         }
@@ -687,11 +687,11 @@ impl Component for Reader {
                         self.previous_page();
                     }
 
-                    SectionDisplayType::Scroll => {
+                    LayoutType::Scroll => {
                         return Component::update(self, ctx, ReaderMsg::PreviousSection);
                     }
 
-                    SectionDisplayType::Image => {
+                    LayoutType::Image => {
                         match self.settings.read().display.get_movement() {
                             layout::PageMovement::LeftToRight => {
                                 if self.current_page_pos() == 0 {
@@ -823,17 +823,17 @@ impl Component for Reader {
         );
 
         let progress_percentage = match self.settings.read().display {
-            SectionDisplay::Double(_) | SectionDisplay::Single(_) => format!(
+            LayoutDisplay::DoublePage(_) | LayoutDisplay::SinglePage(_) => format!(
                 "width: {}%;",
                 (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0
             ),
 
-            SectionDisplay::Scroll(_) => format!(
+            LayoutDisplay::VerticalScroll(_) => format!(
                 "width: {}%;",
                 (self.viewing_section + 1) as f64 / section_count as f64 * 100.0
             ),
 
-            SectionDisplay::Image(_) => format!(
+            LayoutDisplay::Image(_) => format!(
                 "width: {}%;",
                 (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0
             )

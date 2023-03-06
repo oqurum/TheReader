@@ -33,55 +33,55 @@ pub enum SectionDisplayType {
 }
 
 
-pub enum SectionDisplay {
+/// Describes how to display a section.
+pub enum LayoutDisplay {
     // Optimized Text Layouts
-    Single(PageDisplay),
-    Double(PageDisplay),
-    // TODO: Paged Vertical
-    // TODO: Rename to continuous vertical
-    Scroll(ScrollDisplay),
+    SinglePage(PageDisplay),
+    DoublePage(PageDisplay),
+    // TODO: Continuous vertical
+    VerticalScroll(ScrollDisplay),
 
     // Optimized Image Layouts
     Image(ImageDisplay),
 }
 
-impl SectionDisplay {
+impl LayoutDisplay {
     pub fn new_single() -> Self {
-        Self::Single(PageDisplay::new(1, "single-page"))
+        Self::SinglePage(PageDisplay::new(1, "single-page"))
     }
 
     pub fn new_double() -> Self {
-        Self::Double(PageDisplay::new(2, "double-page"))
+        Self::DoublePage(PageDisplay::new(2, "double-page"))
     }
 
     pub fn new_scroll() -> Self {
-        Self::Scroll(ScrollDisplay::new("scrolling-page"))
+        Self::VerticalScroll(ScrollDisplay::new("scrolling-page"))
     }
 
     pub fn new_image(value: PageMovement) -> Self {
         Self::Image(ImageDisplay::new("image-page", value))
     }
 
-    pub fn as_type(&self) -> SectionDisplayType {
+    pub fn as_type(&self) -> LayoutType {
         match self {
-            SectionDisplay::Single(_) => SectionDisplayType::Single,
-            SectionDisplay::Double(_) => SectionDisplayType::Double,
-            SectionDisplay::Scroll(_) => SectionDisplayType::Scroll,
-            SectionDisplay::Image(_) => SectionDisplayType::Image,
+            LayoutDisplay::SinglePage(_) => LayoutType::Single,
+            LayoutDisplay::DoublePage(_) => LayoutType::Double,
+            LayoutDisplay::VerticalScroll(_) => LayoutType::Scroll,
+            LayoutDisplay::Image(_) => LayoutType::Image,
         }
     }
 
     pub fn add_to_iframe(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Reader>) {
         match self {
-            SectionDisplay::Single(v) | SectionDisplay::Double(v) => v.add_to_iframe(iframe, ctx),
-            SectionDisplay::Scroll(v) => v.add_to_iframe(iframe, ctx),
-            SectionDisplay::Image(v) => v.add_to_iframe(iframe, ctx),
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => v.add_to_iframe(iframe, ctx),
+            LayoutDisplay::VerticalScroll(v) => v.add_to_iframe(iframe, ctx),
+            LayoutDisplay::Image(v) => v.add_to_iframe(iframe, ctx),
         }
     }
 
     pub fn transitioning_page(&self, amount: isize, section: &SectionContents) {
         match self {
-            SectionDisplay::Single(_) | SectionDisplay::Double(_) | SectionDisplay::Scroll(_) => {
+            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::VerticalScroll(_) => {
                 let body = section.get_iframe_body().unwrap_throw();
 
                 let page = section.page_offset;
@@ -115,77 +115,77 @@ impl SectionDisplay {
                     .unwrap();
             }
 
-            SectionDisplay::Image(v) => v.transitioning_page(amount, section),
+            LayoutDisplay::Image(v) => v.transitioning_page(amount, section),
         }
     }
 
     pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
         match self {
-            SectionDisplay::Single(v) | SectionDisplay::Double(v) => v.set_page(index, section),
-            SectionDisplay::Scroll(v) => v.set_page(index, section),
-            SectionDisplay::Image(v) => v.set_page(index, section),
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => v.set_page(index, section),
+            LayoutDisplay::VerticalScroll(v) => v.set_page(index, section),
+            LayoutDisplay::Image(v) => v.set_page(index, section),
         }
     }
 
     pub fn next_page(&mut self, section: &mut SectionContents) -> bool {
         match self {
-            SectionDisplay::Single(v) | SectionDisplay::Double(v) => v.next_page(section),
-            SectionDisplay::Scroll(v) => v.next_page(),
-            SectionDisplay::Image(v) => v.next_page(section),
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => v.next_page(section),
+            LayoutDisplay::VerticalScroll(v) => v.next_page(),
+            LayoutDisplay::Image(v) => v.next_page(section),
         }
     }
 
     pub fn previous_page(&mut self, section: &mut SectionContents) -> bool {
         match self {
-            SectionDisplay::Single(v) | SectionDisplay::Double(v) => v.previous_page(section),
-            SectionDisplay::Scroll(v) => v.previous_page(),
-            SectionDisplay::Image(v) => v.previous_page(section),
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => v.previous_page(section),
+            LayoutDisplay::VerticalScroll(v) => v.previous_page(),
+            LayoutDisplay::Image(v) => v.previous_page(section),
         }
     }
 
     pub fn set_last_page(&mut self, section: &mut SectionContents) {
         match self {
-            SectionDisplay::Single(v) | SectionDisplay::Double(v) => v.set_last_page(section),
-            SectionDisplay::Scroll(v) => v.set_last_page(section),
-            SectionDisplay::Image(v) => v.set_last_page(section),
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => v.set_last_page(section),
+            LayoutDisplay::VerticalScroll(v) => v.set_last_page(section),
+            LayoutDisplay::Image(v) => v.set_last_page(section),
         }
     }
 
     pub fn on_start_viewing(&self, section: &SectionContents) {
         match self {
-            SectionDisplay::Single(_) | SectionDisplay::Double(_) | SectionDisplay::Image(_) => (),
-            SectionDisplay::Scroll(v) => v.on_start_viewing(section),
+            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::Image(_) => (),
+            LayoutDisplay::VerticalScroll(v) => v.on_start_viewing(section),
         }
     }
 
     pub fn on_stop_viewing(&self, section: &SectionContents) {
         match self {
-            SectionDisplay::Single(_) | SectionDisplay::Double(_) | SectionDisplay::Image(_) => (),
-            SectionDisplay::Scroll(v) => v.on_stop_viewing(section),
+            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::Image(_) => (),
+            LayoutDisplay::VerticalScroll(v) => v.on_stop_viewing(section),
         }
     }
 
     pub fn get_movement(&self) -> PageMovement {
         match self {
-            SectionDisplay::Single(_) | SectionDisplay::Double(_) | SectionDisplay::Scroll(_) => PageMovement::LeftToRight,
-            SectionDisplay::Image(v) => v.movement,
+            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::VerticalScroll(_) => PageMovement::LeftToRight,
+            LayoutDisplay::Image(v) => v.movement,
         }
     }
 
     pub fn is_single(&self) -> bool {
-        matches!(self, Self::Single(_))
+        matches!(self, Self::SinglePage(_))
     }
 
     pub fn is_double(&self) -> bool {
-        matches!(self, Self::Double(_))
+        matches!(self, Self::DoublePage(_))
     }
 
     pub fn is_scroll(&self) -> bool {
-        matches!(self, Self::Scroll(_))
+        matches!(self, Self::VerticalScroll(_))
     }
 }
 
-impl From<u8> for SectionDisplay {
+impl From<u8> for LayoutDisplay {
     fn from(value: u8) -> Self {
         match value {
             0 => Self::new_single(),
@@ -197,13 +197,13 @@ impl From<u8> for SectionDisplay {
     }
 }
 
-impl Default for SectionDisplay {
+impl Default for LayoutDisplay {
     fn default() -> Self {
         Self::new_double()
     }
 }
 
-impl PartialEq for SectionDisplay {
+impl PartialEq for LayoutDisplay {
     fn eq(&self, other: &Self) -> bool {
         self.as_type() == other.as_type()
     }

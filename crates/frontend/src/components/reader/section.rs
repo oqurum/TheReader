@@ -1,8 +1,6 @@
 //! A Section is a collection of chapters that are displayed in a single iframe.
 //!
-//! For Example, this'll contain an iframe along with a list of chapters.
-//!
-//! Each section has a unique header hash that is used to identify it.
+//! For Example, this'll contain an iframe along with a collection of "chapters" which have the same header hash.
 
 use std::rc::Rc;
 
