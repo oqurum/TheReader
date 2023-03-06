@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-use crate::reader::ReaderColor;
+use crate::reader::{ReaderColor, LayoutType};
 
 // TODO: I don't want to store it like this but it's easiest way.
 
@@ -36,7 +36,7 @@ pub struct MemberReaderPreferences {
     pub text_size: u32,
     pub color: ReaderColor,
 
-    pub display_type: u8,
+    pub display_type: LayoutType,
     pub load_type: u8,
 }
 
@@ -51,8 +51,7 @@ impl Default for MemberReaderPreferences {
             height: 548,
             text_size: 0,
             color: ReaderColor::Black,
-            // SectionDisplay::Double
-            display_type: 1,
+            display_type: LayoutType::Double,
             // PageLoadType::Select
             load_type: 1,
         }

@@ -16,21 +16,7 @@ pub use image::*;
 pub use page::*;
 pub use scroll::*;
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PageMovement {
-    LeftToRight,
-    RightToLeft,
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SectionDisplayType {
-    Single,
-    Double,
-    Scroll,
-    Image,
-}
+pub use common_local::reader::{LayoutType, PageMovement};
 
 
 /// Describes how to display a section.
@@ -185,14 +171,13 @@ impl LayoutDisplay {
     }
 }
 
-impl From<u8> for LayoutDisplay {
-    fn from(value: u8) -> Self {
+impl From<LayoutType> for LayoutDisplay {
+    fn from(value: LayoutType) -> Self {
         match value {
-            0 => Self::new_single(),
-            1 => Self::new_double(),
-            2 => Self::new_scroll(),
-
-            _ => unreachable!(),
+            LayoutType::Single => Self::new_single(),
+            LayoutType::Double => Self::new_double(),
+            LayoutType::Scroll => Self::new_scroll(),
+            LayoutType::Image => unimplemented!(),
         }
     }
 }

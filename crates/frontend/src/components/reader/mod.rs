@@ -1,6 +1,6 @@
 use std::{path::PathBuf, rc::Rc, sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard}, time::Duration};
 
-use common_local::{Chapter, MediaItem, Progression, MemberReaderPreferences, reader::ReaderColor};
+use common_local::{Chapter, MediaItem, Progression, MemberReaderPreferences, reader::{ReaderColor, LayoutType}};
 use gloo_timers::callback::{Timeout, Interval};
 use gloo_utils::{body, window};
 use num_enum::{TryFromPrimitive, IntoPrimitive};
@@ -20,7 +20,7 @@ pub mod util;
 pub mod view_overlay;
 
 pub use self::layout::LayoutDisplay;
-use self::{section::{SectionContents, SectionLoadProgress}, layout::LayoutType};
+use self::section::{SectionContents, SectionLoadProgress};
 pub use self::view_overlay::{DragType, OverlayEvent, ViewOverlay};
 
 const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;

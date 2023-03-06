@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use common::{api::WrappingResponse, component::select::{SelectModule, SelectItem}};
-use common_local::{MemberBasicPreferences, reader::ReaderColor, MemberPreferences};
+use common_local::{MemberBasicPreferences, reader::{ReaderColor, LayoutType}, MemberPreferences};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{HtmlInputElement, HtmlSelectElement};
 use yew::prelude::*;
@@ -169,7 +169,7 @@ impl MemberGeneralPage {
                 // Reader Display
                 <div class="mb-3">
                     <label class="form-label">{ "Reader Display" }</label>
-                    <SelectModule<u8>
+                    <SelectModule<LayoutType>
                         default={ prefs.reader.display_type }
                         class="form-select"
                         onselect={ ctx.link().callback(move |value| {
@@ -180,10 +180,10 @@ impl MemberGeneralPage {
                             )
                         }) }
                     >
-                        <SelectItem<u8> value=0 name="Single Page" />
-                        <SelectItem<u8> value=1 name="Double Page" />
-                        <SelectItem<u8> value=2 name="Scrolling Page" />
-                    </SelectModule<u8>>
+                        <SelectItem<LayoutType> value={ LayoutType::Single } name="Single Page" />
+                        <SelectItem<LayoutType> value={ LayoutType::Double } name="Double Page" />
+                        <SelectItem<LayoutType> value={ LayoutType::Scroll } name="Scrolling Page" />
+                    </SelectModule<LayoutType>>
                 </div>
 
                 // Scale Type
