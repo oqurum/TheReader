@@ -250,11 +250,9 @@ impl Component for ReadingBook {
 
             let style = (is_full_screen() && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;");
 
-            // TODO: Loading screen until sections have done initial generation.
-
             html! {
                 <div class="reading-container">
-                    <div class={ book_class } {style} ref={ self.ref_book_container.clone() }>
+                    <div class={ book_class } { style } ref={ self.ref_book_container.clone() }>
                         <ContextProvider<SharedReaderSettings> context={ self.reader_settings.clone() }>
                             <Reader
                                 width={ self.book_dimensions.0 }

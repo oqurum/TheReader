@@ -794,6 +794,26 @@ impl Component for Reader {
 
         html! {
             <div class="reader">
+                {
+                    match self.section_frames.get(self.get_current_frame_index()) {
+                        Some(SectionLoadProgress::Waiting) |
+                        Some(SectionLoadProgress::Loading(_)) |
+                        None => html! {
+                            <div class="loading-overlay">
+                                <span class="title">
+                                    { format!(
+                                        "Loading {}/{}...",
+                                        self.loaded_count(),
+                                        self.section_frames.len()
+                                    ) }
+                                </span>
+                            </div>
+                        },
+
+                        _ => html! {},
+                    }
+                }
+
                 <div class="pages" style={ pages_style.clone() }>
                     {
                         if !self.settings.display.is_scroll() {
@@ -885,6 +905,13 @@ impl Component for Reader {
 }
 
 impl Reader {
+    fn loaded_count(&self) -> usize {
+        self.section_frames
+            .iter()
+            .filter(|v| v.is_loaded())
+            .count()
+    }
+
     fn load_surrounding_sections(&mut self, ctx: &Context<Self>) {
         debug!("Page Load Type: {:?}", self.settings.type_of);
 
@@ -1362,6 +1389,7 @@ impl Reader {
     }
 
     fn get_current_frame_index(&self) -> usize {
+        // TODO: Cannot compare against hash. The `section_frames` hashes can be separated but have same hash, hashes ex: [ "unique0", "unique1", "unique0" ]
         let hash = self.cached_sections.get(self.viewing_section)
             .map(|v| v.info.header_hash.as_str());
 
