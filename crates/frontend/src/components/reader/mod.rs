@@ -1070,7 +1070,7 @@ impl Reader {
         debug!("use_progression: {:?}", prog);
 
         if let Some(prog) = prog {
-            if let Progression::Ebook { chapter, char_pos, .. } = prog {
+            if let Progression::Ebook { chapter, char_pos, page } = prog {
                 let chapter = chapter as usize;
 
                 if self.viewing_section != chapter {
@@ -1080,30 +1080,39 @@ impl Reader {
                     self.set_section(chapter, ctx);
                 }
 
-                if char_pos != -1 {
-                    for sec in &mut self.section_frames {
+                if char_pos != -1 || page != -1 {
+                    for (sec_index, sec) in self.section_frames.iter_mut().enumerate() {
                         if let SectionLoadProgress::Loaded(section) = sec {
+                            // Find the chapter we're supposed to be in.
                             if section.get_chapters().iter().any(|v| v.value == chapter) {
-                                self.initial_progression_set = true;
+                                debug!("Found chapter {chapter} in section index {sec_index}");
 
-                                if self.settings.display.is_scroll() {
-                                    if let Some(element) = js_get_element_from_byte_position(
-                                        section.get_iframe(),
-                                        char_pos as usize,
-                                    ) {
-                                        element.scroll_into_view();
+                                if char_pos != -1 {
+                                    self.initial_progression_set = true;
+
+                                    if self.settings.display.is_scroll() {
+                                        if let Some(element) = js_get_element_from_byte_position(
+                                            section.get_iframe(),
+                                            char_pos as usize,
+                                        ) {
+                                            element.scroll_into_view();
+                                        }
+                                    } else {
+                                        let page = js_get_page_from_byte_position(
+                                            section.get_iframe(),
+                                            char_pos as usize,
+                                        );
+
+                                        debug!("use_progression - set page: {:?}", page);
+
+                                        if let Some(page) = page {
+                                            self.cached_display.set_page(page, section);
+                                        }
                                     }
-                                } else {
-                                    let page = js_get_page_from_byte_position(
-                                        section.get_iframe(),
-                                        char_pos as usize,
-                                    );
-
-                                    debug!("use_progression - set page: {:?}", page);
-
-                                    if let Some(page) = page {
-                                        self.cached_display.set_page(page, section);
-                                    }
+                                } else if page != -1 {
+                                    // If char_pos is -1, we're probably viewing a image book. We go off of page instead.
+                                    self.initial_progression_set = true;
+                                    self.cached_display.set_page(page as usize, section);
                                 }
                             }
                         }
