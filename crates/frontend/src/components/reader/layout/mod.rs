@@ -20,6 +20,7 @@ pub use common_local::reader::{LayoutType, PageMovement};
 
 
 /// Describes how to display a section.
+#[derive(Clone)]
 pub enum LayoutDisplay {
     // Optimized Text Layouts
     SinglePage(PageDisplay),

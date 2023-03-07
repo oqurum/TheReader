@@ -137,19 +137,17 @@ impl Component for ReadingBook {
             }
 
             Msg::WindowResize => {
-                let mut settings = self.reader_settings.write();
-
                 // We have the display_toolbar check here since the "zoom out" function will re-expand it.
                 // We want to ensure we don't "zoom out", resize, and have incorrect dimensions.
-                if settings.default_full_screen
+                if self.reader_settings.default_full_screen
                     && !self.state.is_navbar_visible
                 {
                     // FIX: Using "if let" since container can be null if this is called before first render.
                     if let Some(cont) = self.ref_book_container.cast::<Element>() {
-                        settings.dimensions =
+                        Rc::get_mut(&mut self.reader_settings.0).unwrap().dimensions =
                             (cont.client_width().max(0), cont.client_height().max(0));
 
-                        debug!("Window Resize: {:?}", settings.dimensions);
+                        debug!("Window Resize: {:?}", self.reader_settings.dimensions);
                     } else {
                         debug!("Window Resize: book container doesn't exist");
                     }
@@ -187,7 +185,7 @@ impl Component for ReadingBook {
 
                     // TODO: Remove this once we have a better way to handle this.
                     if resp.media.is_comic_book() {
-                        self.reader_settings.write().display = LayoutDisplay::new_image(PageMovement::RightToLeft);
+                        Rc::get_mut(&mut self.reader_settings.0).unwrap().display = LayoutDisplay::new_image(PageMovement::RightToLeft);
                     }
 
                     self.book = Some(Rc::new(resp.media));
@@ -206,7 +204,7 @@ impl Component for ReadingBook {
                             instant, ..
                         } = o_event
                         {
-                            if self.reader_settings.read().default_full_screen {
+                            if self.reader_settings.default_full_screen {
                                 // TODO: This is causing yew to "reload" the page.
                                 if let Some(dur) = instant {
                                     self.state.update_nav_visibility.emit(dur.num_milliseconds() > 500);
@@ -227,15 +225,11 @@ impl Component for ReadingBook {
         if let Some(book) = self.book.as_ref() {
             let mut book_class = String::from("book");
 
-            let settings = self.reader_settings.read();
-
-            if settings.default_full_screen {
+            if self.reader_settings.default_full_screen {
                 book_class += " overlay-x overlay-y";
             }
 
-            let style = (settings.default_full_screen && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;");
-
-            drop(settings);
+            let style = (self.reader_settings.default_full_screen && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;");
 
             // TODO: Loading screen until sections have done initial generation.
 
@@ -270,16 +264,14 @@ impl Component for ReadingBook {
                 .send_future(async move { Msg::RetrieveBook(request::get_book_info(id).await) });
         }
 
-        let mut settings = self.reader_settings.write();
-
         // TODO: This is a duplicate of Msg::WindowResize
-        if settings.default_full_screen && !self.state.is_navbar_visible
+        if self.reader_settings.default_full_screen && !self.state.is_navbar_visible
         {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
-                settings.dimensions =
+                Rc::get_mut(&mut self.reader_settings.0).unwrap().dimensions =
                     (cont.client_width().max(0), cont.client_height().max(0));
 
-                debug!("Render Size: {:?}", settings.dimensions);
+                debug!("Render Size: {:?}", self.reader_settings.dimensions);
             }
         }
     }

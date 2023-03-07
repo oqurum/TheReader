@@ -7,7 +7,6 @@ use crate::{components::{Reader, reader::{ReaderMsg, section::SectionContents}},
 use super::{PageMovement, PAGE_DISPLAYS};
 
 
-
 pub struct ImageDisplay {
     class_name: &'static str,
     _events: Vec<ElementEvent>,
@@ -189,6 +188,17 @@ impl ImageDisplay {
         match self.movement {
             PageMovement::LeftToRight => section.page_offset,
             PageMovement::RightToLeft => (section.page_count() - section.page_offset).saturating_sub(1),
+        }
+    }
+}
+
+impl Clone for ImageDisplay {
+    fn clone(&self) -> Self {
+        Self {
+            class_name: self.class_name,
+            movement: self.movement,
+
+            _events: Vec::new(),
         }
     }
 }

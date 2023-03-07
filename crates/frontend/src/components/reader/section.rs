@@ -12,7 +12,7 @@ use yew::Context;
 use super::{
     js_update_iframe_after_load, update_iframe_size,
     util::{for_each_child_map, table::TableContainer},
-    CachedPage, Reader, color, ReaderSettings,
+    CachedPage, Reader, color, ReaderSettings, LayoutDisplay,
 };
 
 pub enum SectionLoadProgress {
@@ -132,7 +132,8 @@ impl SectionContents {
     pub fn on_load(
         &mut self,
         handle_js_redirect_clicks: &Closure<dyn FnMut(String, String)>,
-        settings: &mut ReaderSettings,
+        settings: &ReaderSettings,
+        cached_display: &mut LayoutDisplay,
         ctx: &Context<Reader>,
     ) {
         // Insert chapters
@@ -209,8 +210,8 @@ impl SectionContents {
 
         js_update_iframe_after_load(self.get_iframe(), &self.header_hash, handle_js_redirect_clicks);
 
-        settings.display.add_to_iframe(self.get_iframe(), ctx);
-        settings.display.on_stop_viewing(self);
+        cached_display.add_to_iframe(self.get_iframe(), ctx);
+        cached_display.on_stop_viewing(self);
 
         update_iframe_size(Some(settings.dimensions), self.get_iframe());
 

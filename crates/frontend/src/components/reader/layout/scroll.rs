@@ -178,3 +178,13 @@ impl ScrollDisplay {
         el.style().remove_property("overflow").unwrap_throw();
     }
 }
+
+impl Clone for ScrollDisplay {
+    fn clone(&self) -> Self {
+        Self {
+            class_name: self.class_name,
+
+            _events: Vec::new(),
+        }
+    }
+}

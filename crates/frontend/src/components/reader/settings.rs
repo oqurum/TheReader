@@ -1,26 +1,26 @@
-use std::{rc::Rc, sync::{RwLock, RwLockReadGuard, RwLockWriteGuard}};
+use std::rc::Rc;
 
 use common_local::{reader::{ReaderColor, ReaderLoadType}, MemberReaderPreferences};
-use wasm_bindgen::UnwrapThrowExt;
 
 use super::LayoutDisplay;
 
 
 
 #[derive(Clone)]
-pub struct SharedReaderSettings(Rc<RwLock<ReaderSettings>>);
+/// Immutable settings for the reader.
+pub struct SharedReaderSettings(pub Rc<ReaderSettings>);
 
 impl SharedReaderSettings {
     pub fn new(value: ReaderSettings) -> Self {
-        Self(Rc::new(RwLock::new(value)))
+        Self(Rc::new(value))
     }
+}
 
-    pub fn read(&self) -> RwLockReadGuard<'_, ReaderSettings> {
-        self.0.read().unwrap_throw()
-    }
+impl std::ops::Deref for SharedReaderSettings {
+    type Target = ReaderSettings;
 
-    pub fn write(&self) -> RwLockWriteGuard<'_, ReaderSettings> {
-        self.0.write().unwrap_throw()
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

@@ -124,3 +124,14 @@ impl PageDisplay {
         self.set_page(section.page_count().saturating_sub(1), section);
     }
 }
+
+impl Clone for PageDisplay {
+    fn clone(&self) -> Self {
+        Self {
+            count: self.count,
+            class_name: self.class_name,
+
+            _events: Vec::new(),
+        }
+    }
+}
