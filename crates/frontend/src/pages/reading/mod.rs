@@ -2,7 +2,7 @@
 
 use std::{
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}},
 };
 
 use common::{
@@ -25,6 +25,16 @@ use crate::{
     request, AppState, util::ElementEvent,
 };
 
+
+static IS_FULL_SCREEN: AtomicBool = AtomicBool::new(false);
+
+pub fn set_full_screen(value: bool) {
+    IS_FULL_SCREEN.store(value, Ordering::Relaxed);
+}
+
+pub fn is_full_screen() -> bool {
+    IS_FULL_SCREEN.load(Ordering::Relaxed)
+}
 
 pub enum Msg {
     // Event
@@ -75,7 +85,7 @@ impl Component for ReadingBook {
             .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
             .expect("context to be set");
 
-        let mut reader_settings = ReaderSettings::from(state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default().desktop.reader);
+        let reader_settings = SharedReaderSettings::new(ReaderSettings::from(state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default().desktop.reader));
 
         let (win_width, win_height) = (
             window().inner_width().unwrap_throw().as_f64().unwrap(),
@@ -86,7 +96,9 @@ impl Component for ReadingBook {
         if reader_settings.auto_full_screen || win_width < 1200.0 || win_height < 720.0 {
             state.update_nav_visibility.emit(false);
 
-            reader_settings.default_full_screen = true;
+            set_full_screen(true);
+        } else {
+            set_full_screen(false);
         }
 
         let on_fullscreen_event = {
@@ -106,7 +118,7 @@ impl Component for ReadingBook {
             state,
             _listener,
 
-            reader_settings: SharedReaderSettings::new(reader_settings),
+            reader_settings,
             chapters: LoadedChapters::new(),
             last_grabbed_count: 0,
             progress: Rc::new(Mutex::new(None)),
@@ -139,11 +151,10 @@ impl Component for ReadingBook {
             Msg::WindowResize => {
                 // We have the display_toolbar check here since the "zoom out" function will re-expand it.
                 // We want to ensure we don't "zoom out", resize, and have incorrect dimensions.
-                if self.reader_settings.default_full_screen
-                    && !self.state.is_navbar_visible
-                {
+                if is_full_screen() && !self.state.is_navbar_visible {
                     // FIX: Using "if let" since container can be null if this is called before first render.
                     if let Some(cont) = self.ref_book_container.cast::<Element>() {
+                        // TODO: Remove. We don't want to update the settings. It should be immutable.
                         Rc::get_mut(&mut self.reader_settings.0).unwrap().dimensions =
                             (cont.client_width().max(0), cont.client_height().max(0));
 
@@ -204,7 +215,7 @@ impl Component for ReadingBook {
                             instant, ..
                         } = o_event
                         {
-                            if self.reader_settings.default_full_screen {
+                            if is_full_screen() {
                                 // TODO: This is causing yew to "reload" the page.
                                 if let Some(dur) = instant {
                                     self.state.update_nav_visibility.emit(dur.num_milliseconds() > 500);
@@ -225,11 +236,11 @@ impl Component for ReadingBook {
         if let Some(book) = self.book.as_ref() {
             let mut book_class = String::from("book");
 
-            if self.reader_settings.default_full_screen {
+            if is_full_screen() {
                 book_class += " overlay-x overlay-y";
             }
 
-            let style = (self.reader_settings.default_full_screen && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;");
+            let style = (is_full_screen() && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;");
 
             // TODO: Loading screen until sections have done initial generation.
 
@@ -265,9 +276,9 @@ impl Component for ReadingBook {
         }
 
         // TODO: This is a duplicate of Msg::WindowResize
-        if self.reader_settings.default_full_screen && !self.state.is_navbar_visible
-        {
+        if is_full_screen() && !self.state.is_navbar_visible {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
+                // TODO: Remove. We don't want to update the settings. It should be immutable.
                 Rc::get_mut(&mut self.reader_settings.0).unwrap().dimensions =
                     (cont.client_width().max(0), cont.client_height().max(0));
 
