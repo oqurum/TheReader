@@ -59,6 +59,9 @@ pub struct ReadingBook {
     state: Rc<AppState>,
     _listener: ContextHandle<Rc<AppState>>,
 
+    // Book Dimensions
+    book_dimensions: (i32, i32),
+
     reader_settings: SharedReaderSettings,
     progress: Rc<Mutex<Option<Progression>>>,
     book: Option<Rc<MediaItem>>,
@@ -118,6 +121,8 @@ impl Component for ReadingBook {
             state,
             _listener,
 
+            book_dimensions: reader_settings.dimensions,
+
             reader_settings,
             chapters: LoadedChapters::new(),
             last_grabbed_count: 0,
@@ -155,8 +160,7 @@ impl Component for ReadingBook {
                     // FIX: Using "if let" since container can be null if this is called before first render.
                     if let Some(cont) = self.ref_book_container.cast::<Element>() {
                         // TODO: Remove. We don't want to update the settings. It should be immutable.
-                        Rc::get_mut(&mut self.reader_settings.0).unwrap().dimensions =
-                            (cont.client_width().max(0), cont.client_height().max(0));
+                        self.book_dimensions = (cont.client_width().max(0), cont.client_height().max(0));
 
                         debug!("Window Resize: {:?}", self.reader_settings.dimensions);
                     } else {
@@ -249,9 +253,13 @@ impl Component for ReadingBook {
                     <div class={ book_class } {style} ref={ self.ref_book_container.clone() }>
                         <ContextProvider<SharedReaderSettings> context={ self.reader_settings.clone() }>
                             <Reader
-                                progress={ Rc::clone(&self.progress) }
+                                width={ self.book_dimensions.0 }
+                                height={ self.book_dimensions.1 }
+
                                 book={ Rc::clone(book) }
+                                progress={ Rc::clone(&self.progress) }
                                 chapters={ self.chapters.clone() }
+
                                 event={ ctx.link().callback(Msg::ReaderEvent) }
                             />
                         </ContextProvider<SharedReaderSettings>>
@@ -279,8 +287,7 @@ impl Component for ReadingBook {
         if is_full_screen() && !self.state.is_navbar_visible {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
                 // TODO: Remove. We don't want to update the settings. It should be immutable.
-                Rc::get_mut(&mut self.reader_settings.0).unwrap().dimensions =
-                    (cont.client_width().max(0), cont.client_height().max(0));
+                self.book_dimensions = (cont.client_width().max(0), cont.client_height().max(0));
 
                 debug!("Render Size: {:?}", self.reader_settings.dimensions);
             }

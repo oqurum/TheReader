@@ -119,15 +119,19 @@ pub struct Property {
     pub book: Rc<MediaItem>,
     pub chapters: LoadedChapters,
 
+    pub width: i32,
+    pub height: i32,
+
     pub progress: Rc<Mutex<Option<Progression>>>,
 }
 
 impl PartialEq for Property {
     fn eq(&self, other: &Self) -> bool {
-        // self.event == other.event &&
+        self.width == other.width &&
+        self.height == other.height &&
         Rc::ptr_eq(&self.book, &other.book) &&
-        self.chapters == other.chapters &&
-        Rc::ptr_eq(&self.progress, &other.progress)
+        Rc::ptr_eq(&self.progress, &other.progress) &&
+        self.chapters == other.chapters
     }
 }
 
@@ -165,7 +169,7 @@ pub struct Reader {
     /// We cache it here so we can mutate it.
     cached_display: LayoutDisplay,
 
-    cached_dimensions: Option<(i32, i32)>,
+    /// The individual sections of the book.
     cached_sections: Vec<Rc<Chapter>>,
 
     // All the sections the books has and the current cached info
@@ -247,7 +251,6 @@ impl Component for Reader {
 
         Self {
             cached_display: settings.display.clone(),
-            cached_dimensions: None,
             cached_sections: Vec::new(),
 
             section_frames: Vec::new(),
@@ -510,7 +513,7 @@ impl Component for Reader {
                             // Scrolling is split into 5 sections. You need to scroll up or down at least 3 time to change page to next after timeout.
                             // At 5 we switch automatically. It should also take 5 MAX to fill the current reader window.
 
-                            let height = self.settings.dimensions.1 as isize / 5;
+                            let height = ctx.props().height as isize / 5;
 
                             self.drag_distance += height;
 
@@ -531,7 +534,7 @@ impl Component for Reader {
                     // Scrolling down
                     DragType::Down(_) => {
                         if self.viewing_section + 1 != self.cached_sections.len() {
-                            let height = self.settings.dimensions.1 as isize / 5;
+                            let height = ctx.props().height as isize / 5;
 
                             self.drag_distance -= height;
 
@@ -554,7 +557,7 @@ impl Component for Reader {
             }
 
             ReaderMsg::UpdateDragDistance => {
-                let height = self.settings.dimensions.1 as isize / 5;
+                let height = ctx.props().height as isize / 5;
 
                 if self.drag_distance.abs() / height >= 3 {
                     if self.drag_distance.is_positive() {
@@ -763,8 +766,8 @@ impl Component for Reader {
 
         let pages_style = format!(
             "width: {}px; height: {}px;",
-            self.settings.dimensions.0,
-            self.settings.dimensions.1
+            ctx.props().width,
+            ctx.props().height,
         );
 
         let progress_percentage = match self.settings.display {
@@ -852,18 +855,16 @@ impl Component for Reader {
             self.viewing_section = chapter as usize;
         }
 
-        if self.cached_display != self.settings.display || self.cached_dimensions != Some(self.settings.dimensions) {
+        if self.cached_display != self.settings.display {
             // We have an additional check here to make sure we don't update it and unset the cached events.
             if self.cached_display != self.settings.display {
                 self.cached_display = self.settings.display.clone();
             }
 
-            self.cached_dimensions = Some(self.settings.dimensions);
-
             // Refresh all page styles and sizes.
             for prog in &self.section_frames {
                 if let SectionLoadProgress::Loaded(section) = prog {
-                    update_iframe_size(Some(self.settings.dimensions), section.get_iframe());
+                    update_iframe_size(Some((ctx.props().width, ctx.props().height)), section.get_iframe());
 
                     self.cached_display.add_to_iframe(section.get_iframe(), ctx);
                 }
@@ -1520,7 +1521,7 @@ impl Reader {
                 info!("Generating Section {}", curr_chap.value + 1);
 
                 *section_frame = SectionLoadProgress::Loading(generate_section(
-                    Some(self.settings.dimensions),
+                    Some((ctx.props().width, ctx.props().height)),
                     curr_chap.info.header_hash.clone(),
                     section_index,
                     ctx.link().clone(),
@@ -1528,7 +1529,7 @@ impl Reader {
             }
         } else {
             self.section_frames.push(SectionLoadProgress::Loading(generate_section(
-                Some(self.settings.dimensions),
+                Some((ctx.props().width, ctx.props().height)),
                 curr_chap.info.header_hash.clone(),
                 section_index,
                 ctx.link().clone(),
