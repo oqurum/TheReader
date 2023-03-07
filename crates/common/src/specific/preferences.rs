@@ -8,22 +8,13 @@ use crate::reader::{ReaderColor, LayoutType, ReaderLoadType};
 pub struct MemberPreferences {
     pub version: usize,
 
-    // TODO: May want to separate preferences.
-    pub desktop: MemberBasicPreferences,
-    pub mobile: MemberBasicPreferences,
+    pub text_book: TextBookPreferences,
+    pub image_book: ImageBookPreferences,
 }
 
-
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MemberBasicPreferences {
-    pub reader: MemberReaderPreferences,
-}
-
-// Reader
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct MemberReaderPreferences {
+pub struct GeneralBookPreferences {
     pub always_show_progress: bool,
 
     pub animate_page_transitions: bool,
@@ -33,14 +24,13 @@ pub struct MemberReaderPreferences {
     pub width: u32,
     pub height: u32,
 
-    pub text_size: u32,
-    pub color: ReaderColor,
+    pub bg_color: ReaderColor,
 
     pub display_type: LayoutType,
     pub load_type: ReaderLoadType,
 }
 
-impl Default for MemberReaderPreferences {
+impl Default for GeneralBookPreferences {
     fn default() -> Self {
         Self {
             always_show_progress: false,
@@ -49,10 +39,53 @@ impl Default for MemberReaderPreferences {
             default_full_screen: false,
             width: 1040,
             height: 548,
-            text_size: 0,
-            color: ReaderColor::Black,
+            bg_color: ReaderColor::Black,
             display_type: LayoutType::Double,
             load_type: ReaderLoadType::Select,
         }
     }
+}
+
+
+// Reader
+
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextBookPreferences {
+    pub desktop: TextBookInnerPreferences,
+    pub mobile: TextBookInnerPreferences,
+}
+
+
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextBookInnerPreferences {
+    pub general: GeneralBookPreferences,
+    pub reader: ReaderTextPreferences,
+}
+
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReaderTextPreferences {
+    pub text_size: u32,
+}
+
+
+
+// Images
+
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImageBookPreferences {
+    pub desktop: ImageBookInnerPreferences,
+    pub mobile: ImageBookInnerPreferences,
+}
+
+
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImageBookInnerPreferences {
+    pub general: GeneralBookPreferences,
+    pub image: ReaderImagePreferences,
+}
+
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReaderImagePreferences {
+    // TODO: zoom_landscape_image: bool,
+    // TODO: zoom_start_position: Auto, Left, Right, Center
 }

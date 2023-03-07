@@ -1,5 +1,3 @@
-// TODO: Handle resizing.
-
 use std::{
     rc::Rc,
     sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}},
@@ -20,9 +18,9 @@ use yew::{context::ContextHandle, prelude::*};
 
 use crate::{
     components::reader::{
-        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, LayoutDisplay, layout::PageMovement, SharedReaderSettings
+        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, LayoutDisplay, layout::PageMovement, SharedReaderSettings, SharedInnerReaderSettings
     },
-    request, AppState, util::ElementEvent,
+    request, AppState, util::{ElementEvent, is_mobile_or_tablet},
 };
 
 
@@ -88,7 +86,16 @@ impl Component for ReadingBook {
             .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
             .expect("context to be set");
 
-        let reader_settings = SharedReaderSettings::new(ReaderSettings::from(state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default().desktop.reader));
+
+        let reader_settings = {
+            let prefs = state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default();
+
+            SharedReaderSettings::new(SharedInnerReaderSettings {
+                general: ReaderSettings::from(prefs.text_book.desktop.general),
+                text: None,
+                image: None,
+            })
+        };
 
         let (win_width, win_height) = (
             window().inner_width().unwrap_throw().as_f64().unwrap(),
@@ -198,13 +205,10 @@ impl Component for ReadingBook {
                         });
                     }
 
-                    // TODO: Remove this once we have a better way to handle this.
-                    if resp.media.is_comic_book() {
-                        Rc::get_mut(&mut self.reader_settings.0).unwrap().display = LayoutDisplay::new_image(PageMovement::RightToLeft);
-                    }
-
                     self.book = Some(Rc::new(resp.media));
                     *self.progress.lock().unwrap() = resp.progress;
+
+                    self.update_settings();
                 }
 
                 Ok(None) => (),
@@ -304,6 +308,35 @@ impl Component for ReadingBook {
 }
 
 impl ReadingBook {
+    fn update_settings(&mut self) {
+        let Some(book) = self.book.as_ref() else {
+            return;
+        };
+
+        let prefs = self.state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default();
+
+
+        let (general, text, image) = match (book.is_comic_book(), is_mobile_or_tablet()) {
+            (true, true) => (prefs.image_book.mobile.general, None, Some(prefs.image_book.mobile.image)),
+            (true, false) => (prefs.image_book.desktop.general, None, Some(prefs.image_book.desktop.image)),
+            (false, true) => (prefs.text_book.mobile.general, Some(prefs.text_book.mobile.reader), None),
+            (false, false) => (prefs.text_book.desktop.general, Some(prefs.text_book.desktop.reader), None),
+        };
+
+        let mut general = ReaderSettings::from(general);
+
+        // TODO: Remove this once we have a better way to handle this.
+        if book.is_comic_book() {
+            general.display = LayoutDisplay::new_image(PageMovement::RightToLeft);
+        }
+
+        self.reader_settings = SharedReaderSettings::new(SharedInnerReaderSettings {
+            general,
+            text,
+            image,
+        });
+    }
+
     fn init_resize_cb(&mut self, ctx: &Context<Self>) {
         let link = ctx.link().clone();
         let timeout: Arc<Mutex<Option<Timeout>>> = Arc::new(Mutex::new(None));

@@ -2,9 +2,19 @@ use common::api::ApiErrorResponse;
 use common_local::filter::FilterContainer;
 use gloo_utils::window;
 use js_sys::Function;
+use lazy_static::lazy_static;
+use regex::Regex;
 use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
 use web_sys::{EventTarget, MouseEvent};
 use yew::{html::Scope, Callback, Component};
+
+lazy_static! {
+    static ref MOBILE_TABLET_CHECK: Regex = Regex::new(r"iP(ad|od|hone)|Tablet|Nexus|Mobile|IEMobile|MSIE [1-7]\.|Opera Mini|BB10|Symbian|webOS|Lenovo YT-|Android").unwrap_throw();
+}
+
+pub fn is_mobile_or_tablet() -> bool {
+    MOBILE_TABLET_CHECK.is_match(&window().navigator().user_agent().unwrap_throw())
+}
 
 type Destructor = Box<dyn FnOnce(&EventTarget, &Function) -> std::result::Result<(), JsValue>>;
 

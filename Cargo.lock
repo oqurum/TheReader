@@ -658,6 +658,7 @@ dependencies = [
  "lazy_static",
  "log",
  "num_enum",
+ "regex",
  "reqwasm",
  "serde",
  "serde_json",
