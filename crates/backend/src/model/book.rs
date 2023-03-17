@@ -268,7 +268,7 @@ impl BookModel {
                 title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
                 cached = ?10,
                 available_at = ?11, year = ?12,
-                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15, type_of = ?16, parent_id = ?17, index = ?18
+                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15, type_of = ?16, parent_id = ?17, "index" = ?18
             WHERE id = ?1"#,
             params![
                 self.id,
