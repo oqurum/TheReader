@@ -78,3 +78,93 @@ body.color-black {
 	min-width: calc(100vw - 10px) !important;
 	text-align: center !important;
 }
+
+
+/* EDITOR */
+.editor-flagged-item {
+	padding: 5px;
+}
+
+.editor-flagged-item:hover {
+	background-color: #c7c7c7;
+}
+
+.editor-flagged-item > .editor-content {
+	margin: 0;
+}
+
+.editor-flagged-item > .editor-footer {
+	display: flex;
+	flex-direction: row-reverse;
+	margin-top: 2px;
+}
+
+.editor-flagged-item > .editor-footer > .editor-clickable {
+	cursor: pointer;
+	font-size: small;
+	margin-left: 10px;
+}
+
+.editor-toolbar {
+	position: absolute;
+	display: flex;
+	background-color: darkslategrey;
+	height: 30px;
+	border-radius: 4px;
+	overflow: hidden;
+	transform: translateX(-50%);
+}
+
+.editor-toolbar > .editor-button {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 0 6px;
+	height: 30px;
+	color: whitesmoke;
+	cursor: pointer;
+}
+
+.editor-toolbar > .editor-button.selected,
+.editor-toolbar > .editor-button:hover {
+	background-color: #284040;
+}
+
+.editor-note {
+	background-color: rgba(0, 0, 0, 0.16) !important;
+	/* position: relative; */
+}
+
+/* TODO: Should I do something like this to better distinguish a note? */
+/* .note::after {
+	content: "📝";
+	position: absolute;
+	font-size: 11px;
+	top: -6px;
+	right: -6px;
+} */
+
+.editor-highlight,
+.editor-highlight.yellow {
+	background-color: #ffff90 !important;
+}
+
+.editor-highlight.orange {
+	background-color: #fbb76f !important;
+}
+
+.editor-highlight.blue {
+	background-color: #6feefb !important;
+}
+
+.editor-highlight.purple {
+	background-color: #f6a0fd !important;
+}
+
+.editor-italicize {
+	font-style: italic;
+}
+
+.editor-underline {
+	text-decoration: underline !important;
+}

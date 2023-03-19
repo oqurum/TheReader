@@ -2,9 +2,10 @@
 //!
 //! For Example, this'll contain an iframe along with a collection of "chapters" which have the same header hash.
 
-use std::rc::Rc;
+use std::{rc::Rc, cell::RefCell};
 
 use common_local::Chapter;
+use editor::{ListenerId, MouseListener, ListenerEvent, ListenerHandle};
 use wasm_bindgen::{prelude::Closure, UnwrapThrowExt};
 use web_sys::{HtmlElement, HtmlIFrameElement, HtmlHeadElement};
 use yew::Context;
@@ -60,6 +61,7 @@ impl SectionLoadProgress {
     }
 }
 
+/// Used to manage an iframe and multiple chapters which are the same header hash.
 pub struct SectionContents {
     #[allow(dead_code)]
     on_load: Closure<dyn FnMut()>,
@@ -69,6 +71,8 @@ pub struct SectionContents {
     cached_pages: Vec<CachedPage>,
 
     iframe: HtmlIFrameElement,
+
+    pub editor_handle: ListenerHandle,
 
     /// Global Page Index
     pub gpi: usize,
@@ -91,6 +95,7 @@ impl SectionContents {
             header_hash,
             chapters: Vec::new(),
             cached_pages: Vec::new(),
+            editor_handle: ListenerHandle::unset(),
             gpi: 0,
             page_offset: 0,
             cached_tables: Vec::new(),
@@ -129,16 +134,18 @@ impl SectionContents {
         self.gpi + self.page_count()
     }
 
-    pub fn on_load(
+    /// Called after the iframe has fully loaded.
+    pub fn after_load(
         &mut self,
         handle_js_redirect_clicks: &Closure<dyn FnMut(String, String)>,
         settings: &ReaderSettings,
         cached_display: &mut LayoutDisplay,
         ctx: &Context<Reader>,
     ) {
+        let document = self.get_iframe().content_document().unwrap_throw();
+
         // Insert chapters
         {
-            let doc = self.get_iframe().content_document().unwrap_throw();
             let body = self.get_iframe_body().unwrap_throw();
             let mut inserted_header = false;
 
@@ -149,7 +156,7 @@ impl SectionContents {
 
                     for item in &chapter.info.header_items {
                         if item.name.to_lowercase() == "link" {
-                            let link = doc.create_element("link").unwrap_throw();
+                            let link = document.create_element("link").unwrap_throw();
 
                             for attr in &item.attributes {
                                 link.set_attribute(&attr.0, &attr.1).unwrap_throw();
@@ -157,7 +164,7 @@ impl SectionContents {
 
                             head.append_with_node_1(&link).unwrap_throw();
                         } else if item.name.to_lowercase() == "style" {
-                            let style = doc.create_element("style").unwrap_throw();
+                            let style = document.create_element("style").unwrap_throw();
 
                             for attr in &item.attributes {
                                 style.set_attribute(&attr.0, &attr.1).unwrap_throw();
@@ -175,7 +182,7 @@ impl SectionContents {
                 // Append to body
                 {
                     // Start of Section Declaration
-                    let section_break = doc.create_element("div").unwrap_throw();
+                    let section_break = document.create_element("div").unwrap_throw();
                     section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
                     section_break.class_list().add_2("reader-ignore", "reader-section-start").unwrap_throw();
                     section_break.set_id(&format!("section-{}-start", chapter.value));
@@ -184,7 +191,7 @@ impl SectionContents {
                     section_break.insert_adjacent_html("afterend", chapter.info.inner_body.trim()).unwrap_throw();
 
                     // End of Section Declaration
-                    let section_break = doc.create_element("div").unwrap_throw();
+                    let section_break = document.create_element("div").unwrap_throw();
                     section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
                     section_break.class_list().add_2("reader-ignore", "reader-section-end").unwrap_throw();
                     section_break.set_id(&format!("section-{}-end", chapter.value));
@@ -214,6 +221,15 @@ impl SectionContents {
         cached_display.on_stop_viewing(self);
 
         update_iframe_size(Some(settings.dimensions), self.get_iframe());
+
+        self.editor_handle = editor::register(
+            self.get_iframe_body().unwrap_throw(),
+            MouseListener::Ignore,
+            Some(document),
+            Some(Rc::new(RefCell::new(move |_id: ListenerId| {
+                // let save = id.try_save();
+            })) as ListenerEvent),
+        ).expect_throw("Failed to register editor listener");
 
         // TODO: Detect if there's a single image in the whole section. If so, expand across both page views and center.
     }

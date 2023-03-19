@@ -184,6 +184,8 @@ pub struct Reader {
     handle_js_redirect_clicks: Closure<dyn FnMut(String, String)>,
     cursor_type: &'static str,
     visible_redirect_rects: Vec<DomRect>,
+    // TODO: Better name. Used to distinguish if we've held the mouse down.
+    on_held_toggle: bool,
 
     drag_distance: isize,
 
@@ -270,6 +272,7 @@ impl Component for Reader {
             _handle_keyboard: handle_keyboard,
             is_transitioning: false,
             initial_progression_set: false,
+            on_held_toggle: false,
 
             settings,
             _settings_listener,
@@ -378,6 +381,14 @@ impl Component for Reader {
                     }
 
                     OverlayEvent::Release { x, y, width, height, instant } => {
+                        // Return if we've click and held.
+                        if self.on_held_toggle {
+                            self.on_held_toggle = false;
+                            return false;
+                        }
+
+                        self.on_held_toggle = false;
+
                         debug!("Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}");
 
                         let orig_drag_distance = self.drag_distance;
@@ -499,7 +510,20 @@ impl Component for Reader {
                     }
 
                     OverlayEvent::Hold { since, x, y } => {
-                        // debug!("{x} {y} {since:?}");
+                        if !self.on_held_toggle && since.num_seconds() >= 1 {
+                            debug!("Highlight Text: {x} {y} {since:?}");
+
+                            self.on_held_toggle = true;
+
+                            // TODO: Text Editing Preparation
+                            // if let Some(section) = self.get_current_frame() {
+                            //     section.editor_handle.click_or_select(
+                            //         x as f32,
+                            //         y as f32,
+                            //         section.get_iframe_body().unwrap_throw().unchecked_into()
+                            //     ).unwrap_throw();
+                            // }
+                        }
                     }
                 }
             }
@@ -731,7 +755,7 @@ impl Component for Reader {
 
                 // Call on_load for the newly loaded frame.
                 if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[section_index] {
-                    section.on_load(
+                    section.after_load(
                         &self.handle_js_redirect_clicks,
                         &self.settings,
                         &mut self.cached_display,

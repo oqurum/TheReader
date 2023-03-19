@@ -14,13 +14,13 @@ default = [ "web" ]
 
 # Used for global common SCSS
 [build-dependencies]
-grass = "0.11"
+grass = "0.12"
 
 
 [dependencies]
 common-local = { path = "../common", features = ["frontend"] }
-
 common = { path = "../../global_common", features = ["frontend"] }
+editor = { git = "https://github.com/oqurum/html-editor", rev = "463630e" }
 
 tokio = { workspace = true, features = ["time"] }
 
@@ -79,5 +79,11 @@ features = [
 	"CssStyleDeclaration",
 	"Touch",
 	"TouchEvent",
-	"TouchList"
+	"MouseEventInit",
+	"HtmlCanvasElement",
+	"TouchList",
+	"CaretPosition",
+	"Selection",
+	"Range",
+	"Text",
 ]
