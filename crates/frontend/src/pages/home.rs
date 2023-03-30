@@ -17,6 +17,7 @@ pub enum Msg {
 
     LibraryRecentResponse(LibraryId, WrappingResponse<api::GetBookListResponse>),
 
+    // TODO: Remove. Use context to track library updates.
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
 }
 

@@ -10,7 +10,7 @@ use yew_router::{components::Link, Routable};
 
 use crate::{
     components::BookListItemInfo, pages::settings::SettingsRoute, request,
-    BaseRoute, AppState,
+    BaseRoute, AppState, get_libraries,
 };
 
 #[derive(PartialEq, Eq, Properties)]
@@ -38,7 +38,6 @@ pub struct NavbarModule {
 
     input_ref: NodeRef,
 
-    libraries: Option<GetLibrariesResponse>,
     search_results: Vec<Option<GetBookListResponse>>,
     #[allow(clippy::type_complexity)]
     closure: Arc<Mutex<Option<Closure<dyn FnMut(MouseEvent)>>>>,
@@ -72,7 +71,6 @@ impl Component for NavbarModule {
             )],
 
             input_ref: NodeRef::default(),
-            libraries: None,
             search_results: Vec::new(),
             closure: Arc::new(Mutex::new(None)),
         }
@@ -84,7 +82,6 @@ impl Component for NavbarModule {
 
             Msg::Close => {
                 self.search_results.clear();
-                self.libraries = None;
             }
 
             Msg::SearchInput => {
@@ -105,17 +102,15 @@ impl Component for NavbarModule {
 
             Msg::LibrariesResults(resp) => match resp.ok() {
                 Ok(res) => {
+                    let libraries = get_libraries();
+                    let limit = if libraries.len() > 1 { 5 } else { 10 };
+
                     self.search_results = vec![Option::None; res.items.len()];
-                    self.libraries = Some(res);
-
-                    let libraries = self.libraries.as_ref().unwrap();
-
-                    let limit = if libraries.items.len() > 1 { 5 } else { 10 };
 
                     let mut search = FilterContainer::default();
                     search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
 
-                    for (index, coll) in libraries.items.iter().enumerate() {
+                    for (index, coll) in libraries.iter().enumerate() {
                         let search = search.clone();
                         let library_id = coll.id;
 
@@ -258,55 +253,57 @@ impl NavbarModule {
     }
 
     fn render_dropdown_results(&self) -> Html {
-        if let Some(libs) = self.libraries.as_ref() {
-            let mut search = FilterContainer::default();
-            search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
-            let query = serde_qs::to_string(&search).unwrap_throw();
+        if self.search_results.is_empty() {
+            return html! {};
+        }
 
-            html! {
-                <div class="search-dropdown">
-                {
-                    for libs.items.iter().zip(self.search_results.iter()).map(|(lib, results)| {
-                        let url = BaseRoute::ViewLibrary { id: lib.id }.to_path();
+        let libs = get_libraries();
 
-                        html! {
-                                <>
-                                    <div class="d-grid p-2">
-                                        // TODO: Use <Link />
-                                        <a
-                                            href={ format!("{url}?{query}") }
-                                            type="button"
-                                            class="btn btn-secondary"
-                                        >{ format!("View '{}' Library", lib.name) }</a>
-                                    </div>
+        let mut search = FilterContainer::default();
+        search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
+        let query = serde_qs::to_string(&search).unwrap_throw();
 
-                                    {
-                                        if let Some(res) = results {
-                                            html! {
-                                                for res.items.iter().map(|item| html! {
-                                                    <BookListItemInfo
-                                                        small=true
-                                                        class="link-light"
-                                                        to={ BaseRoute::ViewBook { book_id: item.id } }
-                                                        image={ item.thumb_path.get_book_http_path().into_owned() }
-                                                        title={ item.title.clone() }
-                                                    />
-                                                })
-                                            }
-                                        } else {
-                                            html! {
-                                                <h6>{ "Loading..." }</h6>
-                                            }
+        html! {
+            <div class="search-dropdown">
+            {
+                for libs.into_iter().zip(self.search_results.iter()).map(|(lib, results)| {
+                    let url = BaseRoute::ViewLibrary { id: lib.id }.to_path();
+
+                    html! {
+                            <>
+                                <div class="d-grid p-2">
+                                    // TODO: Use <Link />
+                                    <a
+                                        href={ format!("{url}?{query}") }
+                                        type="button"
+                                        class="btn btn-secondary"
+                                    >{ format!("View '{}' Library", lib.name) }</a>
+                                </div>
+
+                                {
+                                    if let Some(res) = results {
+                                        html! {
+                                            for res.items.iter().map(|item| html! {
+                                                <BookListItemInfo
+                                                    small=true
+                                                    class="link-light"
+                                                    to={ BaseRoute::ViewBook { book_id: item.id } }
+                                                    image={ item.thumb_path.get_book_http_path().into_owned() }
+                                                    title={ item.title.clone() }
+                                                />
+                                            })
+                                        }
+                                    } else {
+                                        html! {
+                                            <h6>{ "Loading..." }</h6>
                                         }
                                     }
-                                </>
-                            }
-                        })
-                    }
-                </div>
-            }
-        } else {
-            html! {}
+                                }
+                            </>
+                        }
+                    })
+                }
+            </div>
         }
     }
 }
