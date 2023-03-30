@@ -36,6 +36,7 @@ mod util;
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
     pub member: Option<Member>,
+    pub libraries: Vec<LibraryColl>,
 
     pub is_navbar_visible: bool,
     pub update_nav_visibility: Callback<bool>,
@@ -119,12 +120,14 @@ impl Component for Model {
             .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
 
         ctx.link().send_future(async move {
+            debug!("asdf");
             Msg::LibraryListResults(request::get_libraries().await)
         });
 
         Self {
             state: Rc::new(AppState {
                 member: None,
+                libraries: Vec::new(),
 
                 is_navbar_visible: false,
                 update_nav_visibility: ctx.link().callback(Msg::UpdateNavVis),
@@ -177,6 +180,8 @@ impl Component for Model {
                     LIBRARIES.with(|v| {
                         *v.borrow_mut() = resp.items;
                     });
+
+                    Rc::make_mut(&mut self.state).libraries = get_libraries();
                 }
 
                 Err(err) => crate::display_error(err),

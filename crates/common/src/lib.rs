@@ -425,7 +425,7 @@ pub enum BookType {
 }
 
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct LibraryColl {
     pub id: LibraryId,
     pub name: String,

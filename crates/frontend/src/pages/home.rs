@@ -1,14 +1,14 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use common::{api::WrappingResponse, component::CarouselComponent};
 use common_local::{
     api::{self, ApiGetBookPresetListResponse, BookPresetListType},
     filter::{FilterContainer, FilterTableType},
-    DisplayItem, LibraryColl, LibraryId,
+    DisplayItem, LibraryId,
 };
 use yew::prelude::*;
 
-use crate::{components::BookPosterItem, request};
+use crate::{components::BookPosterItem, request, AppState};
 
 pub enum Msg {
     Ignore,
@@ -17,16 +17,18 @@ pub enum Msg {
 
     LibraryRecentResponse(LibraryId, WrappingResponse<api::GetBookListResponse>),
 
-    // TODO: Remove. Use context to track library updates.
-    LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
+    ContextChanged(Rc<AppState>),
 }
 
 pub struct HomePage {
-    libraries: Vec<LibraryColl>,
+    state: Rc<AppState>,
+    _listener: ContextHandle<Rc<AppState>>,
 
     section_progressing: Option<ApiGetBookPresetListResponse>,
 
     library_items: HashMap<LibraryId, Vec<DisplayItem>>,
+
+    is_requesting: bool,
 }
 
 impl Component for HomePage {
@@ -45,39 +47,47 @@ impl Component for HomePage {
             }
         });
 
-        ctx.link()
-            .send_future(async move { Msg::LibraryListResults(request::get_libraries().await) });
+        let (state, _listener) = ctx
+            .link()
+            .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
+            .expect("context to be set");
 
-        Self {
-            libraries: Vec::new(),
+
+        let mut this = Self {
+            state,
+            _listener,
 
             section_progressing: None,
 
             library_items: HashMap::default(),
-        }
+            is_requesting: false,
+        };
+
+        this.load_next_library(ctx);
+
+        this
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::ContextChanged(state) => {
+                self.state = state;
+
+                self.load_next_library(ctx);
+            }
+
             Msg::Ignore => return false,
 
             Msg::ProgressResponse(v) => self.section_progressing = Some(v),
 
             Msg::LibraryRecentResponse(library_id, resp) => {
+                self.is_requesting = false;
+
                 match resp.ok() {
                     Ok(resp) => {
                         self.library_items.insert(library_id, resp.items);
                     }
                     Err(e) => crate::display_error(e),
-                }
-
-                self.load_next_library(ctx);
-            }
-
-            Msg::LibraryListResults(resp) => {
-                match resp.ok() {
-                    Ok(resp) => self.libraries = resp.items,
-                    Err(err) => crate::display_error(err),
                 }
 
                 self.load_next_library(ctx);
@@ -117,7 +127,7 @@ impl Component for HomePage {
                 }
 
                 {
-                    for self.libraries.iter()
+                    for self.state.libraries.iter()
                         .map(|lib| html! {
                             <>
                                 <h3>{ format!("Recently Added In {}", lib.name) }</h3>
@@ -155,10 +165,16 @@ impl Component for HomePage {
 }
 
 impl HomePage {
-    pub fn load_next_library(&self, ctx: &Context<Self>) {
-        for lib in &self.libraries {
+    pub fn load_next_library(&mut self, ctx: &Context<Self>) {
+        if self.is_requesting {
+            return;
+        }
+
+        for lib in &self.state.libraries {
             if !self.library_items.contains_key(&lib.id) {
                 let lib_id = lib.id;
+
+                self.is_requesting = true;
 
                 ctx.link().send_future(async move {
                     Msg::LibraryRecentResponse(

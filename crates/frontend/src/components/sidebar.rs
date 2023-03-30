@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use common::component::popup::{button::ButtonWithPopup, Popup, PopupClose, PopupType};
 use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
@@ -7,7 +9,7 @@ use yew_router::{
 };
 
 use crate::{
-    components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute, get_libraries,
+    components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute, AppState,
 };
 
 use super::OwnerBarrier;
@@ -24,9 +26,14 @@ pub enum Msg {
     LocationChange(Location),
 
     Ignore,
+
+    ContextChanged(Rc<AppState>),
 }
 
 pub struct Sidebar {
+    state: Rc<AppState>,
+    _listener: ContextHandle<Rc<AppState>>,
+
     library_editing: Option<LibraryId>,
 
     _location_handle: Option<LocationHandle>,
@@ -39,7 +46,15 @@ impl Component for Sidebar {
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
+        let (state, _listener) = ctx
+            .link()
+            .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
+            .expect("context to be set");
+
         Self {
+            state,
+            _listener,
+
             viewing: Viewing::get_from_route(ctx.link()),
 
             library_editing: None,
@@ -52,6 +67,8 @@ impl Component for Sidebar {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::ContextChanged(state) => self.state = state,
+
             Msg::Ignore => return false,
 
             Msg::LocationChange(_nav) => {
@@ -78,7 +95,7 @@ impl Component for Sidebar {
 
         html! {
             <div class="sidebar-container d-sm-flex flex-column flex-shrink-0 p-2 text-bg-dark collapse collapse-horizontal" id="sidebarToggle">
-                { self.render(&get_libraries(), ctx) }
+                { self.render(&self.state.libraries, ctx) }
             </div>
         }
     }

@@ -1,7 +1,7 @@
 use std::{sync::{Arc, Mutex}, rc::Rc};
 
 use common::{api::WrappingResponse, util::does_parent_contain_class};
-use common_local::{api::{GetBookListResponse, GetLibrariesResponse}, filter::FilterContainer, ThumbnailStoreExt};
+use common_local::{api::GetBookListResponse, filter::FilterContainer, ThumbnailStoreExt};
 use gloo_utils::body;
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
@@ -10,7 +10,7 @@ use yew_router::{components::Link, Routable};
 
 use crate::{
     components::BookListItemInfo, pages::settings::SettingsRoute, request,
-    BaseRoute, AppState, get_libraries,
+    BaseRoute, AppState,
 };
 
 #[derive(PartialEq, Eq, Properties)]
@@ -23,8 +23,6 @@ pub enum Msg {
 
     SearchInput,
     SearchResults(usize, WrappingResponse<GetBookListResponse>),
-
-    LibrariesResults(WrappingResponse<GetLibrariesResponse>),
 
     ContextChanged(Rc<AppState>),
 }
@@ -89,28 +87,14 @@ impl Component for NavbarModule {
                 if self.search_results.iter().all(|v| v.is_some()) {
                     self.search_results.clear();
 
-                    ctx.link().send_future(async move {
-                        Msg::LibrariesResults(request::get_libraries().await)
-                    });
-                }
-            }
+                    let limit = if self.state.libraries.len() > 1 { 5 } else { 10 };
 
-            Msg::SearchResults(index, resp) => match resp.ok() {
-                Ok(res) => self.search_results[index] = Some(res),
-                Err(err) => crate::display_error(err),
-            },
-
-            Msg::LibrariesResults(resp) => match resp.ok() {
-                Ok(res) => {
-                    let libraries = get_libraries();
-                    let limit = if libraries.len() > 1 { 5 } else { 10 };
-
-                    self.search_results = vec![Option::None; res.items.len()];
+                    self.search_results = vec![Option::None; self.state.libraries.len()];
 
                     let mut search = FilterContainer::default();
                     search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
 
-                    for (index, coll) in libraries.iter().enumerate() {
+                    for (index, coll) in self.state.libraries.iter().enumerate() {
                         let search = search.clone();
                         let library_id = coll.id;
 
@@ -128,7 +112,10 @@ impl Component for NavbarModule {
                         });
                     }
                 }
+            }
 
+            Msg::SearchResults(index, resp) => match resp.ok() {
+                Ok(res) => self.search_results[index] = Some(res),
                 Err(err) => crate::display_error(err),
             },
         }
@@ -257,8 +244,6 @@ impl NavbarModule {
             return html! {};
         }
 
-        let libs = get_libraries();
-
         let mut search = FilterContainer::default();
         search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
         let query = serde_qs::to_string(&search).unwrap_throw();
@@ -266,7 +251,7 @@ impl NavbarModule {
         html! {
             <div class="search-dropdown">
             {
-                for libs.into_iter().zip(self.search_results.iter()).map(|(lib, results)| {
+                for self.state.libraries.iter().zip(self.search_results.iter()).map(|(lib, results)| {
                     let url = BaseRoute::ViewLibrary { id: lib.id }.to_path();
 
                     html! {
