@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpRequest, HttpMessage};
-use common::api::{ApiErrorResponse, WrappingResponse};
-use common_local::api;
+use common::{api::{ApiErrorResponse, WrappingResponse}, MemberId};
+use common_local::{api, MemberUpdate};
 
 use crate::{
     database::Database,
@@ -102,4 +102,31 @@ pub async fn load_members_list(
             count,
         },
     )))
+}
+
+// TODO: Remove api::UpdateMember::Delete and replace with #[delete("/member/{id}")]
+// TODO: Allow self to update their own member.
+// Update Member
+#[post("/member/{id}")]
+pub async fn update_member_id(
+    id: web::Path<MemberId>,
+    member: MemberCookie,
+    update: web::Json<MemberUpdate>,
+    db: web::Data<Database>,
+) -> WebResult<JsonResponse<api::GetMemberSelfResponse>> {
+    let member_owner = member.fetch_or_error(&db.basic()).await?;
+
+    if !member_owner.permissions.is_owner() {
+        return Err(ApiErrorResponse::new("Not owner").into());
+    }
+
+    let Some(mut member_updating) = MemberModel::find_one_by_id(*id, &db.basic()).await? else {
+        return Err(ApiErrorResponse::new("Unable to find Member to Update").into());
+    };
+
+    member_updating.update_with(update.into_inner(), &db.basic()).await?;
+
+    Ok(web::Json(WrappingResponse::okay(api::GetMemberSelfResponse {
+        member: Some(member_updating.into()),
+    })))
 }

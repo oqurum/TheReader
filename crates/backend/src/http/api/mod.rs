@@ -48,6 +48,7 @@ pub fn api_route() -> Scope<
         .service(member::load_member_self)
         .service(member::load_members_list)
         .service(member::update_member)
+        .service(member::update_member_id)
         // Preferences
         .service(preferences::get_preferences)
         .service(preferences::post_preferences)

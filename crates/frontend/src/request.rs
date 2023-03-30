@@ -2,7 +2,7 @@ use std::path::Path;
 
 use common::{
     api::{ApiErrorResponse, WrappingResponse},
-    BookId, Either, ImageId, ImageIdType, PersonId,
+    BookId, Either, ImageId, ImageIdType, PersonId, MemberId,
 };
 use gloo_utils::{format::JsValueSerdeExt, window};
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ use common_local::{
     filter::FilterContainer,
     setup::SetupConfig,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Progression, SearchType, MemberPreferences,
+    CollectionId, FileId, LibraryId, Progression, SearchType, MemberPreferences, MemberUpdate,
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {
@@ -59,6 +59,12 @@ pub async fn get_members() -> WrappingResponse<ApiGetMembersListResponse> {
 
 pub async fn update_member(options: UpdateMember) -> WrappingResponse<String> {
     fetch("POST", "/api/member", Some(&options))
+        .await
+        .unwrap_or_else(def)
+}
+
+pub async fn update_member_id(id: MemberId, update: MemberUpdate) -> WrappingResponse<ApiGetMemberSelfResponse> {
+    fetch("POST", &format!("/api/member/{id}"), Some(&update))
         .await
         .unwrap_or_else(def)
 }

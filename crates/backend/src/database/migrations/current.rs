@@ -27,6 +27,9 @@ pub async fn init(database: &Database) -> Result<()> {
             "name"               TEXT UNIQUE,
             "type_of"            INT NOT NULL,
 
+            "is_public"          BOOLEAN NOT NULL,
+            "settings"           TEXT,
+
             "scanned_at"         TEXT NOT NULL,
             "created_at"         TEXT NOT NULL,
             "updated_at"         TEXT NOT NULL,
@@ -243,6 +246,8 @@ pub async fn init(database: &Database) -> Result<()> {
 
             "permissions"    TEXT NOT NULL,
             "preferences"    TEXT,
+
+            "library_access" TEXT,
 
             "created_at"     TEXT NOT NULL,
             "updated_at"     TEXT NOT NULL,

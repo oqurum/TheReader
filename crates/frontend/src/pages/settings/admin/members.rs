@@ -1,38 +1,56 @@
+use std::rc::Rc;
+
+use common::MemberId;
 use common::component::PopupType;
 use common::component::select::{SelectModule, SelectItem};
 use common::{api::WrappingResponse, component::Popup};
-use common_local::{api, GroupPermissions, LibraryAccessPreferences};
+use common_local::{api, GroupPermissions, Member, MemberUpdate, Permissions, LibraryAccess};
 use gloo_utils::window;
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::request;
+use crate::{request, AppState};
 
 pub enum Msg {
     // Request Results
-    MembersResults(Box<WrappingResponse<api::ApiGetMembersListResponse>>),
+    MemberListResults(Box<WrappingResponse<api::ApiGetMembersListResponse>>),
+    MemberResults(Box<WrappingResponse<api::ApiGetMemberSelfResponse>>),
 
     RequestUpdateOptions(api::UpdateMember),
     InviteMember { email: String },
 
+    UpdateMember { id: MemberId, update: Box<MemberUpdate> },
     OpenMemberPopup(usize),
     CloseMemberPopup,
 
     Ignore,
+
+    ContextChanged(Rc<AppState>),
 }
 
 pub struct AdminMembersPage {
     resp: Option<api::ApiGetMembersListResponse>,
     visible_popup: Option<usize>,
+
+    state: Rc<AppState>,
+    _listener: ContextHandle<Rc<AppState>>,
 }
 
 impl Component for AdminMembersPage {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let (state, _listener) = ctx
+            .link()
+            .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
+            .expect("context to be set");
+
         Self {
+            state,
+            _listener,
+
             resp: None,
             visible_popup: None,
         }
@@ -40,11 +58,26 @@ impl Component for AdminMembersPage {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::MembersResults(resp) => match resp.ok() {
+            Msg::ContextChanged(state) => self.state = state,
+
+            Msg::MemberListResults(resp) => match resp.ok() {
                 Ok(resp) => {
                     self.resp = Some(resp);
                     self.visible_popup = None;
                 }
+
+                Err(err) => crate::display_error(err),
+            },
+
+            Msg::MemberResults(resp) => match resp.ok() {
+                Ok(resp) => {
+                    if let Some((members, updated_member)) = self.resp.as_mut().zip(resp.member) {
+                        if let Some(member) = members.items.iter_mut().find(|v| v.id == updated_member.id) {
+                            *member = updated_member;
+                        }
+                    }
+                }
+
                 Err(err) => crate::display_error(err),
             },
 
@@ -52,7 +85,7 @@ impl Component for AdminMembersPage {
                 ctx.link().send_future(async move {
                     request::update_member(options).await;
 
-                    Msg::MembersResults(Box::new(request::get_members().await))
+                    Msg::MemberListResults(Box::new(request::get_members().await))
                 });
             }
 
@@ -60,7 +93,7 @@ impl Component for AdminMembersPage {
                 ctx.link().send_future(async move {
                     request::update_member(api::UpdateMember::Invite { email }).await;
 
-                    Msg::MembersResults(Box::new(request::get_members().await))
+                    Msg::MemberListResults(Box::new(request::get_members().await))
                 });
             }
 
@@ -70,6 +103,14 @@ impl Component for AdminMembersPage {
 
             Msg::CloseMemberPopup => {
                 self.visible_popup = None;
+            }
+
+            Msg::UpdateMember { id, update } => {
+                ctx.link().send_future(async move {
+                    let resp = request::update_member_id(id, *update).await;
+
+                    Msg::MemberResults(Box::new(resp))
+                });
             }
 
             Msg::Ignore => (),
@@ -132,7 +173,7 @@ impl Component for AdminMembersPage {
                                                 </td>
 
                                                 {
-                                                    if v.permissions.is_owner() {
+                                                    if self.state.member.as_ref().map(|v| v.id) == Some(member_id) {
                                                         html! {
                                                             <>
                                                                 <td></td>
@@ -250,7 +291,7 @@ impl Component for AdminMembersPage {
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
             ctx.link()
-                .send_future(async { Msg::MembersResults(Box::new(request::get_members().await)) });
+                .send_future(async { Msg::MemberListResults(Box::new(request::get_members().await)) });
         }
     }
 }
@@ -261,60 +302,123 @@ impl AdminMembersPage {
             return html! {};
         };
 
-        let member = &resp.items[member_index];
+        html! {
+            <PopupMemberEdit member={ resp.items[member_index].clone() } ctx={ ctx.link().callback(|v| v) } />
+        }
+    }
+}
 
-        let libraries = crate::get_libraries();
 
+#[derive(PartialEq, Properties)]
+struct PopupMemberEditProps {
+    pub member: Member,
+    pub ctx: Callback<Msg>,
+}
+
+#[function_component(PopupMemberEdit)]
+fn _popup_member_edit(props: &PopupMemberEditProps) -> Html {
+    let PopupMemberEditProps { member, ctx } = props;
+
+    // TODO: Remove fill_with_member. It should be empty. Added temporarily to ensure the permissions is correct.
+    let updating = use_mut_ref(|| MemberUpdate::fill_with_member(member));
+
+    let on_select_module = {
+        let updating = updating.clone();
+
+        Callback::from(move |v| {
+            let mut write = updating.borrow_mut();
+            write.permissions.get_or_insert_with(Permissions::basic).group = v;
+        })
+    };
+
+    let on_save = {
+        let updating = updating.clone();
+        let member_id = member.id;
+
+        ctx.reform(move |_| {
+            Msg::UpdateMember {
+                id: member_id,
+                update: Box::new(updating.borrow().clone()),
+            }
+        })
+    };
+
+    let libraries = crate::get_libraries();
+
+    let library_ref = updating.borrow();
+
+    let acc_libraries = if let Some(v) = library_ref.library_access.as_ref() {
+        v.get_accessible_libraries(&libraries)
+    } else {
         // TODO: Should not be baked in. We should have to call a endpoint get the person's (proper) preferences.
-        let acc_libraries = match member.parse_preferences() {
-            Ok(Some(v)) => v.library_access.get_accessible_libraries(&libraries),
-            Ok(None) => LibraryAccessPreferences::default().get_accessible_libraries(&libraries),
+        match member.parse_library_access_or_default() {
+            Ok(v) => v.get_accessible_libraries(&libraries),
             Err(e) => return html! {
-                <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::CloseMemberPopup) }>
+                <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.reform(|_| Msg::CloseMemberPopup) }>
                     <h2>{ "Parse Preferences Error: " }{ e }</h2>
                 </Popup>
-            },
-        };
+            }
+        }
+    };
 
-        html! {
-            <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::CloseMemberPopup) }>
-                <div class="modal-header">
-                    <h5 class="modal-title">{ "Edit Member" }</h5>
-                    <button
-                        type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
-                        onclick={ ctx.link().callback(|_| Msg::CloseMemberPopup) }
-                    ></button>
+    html! {
+        <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.reform(|_| Msg::CloseMemberPopup) }>
+            <div class="modal-header">
+                <h5 class="modal-title">{ "Edit Member" }</h5>
+                <button
+                    type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                    onclick={ ctx.reform(|_| Msg::CloseMemberPopup) }
+                ></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">{ "Permissions Group" }</label>
+                    <SelectModule<GroupPermissions>
+                        class="form-select"
+                        default={ library_ref.permissions.as_ref().unwrap_or(&member.permissions).group }
+                        onselect={ on_select_module }
+                    >
+                        <SelectItem<GroupPermissions> value={ GroupPermissions::OWNER } name="Owner" />
+                        <SelectItem<GroupPermissions> value={ GroupPermissions::BASIC } name="Basic" />
+                        <SelectItem<GroupPermissions> value={ GroupPermissions::GUEST } name="Guest" />
+                    </SelectModule<GroupPermissions>>
                 </div>
-                <div class="modal-body">
-                    <h3>{ "Permissions" }</h3>
 
-                    <div class="mb-3">
-                        <label class="form-label">{ "Group" }</label>
-                        <SelectModule<GroupPermissions> class="form-select" default={ member.permissions.group }>
-                            <SelectItem<GroupPermissions> value={ GroupPermissions::OWNER } name="Owner" />
-                            <SelectItem<GroupPermissions> value={ GroupPermissions::BASIC } name="Basic" />
-                            <SelectItem<GroupPermissions> value={ GroupPermissions::GUEST } name="Guest" />
-                        </SelectModule<GroupPermissions>>
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">{ "Library Access" }</label>
+                    {
+                        for libraries.iter().map(|lib| {
+                            let updating = updating.clone();
 
-                    <div class="mb-3">
-                        <label class="form-label">{ "Library Access" }</label>
-                        {
-                            for libraries.iter().map(|lib| html! {
+                            let lib_id = lib.id;
+                            let checked = acc_libraries.iter().any(|v| lib.id == v.id);
+
+                            html! {
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" checked={ acc_libraries.iter().any(|v| lib.id == v.id) } />
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        {checked}
+                                        onclick={ Callback::from(move |_| {
+                                            let libraries = crate::get_libraries();
+
+                                            updating.borrow_mut().library_access
+                                                .get_or_insert_with(LibraryAccess::default)
+                                                .set_viewable(lib_id, !checked, &libraries);
+                                        }) }
+                                    />
                                     <label class="form-check-label">{ lib.name.clone() }</label>
                                 </div>
-                            })
-                        }
-                    </div>
+                            }
+                        })
+                    }
                 </div>
+            </div>
 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick={ ctx.link().callback(|_| Msg::CloseMemberPopup) }>{ "Close" }</button>
-                    <button type="button" class="btn btn-primary">{ "Save changes" }</button>
-                </div>
-            </Popup>
-        }
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick={ ctx.reform(|_| Msg::CloseMemberPopup) }>{ "Close" }</button>
+                <button type="button" class="btn btn-primary" onclick={ on_save }>{ "Save changes" }</button>
+            </div>
+        </Popup>
     }
 }

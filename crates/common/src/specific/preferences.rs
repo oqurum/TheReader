@@ -1,56 +1,18 @@
 use serde::{Serialize, Deserialize};
 
-use crate::{reader::{ReaderColor, LayoutType, ReaderLoadType}, LibraryId, LibraryColl};
+use crate::reader::{ReaderColor, LayoutType, ReaderLoadType};
 
 // TODO: I don't want to store it like this but it's easiest way.
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemberPreferences {
     pub version: usize,
-
-    pub library_access: LibraryAccessPreferences,
 
     pub text_book: TextBookPreferences,
     pub image_book: ImageBookPreferences,
 }
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum LibraryAccessPreferences {
-    /// No libraries are accessible.
-    None,
-    /// All libraries are accessible. Even private ones.
-    All,
-    /// Only public libraries are accessible.
-    #[default]
-    AllPublic,
-    /// Only specific libraries are accessible.
-    Specific(Vec<LibraryId>),
-}
-
-impl LibraryAccessPreferences {
-    pub fn get_accessible_libraries<'a>(&self, libraries: &'a [LibraryColl]) -> Vec<&'a LibraryColl> {
-        let mut items = Vec::new();
-
-        match self {
-            Self::None => (),
-            Self::All => return libraries.iter().collect(),
-            Self::AllPublic => return libraries.iter().filter(|v| v.is_public).collect(),
-
-            Self::Specific(ids) => {
-                for id in ids {
-                    if let Some(library) = libraries.iter().find(|v| v.id == *id) {
-                        items.push(library);
-                    }
-                }
-            }
-        }
-
-        items
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeneralBookPreferences {
     /// Always show progress bar.
     pub always_show_progress: bool,
@@ -94,20 +56,20 @@ impl Default for GeneralBookPreferences {
 
 // Reader
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextBookPreferences {
     pub desktop: TextBookInnerPreferences,
     pub mobile: TextBookInnerPreferences,
 }
 
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextBookInnerPreferences {
     pub general: GeneralBookPreferences,
     pub reader: ReaderTextPreferences,
 }
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReaderTextPreferences {
     pub text_size: u32,
 }
@@ -116,20 +78,20 @@ pub struct ReaderTextPreferences {
 
 // Images
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageBookPreferences {
     pub desktop: ImageBookInnerPreferences,
     pub mobile: ImageBookInnerPreferences,
 }
 
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageBookInnerPreferences {
     pub general: GeneralBookPreferences,
     pub image: ReaderImagePreferences,
 }
 
-#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReaderImagePreferences {
     // TODO: zoom_landscape_image: bool,
     // TODO: zoom_start_position: Auto, Left, Right, Center

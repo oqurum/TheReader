@@ -32,6 +32,8 @@ pub struct Member {
     pub permissions: Permissions,
     pub preferences: Option<String>,
 
+    pub library_access: Option<String>,
+
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -44,7 +46,136 @@ impl Member {
 
         Ok(Some(serde_json::from_str(pref)?))
     }
+
+    pub fn parse_library_access_or_default(&self) -> Result<LibraryAccess> {
+        let Some(access) = &self.library_access else {
+            return Ok(LibraryAccess::default());
+        };
+
+        Ok(serde_json::from_str(access)?)
+    }
 }
+
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MemberUpdate {
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub preferences: Option<MemberPreferences>,
+
+    // Only editable by admins
+    pub type_of: Option<MemberAuthType>,
+    pub permissions: Option<Permissions>,
+    pub library_access: Option<LibraryAccess>,
+}
+
+impl MemberUpdate {
+    pub fn fill_with_member(member: &Member) -> Self {
+        Self {
+            name: Some(member.name.clone()),
+            email: Some(member.email.clone()),
+            preferences: member.parse_preferences().unwrap_or_default(),
+            type_of: Some(member.type_of),
+            permissions: Some(member.permissions),
+            library_access: member.parse_library_access_or_default().ok(),
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum LibraryAccess {
+    /// No libraries are accessible.
+    None,
+    /// All libraries are accessible. Even private ones.
+    All,
+    /// Only public libraries are accessible.
+    #[default]
+    AllPublic,
+    /// Only specific libraries are accessible.
+    Specific(Vec<LibraryId>),
+}
+
+impl LibraryAccess {
+    pub fn set_viewable(&mut self, lib_id: LibraryId, value: bool, all_libraries: &[LibraryColl]) {
+        let Some(library) = all_libraries.iter().find(|v| v.id == lib_id) else {
+            return;
+        };
+
+        match self {
+            Self::None => if value {
+                *self = Self::Specific(vec![library.id]);
+            },
+
+            Self::All => if !value {
+                *self = Self::Specific(all_libraries.iter().filter(|v| v.id != library.id).map(|v| v.id).collect());
+            },
+
+            Self::AllPublic => {
+                if value {
+                    if !library.is_public {
+                        let mut viewing = vec![library.id];
+
+                        for library in all_libraries.iter().filter(|v| v.is_public) {
+                            viewing.push(library.id);
+                        }
+
+                        *self = Self::Specific(viewing);
+                    }
+                } else if library.is_public {
+                    *self = Self::Specific(all_libraries.iter().filter(|v| v.id != library.id && v.is_public).map(|v| v.id).collect());
+                }
+            },
+
+            Self::Specific(items) => {
+                if value {
+                    if !items.contains(&library.id) {
+                        items.push(library.id);
+                    }
+
+                    // If all libraries are accessible, then we can just switch to All
+                    if all_libraries.iter().all(|v| items.contains(&v.id)) {
+                        *self = Self::All;
+                        return;
+                    }
+
+                    // If all libraries are public, then we can just switch to AllPublic
+                    if all_libraries.iter().filter(|v| v.is_public).all(|v| items.contains(&v.id)) {
+                        *self = Self::AllPublic;
+                        return;
+                    }
+                } else if let Some(index) = items.iter().position(|v| v == &library.id) {
+                    items.remove(index);
+                }
+
+                if items.is_empty() {
+                    *self = Self::None;
+                }
+            }
+        }
+    }
+
+    pub fn get_accessible_libraries<'a>(&self, libraries: &'a [LibraryColl]) -> Vec<&'a LibraryColl> {
+        let mut items = Vec::new();
+
+        match self {
+            Self::None => (),
+            Self::All => return libraries.iter().collect(),
+            Self::AllPublic => return libraries.iter().filter(|v| v.is_public).collect(),
+
+            Self::Specific(ids) => {
+                for id in ids {
+                    if let Some(library) = libraries.iter().find(|v| v.id == *id) {
+                        items.push(library);
+                    }
+                }
+            }
+        }
+
+        items
+    }
+}
+
 
 // Used for People View
 
