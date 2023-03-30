@@ -510,6 +510,7 @@ impl Component for Reader {
                     }
 
                     OverlayEvent::Hold { since, x, y } => {
+                        // TODO: since is not accurate. It's longer than it should be. i.e last down (or something) is the last since its' at.
                         if !self.on_held_toggle && since.num_seconds() >= 1 {
                             debug!("Highlight Text: {x} {y} {since:?}");
 
