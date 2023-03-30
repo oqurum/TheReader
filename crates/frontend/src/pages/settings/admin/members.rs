@@ -1,6 +1,7 @@
-use common::api::WrappingResponse;
-use common::MemberId;
-use common_local::api;
+use common::component::PopupType;
+use common::component::select::{SelectModule, SelectItem};
+use common::{api::WrappingResponse, component::Popup};
+use common_local::{api, GroupPermissions, LibraryAccessPreferences};
 use gloo_utils::window;
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
@@ -15,12 +16,15 @@ pub enum Msg {
     RequestUpdateOptions(api::UpdateMember),
     InviteMember { email: String },
 
+    OpenMemberPopup(usize),
+    CloseMemberPopup,
+
     Ignore,
 }
 
 pub struct AdminMembersPage {
     resp: Option<api::ApiGetMembersListResponse>,
-    visible_popup: Option<(usize, MemberId)>,
+    visible_popup: Option<usize>,
 }
 
 impl Component for AdminMembersPage {
@@ -58,6 +62,14 @@ impl Component for AdminMembersPage {
 
                     Msg::MembersResults(Box::new(request::get_members().await))
                 });
+            }
+
+            Msg::OpenMemberPopup(id) => {
+                self.visible_popup = Some(id);
+            }
+
+            Msg::CloseMemberPopup => {
+                self.visible_popup = None;
             }
 
             Msg::Ignore => (),
@@ -98,16 +110,16 @@ impl Component for AdminMembersPage {
                     <table class="table table-dark table-striped">
                         <thead>
                             <tr>
-                                <td colspan="3">
+                                <td colspan="4">
                                     <h4>{ "Members" }</h4>
                                 </td>
                             </tr>
                         </thead>
-
                         <tbody>
                             {
                                 for members_accepted.iter()
-                                    .map(|v| {
+                                    .enumerate()
+                                    .map(|(idx, v)| {
                                         let member_id = v.id;
 
                                         html! {
@@ -122,23 +134,34 @@ impl Component for AdminMembersPage {
                                                 {
                                                     if v.permissions.is_owner() {
                                                         html! {
-                                                            <td></td>
+                                                            <>
+                                                                <td></td>
+                                                                <td></td>
+                                                            </>
                                                         }
                                                     } else {
                                                         html! {
-                                                            <td>
-                                                                <button class="btn btn-danger btn-sm" onclick={ ctx.link().callback(move|_| {
-                                                                    if window().confirm_with_message("Are you sure you want to delete this?").unwrap_throw() {
-                                                                        Msg::RequestUpdateOptions(
-                                                                            api::UpdateMember::Delete {
-                                                                                id: member_id
-                                                                            }
-                                                                        )
-                                                                    } else {
-                                                                        Msg::Ignore
-                                                                    }
-                                                                }) }>{ "Remove Access" }</button>
-                                                            </td>
+                                                            <>
+                                                                <td>
+                                                                    <button class="btn btn-danger btn-sm" onclick={ ctx.link().callback(move|_| {
+                                                                        if window().confirm_with_message("Are you sure you want to delete this?").unwrap_throw() {
+                                                                            Msg::RequestUpdateOptions(
+                                                                                api::UpdateMember::Delete {
+                                                                                    id: member_id
+                                                                                }
+                                                                            )
+                                                                        } else {
+                                                                            Msg::Ignore
+                                                                        }
+                                                                    }) }>{ "Remove Access" }</button>
+                                                                </td>
+                                                                <td>
+                                                                    <button
+                                                                        class="btn btn-warning btn-sm"
+                                                                        onclick={ ctx.link().callback(move |_| Msg::OpenMemberPopup(idx)) }
+                                                                    >{ "⚙️" }</button>
+                                                                </td>
+                                                            </>
                                                         }
                                                     }
                                                 }
@@ -212,6 +235,14 @@ impl Component for AdminMembersPage {
         html! {
             <div class="view-container admin-members">
                 { render }
+
+                {
+                    if let Some(member_id) = self.visible_popup {
+                        self.render_popup(member_id, ctx)
+                    } else {
+                        html! {}
+                    }
+                }
             </div>
         }
     }
@@ -220,6 +251,70 @@ impl Component for AdminMembersPage {
         if first_render {
             ctx.link()
                 .send_future(async { Msg::MembersResults(Box::new(request::get_members().await)) });
+        }
+    }
+}
+
+impl AdminMembersPage {
+    pub fn render_popup(&self, member_index: usize, ctx: &Context<Self>) -> Html {
+        let Some(resp) = self.resp.as_ref() else {
+            return html! {};
+        };
+
+        let member = &resp.items[member_index];
+
+        let libraries = crate::get_libraries();
+
+        // TODO: Should not be baked in. We should have to call a endpoint get the person's (proper) preferences.
+        let acc_libraries = match member.parse_preferences() {
+            Ok(Some(v)) => v.library_access.get_accessible_libraries(&libraries),
+            Ok(None) => LibraryAccessPreferences::default().get_accessible_libraries(&libraries),
+            Err(e) => return html! {
+                <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::CloseMemberPopup) }>
+                    <h2>{ "Parse Preferences Error: " }{ e }</h2>
+                </Popup>
+            },
+        };
+
+        html! {
+            <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.link().callback(|_| Msg::CloseMemberPopup) }>
+                <div class="modal-header">
+                    <h5 class="modal-title">{ "Edit Member" }</h5>
+                    <button
+                        type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                        onclick={ ctx.link().callback(|_| Msg::CloseMemberPopup) }
+                    ></button>
+                </div>
+                <div class="modal-body">
+                    <h3>{ "Permissions" }</h3>
+
+                    <div class="mb-3">
+                        <label class="form-label">{ "Group" }</label>
+                        <SelectModule<GroupPermissions> class="form-select" default={ member.permissions.group }>
+                            <SelectItem<GroupPermissions> value={ GroupPermissions::OWNER } name="Owner" />
+                            <SelectItem<GroupPermissions> value={ GroupPermissions::BASIC } name="Basic" />
+                            <SelectItem<GroupPermissions> value={ GroupPermissions::GUEST } name="Guest" />
+                        </SelectModule<GroupPermissions>>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">{ "Library Access" }</label>
+                        {
+                            for libraries.iter().map(|lib| html! {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" checked={ acc_libraries.iter().any(|v| lib.id == v.id) } />
+                                    <label class="form-check-label">{ lib.name.clone() }</label>
+                                </div>
+                            })
+                        }
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick={ ctx.link().callback(|_| Msg::CloseMemberPopup) }>{ "Close" }</button>
+                    <button type="button" class="btn btn-primary">{ "Save changes" }</button>
+                </div>
+            </Popup>
         }
     }
 }

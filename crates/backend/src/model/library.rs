@@ -11,6 +11,9 @@ pub struct NewLibraryModel {
     pub name: String,
     pub type_of: LibraryType,
 
+    pub is_public: bool,
+    pub settings: Option<String>,
+
     pub scanned_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -23,6 +26,9 @@ pub struct LibraryModel {
     pub name: String,
     pub type_of: LibraryType,
 
+    pub is_public: bool,
+    pub settings: Option<String>,
+
     pub scanned_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -34,6 +40,8 @@ impl TableRow<'_> for LibraryModel {
             id: row.next()?,
             name: row.next()?,
             type_of: LibraryType::try_from(row.next::<i32>()?).unwrap(),
+            is_public: row.next()?,
+            settings: row.next_opt()?,
             scanned_at: row.next()?,
             created_at: row.next()?,
             updated_at: row.next()?,
@@ -46,10 +54,12 @@ impl NewLibraryModel {
         let lock = db.write().await;
 
         lock.execute(
-            r#"INSERT INTO library (name, type_of, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)"#,
+            r#"INSERT INTO library (name, type_of, is_public, settings, scanned_at, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
             params![
                 &self.name,
                 i32::from(self.type_of),
+                self.is_public,
+                &self.settings,
                 self.scanned_at,
                 self.created_at,
                 self.updated_at,
@@ -60,6 +70,8 @@ impl NewLibraryModel {
             id: LibraryId::from(lock.last_insert_rowid() as usize),
             name: self.name,
             type_of: self.type_of,
+            is_public: self.is_public,
+            settings: self.settings,
             scanned_at: self.scanned_at,
             created_at: self.created_at,
             updated_at: self.updated_at,

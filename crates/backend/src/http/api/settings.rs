@@ -96,6 +96,10 @@ pub async fn save_initial_setup(
         let lib = NewLibraryModel {
             name: format!("New Library #{library_count}"),
             type_of: LibraryType::Book, // TODO: Specify type.
+
+            is_public: true,
+            settings: None,
+
             created_at: now,
             scanned_at: now,
             updated_at: now,

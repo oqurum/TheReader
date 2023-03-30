@@ -6,7 +6,7 @@ use std::{
     collections::HashMap,
     mem::MaybeUninit,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, cell::RefCell,
 };
 
 use common::{
@@ -17,12 +17,11 @@ use common::{
 use common_local::{
     api,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Member, Permissions,
+    CollectionId, FileId, LibraryId, Member, Permissions, LibraryColl,
 };
 use gloo_utils::{body, document};
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
-use wasm_bindgen::UnwrapThrowExt;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -45,10 +44,16 @@ pub struct AppState {
 lazy_static! {
     pub static ref RUNNING_TASKS: Mutex<HashMap<TaskId, TaskInfo>> = Mutex::default();
     static ref ERROR_POPUP: Arc<Mutex<Option<ApiErrorResponse>>> = Arc::new(Mutex::new(None));
+    // TODO: Container struct to refresh Contexts on update
 }
 
 thread_local! {
     static MAIN_MODEL: Arc<Mutex<MaybeUninit<AppHandle<Model>>>> = Arc::new(Mutex::new(MaybeUninit::uninit()));
+    static LIBRARIES: RefCell<Vec<LibraryColl>> = RefCell::default();
+}
+
+pub fn get_libraries() -> Vec<LibraryColl> {
+    LIBRARIES.with(|v| v.borrow().clone())
 }
 
 pub fn request_member_self() {
@@ -92,6 +97,7 @@ fn remove_error() {
 enum Msg {
     LoadMemberSelf(WrappingResponse<api::GetMemberSelfResponse>),
     GetTasksResponse(WrappingResponse<Vec<(TaskId, TaskInfo)>>),
+    LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
 
     UpdateNavVis(bool),
 
@@ -111,6 +117,10 @@ impl Component for Model {
     fn create(ctx: &Context<Self>) -> Self {
         ctx.link()
             .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
+
+        ctx.link().send_future(async move {
+            Msg::LibraryListResults(request::get_libraries().await)
+        });
 
         Self {
             state: Rc::new(AppState {
@@ -161,6 +171,16 @@ impl Component for Model {
 
                 self.has_loaded_member = true;
             }
+
+            Msg::LibraryListResults(resp) => match resp.ok() {
+                Ok(resp) => {
+                    LIBRARIES.with(|v| {
+                        *v.borrow_mut() = resp.items;
+                    });
+                }
+
+                Err(err) => crate::display_error(err),
+            },
 
             Msg::UpdateNavVis(value) => {
                 Rc::make_mut(&mut self.state).is_navbar_visible = value;

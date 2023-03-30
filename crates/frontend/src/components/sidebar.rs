@@ -1,7 +1,4 @@
-use common::{
-    api::WrappingResponse,
-    component::popup::{button::ButtonWithPopup, Popup, PopupClose, PopupType},
-};
+use common::component::popup::{button::ButtonWithPopup, Popup, PopupClose, PopupType};
 use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
 use yew_router::{
@@ -10,7 +7,7 @@ use yew_router::{
 };
 
 use crate::{
-    components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute,
+    components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute, get_libraries,
 };
 
 use super::OwnerBarrier;
@@ -21,8 +18,6 @@ pub struct Props {
 }
 
 pub enum Msg {
-    LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
-
     EditLibrary(LibraryId),
     HideEdit,
 
@@ -32,8 +27,6 @@ pub enum Msg {
 }
 
 pub struct Sidebar {
-    library_items: Option<Vec<LibraryColl>>,
-
     library_editing: Option<LibraryId>,
 
     _location_handle: Option<LocationHandle>,
@@ -46,16 +39,9 @@ impl Component for Sidebar {
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
-        if ctx.props().visible {
-            ctx.link().send_future(async move {
-                Msg::LibraryListResults(request::get_libraries().await)
-            });
-        }
-
         Self {
             viewing: Viewing::get_from_route(ctx.link()),
 
-            library_items: None,
             library_editing: None,
 
             _location_handle: ctx
@@ -80,11 +66,6 @@ impl Component for Sidebar {
             Msg::EditLibrary(id) => {
                 self.library_editing = Some(id);
             }
-
-            Msg::LibraryListResults(resp) => match resp.ok() {
-                Ok(resp) => self.library_items = Some(resp.items),
-                Err(err) => crate::display_error(err),
-            },
         }
 
         true
@@ -95,29 +76,11 @@ impl Component for Sidebar {
             return html! {};
         }
 
-        if let Some(items) = self.library_items.as_deref() {
-            html! {
-                <div class="sidebar-container d-sm-flex flex-column flex-shrink-0 p-2 text-bg-dark collapse collapse-horizontal" id="sidebarToggle">
-                    { self.render(items, ctx) }
-                </div>
-            }
-        } else {
-            html! {
-                <div class="sidebar-container d-sm-flex flex-column flex-shrink-0 p-2 text-bg-dark collapse collapse-horizontal" id="sidebarToggle">
-                    <h1>{ "..." }</h1>
-                </div>
-            }
+        html! {
+            <div class="sidebar-container d-sm-flex flex-column flex-shrink-0 p-2 text-bg-dark collapse collapse-horizontal" id="sidebarToggle">
+                { self.render(&get_libraries(), ctx) }
+            </div>
         }
-    }
-
-    fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
-        if ctx.props().visible {
-            ctx.link().send_future(async move {
-                Msg::LibraryListResults(request::get_libraries().await)
-            });
-        }
-
-        true
     }
 }
 

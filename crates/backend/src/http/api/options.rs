@@ -31,6 +31,8 @@ async fn load_options(
                 id: lib.id,
                 name: lib.name,
                 type_of: lib.type_of,
+                is_public: lib.is_public,
+                settings: lib.settings,
                 scanned_at: lib.scanned_at.timestamp_millis(),
                 created_at: lib.created_at.timestamp_millis(),
                 updated_at: lib.updated_at.timestamp_millis(),
@@ -75,6 +77,10 @@ async fn update_options_add(
             let lib = NewLibraryModel {
                 name,
                 type_of: library.type_of,
+
+                is_public: library.is_public,
+                settings: library.settings,
+
                 created_at: Utc::now(),
                 scanned_at: Utc::now(),
                 updated_at: Utc::now(),

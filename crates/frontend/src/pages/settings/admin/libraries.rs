@@ -201,6 +201,8 @@ fn new_library(props: &NewLibraryProps) -> Html {
                         id: None,
                         type_of: *library_type,
                         name: Some(name.to_string()),
+                        is_public: true,
+                        settings: None,
                         directories: Some(dirs.current().to_vec()),
                     }),
                     ..Default::default()

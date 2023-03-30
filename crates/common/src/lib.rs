@@ -292,6 +292,9 @@ pub struct LibraryColl {
 
     pub type_of: LibraryType,
 
+    pub is_public: bool,
+    pub settings: Option<String>,
+
     pub scanned_at: i64,
     pub created_at: i64,
     pub updated_at: i64,
@@ -299,12 +302,16 @@ pub struct LibraryColl {
     pub directories: Vec<String>,
 }
 
+// TODO: Rename / remove
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BasicLibrary {
     pub id: Option<LibraryId>,
     pub name: Option<String>,
 
     pub type_of: LibraryType,
+
+    pub is_public: bool,
+    pub settings: Option<String>,
 
     pub directories: Option<Vec<String>>,
 }
@@ -323,7 +330,7 @@ pub struct BookItemCached {
 
 impl BookItemCached {
     pub fn as_string(&self) -> String {
-        serde_urlencoded::to_string(&self).unwrap()
+        serde_urlencoded::to_string(self).unwrap()
     }
 
     /// Returns `None` if string is empty.
