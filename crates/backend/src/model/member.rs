@@ -6,7 +6,7 @@ use rand::Rng;
 use rusqlite::{params, OptionalExtension};
 
 use crate::{DatabaseAccess, Result};
-use common_local::{MemberAuthType, Permissions, MemberUpdate};
+use common_local::{MemberAuthType, Permissions, MemberUpdate, LibraryAccess};
 use serde::Serialize;
 
 use super::{AdvRow, TableRow};
@@ -168,6 +168,14 @@ impl NewMemberModel {
 }
 
 impl MemberModel {
+    pub fn parse_library_access_or_default(&self) -> Result<LibraryAccess> {
+        let Some(access) = &self.library_access else {
+            return Ok(LibraryAccess::default());
+        };
+
+        Ok(serde_json::from_str(access)?)
+    }
+
     /// Converts to email account.
     ///
     /// NOTE: Changes type to Pending Invite.

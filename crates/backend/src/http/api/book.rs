@@ -26,7 +26,7 @@ use crate::{
         file::FileModel,
         image::{ImageLinkModel, UploadedImageModel},
         person::PersonModel,
-        progress::FileProgressionModel,
+        progress::FileProgressionModel, library::LibraryModel,
     },
     queue_task, store_image,
     task::{self, queue_task_priority},
@@ -38,11 +38,30 @@ const QUERY_LIMIT: usize = 100;
 #[get("/books")]
 pub async fn load_book_list(
     query: QsQuery<api::BookListQuery>,
+    member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetBookListResponse>> {
     let query = query.into_inner();
 
     let filters = query.filters.unwrap_or_default();
+
+    let member = member.fetch_or_error(&db.basic()).await?;
+
+    // Ensure we can access this library.
+    if let Some(library) = query.library {
+        let model = LibraryModel::find_one_by_id(library, &db.basic())
+            .await?
+            .ok_or_else(|| Error::from(crate::InternalError::ItemMissing))?;
+
+        let lib_access = member.parse_library_access_or_default()?;
+
+        if !member.permissions.is_owner() && !lib_access.is_accessible(model.id, model.is_public) {
+            return Err(ApiErrorResponse::new("Not accessible").into());
+        }
+    } else if !member.permissions.is_owner() {
+        return Err(ApiErrorResponse::new("Not accessible. Not owner.").into());
+    }
+
 
     let count = BookModel::count_search_by(&filters, query.library, &db.basic()).await?;
 

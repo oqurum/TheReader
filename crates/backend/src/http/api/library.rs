@@ -11,27 +11,37 @@ use crate::{
 
 #[get("/libraries")]
 async fn load_library_list(
+    member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetLibrariesResponse>> {
+    let member = member.fetch_or_error(&db.basic()).await?;
+    let lib_access = member.parse_library_access_or_default()?;
+
     Ok(web::Json(WrappingResponse::okay(
         api::GetLibrariesResponse {
             items: LibraryModel::get_all(&db.basic())
                 .await?
                 .into_iter()
-                .map(|file| LibraryColl {
-                    id: file.id,
+                .filter_map(|lib| {
+                    if member.permissions.is_owner() || lib_access.is_accessible(lib.id, lib.is_public) {
+                        Some(LibraryColl {
+                            id: lib.id,
 
-                    name: file.name,
-                    type_of: file.type_of,
+                            name: lib.name,
+                            type_of: lib.type_of,
 
-                    is_public: file.is_public,
-                    settings: file.settings,
+                            is_public: lib.is_public,
+                            settings: lib.settings,
 
-                    created_at: file.created_at.timestamp_millis(),
-                    scanned_at: file.scanned_at.timestamp_millis(),
-                    updated_at: file.updated_at.timestamp_millis(),
+                            created_at: lib.created_at.timestamp_millis(),
+                            scanned_at: lib.scanned_at.timestamp_millis(),
+                            updated_at: lib.updated_at.timestamp_millis(),
 
-                    directories: Vec::new(),
+                            directories: Vec::new(),
+                        })
+                    } else {
+                        None
+                    }
                 })
                 .collect(),
         },
@@ -41,11 +51,19 @@ async fn load_library_list(
 #[get("/library/{id}")]
 async fn load_library_id(
     id: web::Path<LibraryId>,
+    member: MemberCookie,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetLibraryIdResponse>> {
     let model = LibraryModel::find_one_by_id(*id, &db.basic())
         .await?
         .ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
+
+    let member = member.fetch_or_error(&db.basic()).await?;
+    let lib_access = member.parse_library_access_or_default()?;
+
+    if !member.permissions.is_owner() && !lib_access.is_accessible(model.id, model.is_public) {
+        return Err(ApiErrorResponse::new("Not accessible").into());
+    }
 
     let directories = DirectoryModel::find_directories_by_library_id(*id, &db.basic()).await?;
 

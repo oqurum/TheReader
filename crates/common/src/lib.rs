@@ -97,6 +97,15 @@ pub enum LibraryAccess {
 }
 
 impl LibraryAccess {
+    pub fn is_accessible(&self, lib_id: LibraryId, is_public: bool) -> bool {
+        match self {
+            Self::None => false,
+            Self::All => true,
+            Self::AllPublic => is_public,
+            Self::Specific(items) => items.contains(&lib_id),
+        }
+    }
+
     pub fn set_viewable(&mut self, lib_id: LibraryId, value: bool, all_libraries: &[LibraryColl]) {
         let Some(library) = all_libraries.iter().find(|v| v.id == lib_id) else {
             return;
@@ -149,7 +158,7 @@ impl LibraryAccess {
                 }
 
                 if items.is_empty() {
-                    *self = Self::None;
+                    *self = Self::AllPublic;
                 }
             }
         }
