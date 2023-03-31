@@ -115,6 +115,11 @@ async fn update_library_id(
         is_updated = true;
     }
 
+    if let Some(is_public) = body.is_public {
+        model.is_public = is_public;
+        is_updated = true;
+    }
+
     if !body.remove_directories.is_empty() {
         // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
         for path in body.remove_directories {

@@ -47,6 +47,21 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
         })
     };
 
+    let on_change_publicity = {
+        let library_update = library_update.clone();
+        let update = update.clone();
+
+        Callback::from(move |e: Event| {
+            let mut borrow = library_update.borrow_mut();
+            borrow.is_public = Some(e.target_unchecked_into::<HtmlInputElement>().checked());
+
+            // Drop is needed since update() refreshes the state instantly and we're still borrowing.
+            drop(borrow);
+
+            update();
+        })
+    };
+
     let on_add_directory = {
         let library_update = library_update.clone();
         let resp = resp.clone();
@@ -93,20 +108,23 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
         })
     };
 
-    let library_update2 = library_update.clone();
 
-    let func = use_async(async move {
-        request::update_library(lib_id, &library_update2.take())
-            .await
-            .ok()
-    });
+    let func_update_lib = {
+        let library_update = library_update.clone();
+
+        use_async(async move {
+            request::update_library(lib_id, &library_update.take())
+                .await
+                .ok()
+        })
+    };
 
     let on_submit = if let Some(cb) = prop.on_change.as_ref() {
         let library_update = library_update.clone();
 
         cb.reform(move |_| library_update.borrow().clone())
     } else {
-        Callback::from(move |_| func.run())
+        Callback::from(move |_| func_update_lib.run())
     };
 
     html! {
@@ -145,11 +163,28 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
                 // Response
                 {
                     if let Some(library) = resp.data.as_ref() {
+                        let lib_update_ref = library_update.borrow();
+
                         html! {
                             <>
                                 <div class="mb-3">
                                     <label class="form-label" for="asdf">{ "Library Name: " }</label>
-                                    <input class="form-control" placeholder="Library Name" type="text" value={ library.name.clone() } onchange={ on_change_name } />
+                                    <input
+                                        class="form-control"
+                                        placeholder="Library Name"
+                                        type="text"
+                                        value={ lib_update_ref.name.as_deref().unwrap_or(library.name.as_str()).to_string() }
+                                        onchange={ on_change_name }
+                                    />
+                                </div>
+
+                                <div class="mb-3 form-check">
+                                    <input
+                                        class="form-check-input" type="checkbox"
+                                        checked={ lib_update_ref.is_public.unwrap_or(library.is_public) }
+                                        onchange={ on_change_publicity }
+                                    />
+                                    <label class="form-check-label">{ "Is Library Public" }</label>
                                 </div>
 
                                 <div class="mb-3">
@@ -178,7 +213,7 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
                                                     html! {
                                                         <li>
                                                             {
-                                                                if library_update.borrow().remove_directories.iter().any(|i| i == &path) {
+                                                                if lib_update_ref.remove_directories.iter().any(|i| i == &path) {
                                                                     html! {
                                                                         <button
                                                                             class="btn btn-success btn-sm"

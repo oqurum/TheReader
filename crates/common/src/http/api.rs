@@ -175,6 +175,7 @@ pub struct GetLibrariesResponse {
 #[derive(Debug, Default, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct UpdateLibrary {
     pub name: Option<String>,
+    pub is_public: Option<bool>,
 
     pub add_directories: Vec<String>,
     pub remove_directories: Vec<String>,
