@@ -12,6 +12,7 @@ mod http;
 pub mod specific;
 pub mod util;
 pub mod reader;
+pub mod sort;
 
 pub use error::{Error, Result};
 pub use ext::*;

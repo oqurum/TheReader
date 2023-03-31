@@ -6,6 +6,7 @@ use std::{
 };
 
 use binstall_zip::ZipArchive;
+use common_local::sort::filename_sort;
 
 use super::Book;
 use crate::{BookSearch, Result};
@@ -78,7 +79,8 @@ impl Book for ComicBook {
             .file_names()
             .filter_map(|v| (!v.ends_with('/')).then(|| v.to_string()))
             .collect::<Vec<_>>();
-        files.sort_unstable();
+
+        filename_sort(&mut files);
 
         Ok(Self {
             archive,

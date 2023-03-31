@@ -13,6 +13,7 @@ use std::{
 };
 
 use binstall_zip::ZipArchive;
+use common_local::sort::filename_sort;
 
 pub mod container;
 mod modifier;
@@ -333,7 +334,8 @@ impl Book for EpubBook {
             .file_names_in_archive()
             .map(|v| v.to_string())
             .collect::<Vec<_>>();
-        files.sort_unstable();
+
+        filename_sort(&mut files);
 
         files
     }

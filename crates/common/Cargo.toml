@@ -23,6 +23,7 @@ thiserror = { workspace = true }
 validator = { workspace = true }
 rand = { workspace = true }
 getrandom = { version = "0.2", features = ["js"], optional = true }
+numeric-sort = "0.1"
 
 common = { path = "../../global_common" }
 
