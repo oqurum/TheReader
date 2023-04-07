@@ -20,6 +20,11 @@ To run and build the application you need to do the following:
 
 [Install Trunk](https://trunkrs.dev/#install). It's used for building the frontend.
 
+## Git
+Import the submodules
+```bash
+git submodule update --init
+```
 
 ## Backend:
 Inside **root folder** execute these commands:
