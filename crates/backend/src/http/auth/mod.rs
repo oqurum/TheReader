@@ -177,7 +177,7 @@ where
                     let db = actix_web::web::Data::<Database>::from_request(&r, &mut pl).await?;
 
                     // TODO: Handle Result
-                    if AuthModel::find_by_token(&cookie.token_secret, &db.basic())
+                    if AuthModel::find_by_token_secret(&cookie.token_secret, &db.basic())
                         .await
                         .ok()
                         .flatten()

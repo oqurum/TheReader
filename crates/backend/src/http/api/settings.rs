@@ -209,6 +209,7 @@ pub async fn get_setup_agent_verify(
         return Ok(HttpResponse::NotAcceptable().body("Agent is already setup"));
     }
 
+    // TODO: Somehow validate that the `auth_model` secret is the same as when we initiated the request.
     if let Some(auth_model) = AuthModel::find_by_token(&query.state, &db.basic()).await? {
         AuthModel::remove_by_token_secret(&auth_model.oauth_token_secret, &db.basic()).await?;
 

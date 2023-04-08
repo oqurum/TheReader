@@ -88,6 +88,18 @@ impl AuthModel {
             .write()
             .await
             .query_row(
+                "SELECT * FROM auth WHERE oauth_token = ?1",
+                [token],
+                |v| Self::from_row(v),
+            )
+            .optional()?)
+    }
+
+    pub async fn find_by_token_secret(token: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
+        Ok(db
+            .write()
+            .await
+            .query_row(
                 "SELECT * FROM auth WHERE oauth_token_secret = ?1",
                 [token],
                 |v| Self::from_row(v),
