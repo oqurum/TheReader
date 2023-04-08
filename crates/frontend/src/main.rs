@@ -119,11 +119,6 @@ impl Component for Model {
         ctx.link()
             .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
 
-        ctx.link().send_future(async move {
-            debug!("asdf");
-            Msg::LibraryListResults(request::get_libraries().await)
-        });
-
         Self {
             state: Rc::new(AppState {
                 member: None,
@@ -159,6 +154,11 @@ impl Component for Model {
                     state.is_navbar_visible = resp.member.is_some();
                     state.member = resp.member;
                 }
+
+                // We request the libraries after the member is loaded so that we can ensure that Set-Cookie was stored.
+                ctx.link().send_future(async move {
+                    Msg::LibraryListResults(request::get_libraries().await)
+                });
 
                 self.has_loaded_member = !await_tasks;
             }
