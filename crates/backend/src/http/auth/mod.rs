@@ -42,7 +42,7 @@ pub struct CookieAuth {
     pub stored_since: i64,
 }
 
-fn get_auth_value(identity: &Identity) -> Result<Option<CookieAuth>> {
+pub fn get_auth_value(identity: &Identity) -> Result<Option<CookieAuth>> {
     let Ok(ident) = identity.id() else {
         return Ok(None);
     };
@@ -198,7 +198,7 @@ where
                         // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
                         return Ok(ServiceResponse::new(
                             r,
-                            HttpResponse::Ok().json(ApiErrorResponse::new("refresh")),
+                            HttpResponse::Ok().json(ApiErrorResponse::new("logged out")),
                         )
                         .map_into_right_body::<B>());
                     }
@@ -215,7 +215,7 @@ where
                     // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
                     return Ok(ServiceResponse::new(
                         r,
-                        HttpResponse::Ok().json(ApiErrorResponse::new("refresh")),
+                        HttpResponse::Ok().json(ApiErrorResponse::new("logged out")),
                     )
                     .map_into_right_body::<B>());
                 }

@@ -5,7 +5,7 @@ use actix_session::storage::CookieSessionStore;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
 use actix_web::http::header;
-use actix_web::HttpResponse;
+use actix_web::{HttpResponse, HttpRequest};
 use actix_web::{cookie::SameSite, web, App, HttpServer};
 use common::api::WrappingResponse;
 use tracing_actix_web::TracingLogger;
@@ -13,6 +13,7 @@ use tracing_actix_web::TracingLogger;
 use crate::config::{get_config, is_setup};
 use crate::database::Database;
 use crate::CliArgs;
+use crate::model::auth::AuthModel;
 
 mod api;
 mod auth;
@@ -23,19 +24,63 @@ pub use ws::send_message_to_clients;
 
 pub type JsonResponse<V> = web::Json<WrappingResponse<V>>;
 
+pub const LOGGED_OUT_PATH: &str = "/loggedout";
+
 // TODO: Convert to async closure (https://github.com/rust-lang/rust/issues/62290)
-async fn default_handler(req: actix_web::HttpRequest) -> std::io::Result<HttpResponse> {
+async fn default_handler(
+    req: HttpRequest,
+    mut ident: Option<Identity>,
+    db: web::Data<Database>,
+) -> crate::WebResult<HttpResponse> {
     if !req.path().contains('.') && !is_setup() && !req.uri().path().contains("/setup") {
         Ok(HttpResponse::TemporaryRedirect()
             .insert_header((header::LOCATION, "/setup"))
             .finish())
     } else {
+        // TODO: Better Place
+        // Ensure we're authenticated
+        if req.path() != LOGGED_OUT_PATH && !req.path().contains('.') {
+            if let Some(ident) = ident.take() {
+                if let Some(cookie) = get_auth_value(&ident)? {
+                    let token = AuthModel::find_by_token_secret(&cookie.token_secret, &db.basic()).await?;
+
+                    match token {
+                        Some(token) => {
+                            if token.member_id.is_none() {
+                                ident.logout();
+
+                                AuthModel::remove_by_token_secret(&cookie.token_secret, &db.basic()).await?;
+
+                                return Ok(HttpResponse::TemporaryRedirect()
+                                    .insert_header((header::LOCATION, LOGGED_OUT_PATH))
+                                    .finish())
+                            }
+                        }
+
+                        None => {
+                            ident.logout();
+
+                            return Ok(HttpResponse::TemporaryRedirect()
+                                .insert_header((header::LOCATION, LOGGED_OUT_PATH))
+                                .finish())
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(
             actix_files::NamedFile::open_async("./app/public/dist/index.html")
                 .await?
                 .into_response(&req),
         )
     }
+}
+
+async fn logged_out() -> HttpResponse {
+    HttpResponse::Ok()
+        .insert_header((header::REFRESH, "5; url=/"))
+        .body("You have been logged out. Redirecting in 5 seconds...")
 }
 
 async fn logout(ident: Identity) -> HttpResponse {
@@ -82,6 +127,7 @@ pub async fn register_http_service(
             .service(ws::ws_index)
             .route("/auth/logout", web::get().to(logout))
             .route("/manifest.json", web::get().to(manifest))
+            .route(LOGGED_OUT_PATH, web::get().to(logged_out))
             // Password
             .route(
                 password::PASSWORD_PATH,

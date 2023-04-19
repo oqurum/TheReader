@@ -18,6 +18,7 @@ pub struct AuthModel {
 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    // TODO: expires_at Date, expires_after Duration
 }
 
 impl TableRow<'_> for AuthModel {
