@@ -274,6 +274,25 @@ pub async fn init(database: &Database) -> Result<()> {
         [],
     )?;
 
+    // Client
+    conn.execute(
+        r#"CREATE TABLE client (
+            oauth       INTEGER,
+
+            identifier  TEXT UNIQUE,
+
+            client      TEXT NOT NULL,
+            device      TEXT NOT NULL,
+            platform    TEXT,
+
+            created_at  TEXT NOT NULL,
+            updated_at  TEXT NOT NULL,
+
+            FOREIGN KEY("oauth") REFERENCES auth("oauth_token_secret") ON DELETE CASCADE
+        );"#,
+        [],
+    )?;
+
     // Uploaded Images
     conn.execute(
         r#"CREATE TABLE "uploaded_images" (

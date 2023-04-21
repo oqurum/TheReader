@@ -5,7 +5,7 @@ use common_local::{api, MemberUpdate};
 use crate::{
     database::Database,
     http::{JsonResponse, MemberCookie, remember_member_auth},
-    model::{member::{MemberModel, NewMemberModel}, auth::AuthModel},
+    model::{member::{MemberModel, NewMemberModel}, auth::AuthModel, client::NewClientModel},
     WebResult, config::get_config,
 };
 
@@ -34,10 +34,18 @@ pub async fn load_member_self(
 
             let member = member.insert(&db.basic()).await?;
 
-            // TODO: Consolidate these 3 in function inside Auth.
+            // TODO: Consolidate these in function inside Auth.
             let auth = AuthModel::new(Some(member.id));
 
             auth.insert(&db.basic()).await?;
+
+            if let Some(header) = request.headers().get(reqwest::header::USER_AGENT).and_then(|v| v.to_str().ok()) {
+                NewClientModel::new(
+                    auth.oauth_token_secret.clone(),
+                    String::from("Web"),
+                    header,
+                ).insert(&db.basic()).await?;
+            }
 
             remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
 

@@ -18,6 +18,7 @@ use crate::config::update_config;
 use crate::database::Database;
 use crate::http::JsonResponse;
 use crate::model::auth::AuthModel;
+use crate::model::client::NewClientModel;
 use crate::model::member::MemberModel;
 use crate::model::member::NewMemberModel;
 use crate::Error;
@@ -145,6 +146,14 @@ pub async fn post_password_oauth(
     let model = AuthModel::new(Some(member.id));
 
     model.insert(&db.basic()).await?;
+
+    if let Some(header) = request.headers().get(reqwest::header::USER_AGENT).and_then(|v| v.to_str().ok()) {
+        NewClientModel::new(
+            model.oauth_token_secret.clone(),
+            String::from("Web"),
+            header,
+        ).insert(&db.basic()).await?;
+    }
 
     super::remember_member_auth(&request.extensions(), member.id, model.oauth_token_secret)?;
 

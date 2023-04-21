@@ -13,6 +13,7 @@ pub mod member;
 pub mod person;
 pub mod person_alt;
 pub mod progress;
+pub mod client;
 
 pub trait TableRow<'a>
 where

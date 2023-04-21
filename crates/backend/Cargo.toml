@@ -34,6 +34,7 @@ actix-session = { version = "0.7", features = ["cookie-session"] }
 actix-identity = "0.5"
 actix-multipart = "0.4"
 actix-web-actors = "4.1"
+uaparser = "0.6"
 
 async-trait = "0.1"
 futures = "0.3"
