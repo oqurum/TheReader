@@ -120,7 +120,7 @@ pub async fn load_file_pages(
                     "read_path_as_bytes[configured]",
                 );
 
-                return Ok(web::Json(WrappingResponse::Error(common::api::ApiErrorResponse { description: String::from("errar") })));
+                return Ok(web::Json(WrappingResponse::error("File Read Error")));
             }
         };
 

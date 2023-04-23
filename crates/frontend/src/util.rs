@@ -1,4 +1,4 @@
-use common::api::ApiErrorResponse;
+use common::api::{ApiErrorResponse, ErrorCodeResponse};
 use common_local::filter::FilterContainer;
 use gloo_utils::window;
 use js_sys::Function;
@@ -137,6 +137,7 @@ pub fn build_book_filter_query() -> FilterContainer {
             Ok(v) => v,
             Err(e) => {
                 crate::display_error(ApiErrorResponse {
+                    code: ErrorCodeResponse::Client,
                     description: e.to_string(),
                 });
 

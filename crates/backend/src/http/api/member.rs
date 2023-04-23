@@ -1,18 +1,17 @@
-use actix_web::{get, post, web, HttpRequest, HttpMessage};
-use common::{api::{ApiErrorResponse, WrappingResponse}, MemberId};
+use actix_web::{get, post, web};
+use common::{api::{ApiErrorResponse, WrappingResponse, ErrorCodeResponse}, MemberId};
 use common_local::{api, MemberUpdate};
 
 use crate::{
     database::Database,
-    http::{JsonResponse, MemberCookie, remember_member_auth},
-    model::{member::{MemberModel, NewMemberModel}, auth::AuthModel, client::NewClientModel},
-    WebResult, config::get_config,
+    http::{JsonResponse, MemberCookie},
+    model::member::{MemberModel, NewMemberModel},
+    WebResult,
 };
 
 // TODO: Add body requests for specifics
 #[get("/member")]
 pub async fn load_member_self(
-    request: HttpRequest,
     member: Option<MemberCookie>,
     db: web::Data<Database>,
 ) -> WebResult<JsonResponse<api::ApiGetMemberSelfResponse>> {
@@ -25,38 +24,7 @@ pub async fn load_member_self(
             },
         )))
     } else {
-        let config = get_config();
-
-        if config.has_admin_account && config.is_public_access {
-            // TODO: Utilize IP. If we have 20+ guest members on the same ip we'll clear them. It'll prevent mass-creation of guest accounts.
-
-            let member = NewMemberModel::new_guest();
-
-            let member = member.insert(&db.basic()).await?;
-
-            // TODO: Consolidate these in function inside Auth.
-            let auth = AuthModel::new(Some(member.id));
-
-            auth.insert(&db.basic()).await?;
-
-            if let Some(header) = request.headers().get(reqwest::header::USER_AGENT).and_then(|v| v.to_str().ok()) {
-                NewClientModel::new(
-                    auth.oauth_token_secret.clone(),
-                    String::from("Web"),
-                    header,
-                ).insert(&db.basic()).await?;
-            }
-
-            remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
-
-            Ok(web::Json(WrappingResponse::okay(
-                api::GetMemberSelfResponse {
-                    member: Some(member.into()),
-                },
-            )))
-        } else {
-            Ok(web::Json(WrappingResponse::error("Not Signed in.")))
-        }
+        Ok(web::Json(WrappingResponse::error_code("Not Signed in.", ErrorCodeResponse::NotLoggedIn)))
     }
 }
 

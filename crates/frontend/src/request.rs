@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use common::{
-    api::{ApiErrorResponse, WrappingResponse},
+    api::{ApiErrorResponse, WrappingResponse, ErrorCodeResponse},
     BookId, Either, ImageId, ImageIdType, PersonId, MemberId,
 };
 use gloo_utils::{format::JsValueSerdeExt, window};
@@ -510,6 +510,8 @@ async fn fetch_jsvalue(
 
 fn def<V>(e: JsValue) -> WrappingResponse<V> {
     WrappingResponse::Error(ApiErrorResponse {
+        code: ErrorCodeResponse::Client,
+
         description: {
             use std::fmt::Write;
 

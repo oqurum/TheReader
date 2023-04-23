@@ -10,7 +10,7 @@ use std::{
 };
 
 use common::{
-    api::{ApiErrorResponse, WrappingResponse},
+    api::{ApiErrorResponse, WrappingResponse, ErrorCodeResponse},
     component::popup::{Popup, PopupType},
     BookId, PersonId,
 };
@@ -136,29 +136,37 @@ impl Component for Model {
             Msg::LoadMemberSelf(resp) => {
                 let mut await_tasks = false;
 
-                if let WrappingResponse::Resp(resp) = resp {
-                    if let Some(member) = resp.member.as_ref() {
-                        if member.permissions.is_owner() {
-                            ctx.link().send_future(async {
-                                Msg::GetTasksResponse(request::get_tasks().await)
-                            });
+                match resp {
+                    WrappingResponse::Resp(resp) => {
+                        if let Some(member) = resp.member.as_ref() {
+                            if member.permissions.is_owner() {
+                                ctx.link().send_future(async {
+                                    Msg::GetTasksResponse(request::get_tasks().await)
+                                });
 
-                            await_tasks = true;
+                                await_tasks = true;
+                            }
+
+                            open_websocket_conn();
                         }
 
-                        open_websocket_conn();
+                        let state = Rc::make_mut(&mut self.state);
+
+                        state.is_navbar_visible = resp.member.is_some();
+                        state.member = resp.member;
+
+                        // We request the libraries after the member is loaded so that we can ensure that Set-Cookie was stored.
+                        ctx.link().send_future(async move {
+                            Msg::LibraryListResults(request::get_libraries().await)
+                        });
                     }
 
-                    let state = Rc::make_mut(&mut self.state);
-
-                    state.is_navbar_visible = resp.member.is_some();
-                    state.member = resp.member;
+                    WrappingResponse::Error(e) => {
+                        if e.code != ErrorCodeResponse::NotLoggedIn {
+                            display_error(e);
+                        }
+                    }
                 }
-
-                // We request the libraries after the member is loaded so that we can ensure that Set-Cookie was stored.
-                ctx.link().send_future(async move {
-                    Msg::LibraryListResults(request::get_libraries().await)
-                });
 
                 self.has_loaded_member = !await_tasks;
             }
