@@ -486,7 +486,7 @@ impl SetupPage {
             <>
                 <h2>{ "Setup Admin Account" }</h2>
 
-                <PasswordLogin cb={ ctx.link().callback(SetupPageMessage::LoginPasswordResponse) } />
+                <PasswordLogin always_show=true cb={ ctx.link().callback(SetupPageMessage::LoginPasswordResponse) } />
             </>
         }
     }

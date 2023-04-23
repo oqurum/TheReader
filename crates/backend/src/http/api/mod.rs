@@ -34,6 +34,7 @@ pub fn api_route() -> Scope<
         .service(settings::post_setup_agent)
         .service(settings::get_setup_agent_verify)
         .service(settings::save_initial_setup)
+        .service(settings::get_server_settings)
         // File
         .service(file::load_file_debug)
         .service(file::load_file)

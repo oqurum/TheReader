@@ -16,7 +16,7 @@ use common_local::{
     filter::FilterContainer,
     setup::SetupConfig,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Progression, SearchType, MemberPreferences, MemberUpdate,
+    CollectionId, FileId, LibraryId, Progression, SearchType, MemberPreferences, MemberUpdate, PublicServerSettings,
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {
@@ -28,6 +28,13 @@ pub fn get_download_path(value: Either<BookId, FileId>) -> String {
     };
 
     format!("{path}/api/{type_of}/{id}/download")
+}
+
+
+pub async fn get_server_settings() -> WrappingResponse<PublicServerSettings> {
+    fetch("GET", "/api/settings", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
 // Setup
@@ -450,6 +457,16 @@ pub async fn login_without_password(email: String) -> WrappingResponse<String> {
         Some(&json!({
             "email": email,
         })),
+    )
+    .await
+    .unwrap_or_else(def)
+}
+
+pub async fn login_as_guest() -> WrappingResponse<String> {
+    fetch(
+        "POST",
+        "/auth/guest",
+        Option::<&()>::None,
     )
     .await
     .unwrap_or_else(def)

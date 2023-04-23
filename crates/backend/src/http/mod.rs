@@ -125,9 +125,15 @@ pub async fn register_http_service(
             .service(api_route())
             // WS
             .service(ws::ws_index)
-            .route("/auth/logout", web::get().to(logout))
             .route("/manifest.json", web::get().to(manifest))
+
+            .route("/auth/logout", web::get().to(logout))
             .route(LOGGED_OUT_PATH, web::get().to(logged_out))
+            // Guest
+            .route(
+                guest::GUEST_PATH,
+                web::post().to(guest::post_guest_oauth),
+            )
             // Password
             .route(
                 password::PASSWORD_PATH,

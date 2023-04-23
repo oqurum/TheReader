@@ -17,7 +17,7 @@ use common::{
 use common_local::{
     api,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Member, Permissions, LibraryColl,
+    CollectionId, FileId, LibraryId, Member, Permissions, LibraryColl, PublicServerSettings,
 };
 use gloo_utils::{body, document};
 use lazy_static::lazy_static;
@@ -35,6 +35,7 @@ mod util;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
+    pub settings: PublicServerSettings,
     pub member: Option<Member>,
     pub libraries: Vec<LibraryColl>,
 
@@ -96,6 +97,7 @@ fn remove_error() {
 }
 
 enum Msg {
+    LoadServerSettings(WrappingResponse<PublicServerSettings>),
     LoadMemberSelf(WrappingResponse<api::GetMemberSelfResponse>),
     GetTasksResponse(WrappingResponse<Vec<(TaskId, TaskInfo)>>),
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
@@ -117,12 +119,13 @@ impl Component for Model {
 
     fn create(ctx: &Context<Self>) -> Self {
         ctx.link()
-            .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
+            .send_future(async { Msg::LoadServerSettings(request::get_server_settings().await) });
 
         Self {
             state: Rc::new(AppState {
                 member: None,
                 libraries: Vec::new(),
+                settings: PublicServerSettings::default(),
 
                 is_navbar_visible: false,
                 update_nav_visibility: ctx.link().callback(Msg::UpdateNavVis),
@@ -133,6 +136,20 @@ impl Component for Model {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::LoadServerSettings(resp) => {
+                match resp {
+                    WrappingResponse::Resp(settings) => {
+                        let state = Rc::make_mut(&mut self.state);
+                        state.settings = settings;
+
+                        ctx.link()
+                            .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
+                    }
+
+                    WrappingResponse::Error(e) => display_error(e),
+                }
+            }
+
             Msg::LoadMemberSelf(resp) => {
                 let mut await_tasks = false;
 

@@ -7,7 +7,7 @@ use common::api::{
 };
 use common_local::{
     api,
-    setup::{Config, LibraryConnection, SetupConfig}, LibraryType,
+    setup::{Config, LibraryConnection, SetupConfig}, LibraryType, PublicServerSettings,
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -27,6 +27,21 @@ use crate::{
     },
     Result, WebResult,
 };
+
+#[get("/settings")]
+pub async fn get_server_settings(
+    _member: Option<MemberCookie>,
+    // db: web::Data<Database>,
+) -> WebResult<JsonResponse<PublicServerSettings>> {
+    let config = get_config();
+
+    Ok(web::Json(WrappingResponse::okay(PublicServerSettings {
+        is_auth_guest_enabled: config.is_public_access,
+        is_auth_password_enabled: config.authenticators.email_pass,
+        is_auth_passwordless_enabled: config.authenticators.email_no_pass
+    })))
+}
+
 
 #[get("/setup")]
 pub async fn get_configg(

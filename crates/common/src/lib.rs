@@ -552,3 +552,13 @@ pub struct Poster {
 
     pub created_at: DateTime<Utc>,
 }
+
+
+
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublicServerSettings {
+    pub is_auth_password_enabled: bool,
+    pub is_auth_passwordless_enabled: bool,
+    pub is_auth_guest_enabled: bool,
+}

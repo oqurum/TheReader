@@ -12,7 +12,7 @@ use actix_web::{
     FromRequest, HttpRequest, HttpResponse,
 };
 use chrono::Utc;
-use common::{api::ApiErrorResponse, MemberId};
+use common::{api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse}, MemberId};
 use futures::{future::LocalBoxFuture, FutureExt};
 use rand::{rngs::ThreadRng, Rng};
 use serde::{Deserialize, Serialize};
@@ -20,9 +20,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     database::{Database, DatabaseAccess},
     model::{auth::AuthModel, member::MemberModel},
-    InternalError, Result, WebError, config::get_config,
+    InternalError, Result, WebError,
 };
 
+pub mod guest;
 pub mod password;
 pub mod passwordless;
 
@@ -162,15 +163,28 @@ where
         async move {
             let (r, mut pl) = req.into_parts();
 
+            // TODO: Better handling.
             // Should we ignore the check?
-            if r.path() == "/api/setup" || r.path() == "/api/directory" || get_config().is_public_access {
+            if r.path() == "/api/setup" || r.path() == "/api/directory" || r.path() == "/api/settings" {
                 return srv
                     .call(ServiceRequest::from_parts(r, pl))
                     .await
                     .map(|res| res.map_into_left_body());
             }
 
-            let identity = Identity::from_request(&r, &mut pl).await?;
+
+            let identity = match Identity::from_request(&r, &mut pl).await {
+                Ok(v) => v,
+                Err(err) => {
+                    let res = actix_web::error::InternalError::from_response(
+                        err,
+                        HttpResponse::Unauthorized().json(WrappingResponse::<()>::error_code("Unauthorized", ErrorCodeResponse::NotLoggedIn)),
+                    );
+
+                    return Err(actix_web::Error::from(res));
+                }
+            };
+
 
             match get_auth_value(&identity) {
                 Ok(Some(cookie)) => {
@@ -198,7 +212,7 @@ where
                         // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
                         return Ok(ServiceResponse::new(
                             r,
-                            HttpResponse::Ok().json(ApiErrorResponse::new("logged out")),
+                            HttpResponse::Ok().json(WrappingResponse::<()>::error("logged out")),
                         )
                         .map_into_right_body::<B>());
                     }
@@ -215,13 +229,17 @@ where
                     // TODO: Verify if we need to use Ok(). Going though the Err at the end of the func will result in a noop logout.
                     return Ok(ServiceResponse::new(
                         r,
-                        HttpResponse::Ok().json(ApiErrorResponse::new("logged out")),
+                        HttpResponse::Ok().json(WrappingResponse::<()>::error("logged out")),
                     )
                     .map_into_right_body::<B>());
                 }
             }
 
-            Err(WebError::ApiResponse(ApiErrorResponse::new("unauthorized")).into())
+            Ok(ServiceResponse::new(
+                r,
+                HttpResponse::Unauthorized().json(WrappingResponse::<()>::error_code("unauthorized", ErrorCodeResponse::NotLoggedIn)),
+            )
+            .map_into_right_body::<B>())
         }
         .boxed_local()
     }

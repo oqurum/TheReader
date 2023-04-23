@@ -1,12 +1,15 @@
+use std::rc::Rc;
+
 use common::api::ApiErrorResponse;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_hooks::use_async;
 use yew_router::prelude::RouterScopeExt;
 
-use crate::{request, BaseRoute};
+use crate::{request, BaseRoute, AppState};
 
 pub enum Msg {
+    LoginGuestResponse(std::result::Result<String, ApiErrorResponse>),
     LoginPasswordResponse(std::result::Result<String, ApiErrorResponse>),
     LoginPasswordlessResponse(std::result::Result<String, ApiErrorResponse>),
 }
@@ -23,6 +26,15 @@ impl Component for LoginPage {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::LoginGuestResponse(resp) => {
+                if resp.is_ok() {
+                    crate::request_member_self();
+
+                    let history = ctx.link().navigator().unwrap();
+                    history.push(&BaseRoute::Dashboard);
+                }
+            }
+
             Msg::LoginPasswordResponse(resp) => {
                 if resp.is_ok() {
                     crate::request_member_self();
@@ -51,6 +63,7 @@ impl Component for LoginPage {
                 <div class="center-normal">
                     <div class="center-container">
                         // TODO: Impl. display for selecting with login to use. Don't display both at the same time.
+                        <GuestLogin cb={ ctx.link().callback(Msg::LoginGuestResponse) }  />
                         <PasswordlessLogin cb={ ctx.link().callback(Msg::LoginPasswordlessResponse) } />
                         <PasswordLogin cb={ ctx.link().callback(Msg::LoginPasswordResponse) } />
                     </div>
@@ -63,6 +76,8 @@ impl Component for LoginPage {
 #[derive(Properties)]
 pub struct InnerProps {
     pub cb: Callback<std::result::Result<String, ApiErrorResponse>>,
+    #[prop_or_default]
+    pub always_show: bool,
 }
 
 impl PartialEq for InnerProps {
@@ -73,6 +88,12 @@ impl PartialEq for InnerProps {
 
 #[function_component(PasswordlessLogin)]
 pub fn _passwordless(props: &InnerProps) -> Html {
+    let state = use_context::<Rc<AppState>>().unwrap();
+
+    if !props.always_show && !state.settings.is_auth_passwordless_enabled {
+        return html! {};
+    }
+
     let response_error = use_state_eq(|| Option::<String>::None);
 
     let passless_email = use_state(String::new);
@@ -125,7 +146,7 @@ pub fn _passwordless(props: &InnerProps) -> Html {
                     <input class="form-control" type="email" name="email" id="emailpassless" onchange={ on_change_passless_email } />
                 </div>
 
-                <input type="submit" value="Log in" class="btn btn-primary" />
+                <input type="submit" value="Login" class="btn btn-primary" />
 
                 {
                     if let Some(error) = response_error.as_ref() {
@@ -143,6 +164,12 @@ pub fn _passwordless(props: &InnerProps) -> Html {
 
 #[function_component(PasswordLogin)]
 pub fn _password(props: &InnerProps) -> Html {
+    let state = use_context::<Rc<AppState>>().unwrap();
+
+    if !props.always_show && !state.settings.is_auth_password_enabled {
+        return html! {};
+    }
+
     let response_error = use_state_eq(|| Option::<String>::None);
 
     let pass_email = use_state(String::new);
@@ -208,7 +235,68 @@ pub fn _password(props: &InnerProps) -> Html {
                     <input class="form-control" type="password" name="password" id="password" onchange={ on_change_pass_pass } />
                 </div>
 
-                <input type="submit" value="Log in" class="btn btn-primary" />
+                <input type="submit" value="Login" class="btn btn-primary" />
+
+                {
+                    if let Some(error) = response_error.as_ref() {
+                        html! {
+                            <div class="label red">{ error.clone() }</div>
+                        }
+                    } else {
+                        html! {}
+                    }
+                }
+            </form>
+        </>
+    }
+}
+
+#[function_component(GuestLogin)]
+pub fn _guest(props: &InnerProps) -> Html {
+    let state = use_context::<Rc<AppState>>().unwrap();
+
+    if !props.always_show && !state.settings.is_auth_guest_enabled {
+        return html! {};
+    }
+
+    let response_error = use_state_eq(|| Option::<String>::None);
+
+    let submit_passless = use_async(async move {
+        request::login_as_guest()
+            .await
+            .ok()
+    });
+
+    let async_resp = submit_passless.clone();
+    let callback = props.cb.clone();
+    let data_resp_error = response_error.setter();
+    use_effect_with_deps(
+        move |loading| {
+            if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+                data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
+
+                callback.emit(
+                    async_resp
+                        .data
+                        .clone()
+                        .ok_or_else(|| async_resp.error.clone().unwrap()),
+                );
+            }
+
+            || {}
+        },
+        submit_passless.loading,
+    );
+
+    html! {
+        <>
+            <h2>{ "Guest Login" }</h2>
+
+            <form onsubmit={ Callback::from(move |e: SubmitEvent| {
+                e.prevent_default();
+                submit_passless.run();
+            }) }>
+                <input type="submit" value="Create" class="btn btn-primary" />
 
                 {
                     if let Some(error) = response_error.as_ref() {
