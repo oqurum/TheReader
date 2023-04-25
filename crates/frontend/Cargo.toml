@@ -48,6 +48,7 @@ reqwasm = "0.5"
 
 anyhow = { workspace = true }
 log = { workspace = true }
+thiserror = { workspace = true }
 
 yew = "0.20"
 yew-agent = "0.2"

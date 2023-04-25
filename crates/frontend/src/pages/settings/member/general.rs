@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
-use common::{api::WrappingResponse, component::select::{SelectModule, SelectItem}};
+use common::{component::select::{SelectModule, SelectItem}};
 use common_local::{reader::{ReaderColor, LayoutType, ReaderLoadType}, MemberPreferences, GeneralBookPreferences, ReaderImagePreferences};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::{request, AppState, util::is_mobile_or_tablet};
+use crate::{AppState, util::is_mobile_or_tablet, get_preferences, save_preferences};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TabVisible {
@@ -15,9 +15,6 @@ pub enum TabVisible {
 }
 
 pub enum Msg {
-    // Request Results
-    PrefsResult(Box<WrappingResponse<MemberPreferences>>),
-
     // Events
     UpdateSettingsGeneral(EditingType, Box<dyn Fn(&mut GeneralBookPreferences, serde_json::Value)>, serde_json::Value),
 
@@ -27,7 +24,6 @@ pub enum Msg {
     ToggleGrouping(usize),
 
     Submit,
-    Ignore,
 }
 
 pub struct MemberGeneralPage {
@@ -52,7 +48,7 @@ impl Component for MemberGeneralPage {
             .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
             .expect("context to be set");
 
-        let preferences = state.member.as_ref().unwrap().parse_preferences().unwrap_throw().unwrap_or_default();
+        let preferences: MemberPreferences = get_preferences().unwrap_throw().unwrap_or_default();
 
         let is_desktop = !is_mobile_or_tablet();
 
@@ -73,7 +69,7 @@ impl Component for MemberGeneralPage {
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Msg::ContextChanged(state) => self.state = state,
 
@@ -85,11 +81,6 @@ impl Component for MemberGeneralPage {
                     TabVisible::ImageReader => self.visible_groupings[group + 2] = !self.visible_groupings[group + 2],
                 }
             }
-
-            Msg::PrefsResult(resp) => match resp.ok() {
-                Ok(resp) => self.preferences = resp,
-                Err(err) => crate::display_error(err),
-            },
 
             Msg::UpdateSettingsGeneral(type_of, func, json_value) => {
                 match (self.viewing_tab, type_of) {
@@ -103,21 +94,10 @@ impl Component for MemberGeneralPage {
             }
 
             Msg::Submit => {
-                let new_prefs = self.preferences.clone();
-
-                ctx.link().send_future(async move {
-                    if let Err(e) = request::update_member_preferences(new_prefs).await.ok() {
-                        crate::display_error(e);
-                        Msg::Ignore
-                    } else {
-                        crate::request_member_self();
-
-                        Msg::PrefsResult(Box::new(request::get_member_preferences().await))
-                    }
-                });
+                if let Err(e) = save_preferences(&self.preferences) {
+                    crate::display_error(e.into());
+                }
             }
-
-            Msg::Ignore => return false,
         }
 
         true

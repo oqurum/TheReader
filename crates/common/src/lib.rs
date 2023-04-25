@@ -31,7 +31,6 @@ pub struct Member {
     pub type_of: MemberAuthType,
 
     pub permissions: Permissions,
-    pub preferences: Option<String>,
 
     pub library_access: Option<String>,
 
@@ -40,14 +39,6 @@ pub struct Member {
 }
 
 impl Member {
-    pub fn parse_preferences(&self) -> Result<Option<MemberPreferences>> {
-        let Some(pref) = &self.preferences else {
-            return Ok(None);
-        };
-
-        Ok(Some(serde_json::from_str(pref)?))
-    }
-
     pub fn parse_library_access_or_default(&self) -> Result<LibraryAccess> {
         let Some(access) = &self.library_access else {
             return Ok(LibraryAccess::default());
@@ -61,7 +52,6 @@ impl Member {
 pub struct MemberUpdate {
     pub name: Option<String>,
     pub email: Option<String>,
-    pub preferences: Option<MemberPreferences>,
 
     // Only editable by admins
     pub type_of: Option<MemberAuthType>,
@@ -74,7 +64,6 @@ impl MemberUpdate {
         Self {
             name: Some(member.name.clone()),
             email: Some(member.email.clone()),
-            preferences: member.parse_preferences().unwrap_or_default(),
             type_of: Some(member.type_of),
             permissions: Some(member.permissions),
             library_access: member.parse_library_access_or_default().ok(),

@@ -105,7 +105,6 @@ pub async fn post_password_oauth(
             email: email_str,
             type_of: MemberAuthType::Password,
             permissions: Permissions::owner(),
-            preferences: None,
             library_access: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),

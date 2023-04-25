@@ -76,21 +76,6 @@ pub async fn update_member_id(id: MemberId, update: MemberUpdate) -> WrappingRes
         .unwrap_or_else(def)
 }
 
-// Member Preferences
-
-pub async fn get_member_preferences() -> WrappingResponse<MemberPreferences> {
-    fetch("GET", "/api/preferences", Option::<&()>::None)
-        .await
-        .unwrap_or_else(def)
-}
-
-pub async fn update_member_preferences(value: MemberPreferences) -> WrappingResponse<String> {
-    fetch("POST", "/api/preferences", Some(&value))
-        .await
-        .unwrap_or_else(def)
-}
-
-
 // Collections
 
 pub async fn get_collections() -> WrappingResponse<ApiGetCollectionListResponse> {

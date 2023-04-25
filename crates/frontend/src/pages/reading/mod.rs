@@ -20,7 +20,7 @@ use crate::{
     components::reader::{
         LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, LayoutDisplay, layout::PageMovement, SharedReaderSettings, SharedInnerReaderSettings
     },
-    request, AppState, util::{ElementEvent, is_mobile_or_tablet},
+    request, AppState, util::{ElementEvent, is_mobile_or_tablet}, get_preferences,
 };
 
 
@@ -88,7 +88,7 @@ impl Component for ReadingBook {
 
 
         let reader_settings = {
-            let prefs = state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default();
+            let prefs = get_preferences().unwrap().unwrap_or_default();
 
             SharedReaderSettings::new(SharedInnerReaderSettings {
                 general: ReaderSettings::from(prefs.text_book.desktop.general),
@@ -311,7 +311,7 @@ impl ReadingBook {
             return;
         };
 
-        let prefs = self.state.member.as_ref().unwrap().parse_preferences().unwrap().unwrap_or_default();
+        let prefs = get_preferences().unwrap().unwrap_or_default();
 
 
         let (general, text, image) = match (book.is_comic_book(), is_mobile_or_tablet()) {

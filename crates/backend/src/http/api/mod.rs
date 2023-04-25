@@ -16,7 +16,6 @@ pub mod person;
 pub mod settings;
 pub mod storage;
 pub mod task;
-pub mod preferences;
 
 pub fn api_route() -> Scope<
     impl ServiceFactory<
@@ -50,9 +49,6 @@ pub fn api_route() -> Scope<
         .service(member::load_members_list)
         .service(member::update_member)
         .service(member::update_member_id)
-        // Preferences
-        .service(preferences::get_preferences)
-        .service(preferences::post_preferences)
         // Book
         .service(book::load_book_list)
         .service(book::load_book_preset_list)

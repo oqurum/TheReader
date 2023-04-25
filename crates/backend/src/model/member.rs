@@ -21,7 +21,6 @@ pub struct NewMemberModel {
 
     // TODO: pub oqurum_oauth: Option<OqurumOauth>,
     pub permissions: Permissions,
-    pub preferences: Option<String>,
 
     pub library_access: Option<String>,
 
@@ -48,7 +47,6 @@ impl NewMemberModel {
             email,
             type_of: MemberAuthType::Guest,
             permissions: Permissions::guest(),
-            preferences: None,
             library_access: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -68,7 +66,6 @@ impl NewMemberModel {
             email,
             type_of: MemberAuthType::Invite,
             permissions: Permissions::basic(),
-            preferences: None,
             library_access: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -83,7 +80,6 @@ impl NewMemberModel {
             password: None,
             type_of: self.type_of,
             permissions: self.permissions,
-            preferences: self.preferences,
             library_access: self.library_access,
             created_at: self.created_at,
             updated_at: self.updated_at,
@@ -102,7 +98,6 @@ pub struct MemberModel {
     pub type_of: MemberAuthType,
 
     pub permissions: Permissions,
-    pub preferences: Option<String>,
 
     pub library_access: Option<String>,
 
@@ -118,7 +113,6 @@ impl From<MemberModel> for common_local::Member {
             email: value.email,
             type_of: value.type_of,
             permissions: value.permissions,
-            preferences: value.preferences,
             library_access: value.library_access,
             created_at: value.created_at,
             updated_at: value.updated_at,
@@ -135,7 +129,6 @@ impl TableRow<'_> for MemberModel {
             password: row.next()?,
             type_of: row.next()?,
             permissions: row.next()?,
-            preferences: row.next_opt()?,
             library_access: row.next_opt()?,
 
             created_at: row.next()?,
@@ -223,14 +216,15 @@ impl MemberModel {
             }
         }
 
-        if let Some(preferences) = update.preferences {
-            let preferences = Some(serde_json::to_string(&preferences)?);
+        // TODO: Update Client Preferences?
+        // if let Some(preferences) = update.preferences {
+        //     let preferences = Some(serde_json::to_string(&preferences)?);
 
-            if self.preferences != preferences {
-                self.preferences = preferences;
-                is_updated = true;
-            }
-        }
+        //     if self.preferences != preferences {
+        //         self.preferences = preferences;
+        //         is_updated = true;
+        //     }
+        // }
 
         if let Some(library_access) = update.library_access {
             let library_access = Some(serde_json::to_string(&library_access)?);
@@ -260,9 +254,8 @@ impl MemberModel {
                 password = ?4,
                 type_of = ?5,
                 permissions = ?6,
-                preferences = ?7,
-                library_access = ?8,
-                updated_at = ?9
+                library_access = ?7,
+                updated_at = ?8
             WHERE id = ?1"#,
             params![
                 self.id,
@@ -271,7 +264,6 @@ impl MemberModel {
                 &self.password,
                 &self.type_of,
                 &self.permissions,
-                &self.preferences,
                 &self.library_access,
                 self.updated_at,
             ],

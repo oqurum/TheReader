@@ -32,6 +32,11 @@ mod pages;
 mod request;
 mod services;
 mod util;
+mod preferences;
+mod error;
+
+pub use preferences::*;
+pub use error::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
