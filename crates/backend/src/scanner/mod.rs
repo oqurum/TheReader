@@ -5,12 +5,12 @@ use crate::{
     http::send_message_to_clients,
     metadata::{get_metadata_from_files, MetadataReturned, search_all_agents, Metadata, get_metadata_by_source, openlibrary::OpenLibraryMetadata},
     model::{
-        book::{BookModel, NewBookModel},
-        book_person::BookPersonModel,
-        directory::DirectoryModel,
-        file::{FileModel, NewFileModel},
-        image::{ImageLinkModel, UploadedImageModel},
-        library::LibraryModel,
+        BookModel, NewBookModel,
+        BookPersonModel,
+        DirectoryModel,
+        FileModel, NewFileModel,
+        ImageLinkModel, UploadedImageModel,
+        LibraryModel,
     },
     Result, parse::{extract_name_from_path, extract_comic_volume, VolumeType},
 };

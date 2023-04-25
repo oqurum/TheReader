@@ -17,10 +17,10 @@ use crate::config::save_config;
 use crate::config::update_config;
 use crate::database::Database;
 use crate::http::JsonResponse;
-use crate::model::auth::AuthModel;
-use crate::model::client::NewClientModel;
-use crate::model::member::MemberModel;
-use crate::model::member::NewMemberModel;
+use crate::model::AuthModel;
+use crate::model::NewClientModel;
+use crate::model::MemberModel;
+use crate::model::NewMemberModel;
 use crate::Error;
 use crate::WebResult;
 

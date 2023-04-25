@@ -4,7 +4,7 @@ use common::{BookId, Source};
 use common_local::{LibraryId, ws::{WebsocketNotification, TaskType, TaskId}, SearchFor, SearchForBooksBy, filter::FilterContainer};
 use tracing::info;
 
-use crate::{DatabaseAccess, Result, metadata::{ActiveAgents, get_metadata_by_source, search_and_return_first_valid_agent, SearchItem, MetadataReturned, get_metadata_from_files, search_all_agents}, model::{book::{BookModel, NewBookModel}, file::FileModel, book_person::BookPersonModel, image::{UploadedImageModel, ImageLinkModel}}, http::send_message_to_clients, sort_by_similarity, Task};
+use crate::{DatabaseAccess, Result, metadata::{ActiveAgents, get_metadata_by_source, search_and_return_first_valid_agent, SearchItem, MetadataReturned, get_metadata_from_files, search_all_agents}, model::{BookModel, NewBookModel, FileModel, BookPersonModel, UploadedImageModel, ImageLinkModel}, http::send_message_to_clients, sort_by_similarity, Task};
 
 
 #[derive(Clone)]

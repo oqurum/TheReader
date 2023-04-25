@@ -5,7 +5,7 @@ use common_local::{api, MemberUpdate};
 use crate::{
     database::Database,
     http::{JsonResponse, MemberCookie},
-    model::member::{MemberModel, NewMemberModel},
+    model::{MemberModel, NewMemberModel},
     WebResult,
 };
 

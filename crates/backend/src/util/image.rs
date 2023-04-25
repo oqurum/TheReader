@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     database::DatabaseAccess,
-    model::image::{NewUploadedImageModel, UploadedImageModel},
+    model::{NewUploadedImageModel, UploadedImageModel},
     Result,
 };
 use common::ThumbnailStore;

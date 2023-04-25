@@ -21,9 +21,9 @@ use crate::{
     database::Database,
     http::{passwordless::test_connection, JsonResponse, MemberCookie},
     model::{
-        auth::AuthModel,
-        directory::DirectoryModel,
-        library::{LibraryModel, NewLibraryModel},
+        AuthModel,
+        DirectoryModel,
+        LibraryModel, NewLibraryModel,
     },
     Result, WebResult,
 };

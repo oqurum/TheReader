@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     database::{Database, DatabaseAccess},
-    model::{auth::AuthModel, member::MemberModel},
+    model::{AuthModel, MemberModel},
     InternalError, Result, WebError, IN_MEM_DB,
 };
 

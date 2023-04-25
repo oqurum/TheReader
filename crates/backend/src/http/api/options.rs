@@ -8,8 +8,8 @@ use crate::{
     database::Database,
     http::{JsonResponse, MemberCookie},
     model::{
-        directory::DirectoryModel,
-        library::{LibraryModel, NewLibraryModel},
+        DirectoryModel,
+        LibraryModel, NewLibraryModel,
     },
     WebResult,
 };

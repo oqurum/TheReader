@@ -5,7 +5,7 @@ use common_local::{api, LibraryColl, LibraryId};
 use crate::{
     database::Database,
     http::{JsonResponse, MemberCookie},
-    model::{directory::DirectoryModel, library::LibraryModel},
+    model::{DirectoryModel, LibraryModel},
     WebResult,
 };
 

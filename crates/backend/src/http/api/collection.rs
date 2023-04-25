@@ -7,9 +7,9 @@ use crate::{
     database::Database,
     http::{JsonResponse, MemberCookie},
     model::{
-        book::BookModel,
-        collection::{CollectionModel, NewCollectionModel},
-        collection_item::CollectionItemModel,
+        BookModel,
+        CollectionModel, NewCollectionModel,
+        CollectionItemModel,
     },
     WebResult,
 };

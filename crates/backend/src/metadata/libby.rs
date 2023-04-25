@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use crate::{
     config::get_config,
     metadata::{AuthorInfo, SearchItem},
-    model::file::FileModel,
+    model::FileModel,
     Result,
 };
 use async_trait::async_trait;

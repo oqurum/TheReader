@@ -1,19 +1,34 @@
 use rusqlite::{types::FromSql, Row};
 
-pub mod auth;
-pub mod book;
-pub mod book_person;
-pub mod collection;
-pub mod collection_item;
-pub mod directory;
-pub mod file;
-pub mod image;
-pub mod library;
-pub mod member;
-pub mod person;
-pub mod person_alt;
-pub mod progress;
-pub mod client;
+mod auth;
+mod book;
+mod book_person;
+mod collection;
+mod collection_item;
+mod directory;
+mod file;
+mod image;
+mod library;
+mod member;
+mod person;
+mod person_alt;
+mod progress;
+mod client;
+
+pub use auth::*;
+pub use book::*;
+pub use book_person::*;
+pub use collection::*;
+pub use collection_item::*;
+pub use directory::*;
+pub use file::*;
+pub use self::image::*;
+pub use library::*;
+pub use member::{MemberModel, NewMemberModel};
+pub use person::*;
+pub use person_alt::*;
+pub use progress::*;
+pub use client::*;
 
 pub trait TableRow<'a>
 where

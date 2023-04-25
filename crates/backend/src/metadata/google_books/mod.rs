@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use crate::{model::file::FileModel, Result};
+use crate::{model::FileModel, Result};
 use async_trait::async_trait;
 use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};

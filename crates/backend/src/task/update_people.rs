@@ -4,7 +4,7 @@ use common::{PersonId, Source};
 use common_local::ws::TaskId;
 use tracing::{debug, info, error};
 
-use crate::{Task, model::{person::PersonModel, person_alt::PersonAltModel}, DatabaseAccess, Result, metadata::{get_person_by_source, FoundImageLocation}};
+use crate::{Task, model::{PersonModel, PersonAltModel}, DatabaseAccess, Result, metadata::{get_person_by_source, FoundImageLocation}};
 
 
 

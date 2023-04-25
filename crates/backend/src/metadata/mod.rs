@@ -6,11 +6,11 @@ use std::{
 use crate::{
     config::get_config,
     model::{
-        book::NewBookModel,
-        book_person::BookPersonModel,
-        file::FileModel,
-        person::{NewPersonModel, PersonModel},
-        person_alt::PersonAltModel,
+        NewBookModel,
+        BookPersonModel,
+        FileModel,
+        NewPersonModel, PersonModel,
+        PersonAltModel,
     },
     util, Result,
 };

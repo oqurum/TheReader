@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common_local::{LibraryId, ws::TaskId};
 
-use crate::{DatabaseAccess, model::{library::LibraryModel, directory::DirectoryModel}, Result, Task};
+use crate::{DatabaseAccess, model::{LibraryModel, DirectoryModel}, Result, Task};
 
 
 pub struct TaskLibraryScan {

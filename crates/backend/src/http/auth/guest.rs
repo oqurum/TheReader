@@ -7,9 +7,9 @@ use common::api::WrappingResponse;
 
 use crate::database::Database;
 use crate::http::JsonResponse;
-use crate::model::auth::AuthModel;
-use crate::model::client::NewClientModel;
-use crate::model::member::NewMemberModel;
+use crate::model::AuthModel;
+use crate::model::NewClientModel;
+use crate::model::NewMemberModel;
 use crate::WebResult;
 
 use super::MemberCookie;

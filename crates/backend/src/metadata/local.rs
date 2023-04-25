@@ -1,4 +1,4 @@
-use crate::{model::file::FileModel, Result};
+use crate::{model::FileModel, Result};
 use async_trait::async_trait;
 use bookie::BookSearch;
 use common::Agent;

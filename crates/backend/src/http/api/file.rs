@@ -12,8 +12,8 @@ use tracing::error;
 
 use crate::database::Database;
 use crate::http::{JsonResponse, MemberCookie};
-use crate::model::file::FileModel;
-use crate::model::progress::FileProgressionModel;
+use crate::model::FileModel;
+use crate::model::FileProgressionModel;
 use crate::{Result, WebResult};
 
 const BOOK_STYLING: &str = include_str!("../../../../../app/book_stylings.css");

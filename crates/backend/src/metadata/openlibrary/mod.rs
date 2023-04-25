@@ -1,6 +1,6 @@
 // https://openlibrary.org/developers/api
 
-use crate::{model::file::FileModel, Result};
+use crate::{model::FileModel, Result};
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use common::Agent;

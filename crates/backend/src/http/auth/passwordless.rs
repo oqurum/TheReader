@@ -10,8 +10,8 @@ use common_local::{MemberAuthType, Permissions};
 
 use crate::config::{get_config, is_setup, save_config, update_config};
 use crate::http::JsonResponse;
-use crate::model::auth::AuthModel;
-use crate::model::member::{MemberModel, NewMemberModel};
+use crate::model::AuthModel;
+use crate::model::{MemberModel, NewMemberModel};
 use crate::{Error, Result, WebResult};
 use chrono::Utc;
 use lettre::message::header::ContentType;
