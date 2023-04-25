@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use common::MemberId;
 use rusqlite::{params, OptionalExtension};
 
-use crate::{http::gen_sample_alphanumeric, DatabaseAccess, Result};
+use crate::{http::gen_sample_alphanumeric, DatabaseAccess, Result, IN_MEM_DB};
 
 use super::{AdvRow, TableRow};
 
@@ -14,11 +14,13 @@ pub struct AuthModel {
     /// Stored in Cookie cache after successful login.
     pub oauth_token_secret: String,
 
+    /// Can be null if we deleted the Member
     pub member_id: Option<MemberId>,
 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     // TODO: expires_at Date, expires_after Duration
+    // TODO: Type of Auth. e.g. Login, Libby Auth
 }
 
 impl TableRow<'_> for AuthModel {
@@ -77,6 +79,8 @@ impl AuthModel {
         token_secret: &str,
         db: &dyn DatabaseAccess,
     ) -> Result<bool> {
+        IN_MEM_DB.delete(token_secret).await;
+
         Ok(db.write().await.execute(
             "DELETE FROM auth WHERE oauth_token_secret = ?1",
             [token_secret],

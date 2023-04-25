@@ -17,6 +17,7 @@ lazy_static! {
 }
 
 
+// We have this separated from the Auth Model because we use the auth model for more than just User Clients.
 pub struct NewClientModel {
     /// Oauth Secret Token
     pub oauth: String,

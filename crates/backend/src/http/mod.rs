@@ -13,7 +13,6 @@ use tracing_actix_web::TracingLogger;
 use crate::config::{get_config, is_setup};
 use crate::database::Database;
 use crate::CliArgs;
-use crate::model::auth::AuthModel;
 
 mod api;
 mod auth;
@@ -34,36 +33,21 @@ async fn default_handler(
 ) -> crate::WebResult<HttpResponse> {
     if !req.path().contains('.') && !is_setup() && !req.uri().path().contains("/setup") {
         Ok(HttpResponse::TemporaryRedirect()
-            .insert_header((header::LOCATION, "/setup"))
-            .finish())
+        .insert_header((header::LOCATION, "/setup"))
+        .finish())
     } else {
+        // TODO: HTTP Caching may mess this up
         // TODO: Better Place
         // Ensure we're authenticated
-        if req.path() != LOGGED_OUT_PATH && !req.path().contains('.') {
+        if !req.path().contains('.') && req.path() != LOGGED_OUT_PATH {
             if let Some(ident) = ident.take() {
                 if let Some(cookie) = get_auth_value(&ident)? {
-                    let token = AuthModel::find_by_token_secret(&cookie.token_secret, &db.basic()).await?;
+                    if !does_token_exist(&cookie.token_secret, &db.basic()).await? {
+                        ident.logout();
 
-                    match token {
-                        Some(token) => {
-                            if token.member_id.is_none() {
-                                ident.logout();
-
-                                AuthModel::remove_by_token_secret(&cookie.token_secret, &db.basic()).await?;
-
-                                return Ok(HttpResponse::TemporaryRedirect()
-                                    .insert_header((header::LOCATION, LOGGED_OUT_PATH))
-                                    .finish())
-                            }
-                        }
-
-                        None => {
-                            ident.logout();
-
-                            return Ok(HttpResponse::TemporaryRedirect()
-                                .insert_header((header::LOCATION, LOGGED_OUT_PATH))
-                                .finish())
-                        }
+                        return Ok(HttpResponse::TemporaryRedirect()
+                            .insert_header((header::LOCATION, LOGGED_OUT_PATH))
+                            .finish())
                     }
                 }
             }

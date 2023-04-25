@@ -146,6 +146,13 @@ pub enum Error {
     Bookie(#[from] BookieError),
 }
 
+
+impl From<Error> for actix_web::Error {
+    fn from(val: Error) -> Self {
+        actix_web::Error::from(WebError::All(val))
+    }
+}
+
 #[derive(Debug, ThisError)]
 pub enum InternalError {
     // Actix

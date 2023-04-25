@@ -11,7 +11,7 @@ use actix_web::{
     dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
     FromRequest, HttpRequest, HttpResponse,
 };
-use chrono::Utc;
+use chrono::{Utc, Duration};
 use common::{api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse}, MemberId};
 use futures::{future::LocalBoxFuture, FutureExt};
 use rand::{rngs::ThreadRng, Rng};
@@ -20,12 +20,32 @@ use serde::{Deserialize, Serialize};
 use crate::{
     database::{Database, DatabaseAccess},
     model::{auth::AuthModel, member::MemberModel},
-    InternalError, Result, WebError,
+    InternalError, Result, WebError, IN_MEM_DB,
 };
 
 pub mod guest;
 pub mod password;
 pub mod passwordless;
+
+/// Find token in ImD otherwise check Database and cache it in ImD.
+pub async fn does_token_exist(token_secret: &str, db: &dyn DatabaseAccess) -> Result<bool> {
+    if IN_MEM_DB.contains(token_secret).await {
+        Ok(true)
+    } else if let Some(auth) = AuthModel::find_by_token_secret(token_secret, db).await? {
+        if auth.member_id.is_some() {
+            if let Err(e) = IN_MEM_DB.write_item_duration(auth.oauth_token_secret, Duration::days(1)).await {
+                tracing::error!(error=?e, "Error writing to ImD");
+            }
+        } else {
+            AuthModel::remove_by_token_secret(&auth.oauth_token_secret, db).await?;
+        }
+
+        Ok(auth.member_id.is_some())
+    } else {
+        Ok(false)
+    }
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CookieAuth {
@@ -165,7 +185,7 @@ where
 
             // TODO: Better handling.
             // Should we ignore the check?
-            if r.path() == "/api/setup" || r.path() == "/api/directory" || r.path() == "/api/settings" {
+            if ["/api/setup", "/api/directory", "/api/settings"].contains(&r.path()) {
                 return srv
                     .call(ServiceRequest::from_parts(r, pl))
                     .await
@@ -190,13 +210,7 @@ where
                 Ok(Some(cookie)) => {
                     let db = actix_web::web::Data::<Database>::from_request(&r, &mut pl).await?;
 
-                    // TODO: Handle Result
-                    if AuthModel::find_by_token_secret(&cookie.token_secret, &db.basic())
-                        .await
-                        .ok()
-                        .flatten()
-                        .is_some()
-                    {
+                    if does_token_exist(&cookie.token_secret, &db.basic()).await? {
                         // HttpRequest contains an Rc so we need to drop identity to free the cloned ones.
                         drop(db);
                         drop(identity);
