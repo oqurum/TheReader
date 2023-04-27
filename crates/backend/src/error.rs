@@ -142,6 +142,8 @@ pub enum Error {
     Address(#[from] AddressError),
     #[error("Sqlx Error: {0}")]
     Sqlx(#[from] sqlx::Error),
+    #[error("Sqlx Migration Error: {0}")]
+    SqlxMigration(#[from] sqlx::migrate::MigrateError),
     #[error("Bcrypt Error: {0}")]
     Bcrypt(#[from] BcryptError),
 
