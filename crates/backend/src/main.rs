@@ -25,7 +25,7 @@ pub mod util;
 mod imd;
 
 pub use cli::CliArgs;
-pub use database::DatabaseAccess;
+pub use database::{SqlConnection, SqlPool};
 pub use error::{Error, InternalError, Result, WebError, WebResult};
 pub use task::{queue_task, Task};
 pub use util::*;

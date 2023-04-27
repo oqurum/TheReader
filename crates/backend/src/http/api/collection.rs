@@ -4,7 +4,7 @@ use common::{api::WrappingResponse, BookId, ThumbnailStore};
 use common_local::{api, CollectionId, DisplayItem};
 
 use crate::{
-    database::Database,
+    SqlPool,
     http::{JsonResponse, MemberCookie},
     model::{
         BookModel,
@@ -17,11 +17,11 @@ use crate::{
 #[get("/collections")]
 async fn load_collection_list(
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetCollectionListResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
-    let items = CollectionModel::find_by_member_id(member.id, &db.basic())
+    let items = CollectionModel::find_by_member_id(member.id, &mut *db.acquire().await?)
         .await?
         .into_iter()
         .map(|v| v.into())
@@ -34,11 +34,11 @@ async fn load_collection_list(
 async fn load_collection_id(
     id: web::Path<CollectionId>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetCollectionIdResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
-    let model = CollectionModel::find_one_by_id(*id, member.id, &db.basic())
+    let model = CollectionModel::find_one_by_id(*id, member.id, &mut *db.acquire().await?)
         .await?
         .ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
@@ -50,26 +50,26 @@ async fn load_collection_id(
 async fn load_collection_id_books(
     id: web::Path<CollectionId>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetCollectionIdBooksResponse>> {
-    let access = db.basic();
+    let mut access = db.acquire().await?;
 
-    let member = member.fetch_or_error(&access).await?;
+    let member = member.fetch_or_error(&mut access).await?;
 
-    let model = CollectionModel::find_one_by_id(*id, member.id, &access)
+    let model = CollectionModel::find_one_by_id(*id, member.id, &mut access)
         .await?
         .ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
     let mut books = Vec::new();
 
     // TODO: Turn into a single SQL Query
-    for item in CollectionItemModel::find_by_collection_id(model.id, &access).await? {
-        if let Some(book) = BookModel::find_one_by_id(item.book_id, &access).await? {
+    for item in CollectionItemModel::find_by_collection_id(model.id, &mut access).await? {
+        if let Some(book) = BookModel::find_one_by_id(item.book_id, &mut access).await? {
             books.push(DisplayItem {
                 id: book.id,
                 title: book.title.or(book.original_title).unwrap_or_default(),
                 cached: book.cached,
-                thumb_path: book.thumb_path,
+                thumb_path: book.thumb_url,
             });
         }
     }
@@ -86,9 +86,9 @@ async fn load_collection_id_books(
 async fn new_collection(
     web::Json(mut body): web::Json<api::NewCollectionBody>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetCollectionIdResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     body.name.truncate(30);
 
@@ -107,7 +107,7 @@ async fn new_collection(
 
         thumb_url: ThumbnailStore::None,
     }
-    .insert(&db.basic())
+    .insert(&mut *db.acquire().await?)
     .await?;
 
     Ok(web::Json(WrappingResponse::okay(model.into())))
@@ -117,13 +117,13 @@ async fn new_collection(
 async fn add_book_to_collection(
     id: web::Path<(CollectionId, BookId)>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let access = db.basic();
+    let mut access = db.acquire().await?;
 
-    let member = member.fetch_or_error(&access).await?;
+    let member = member.fetch_or_error(&mut access).await?;
 
-    let _model = CollectionModel::find_one_by_id(id.0, member.id, &access)
+    let _model = CollectionModel::find_one_by_id(id.0, member.id, &mut access)
         .await?
         .ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
@@ -131,7 +131,7 @@ async fn add_book_to_collection(
         collection_id: id.0,
         book_id: id.1,
     }
-    .insert_or_ignore(&db.basic())
+    .insert_or_ignore(&mut *db.acquire().await?)
     .await?;
 
     Ok(web::Json(WrappingResponse::okay("ok")))
@@ -141,13 +141,13 @@ async fn add_book_to_collection(
 async fn remove_book_from_collection(
     id: web::Path<(CollectionId, BookId)>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let access = db.basic();
+    let mut access = db.acquire().await?;
 
-    let member = member.fetch_or_error(&access).await?;
+    let member = member.fetch_or_error(&mut access).await?;
 
-    let _model = CollectionModel::find_one_by_id(id.0, member.id, &access)
+    let _model = CollectionModel::find_one_by_id(id.0, member.id, &mut access)
         .await?
         .ok_or_else(|| crate::Error::from(crate::InternalError::ItemMissing))?;
 
@@ -155,7 +155,7 @@ async fn remove_book_from_collection(
         collection_id: id.0,
         book_id: id.1,
     }
-    .delete_one(&db.basic())
+    .delete_one(&mut *db.acquire().await?)
     .await?;
 
     Ok(web::Json(WrappingResponse::okay("ok")))

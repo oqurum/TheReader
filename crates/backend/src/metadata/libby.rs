@@ -66,7 +66,7 @@ impl Metadata for LibbyMetadata {
             WrappingResponse::Resp(resp) => {
                 if let PublicSearchType::AuthorItem(Some(item)) = resp {
                     return Ok(Some(AuthorInfo {
-                        source: self.prefix_text(item.id.to_string()).try_into()?,
+                        source: self.prefix_text(item.id.to_string()).as_str().try_into()?,
                         name: item.name,
                         other_names: None,
                         description: item.description,
@@ -107,7 +107,7 @@ impl Metadata for LibbyMetadata {
                         if let PublicSearchType::AuthorList(resp) = resp {
                             for item in resp.items {
                                 books.push(SearchItem::Author(AuthorInfo {
-                                    source: self.prefix_text(item.id.to_string()).try_into()?,
+                                    source: self.prefix_text(item.id.to_string()).as_str().try_into()?,
                                     name: item.name,
                                     other_names: None,
                                     description: item.description,
@@ -147,7 +147,7 @@ impl Metadata for LibbyMetadata {
                         if let PublicSearchType::BookList(books_cont) = resp {
                             for item in books_cont.items {
                                 books.push(SearchItem::Book(FoundItem {
-                                    source: self.prefix_text(item.id.to_string()).try_into()?,
+                                    source: self.prefix_text(item.id.to_string()).as_str().try_into()?,
                                     title: item.title,
                                     description: item.description,
                                     rating: item.rating,
@@ -296,7 +296,7 @@ impl LibbyMetadata {
             authors: Some(authors).filter(|v| !v.is_empty()),
             publisher: value.publisher.clone(),
             meta: FoundItem {
-                source: self.prefix_text(value.id.to_string()).try_into()?,
+                source: self.prefix_text(value.id.to_string()).as_str().try_into()?,
                 title: value.title,
                 description: value.description,
                 rating: value.rating,

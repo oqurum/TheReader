@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use chrono::Utc;
 use common::{PersonId, Source};
 use common_local::ws::TaskId;
+use sqlx::SqliteConnection;
 use tracing::{debug, info, error};
 
-use crate::{Task, model::{PersonModel, PersonAltModel}, DatabaseAccess, Result, metadata::{get_person_by_source, FoundImageLocation}};
+use crate::{Task, model::{PersonModel, PersonAltModel}, Result, metadata::{get_person_by_source, FoundImageLocation}, SqlPool};
 
 
 
@@ -27,7 +28,9 @@ impl TaskUpdatePeople {
 
 #[async_trait]
 impl Task for TaskUpdatePeople {
-    async fn run(&mut self, _task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()> {
+    async fn run(&mut self, _task_id: TaskId, pool: &SqlPool) -> Result<()> {
+        let db = &mut *pool.acquire().await?;
+
         match self.state.clone() {
             UpdatingPeople::AutoUpdateById(person_id) => {
                 let old_person = PersonModel::find_one_by_id(person_id, db).await?.unwrap();
@@ -53,7 +56,7 @@ impl TaskUpdatePeople {
     pub async fn overwrite_person_with_source(
         mut old_person: PersonModel,
         source: &Source,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<()> {
         if let Some(new_person) = get_person_by_source(source).await? {
             // TODO: Need to make sure it doesn't conflict with alt names or normal names if different.
@@ -91,7 +94,7 @@ impl TaskUpdatePeople {
             old_person.birth_date = new_person.birth_date;
             old_person.description = new_person.description;
             old_person.source = new_person.source;
-            old_person.updated_at = Utc::now();
+            old_person.updated_at = Utc::now().naive_utc();
 
             old_person.update(db).await?;
 

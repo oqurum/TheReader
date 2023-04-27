@@ -1,12 +1,12 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, NaiveDateTime};
 use common::BookId;
-use rusqlite::{params, OptionalExtension};
 
-use crate::{DatabaseAccess, Result};
 use common_local::{FileId, LibraryId, MediaItem, LibraryType};
 use serde::Serialize;
+use sqlx::{FromRow, SqliteConnection, sqlite::SqliteRow, Row};
 
-use super::{book::BookModel, AdvRow, TableRow};
+use crate::Result;
+use super::book::BookModel;
 
 // FileModel
 
@@ -24,13 +24,13 @@ pub struct NewFileModel {
     pub identifier: Option<String>,
     pub hash: String,
 
-    pub modified_at: DateTime<Utc>,
-    pub accessed_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
+    pub modified_at: NaiveDateTime,
+    pub accessed_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct FileModel {
     pub id: FileId,
 
@@ -47,10 +47,10 @@ pub struct FileModel {
     pub identifier: Option<String>,
     pub hash: String,
 
-    pub modified_at: DateTime<Utc>,
-    pub accessed_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
+    pub modified_at: NaiveDateTime,
+    pub accessed_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub deleted_at: Option<NaiveDateTime>,
 }
 
 impl From<FileModel> for MediaItem {
@@ -79,32 +79,6 @@ impl From<FileModel> for MediaItem {
     }
 }
 
-impl TableRow<'_> for FileModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.next()?,
-
-            path: row.next()?,
-
-            file_name: row.next()?,
-            file_type: row.next()?,
-            file_size: row.next()?,
-
-            library_id: row.next()?,
-            book_id: row.next()?,
-            chapter_count: row.next()?,
-
-            identifier: row.next()?,
-            hash: row.next()?,
-
-            modified_at: row.next()?,
-            accessed_at: row.next()?,
-            created_at: row.next()?,
-            deleted_at: row.next_opt()?,
-        })
-    }
-}
-
 impl NewFileModel {
     pub fn into_file(self, id: FileId) -> FileModel {
         FileModel {
@@ -125,21 +99,27 @@ impl NewFileModel {
         }
     }
 
-    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<FileModel> {
-        let conn = db.write().await;
+    pub async fn insert(self, db: &mut SqliteConnection) -> Result<FileModel> {
+        let res = sqlx::query(
+            r#"INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, hash, library_id, book_id, chapter_count)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            "#,
+        )
+        .bind(&self.path)
+        .bind(&self.file_type)
+        .bind(&self.file_name)
+        .bind(self.file_size)
+        .bind(self.modified_at)
+        .bind(self.accessed_at)
+        .bind(self.created_at)
+        .bind(&self.identifier)
+        .bind(&self.hash)
+        .bind(self.library_id)
+        .bind(self.book_id)
+        .bind(self.chapter_count)
+        .execute(db).await?;
 
-        conn.execute(r#"
-            INSERT INTO file (path, file_type, file_name, file_size, modified_at, accessed_at, created_at, identifier, hash, library_id, book_id, chapter_count)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
-        "#,
-        params![
-            &self.path, &self.file_type, &self.file_name, self.file_size,
-            self.modified_at, self.accessed_at, self.created_at,
-            self.identifier.as_deref(), &self.hash,
-            self.library_id, self.book_id, self.chapter_count
-        ])?;
-
-        Ok(self.into_file(FileId::from(conn.last_insert_rowid() as usize)))
+        Ok(self.into_file(FileId::from(res.last_insert_rowid())))
     }
 }
 
@@ -148,181 +128,124 @@ impl FileModel {
         LibraryType::ComicBook.is_filetype_valid(&self.file_type)
     }
 
-    pub async fn exists(path: &str, hash: &str, db: &dyn DatabaseAccess) -> Result<bool> {
-        Ok(db.read().await.query_row(
-            r#"SELECT EXISTS(SELECT id FROM file WHERE path = ?1 OR hash = ?2)"#,
-            [path, hash],
-            |v| v.get::<_, bool>(0),
-        )?)
+    pub async fn exists(path: &str, hash: &str, db: &mut SqliteConnection) -> Result<bool> {
+        Ok(sqlx::query("SELECT EXISTS(SELECT id FROM file WHERE path = $1 OR hash = $2)").bind(path).bind(hash).fetch_one(db).await?.try_get(0)?)
     }
 
     pub async fn find_by(
-        library: usize,
-        offset: usize,
-        limit: usize,
-        db: &dyn DatabaseAccess,
+        library: i64,
+        offset: i64,
+        limit: i64,
+        db: &mut SqliteConnection,
     ) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
-        let mut conn =
-            this.prepare("SELECT * FROM file WHERE library_id = ?1 LIMIT ?2 OFFSET ?3")?;
-
-        let map = conn.query_map([library, limit, offset], |v| Self::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+        Ok(sqlx::query_as(
+            "SELECT id, path, file_name, file_type, file_size, library_id, book_id, chapter_count, identifier, hash, modified_at, accessed_at, created_at, deleted_at FROM file WHERE library_id = $1 LIMIT $2 OFFSET $3"
+        ).bind(library).bind(limit).bind(offset).fetch_all(db).await?)
     }
 
     pub async fn find_with_book_by(
-        library: usize,
-        offset: usize,
-        limit: usize,
-        db: &dyn DatabaseAccess,
+        library: i64,
+        offset: i64,
+        limit: i64,
+        db: &mut SqliteConnection,
     ) -> Result<Vec<FileWithBook>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare(
-            r#"
-            SELECT * FROM file
-            LEFT JOIN book ON book.id = file.book_id
-            WHERE library_id = ?1
-            LIMIT ?2
-            OFFSET ?3
-        "#,
-        )?;
-
-        let map = conn.query_map([library, limit, offset], |v| FileWithBook::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+        Ok(sqlx::query_as(
+            r#"SELECT * FROM file
+                LEFT JOIN book ON book.id = file.book_id
+                WHERE file.library_id = $1
+                LIMIT $2
+                OFFSET $3
+            "#
+        ).bind(library).bind(limit).bind(offset).fetch_all(db).await?)
     }
 
-    pub async fn find_by_missing_book(db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare("SELECT * FROM file WHERE book_id = 0 OR book_id = NULL")?;
-
-        let map = conn.query_map([], |v| Self::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    pub async fn find_by_missing_book(db: &mut SqliteConnection) -> Result<Vec<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT id, path, file_name, file_type, file_size, library_id, book_id, chapter_count, identifier, hash, modified_at, accessed_at, created_at, deleted_at FROM file WHERE book_id = 0 OR book_id = NULL"
+        ).fetch_all(db).await?)
     }
 
     pub async fn find_one_by_hash_or_path(
         path: &str,
         hash: &str,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM file WHERE path = ?1 OR hash = ?2"#,
-                [path, hash],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+        Ok(sqlx::query_as(
+            "SELECT id, path, file_name, file_type, file_size, library_id, book_id, chapter_count, identifier, hash, modified_at, accessed_at, created_at, deleted_at FROM file WHERE path = $1 OR hash = $2"
+        ).bind(path).bind(hash).fetch_optional(db).await?)
     }
 
-    pub async fn find_one_by_id(id: FileId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(r#"SELECT * FROM file WHERE id=?1"#, params![id], |v| {
-                Self::from_row(v)
-            })
-            .optional()?)
+    pub async fn find_one_by_id(id: FileId, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT id, path, file_name, file_type, file_size, library_id, book_id, chapter_count, identifier, hash, modified_at, accessed_at, created_at, deleted_at FROM file WHERE id = $1"
+        ).bind(id).fetch_optional(db).await?)
     }
 
     pub async fn find_one_by_id_with_book(
         id: FileId,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Option<FileWithBook>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM file LEFT JOIN book ON book.id = file.book_id WHERE file.id = ?1"#,
-                [id],
-                |v| FileWithBook::from_row(v),
-            )
-            .optional()?)
+        Ok(sqlx::query_as("SELECT * FROM file LEFT JOIN book ON book.id = file.book_id WHERE file.id = $1").bind(id).fetch_optional(db).await?)
     }
 
-    pub async fn find_by_book_id(book_id: BookId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare("SELECT * FROM file WHERE book_id=?1")?;
-
-        let map = conn.query_map([book_id], |v| Self::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    pub async fn find_by_book_id(book_id: BookId, db: &mut SqliteConnection) -> Result<Vec<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT id, path, file_name, file_type, file_size, library_id, book_id, chapter_count, identifier, hash, modified_at, accessed_at, created_at, deleted_at FROM file WHERE book_id = $1"
+        ).bind(book_id).fetch_all(db).await?)
     }
 
     pub async fn find_by_missing_hash(
-        offset: usize,
-        limit: usize,
-        db: &dyn DatabaseAccess,
+        offset: i64,
+        limit: i64,
+        db: &mut SqliteConnection,
     ) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare("SELECT * FROM file WHERE hash IS NULL LIMIT ?1 OFFSET ?2")?;
-
-        let map = conn.query_map([limit, offset], |v| Self::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+        Ok(sqlx::query_as(
+            "SELECT id, path, file_name, file_type, file_size, library_id, book_id, chapter_count, identifier, hash, modified_at, accessed_at, created_at, deleted_at FROM file WHERE hash IS NULL LIMIT $1 OFFSET $2"
+        ).bind(limit).bind(offset).fetch_all(db).await?)
     }
 
-    pub async fn count_by_missing_hash(db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db
-            .read()
-            .await
-            .query_row("SELECT COUNT(*) FROM file WHERE hash IS NULL", [], |v| {
-                v.get(0)
-            })?)
+    pub async fn count_by_missing_hash(db: &mut SqliteConnection) -> Result<i32> {
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM file WHERE hash IS NULL").fetch_one(db).await?)
     }
 
-    pub async fn count(db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db
-            .read()
-            .await
-            .query_row(r#"SELECT COUNT(*) FROM file"#, [], |v| v.get(0))?)
+    pub async fn count(db: &mut SqliteConnection) -> Result<i32> {
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM file").fetch_one(db).await?)
     }
 
     pub async fn update_book_id(
         file_id: FileId,
         book_id: BookId,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<()> {
-        db.write().await.execute(
-            r#"UPDATE file SET book_id = ?1 WHERE id = ?2"#,
-            params![book_id, file_id],
-        )?;
+        sqlx::query(
+            "UPDATE file SET book_id = $1 WHERE id = $2"
+        ).bind(book_id).bind(file_id).execute(db).await?;
 
         Ok(())
     }
 
-    pub async fn update(&self, db: &dyn DatabaseAccess) -> Result<()> {
-        db.write().await.execute(
-            r#"
-            UPDATE file SET
-                path = ?2, file_name = ?3, file_type = ?4, file_size = ?5,
-                library_id = ?6, book_id = ?7, chapter_count = ?8, identifier = ?9,
-                modified_at = ?10, accessed_at = ?11, created_at = ?12, deleted_at = ?13
-            WHERE id = ?1"#,
-            params![
-                self.id,
-                self.path,
-                &self.file_name,
-                &self.file_type,
-                self.file_size,
-                self.library_id,
-                self.book_id,
-                self.chapter_count,
-                self.identifier,
-                self.modified_at,
-                self.accessed_at,
-                self.created_at,
-                self.deleted_at,
-            ],
-        )?;
+    pub async fn update(&self, db: &mut SqliteConnection) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE file SET
+                path = $2, file_name = $3, file_type = $4, file_size = $5,
+                library_id = $6, book_id = $7, chapter_count = $8, identifier = $9,
+                modified_at = $10, accessed_at = $11, created_at = $12, deleted_at = $13
+            WHERE id = $1"#,
+        )
+        .bind(self.id)
+        .bind(&self.path)
+        .bind(&self.file_name)
+        .bind(&self.file_type)
+        .bind(self.file_size)
+        .bind(self.library_id)
+        .bind(self.book_id)
+        .bind(self.chapter_count)
+        .bind(&self.identifier)
+        .bind(self.modified_at)
+        .bind(self.accessed_at)
+        .bind(self.created_at)
+        .bind(self.deleted_at)
+        .execute(db).await?;
 
         Ok(())
     }
@@ -330,12 +253,13 @@ impl FileModel {
     pub async fn transfer_book_id(
         old_book_id: BookId,
         new_book_id: BookId,
-        db: &dyn DatabaseAccess,
-    ) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"UPDATE file SET book_id = ?1 WHERE book_id = ?2"#,
-            params![new_book_id, old_book_id],
-        )?)
+        db: &mut SqliteConnection,
+    ) -> Result<u64> {
+        let res = sqlx::query(
+            "UPDATE file SET book_id = $1 WHERE book_id = $2"
+        ).bind(new_book_id).bind(old_book_id).execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 }
 
@@ -344,17 +268,15 @@ pub struct FileWithBook {
     pub book: Option<BookModel>,
 }
 
-impl TableRow<'_> for FileWithBook {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
+impl FromRow<'_, SqliteRow> for FileWithBook {
+    fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
         Ok(Self {
-            file: FileModel::create(row)?,
-
-            book: row
-                .has_next()
-                .ok()
-                .filter(|v| *v)
-                .map(|_| BookModel::create(row))
-                .transpose()?,
+            file: FileModel::from_row(row)?,
+            book: if row.len() > 20 {
+                Some(BookModel::from_row(row)?)
+            } else {
+                None
+            }
         })
     }
 }

@@ -17,7 +17,6 @@ use lettre::address::AddressError;
 use lettre::error::Error as LettreError;
 use lettre::transport::smtp::Error as SmtpError;
 use reqwest::Error as HttpError;
-use rusqlite::Error as RusqliteError;
 use serde::de::value::Error as SerdeValueError;
 use serde_json::Error as JsonError;
 use serde_urlencoded::ser::Error as UrlEncodedSerError;
@@ -96,6 +95,12 @@ impl From<ImageError> for WebError {
     }
 }
 
+impl From<sqlx::Error> for WebError {
+    fn from(e: sqlx::Error) -> Self {
+        Self::All(Error::Sqlx(e))
+    }
+}
+
 // Used for all Errors in Application.
 #[derive(Debug, ThisError)]
 pub enum Error {
@@ -135,8 +140,8 @@ pub enum Error {
     Smtp(#[from] SmtpError),
     #[error("Address Error: {0}")]
     Address(#[from] AddressError),
-    #[error("Rusqlite Error: {0}")]
-    Rusqlite(#[from] RusqliteError),
+    #[error("Sqlx Error: {0}")]
+    Sqlx(#[from] sqlx::Error),
     #[error("Bcrypt Error: {0}")]
     Bcrypt(#[from] BcryptError),
 

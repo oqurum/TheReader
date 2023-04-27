@@ -73,7 +73,7 @@ impl Metadata for OpenLibraryMetadata {
         match author::get_author_from_url(value).await? {
             Some(author) => {
                 Ok(Some(AuthorInfo {
-                    source: self.prefix_text(value).try_into()?,
+                    source: self.prefix_text(value).as_str().try_into()?,
                     name: author.name.clone(),
                     other_names: author.alternate_names,
                     description: author.bio.map(|v| v.into_content()),
@@ -98,7 +98,7 @@ impl Metadata for OpenLibraryMetadata {
 
                     for item in found.items {
                         authors.push(SearchItem::Author(AuthorInfo {
-                            source: self.prefix_text(item.key.as_deref().unwrap()).try_into()?,
+                            source: self.prefix_text(item.key.as_deref().unwrap()).as_str().try_into()?,
                             cover_image_url: Some(FoundImageLocation::Url(
                                 self::CoverId::Olid(item.key.unwrap()).get_author_cover_url(),
                             )),
@@ -134,6 +134,7 @@ impl Metadata for OpenLibraryMetadata {
                                 self.get_agent(),
                                 &item.key.replace("/works/", "").replace("/books/", "")
                             )
+                            .as_str()
                             .try_into()?,
                             title: item.title.clone(),
                             description: None,
@@ -202,7 +203,7 @@ impl OpenLibraryMetadata {
             match author::get_author_from_url(&author_id).await {
                 Ok(Some(author)) => {
                     authors.push(AuthorInfo {
-                        source: self.prefix_text(author_id).try_into()?,
+                        source: self.prefix_text(author_id).as_str().try_into()?,
                         name: author.name.clone(),
                         other_names: author.alternate_names,
                         description: author.bio.map(|v| v.into_content()),
@@ -233,7 +234,7 @@ impl OpenLibraryMetadata {
             publisher: book_info.publishers.and_then(|v| v.first().cloned()),
 
             meta: FoundItem {
-                source: format!("{}:{}", self.get_agent(), source_id).try_into()?,
+                source: format!("{}:{}", self.get_agent(), source_id).as_str().try_into()?,
                 title: Some(book_info.title.clone()),
                 description: book_info
                     .description

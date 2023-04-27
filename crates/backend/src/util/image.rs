@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 
 use crate::{
-    database::DatabaseAccess,
     model::{NewUploadedImageModel, UploadedImageModel},
     Result,
 };
 use common::ThumbnailStore;
 use sha2::{Digest, Sha256};
+use sqlx::SqliteConnection;
 use tokio::fs;
 
-pub async fn store_image(image: Vec<u8>, db: &dyn DatabaseAccess) -> Result<UploadedImageModel> {
+pub async fn store_image(image: Vec<u8>, db: &mut SqliteConnection) -> Result<UploadedImageModel> {
     // TODO: Resize? Function is currently only used for thumbnails.
     let image = image::load_from_memory(&image)?;
 

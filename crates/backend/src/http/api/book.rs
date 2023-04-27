@@ -17,7 +17,6 @@ use common_local::{
 use serde_qs::actix::QsQuery;
 
 use crate::{
-    database::Database,
     http::{JsonResponse, MemberCookie},
     metadata::{self, ActiveAgents},
     model::{
@@ -30,26 +29,26 @@ use crate::{
     },
     queue_task, store_image,
     task::{self, queue_task_priority},
-    Error, WebResult,
+    Error, WebResult, SqlPool,
 };
 
-const QUERY_LIMIT: usize = 100;
+const QUERY_LIMIT: i64 = 100;
 
 #[get("/books")]
 pub async fn load_book_list(
     query: QsQuery<api::BookListQuery>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetBookListResponse>> {
     let query = query.into_inner();
 
     let filters = query.filters.unwrap_or_default();
 
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     // Ensure we can access this library.
     if let Some(library) = query.library {
-        let model = LibraryModel::find_one_by_id(library, &db.basic())
+        let model = LibraryModel::find_one_by_id(library, &mut *db.acquire().await?)
             .await?
             .ok_or_else(|| Error::from(crate::InternalError::ItemMissing))?;
 
@@ -63,7 +62,7 @@ pub async fn load_book_list(
     }
 
 
-    let count = BookModel::count_search_by(&filters, query.library, &db.basic()).await?;
+    let count = BookModel::count_search_by(&filters, query.library, &mut *db.acquire().await?).await?;
 
     let items = if count == 0 {
         Vec::new()
@@ -73,7 +72,7 @@ pub async fn load_book_list(
             query.library,
             query.offset.unwrap_or(0),
             query.limit.unwrap_or(50).min(QUERY_LIMIT),
-            &db.basic(),
+            &mut *db.acquire().await?,
         )
         .await?
         .into_iter()
@@ -81,13 +80,13 @@ pub async fn load_book_list(
             id: book.id,
             title: book.title.or(book.original_title).unwrap_or_default(),
             cached: book.cached,
-            thumb_path: book.thumb_path,
+            thumb_path: book.thumb_url,
         })
         .collect()
     };
 
     Ok(web::Json(WrappingResponse::okay(
-        api::GetBookListResponse { items, count },
+        api::GetBookListResponse { items, count: count as usize },
     )))
 }
 
@@ -96,9 +95,9 @@ pub async fn load_book_list(
 pub async fn load_book_preset_list(
     query: QsQuery<api::BookPresetListQuery>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::GetBookPresetListResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     match query.preset {
         BookPresetListType::Progressing => {
@@ -109,11 +108,11 @@ pub async fn load_book_preset_list(
                     member.id,
                     query.offset.unwrap_or(0),
                     query.limit.unwrap_or(50).min(QUERY_LIMIT),
-                    &db.basic()
+                    &mut *db.acquire().await?
                 )
                     .await?
             {
-                let file = FileModel::find_one_by_id(a.file_id, &db.basic())
+                let file = FileModel::find_one_by_id(a.file_id, &mut *db.acquire().await?)
                     .await?
                     .unwrap();
 
@@ -121,7 +120,7 @@ pub async fn load_book_preset_list(
                     id: book.id,
                     title: book.title.or(book.original_title).unwrap_or_default(),
                     cached: book.cached,
-                    thumb_path: book.thumb_path,
+                    thumb_path: book.thumb_url,
                 };
 
                 items.push(BookProgression {
@@ -142,11 +141,11 @@ pub async fn load_book_preset_list(
 pub async fn update_books(
     body: web::Json<api::MassEditBooks>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
     let edit = body.into_inner();
 
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -157,22 +156,22 @@ pub async fn update_books(
     match edit.people_list_mod {
         ModifyValuesBy::Overwrite => {
             for book_id in edit.book_ids {
-                BookPersonModel::delete_by_book_id(book_id, &db.basic()).await?;
+                BookPersonModel::delete_by_book_id(book_id, &mut *db.acquire().await?).await?;
 
                 for person_id in edit.people_list.iter().copied() {
                     BookPersonModel { book_id, person_id }
-                        .insert_or_ignore(&db.basic())
+                        .insert_or_ignore(&mut *db.acquire().await?)
                         .await?;
                 }
 
                 // Update the cached author name
                 if let Some(person_id) = edit.people_list.first().copied() {
-                    let person = PersonModel::find_one_by_id(person_id, &db.basic()).await?;
-                    let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
+                    let person = PersonModel::find_one_by_id(person_id, &mut *db.acquire().await?).await?;
+                    let book = BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
 
                     if let Some((person, mut book)) = person.zip(book) {
                         book.cached.author = Some(person.name);
-                        book.update(&db.basic()).await?;
+                        book.update(&mut *db.acquire().await?).await?;
                     }
                 }
             }
@@ -182,7 +181,7 @@ pub async fn update_books(
             for book_id in edit.book_ids {
                 for person_id in edit.people_list.iter().copied() {
                     BookPersonModel { book_id, person_id }
-                        .insert_or_ignore(&db.basic())
+                        .insert_or_ignore(&mut *db.acquire().await?)
                         .await?;
                 }
             }
@@ -192,21 +191,21 @@ pub async fn update_books(
             for book_id in edit.book_ids {
                 for person_id in edit.people_list.iter().copied() {
                     BookPersonModel { book_id, person_id }
-                        .delete(&db.basic())
+                        .delete(&mut *db.acquire().await?)
                         .await?;
                 }
 
                 // TODO: Check if we removed cached author
                 // If book has no other people referenced we'll update the cached author name.
-                if BookPersonModel::find_by(Either::Left(book_id), &db.basic())
+                if BookPersonModel::find_by(Either::Left(book_id), &mut *db.acquire().await?)
                     .await?
                     .is_empty()
                 {
-                    let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
+                    let book = BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
 
                     if let Some(mut book) = book {
                         book.cached.author = None;
-                        book.update(&db.basic()).await?;
+                        book.update(&mut *db.acquire().await?).await?;
                     }
                 }
             }
@@ -221,9 +220,9 @@ pub async fn update_books(
 pub async fn load_book_info(
     member: MemberCookie,
     book_id: web::Path<BookId>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetBookByIdResponse>> {
-    let book = BookModel::find_one_by_id(*book_id, &db.basic())
+    let book = BookModel::find_one_by_id(*book_id, &mut *db.acquire().await?)
         .await?
         .unwrap();
 
@@ -231,10 +230,10 @@ pub async fn load_book_info(
     let (mut media, mut progress) = (Vec::new(), Vec::new());
 
     if book.type_of == BookType::Book {
-        for file in FileModel::find_by_book_id(book.id, &db.basic()).await? {
+        for file in FileModel::find_by_book_id(book.id, &mut *db.acquire().await?).await? {
             let prog = if !found_progression {
                 let prog =
-                    FileProgressionModel::find_one(member.member_id(), file.id, &db.basic()).await?;
+                    FileProgressionModel::find_one(member.member_id(), file.id, &mut *db.acquire().await?).await?;
 
                 found_progression = prog.is_some();
 
@@ -247,19 +246,19 @@ pub async fn load_book_info(
             progress.push(prog.map(|v| v.into()));
         }
     } else {
-        let db_rw = db.basic();
+        let mut acq_pool = db.acquire().await?;
 
         let (mut proc_media, mut proc_progress) = (Vec::new(), Vec::new());
         let (mut proc_pro_media, mut proc_pro_progress) = (Vec::new(), Vec::new());
 
         // If we're viewing a comic
-        for section_model in BookModel::find_by_parent_id(book.id, &db_rw).await? {
-            for file_model in BookModel::find_by_parent_id(section_model.id, &db_rw).await? {
+        for section_model in BookModel::find_by_parent_id(book.id, &mut acq_pool).await? {
+            for file_model in BookModel::find_by_parent_id(section_model.id, &mut acq_pool).await? {
                 // Copy of above
-                for file in FileModel::find_by_book_id(file_model.id, &db_rw).await? {
+                for file in FileModel::find_by_book_id(file_model.id, &mut acq_pool).await? {
                     let prog = if !found_progression {
                         let prog =
-                            FileProgressionModel::find_one(member.member_id(), file.id, &db_rw).await?;
+                            FileProgressionModel::find_one(member.member_id(), file.id, &mut acq_pool).await?;
 
                         found_progression = prog.is_some();
 
@@ -279,6 +278,8 @@ pub async fn load_book_info(
             }
         }
 
+        drop(acq_pool);
+
         // Sort by index
         proc_media.sort_by_key(|&(i, _)| i);
         proc_progress.sort_by_key(|&(i, _)| i);
@@ -297,7 +298,7 @@ pub async fn load_book_info(
         }
     }
 
-    let people = PersonModel::find_by_book_id(book.id, &db.basic()).await?;
+    let people = PersonModel::find_by_book_id(book.id, &mut *db.acquire().await?).await?;
 
     Ok(web::Json(WrappingResponse::okay(api::GetBookResponse {
         book: book.into(),
@@ -312,11 +313,11 @@ pub async fn update_book_info(
     book_id: web::Path<BookId>,
     body: web::Json<api::PostBookBody>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
     let book_id = *book_id;
 
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -354,7 +355,7 @@ pub async fn update_book_info(
         }
 
         api::PostBookBody::Edit(edit) => {
-            BookModel::edit_book_by_id(book_id, edit, &db.basic()).await?;
+            BookModel::edit_book_by_id(book_id, edit, &mut *db.acquire().await?).await?;
         }
     }
 
@@ -364,9 +365,9 @@ pub async fn update_book_info(
 #[get("/book/{id}/download")]
 pub async fn download_book(
     book_id: web::Path<BookId>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<NamedFile> {
-    let mut files = FileModel::find_by_book_id(*book_id, &db.basic()).await?;
+    let mut files = FileModel::find_by_book_id(*book_id, &mut *db.acquire().await?).await?;
 
     if files.is_empty() {
         return Err(crate::Error::Internal(crate::InternalError::ItemMissing).into());
@@ -398,15 +399,15 @@ pub async fn download_book(
 async fn get_book_posters(
     path: web::Path<BookId>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetPosterByBookIdResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let book = BookModel::find_one_by_id(*path, &db.basic())
+    let book = BookModel::find_one_by_id(*path, &mut *db.acquire().await?)
         .await?
         .unwrap();
 
@@ -415,13 +416,13 @@ async fn get_book_posters(
     // We can do they by works[0].key = "/works/OLXXXXXXW"
 
     let mut items: Vec<Poster> =
-        ImageLinkModel::find_with_link_by_link_id(**path, ImageType::Book, &db.basic())
+        ImageLinkModel::find_with_link_by_link_id(**path, ImageType::Book, &mut *db.acquire().await?)
             .await?
             .into_iter()
             .map(|poster| Poster {
                 id: Some(poster.image_id),
 
-                selected: poster.path == book.thumb_path,
+                selected: poster.path == book.thumb_url,
 
                 path: poster
                     .path
@@ -460,7 +461,7 @@ async fn get_book_posters(
                     selected: false,
                     path,
 
-                    created_at: Utc::now(),
+                    created_at: Utc::now().naive_utc(),
                 });
             }
         }
@@ -476,15 +477,15 @@ async fn insert_or_update_book_image(
     book_id: web::Path<BookId>,
     body: web::Json<api::ChangePosterBody>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let mut book = BookModel::find_one_by_id(*book_id, &db.basic())
+    let mut book = BookModel::find_one_by_id(*book_id, &mut *db.acquire().await?)
         .await?
         .unwrap();
 
@@ -497,29 +498,29 @@ async fn insert_or_update_book_image(
                 .await
                 .map_err(Error::from)?;
 
-            let image_model = store_image(resp.to_vec(), &db.basic()).await?;
+            let image_model = store_image(resp.to_vec(), &mut *db.acquire().await?).await?;
 
-            book.thumb_path = image_model.path.clone();
+            book.thumb_url = image_model.path.clone();
 
             ImageLinkModel::new_book(image_model.id, book.id)
-                .insert(&db.basic())
+                .insert(&mut *db.acquire().await?)
                 .await?;
         }
 
         Either::Right(id) => {
-            let poster = UploadedImageModel::get_by_id(id, &db.basic())
+            let poster = UploadedImageModel::get_by_id(id, &mut *db.acquire().await?)
                 .await?
                 .unwrap();
 
-            if book.thumb_path == poster.path {
+            if book.thumb_url == poster.path {
                 return Ok(web::Json(WrappingResponse::okay("success")));
             }
 
-            book.thumb_path = poster.path;
+            book.thumb_url = poster.path;
         }
     }
 
-    book.update(&db.basic()).await?;
+    book.update(&mut *db.acquire().await?).await?;
 
     Ok(web::Json(WrappingResponse::okay("success")))
 }
@@ -528,10 +529,10 @@ async fn insert_or_update_book_image(
 async fn get_book_progress(
     book_id: web::Path<BookId>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetBookProgressResponse>> {
     let model =
-        FileProgressionModel::find_one_by_book_id(member.member_id(), *book_id, &db.basic())
+        FileProgressionModel::find_one_by_book_id(member.member_id(), *book_id, &mut *db.acquire().await?)
             .await?;
 
     Ok(web::Json(WrappingResponse::okay(model.map(|v| v.into()))))
@@ -541,9 +542,9 @@ async fn get_book_progress(
 pub async fn book_search(
     body: web::Query<api::GetBookSearch>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetBookSearchResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -614,11 +615,11 @@ pub async fn book_search(
 async fn insert_book_person(
     ids: web::Path<(BookId, PersonId)>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<String>> {
     let (book_id, person_id) = ids.into_inner();
 
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Ok(web::Json(WrappingResponse::error(
@@ -627,21 +628,21 @@ async fn insert_book_person(
     }
 
     // If book had no other people referenced we'll update the cached author name.
-    if BookPersonModel::find_by(Either::Left(book_id), &db.basic())
+    if BookPersonModel::find_by(Either::Left(book_id), &mut *db.acquire().await?)
         .await?
         .is_empty()
     {
-        let person = PersonModel::find_one_by_id(person_id, &db.basic()).await?;
-        let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
+        let person = PersonModel::find_one_by_id(person_id, &mut *db.acquire().await?).await?;
+        let book = BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
 
         if let Some((person, mut book)) = person.zip(book) {
             book.cached.author = Some(person.name);
-            book.update(&db.basic()).await?;
+            book.update(&mut *db.acquire().await?).await?;
         }
     }
 
     BookPersonModel { book_id, person_id }
-        .insert_or_ignore(&db.basic())
+        .insert_or_ignore(&mut *db.acquire().await?)
         .await?;
 
     Ok(web::Json(WrappingResponse::okay(String::from("success"))))
@@ -651,11 +652,11 @@ async fn insert_book_person(
 async fn delete_book_person(
     ids: web::Path<(BookId, PersonId)>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<DeletionResponse>> {
     let (book_id, person_id) = ids.into_inner();
 
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Ok(web::Json(WrappingResponse::error(
@@ -664,19 +665,19 @@ async fn delete_book_person(
     }
 
     BookPersonModel { book_id, person_id }
-        .delete(&db.basic())
+        .delete(&mut *db.acquire().await?)
         .await?;
 
     // If book has no other people referenced we'll update the cached author name.
-    if BookPersonModel::find_by(Either::Left(book_id), &db.basic())
+    if BookPersonModel::find_by(Either::Left(book_id), &mut *db.acquire().await?)
         .await?
         .is_empty()
     {
-        let book = BookModel::find_one_by_id(book_id, &db.basic()).await?;
+        let book = BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
 
         if let Some(mut book) = book {
             book.cached.author = None;
-            book.update(&db.basic()).await?;
+            book.update(&mut *db.acquire().await?).await?;
         }
     }
 

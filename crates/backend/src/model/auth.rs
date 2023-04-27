@@ -1,14 +1,14 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, NaiveDateTime};
 use common::MemberId;
-use rusqlite::{params, OptionalExtension};
+use sqlx::{FromRow, SqliteConnection};
 
-use crate::{http::gen_sample_alphanumeric, DatabaseAccess, Result, IN_MEM_DB};
+use crate::{http::gen_sample_alphanumeric, Result, IN_MEM_DB};
 
-use super::{AdvRow, TableRow};
 
 /// Used for Pending Authentications and Completed Authentications when member_id is defined.
 ///
 /// It is referenced whenever
+#[derive(FromRow)]
 pub struct AuthModel {
     pub oauth_token: Option<String>,
     /// Stored in Cookie cache after successful login.
@@ -17,22 +17,10 @@ pub struct AuthModel {
     /// Can be null if we deleted the Member
     pub member_id: Option<MemberId>,
 
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
     // TODO: expires_at Date, expires_after Duration
     // TODO: Type of Auth. e.g. Login, Libby Auth
-}
-
-impl TableRow<'_> for AuthModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            oauth_token: row.next_opt()?,
-            oauth_token_secret: row.next()?,
-            member_id: row.next_opt()?,
-            created_at: row.next()?,
-            updated_at: row.next()?,
-        })
-    }
 }
 
 impl AuthModel {
@@ -44,71 +32,60 @@ impl AuthModel {
             oauth_token: Some(gen_sample_alphanumeric(32, &mut rng))
                 .filter(|_| member_id.is_none()),
             oauth_token_secret: gen_sample_alphanumeric(48, &mut rng),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
         }
     }
 
-    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<()> {
-        db.write().await.execute(
-            "INSERT INTO auth (oauth_token, oauth_token_secret, member_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![
-                &self.oauth_token,
-                &self.oauth_token_secret,
-                self.member_id,
-                self.created_at,
-                self.updated_at,
-            ],
-        )?;
+    pub async fn insert(&self, db: &mut SqliteConnection) -> Result<u64> {
+        let res = sqlx::query(
+            "INSERT INTO auth (oauth_token, oauth_token_secret, member_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)"
+        )
+        .bind(&self.oauth_token)
+        .bind(&self.oauth_token_secret)
+        .bind(self.member_id)
+        .bind(self.created_at)
+        .bind(self.updated_at)
+        .execute(db).await?;
 
-        Ok(())
+        Ok(res.rows_affected())
     }
 
     pub async fn update_with_member_id(
         token_secret: &str,
         member_id: MemberId,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<bool> {
-        Ok(db.write().await.execute(
-            "UPDATE auth SET member_id = ?2, oauth_token = NULL WHERE oauth_token_secret = ?1",
-            params![token_secret, member_id],
-        )? != 0)
+        let res = sqlx::query(
+            "UPDATE auth SET member_id = $2, oauth_token = NULL WHERE oauth_token_secret = $1"
+        ).bind(token_secret).bind(member_id).execute(db).await?;
+
+        Ok(res.rows_affected() != 0)
     }
 
     pub async fn remove_by_token_secret(
         token_secret: &str,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<bool> {
         IN_MEM_DB.delete(token_secret).await;
 
-        Ok(db.write().await.execute(
-            "DELETE FROM auth WHERE oauth_token_secret = ?1",
-            [token_secret],
-        )? != 0)
+        let res = sqlx::query(
+            "DELETE FROM auth WHERE oauth_token_secret = $1"
+        ).bind(token_secret).execute(db).await?;
+
+        Ok(res.rows_affected() != 0)
     }
 
     // TODO: Replace most used results with does_exist.
-    pub async fn find_by_token(token: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .write()
-            .await
-            .query_row(
-                "SELECT * FROM auth WHERE oauth_token = ?1",
-                [token],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+    pub async fn find_by_token(token: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT oauth_token, oauth_token_secret, member_id, created_at, updated_at FROM auth WHERE oauth_token = $1"
+        ).bind(token).fetch_optional(db).await?)
     }
 
-    pub async fn find_by_token_secret(token: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .write()
-            .await
-            .query_row(
-                "SELECT * FROM auth WHERE oauth_token_secret = ?1",
-                [token],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+    pub async fn find_by_token_secret(token: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT oauth_token, oauth_token_secret, member_id, created_at, updated_at FROM auth WHERE oauth_token_secret = $1"
+        ).bind(token).fetch_optional(db).await?)
     }
 }

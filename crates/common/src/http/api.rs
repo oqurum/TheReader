@@ -213,8 +213,8 @@ pub struct GetBookListResponse {
 pub struct BookListQuery {
     pub library: Option<LibraryId>,
 
-    pub offset: Option<usize>,
-    pub limit: Option<usize>,
+    pub offset: Option<i64>,
+    pub limit: Option<i64>,
 
     pub filters: Option<FilterContainer>,
 }
@@ -222,8 +222,8 @@ pub struct BookListQuery {
 impl BookListQuery {
     pub fn new(
         library: Option<LibraryId>,
-        offset: Option<usize>,
-        limit: Option<usize>,
+        offset: Option<i64>,
+        limit: Option<i64>,
         filters: Option<FilterContainer>,
     ) -> Result<Self> {
         Ok(Self {
@@ -244,8 +244,8 @@ impl BookListQuery {
 
 #[derive(Serialize, Deserialize)]
 pub struct BookPresetListQuery {
-    pub offset: Option<usize>,
-    pub limit: Option<usize>,
+    pub offset: Option<i64>,
+    pub limit: Option<i64>,
 
     pub preset: BookPresetListType,
 }
@@ -412,7 +412,7 @@ pub struct RunTaskBody {
 
 #[derive(Deserialize)]
 pub struct SimpleListQuery {
-    pub offset: Option<usize>,
-    pub limit: Option<usize>,
+    pub offset: Option<i64>,
+    pub limit: Option<i64>,
     pub query: Option<String>,
 }

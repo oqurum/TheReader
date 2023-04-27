@@ -19,9 +19,8 @@ use chrono::{NaiveDate, TimeZone, Utc};
 use common::{Agent, Either, PersonId, Source, ThumbnailStore};
 use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;
+use sqlx::SqliteConnection;
 use tracing::error;
-
-use crate::DatabaseAccess;
 
 use self::{
     google_books::GoogleBooksMetadata, libby::LibbyMetadata, local::LocalMetadata,
@@ -360,7 +359,7 @@ impl MetadataReturned {
     /// Returns (Main Author, Person IDs)
     pub async fn add_or_ignore_authors_into_database(
         &mut self,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<(Option<String>, Vec<PersonId>)> {
         let mut main_author = None;
         let mut person_ids = Vec::new();
@@ -409,8 +408,8 @@ impl MetadataReturned {
                     birth_date: author_info.birth_date,
                     thumb_url,
                     // TODO: death_date: author_info.death_date,
-                    updated_at: Utc::now(),
-                    created_at: Utc::now(),
+                    updated_at: Utc::now().naive_utc(),
+                    created_at: Utc::now().naive_utc(),
                 };
 
                 let person = author.insert(db).await?;
@@ -478,22 +477,22 @@ impl From<FoundItem> for NewBookModel {
             original_title: val.title,
             description: val.description,
             rating: val.rating,
-            thumb_path: val
+            thumb_url: val
                 .thumb_locations
                 .iter()
                 .find_map(|v| v.as_local_value().cloned())
                 .unwrap_or(ThumbnailStore::None),
-            all_thumb_urls: val
-                .thumb_locations
-                .into_iter()
-                .filter_map(|v| v.into_url_value())
-                .collect(),
+            // all_thumb_urls: val
+            //     .thumb_locations
+            //     .into_iter()
+            //     .filter_map(|v| v.into_url_value())
+            //     .collect(),
             cached: val.cached,
-            refreshed_at: Utc::now(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            refreshed_at: Utc::now().naive_utc(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
             deleted_at: None,
-            available_at: val.available_at.map(|v| Utc.timestamp_millis(v)),
+            available_at: val.available_at.map(|v| Utc.timestamp_millis_opt(v).unwrap().naive_utc()),
             year: val.year,
             parent_id: None,
             index: None,
@@ -542,7 +541,7 @@ impl FoundImageLocation {
         matches!(self, Self::Url(_))
     }
 
-    pub async fn download(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn download(&mut self, db: &mut SqliteConnection) -> Result<()> {
         match self {
             FoundImageLocation::Url(url) => {
                 // Fix URL

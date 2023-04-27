@@ -11,8 +11,7 @@ use common::api::WrappingResponse;
 use tracing_actix_web::TracingLogger;
 
 use crate::config::{get_config, is_setup};
-use crate::database::Database;
-use crate::CliArgs;
+use crate::{CliArgs, SqlPool};
 
 mod api;
 mod auth;
@@ -29,7 +28,7 @@ pub const LOGGED_OUT_PATH: &str = "/loggedout";
 async fn default_handler(
     req: HttpRequest,
     mut ident: Option<Identity>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> crate::WebResult<HttpResponse> {
     if !req.path().contains('.') && !is_setup() && !req.uri().path().contains("/setup") {
         Ok(HttpResponse::TemporaryRedirect()
@@ -42,7 +41,7 @@ async fn default_handler(
         if !req.path().contains('.') && req.path() != LOGGED_OUT_PATH {
             if let Some(ident) = ident.take() {
                 if let Some(cookie) = get_auth_value(&ident)? {
-                    if !does_token_exist(&cookie.token_secret, &db.basic()).await? {
+                    if !does_token_exist(&cookie.token_secret, &mut *db.acquire().await?).await? {
                         ident.logout();
 
                         return Ok(HttpResponse::TemporaryRedirect()
@@ -85,7 +84,7 @@ async fn manifest() -> web::Json<serde_json::Value> {
 
 pub async fn register_http_service(
     cli_args: &CliArgs,
-    db_data: web::Data<Database>,
+    db_data: web::Data<SqlPool>,
 ) -> std::io::Result<()> {
     let secret_key = Key::from(&get_config().server.auth_key);
 

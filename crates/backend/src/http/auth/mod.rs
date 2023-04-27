@@ -16,11 +16,11 @@ use common::{api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse}, Membe
 use futures::{future::LocalBoxFuture, FutureExt};
 use rand::{rngs::ThreadRng, Rng};
 use serde::{Deserialize, Serialize};
+use sqlx::SqliteConnection;
 
 use crate::{
-    database::{Database, DatabaseAccess},
     model::{AuthModel, MemberModel},
-    InternalError, Result, WebError, IN_MEM_DB,
+    InternalError, Result, WebError, IN_MEM_DB, SqlPool,
 };
 
 pub mod guest;
@@ -28,7 +28,7 @@ pub mod password;
 pub mod passwordless;
 
 /// Find token in ImD otherwise check Database and cache it in ImD.
-pub async fn does_token_exist(token_secret: &str, db: &dyn DatabaseAccess) -> Result<bool> {
+pub async fn does_token_exist(token_secret: &str, db: &mut SqliteConnection) -> Result<bool> {
     if IN_MEM_DB.contains(token_secret).await {
         Ok(true)
     } else if let Some(auth) = AuthModel::find_by_token_secret(token_secret, db).await? {
@@ -102,7 +102,7 @@ impl MemberCookie {
         self.0.token_secret.as_str()
     }
 
-    pub async fn fetch(&self, db: &dyn DatabaseAccess) -> Result<Option<MemberModel>> {
+    pub async fn fetch(&self, db: &mut SqliteConnection) -> Result<Option<MemberModel>> {
         // Not needed now. Checked in the "LoginRequired" Middleware
 
         // if AuthModel::find_by_token(self.token_secret(), db).await?.is_some() {
@@ -112,7 +112,7 @@ impl MemberCookie {
         // }
     }
 
-    pub async fn fetch_or_error(&self, db: &dyn DatabaseAccess) -> Result<MemberModel> {
+    pub async fn fetch_or_error(&self, db: &mut SqliteConnection) -> Result<MemberModel> {
         match self.fetch(db).await? {
             Some(v) => Ok(v),
             None => Err(InternalError::UserMissing.into()),
@@ -208,9 +208,21 @@ where
 
             match get_auth_value(&identity) {
                 Ok(Some(cookie)) => {
-                    let db = actix_web::web::Data::<Database>::from_request(&r, &mut pl).await?;
+                    let db = actix_web::web::Data::<SqlPool>::from_request(&r, &mut pl).await?;
 
-                    if does_token_exist(&cookie.token_secret, &db.basic()).await? {
+                    let mut acq = match db.acquire().await {
+                        Ok(v) => v,
+                        Err(e) => {
+                            tracing::error!(error=?e, "Unable to Acquire Connection");
+                            return Ok(ServiceResponse::new(
+                                r,
+                                HttpResponse::Unauthorized().json(WrappingResponse::<()>::error("an error occured")),
+                            )
+                            .map_into_right_body::<B>());
+                        }
+                    };
+
+                    if does_token_exist(&cookie.token_secret, &mut *acq).await? {
                         // HttpRequest contains an Rc so we need to drop identity to free the cloned ones.
                         drop(db);
                         drop(identity);

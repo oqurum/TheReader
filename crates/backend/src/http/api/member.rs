@@ -3,7 +3,7 @@ use common::{api::{ApiErrorResponse, WrappingResponse, ErrorCodeResponse}, Membe
 use common_local::{api, MemberUpdate};
 
 use crate::{
-    database::Database,
+    SqlPool,
     http::{JsonResponse, MemberCookie},
     model::{MemberModel, NewMemberModel},
     WebResult,
@@ -13,10 +13,10 @@ use crate::{
 #[get("/member")]
 pub async fn load_member_self(
     member: Option<MemberCookie>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetMemberSelfResponse>> {
     if let Some(member) = &member {
-        let member = member.fetch_or_error(&db.basic()).await?;
+        let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
         Ok(web::Json(WrappingResponse::okay(
             api::GetMemberSelfResponse {
@@ -32,9 +32,9 @@ pub async fn load_member_self(
 pub async fn update_member(
     member: MemberCookie,
     update: web::Json<api::UpdateMember>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -42,12 +42,12 @@ pub async fn update_member(
 
     match update.into_inner() {
         api::UpdateMember::Delete { id } => {
-            MemberModel::delete(id, &db.basic()).await?;
+            MemberModel::delete(id, &mut *db.acquire().await?).await?;
         }
 
         api::UpdateMember::Invite { email } => {
             NewMemberModel::from_email(email)
-                .insert(&db.basic())
+                .insert(&mut *db.acquire().await?)
                 .await?;
 
             // TODO: Send an email.
@@ -60,22 +60,22 @@ pub async fn update_member(
 #[get("/members")]
 pub async fn load_members_list(
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetMembersListResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let count = MemberModel::count(&db.basic()).await?;
+    let count = MemberModel::count(&mut *db.acquire().await?).await?;
 
-    let members = MemberModel::get_all(&db.basic()).await?;
+    let members = MemberModel::get_all(&mut *db.acquire().await?).await?;
 
     Ok(web::Json(WrappingResponse::okay(
         api::GetMembersListResponse {
             items: members.into_iter().map(|v| v.into()).collect(),
-            count,
+            count: count as usize,
         },
     )))
 }
@@ -88,19 +88,19 @@ pub async fn update_member_id(
     id: web::Path<MemberId>,
     member: MemberCookie,
     update: web::Json<MemberUpdate>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::GetMemberSelfResponse>> {
-    let member_owner = member.fetch_or_error(&db.basic()).await?;
+    let member_owner = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member_owner.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
     }
 
-    let Some(mut member_updating) = MemberModel::find_one_by_id(*id, &db.basic()).await? else {
+    let Some(mut member_updating) = MemberModel::find_one_by_id(*id, &mut *db.acquire().await?).await? else {
         return Err(ApiErrorResponse::new("Unable to find Member to Update").into());
     };
 
-    member_updating.update_with(update.into_inner(), &db.basic()).await?;
+    member_updating.update_with(update.into_inner(), &mut *db.acquire().await?).await?;
 
     Ok(web::Json(WrappingResponse::okay(api::GetMemberSelfResponse {
         member: Some(member_updating.into()),

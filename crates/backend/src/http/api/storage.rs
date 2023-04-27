@@ -9,7 +9,7 @@ use common_local::api::{self, GetDirectoryQuery};
 
 use crate::{
     config::get_config,
-    database::Database,
+    SqlPool,
     http::{JsonResponse, MemberCookie},
     Error, WebResult,
 };
@@ -18,10 +18,10 @@ use crate::{
 pub async fn get_directory(
     query: web::Query<GetDirectoryQuery>,
     member: Option<MemberCookie>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetDirectoryResponse>> {
     if let Some(member) = &member {
-        let member = member.fetch_or_error(&db.basic()).await?;
+        let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
         if !member.permissions.is_owner() {
             return Err(ApiErrorResponse::new("Not owner").into());

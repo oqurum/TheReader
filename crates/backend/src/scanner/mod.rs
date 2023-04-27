@@ -1,7 +1,6 @@
 use std::{collections::VecDeque, path::{PathBuf, Path}, time::UNIX_EPOCH};
 
 use crate::{
-    database::DatabaseAccess,
     http::send_message_to_clients,
     metadata::{get_metadata_from_files, MetadataReturned, search_all_agents, Metadata, get_metadata_by_source, openlibrary::OpenLibraryMetadata},
     model::{
@@ -21,6 +20,7 @@ use common_local::{
     ws::{TaskId, TaskType, WebsocketNotification},
     LibraryId, LibraryType, BookType,
 };
+use sqlx::SqliteConnection;
 use tokio::fs;
 use tracing::{error, info, trace, debug};
 
@@ -30,7 +30,7 @@ pub async fn library_scan(
     library: &LibraryModel,
     directories: Vec<DirectoryModel>,
     task_id: TaskId,
-    db: &dyn DatabaseAccess,
+    db: &mut SqliteConnection,
 ) -> Result<()> {
     if directories.is_empty() {
         return Ok(());
@@ -126,15 +126,15 @@ pub async fn library_scan(
                             model.chapter_count = chapter_count;
                             model.hash = hash;
 
-                            model.modified_at = Utc.timestamp_millis(
+                            model.modified_at = Utc.timestamp_millis_opt(
                                 meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            );
-                            model.accessed_at = Utc.timestamp_millis(
+                            ).unwrap().naive_utc();
+                            model.accessed_at = Utc.timestamp_millis_opt(
                                 meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            );
-                            model.created_at = Utc.timestamp_millis(
+                            ).unwrap().naive_utc();
+                            model.created_at = Utc.timestamp_millis_opt(
                                 meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            );
+                            ).unwrap().naive_utc();
                             model.deleted_at = None;
 
                             info!(target: "scanner", id = ?model.id, "Overwriting Missing File");
@@ -174,15 +174,15 @@ pub async fn library_scan(
                             identifier,
                             hash,
 
-                            modified_at: Utc.timestamp_millis(
+                            modified_at: Utc.timestamp_millis_opt(
                                 meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ),
-                            accessed_at: Utc.timestamp_millis(
+                            ).unwrap().naive_utc(),
+                            accessed_at: Utc.timestamp_millis_opt(
                                 meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ),
-                            created_at: Utc.timestamp_millis(
+                            ).unwrap().naive_utc(),
+                            created_at: Utc.timestamp_millis_opt(
                                 meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ),
+                            ).unwrap().naive_utc(),
                             deleted_at: None,
                         };
 
@@ -218,7 +218,7 @@ pub async fn library_scan(
 async fn file_match_or_create_book(
     file: FileModel,
     library_id: LibraryId,
-    db: &dyn DatabaseAccess,
+    db: &mut SqliteConnection,
 ) -> Result<()> {
     let file_id = file.id;
 
@@ -251,7 +251,7 @@ async fn file_match_or_create_book(
         let book_model = book_model.insert_or_increment(db).await?;
         FileModel::update_book_id(file_id, book_model.id, db).await?;
 
-        if let Some(thumb_path) = book_model.thumb_path.as_value() {
+        if let Some(thumb_path) = book_model.thumb_url.as_value() {
             if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
                 ImageLinkModel::new_book(image.id, book_model.id)
                     .insert(db)
@@ -277,7 +277,7 @@ async fn file_match_or_create_comic_book(
     file: FileModel,
     root_dir_path: &Path,
     library_id: LibraryId,
-    db: &dyn DatabaseAccess,
+    db: &mut SqliteConnection,
 ) -> Result<()> {
     let Some(local_path) = file.path.strip_prefix(&root_dir_path.display().to_string().replace('\\', "/")) else {
         error!("File Path is not a child of the root directory");
@@ -413,7 +413,7 @@ async fn file_match_or_create_comic_book(
         let book_index = book_index as i64 * 10;
 
         // Now we can officially find or create the sub book.
-        let sub_book_model = match BookModel::find_one_by_parent_id_and_index(sec_book_id, book_index as usize, db).await? {
+        let sub_book_model = match BookModel::find_one_by_parent_id_and_index(sec_book_id, book_index, db).await? {
             Some(v) => v,
             None => {
                 book_model.library_id = library_id;
@@ -437,7 +437,7 @@ async fn file_match_or_create_comic_book(
 
         debug!("Updated File Id");
 
-        if let Some(thumb_path) = sub_book_model.thumb_path.as_value() {
+        if let Some(thumb_path) = sub_book_model.thumb_url.as_value() {
             if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
                 ImageLinkModel::new_book(image.id, sub_book_model.id)
                     .insert(db)

@@ -1,56 +1,38 @@
 use common::BookId;
 use common_local::CollectionId;
-use rusqlite::params;
+use sqlx::{FromRow, SqliteConnection};
 
-use crate::{DatabaseAccess, Result};
+use crate::Result;
 use serde::Serialize;
 
-use super::{AdvRow, TableRow};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct CollectionItemModel {
     pub collection_id: CollectionId,
     pub book_id: BookId,
 }
 
-impl TableRow<'_> for CollectionItemModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            collection_id: row.next()?,
-            book_id: row.next()?,
-        })
-    }
-}
-
 impl CollectionItemModel {
-    pub async fn insert_or_ignore(&self, db: &dyn DatabaseAccess) -> Result<()> {
-        db.write().await.execute(
-            "INSERT OR IGNORE INTO collection_item (collection_id, book_id) VALUES (?1, ?2)",
-            params![self.collection_id, self.book_id],
-        )?;
+    pub async fn insert_or_ignore(&self, db: &mut SqliteConnection) -> Result<()> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO collection_item (collection_id, book_id) VALUES ($1, $2)"
+        ).bind(self.collection_id).bind(self.book_id).execute(db).await?;
 
         Ok(())
     }
 
-    pub async fn delete_one(&self, db: &dyn DatabaseAccess) -> Result<()> {
-        db.write().await.execute(
-            "DELETE FROM collection_item WHERE collection_id = ?1 AND book_id = ?2",
-            params![self.collection_id, self.book_id],
-        )?;
+    pub async fn delete_one(&self, db: &mut SqliteConnection) -> Result<()> {
+        sqlx::query(
+            "DELETE FROM collection_item WHERE collection_id = $1 AND book_id = $2"
+        ).bind(self.collection_id).bind(self.book_id).execute(db).await?;
 
         Ok(())
     }
 
     pub async fn find_by_collection_id(
         id: CollectionId,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare("SELECT * FROM collection_item WHERE collection_id = ?1")?;
-
-        let map = conn.query_map([id], |v| Self::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+        Ok(sqlx::query_as("SELECT * FROM collection_item WHERE collection_id = $1").bind(id).fetch_all(db).await?)
     }
 }

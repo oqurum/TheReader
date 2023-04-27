@@ -14,9 +14,9 @@ use tokio::{runtime::Runtime, time::sleep};
 use tracing::{error, info};
 
 use crate::{
-    database::{Database, DatabaseAccess},
+    SqlPool,
     http::send_message_to_clients,
-    Result,
+    Result
 };
 
 mod book_update;
@@ -65,7 +65,7 @@ struct TaskInterval {
 
 #[async_trait]
 pub trait Task: Send {
-    async fn run(&mut self, task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()>;
+    async fn run(&mut self, task_id: TaskId, pool: &SqlPool) -> Result<()>;
 
     fn name(&self) -> &'static str;
 }
@@ -78,7 +78,7 @@ pub fn queue_task_priority<T: Task + 'static>(task: T) {
     TASKS_QUEUED.lock().unwrap().push_front(Box::new(task));
 }
 
-pub fn start_task_manager(db: web::Data<Database>) {
+pub fn start_task_manager(db: web::Data<SqlPool>) {
     thread::spawn(move || {
         let rt = Runtime::new().unwrap();
 
@@ -142,7 +142,7 @@ pub fn start_task_manager(db: web::Data<Database>) {
                         task.name().to_string(),
                     ));
 
-                    match task.run(task_id, &db.basic()).await {
+                    match task.run(task_id, &db).await {
                         Ok(_) => info!(
                             name = task.name(),
                             elapsed = ?start_time.elapsed(),

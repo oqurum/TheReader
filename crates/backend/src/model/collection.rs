@@ -1,12 +1,11 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, NaiveDateTime};
 use common::{MemberId, ThumbnailStore};
-use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
 use common_local::{Collection, CollectionId};
+use sqlx::{FromRow, SqliteConnection};
 
-use super::{AdvRow, TableRow};
-use crate::{DatabaseAccess, Result};
+use crate::Result;
 
 #[derive(Debug)]
 pub struct NewCollectionModel {
@@ -18,7 +17,7 @@ pub struct NewCollectionModel {
     pub thumb_url: ThumbnailStore,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct CollectionModel {
     pub id: CollectionId,
 
@@ -29,26 +28,8 @@ pub struct CollectionModel {
 
     pub thumb_url: ThumbnailStore,
 
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-impl TableRow<'_> for CollectionModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.next()?,
-
-            member_id: row.next()?,
-
-            name: row.next()?,
-            description: row.next()?,
-
-            thumb_url: ThumbnailStore::from(row.next_opt::<String>()?),
-
-            created_at: row.next()?,
-            updated_at: row.next()?,
-        })
-    }
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl From<CollectionModel> for Collection {
@@ -66,28 +47,17 @@ impl From<CollectionModel> for Collection {
 }
 
 impl NewCollectionModel {
-    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<CollectionModel> {
-        let conn = db.write().await;
+    pub async fn insert(self, db: &mut SqliteConnection) -> Result<CollectionModel> {
+        let now = Utc::now().naive_utc();
 
-        let now = Utc::now();
+        let thumb_url = self.thumb_url.as_value();
 
-        conn.execute(
-            r#"
-            INSERT INTO collection (member_id, name, description, thumb_url, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-        "#,
-            params![
-                self.member_id,
-                &self.name,
-                &self.description,
-                self.thumb_url.as_value(),
-                now,
-                now,
-            ],
-        )?;
+        let res = sqlx::query(
+            "INSERT INTO collection (member_id, name, description, thumb_url, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $5)"
+        ).bind(self.member_id).bind(&self.name).bind(&self.description).bind(self.thumb_url.as_value()).bind(now).execute(db).await?;
 
         Ok(CollectionModel {
-            id: CollectionId::from(conn.last_insert_rowid() as usize),
+            id: CollectionId::from(res.last_insert_rowid()),
             member_id: self.member_id,
             name: self.name,
             description: self.description,
@@ -99,65 +69,44 @@ impl NewCollectionModel {
 }
 
 impl CollectionModel {
-    pub async fn count_by_member_id(id: MemberId, db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db.write().await.query_row(
-            "SELECT COUNT(*) FROM collection WHERE member_id = ?1",
-            params![id],
-            |r| r.get(0)
-        )?)
+    pub async fn count_by_member_id(id: MemberId, db: &mut SqliteConnection) -> Result<i32> {
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM collection WHERE member_id = $1").bind(id).fetch_one(db).await?)
     }
 
-    pub async fn find_by_member_id(id: MemberId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare("SELECT * FROM collection WHERE member_id = ?1")?;
-
-        let map = conn.query_map([id], |v| Self::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    pub async fn find_by_member_id(id: MemberId, db: &mut SqliteConnection) -> Result<Vec<Self>> {
+        Ok(sqlx::query_as("SELECT * FROM collection WHERE member_id = $1").bind(id).fetch_all(db).await?)
     }
 
     pub async fn find_one_by_id(
         id: CollectionId,
         member_id: MemberId,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM collection WHERE id = ?1 AND member_id = ?2"#,
-                params![id, member_id],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+        Ok(sqlx::query_as(
+            "SELECT * FROM collection WHERE id = $1 AND member_id = $2"
+        ).bind(id).bind(member_id).fetch_optional(db).await?)
     }
 
-    pub async fn update(&self, db: &dyn DatabaseAccess) -> Result<()> {
-        db.write().await.execute(
-            r#"
-            UPDATE collection SET
-                name = ?2,
-                description = ?3,
-                thumb_url = ?4,
-                updated_at = ?5,
-            WHERE id = ?1"#,
-            params![
-                self.id,
-                &self.name,
-                &self.description,
-                self.thumb_url.as_value(),
-                self.updated_at
-            ],
-        )?;
+    pub async fn update(&mut self, db: &mut SqliteConnection) -> Result<()> {
+        self.updated_at = Utc::now().naive_utc();
+
+        sqlx::query(
+            r#"UPDATE collection SET
+                name = $2,
+                description = $3,
+                thumb_url = $4,
+                updated_at = $5
+            WHERE id = $1"#,
+        ).bind(self.id).bind(&self.name).bind(&self.description).bind(&self.thumb_url).bind(self.updated_at).execute(db).await?;
 
         Ok(())
     }
 
-    pub async fn delete_by_id(id: CollectionId, db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db
-            .write()
-            .await
-            .execute("DELETE FROM collection WHERE id = ?1", [id])?)
+    pub async fn delete_by_id(id: CollectionId, db: &mut SqliteConnection) -> Result<u64> {
+        let res = sqlx::query(
+            "DELETE FROM collection WHERE id = $1"
+        ).bind(id).execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 }

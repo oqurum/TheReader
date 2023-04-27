@@ -62,7 +62,7 @@ impl Metadata for LocalMetadata {
 
                 (
                     FoundItem {
-                        source: source.try_into()?,
+                        source: source.as_str().try_into()?,
                         title: Some(title),
                         description: book.find(BookSearch::Description).map(|mut v| v.remove(0)),
                         rating: 0.0,

@@ -29,7 +29,7 @@ pub struct BookListScope {
 }
 
 pub struct BookListRequest {
-    pub offset: Option<usize>,
+    pub offset: Option<i64>,
     pub response: Callback<WrappingResponse<api::GetBookListResponse>>,
 }
 
@@ -196,7 +196,7 @@ impl Component for BookListComponent {
                 let offset = Some(
                     self.media_items
                         .as_ref()
-                        .map(|v| v.len())
+                        .map(|v| v.len() as i64)
                         .unwrap_or_default(),
                 )
                 .filter(|v| *v != 0);

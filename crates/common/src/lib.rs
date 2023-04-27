@@ -1,10 +1,13 @@
 use std::path::PathBuf;
 
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, Utc, NaiveDateTime};
 use common::{Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore};
 use http::api::FileUnwrappedInfo;
 use num_enum::{TryFromPrimitive, IntoPrimitive};
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "backend")]
+use sqlx::{Decode, Encode, Sqlite, sqlite::{SqliteArgumentValue, SqliteValueRef}, encode::IsNull, error::BoxDynError, Type};
 
 pub mod error;
 mod ext;
@@ -34,8 +37,8 @@ pub struct Member {
 
     pub library_access: Option<String>,
 
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl Member {
@@ -190,8 +193,8 @@ pub struct Person {
 
     pub thumb_url: ThumbnailStore,
 
-    pub updated_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
+    pub updated_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
 }
 
 impl Person {
@@ -221,8 +224,8 @@ pub struct Collection {
 
     pub thumb_url: ThumbnailStore,
 
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 // Used for Library View
@@ -274,10 +277,10 @@ pub struct DisplayBookItem {
     // TODO: Make table for all tags. Include publisher in it. Remove country.
     pub cached: BookItemCached,
 
-    pub refreshed_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
+    pub refreshed_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub deleted_at: Option<NaiveDateTime>,
 
     pub available_at: Option<i64>,
     pub year: Option<i64>,
@@ -312,9 +315,9 @@ impl Default for DisplayBookItem {
             rating: Default::default(),
             thumb_path: ThumbnailStore::None,
             cached: Default::default(),
-            refreshed_at: Utc::now(),
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            refreshed_at: Utc::now().naive_utc(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
             deleted_at: Default::default(),
             available_at: Default::default(),
             year: Default::default(),
@@ -400,6 +403,38 @@ impl LibraryType {
     }
 }
 
+// Used for DB
+#[cfg(feature = "backend")]
+impl From<i64> for LibraryType {
+    fn from(value: i64) -> Self {
+        Self::try_from(value).unwrap()
+    }
+}
+
+
+#[cfg(feature = "backend")]
+impl<'q> Encode<'q, Sqlite> for LibraryType {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Int(*self as i32));
+
+        IsNull::No
+    }
+}
+
+#[cfg(feature = "backend")]
+impl<'r> Decode<'r, Sqlite> for LibraryType {
+    fn decode(value: SqliteValueRef<'r>) -> sqlx::Result<Self, BoxDynError> {
+        Ok(Self::try_from(<i32 as Decode<'r, Sqlite>>::decode(value)?).unwrap())
+    }
+}
+
+#[cfg(feature = "backend")]
+impl Type<Sqlite> for LibraryType {
+    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+        <i32 as Type<Sqlite>>::type_info()
+    }
+}
+
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
 #[repr(i32)]
@@ -412,6 +447,38 @@ pub enum BookType {
     ComicBookSection = 3,
     /// The chapters of the book.
     ComicBookChapter = 4,
+}
+
+// Used for DB
+#[cfg(feature = "backend")]
+impl From<i64> for BookType {
+    fn from(value: i64) -> Self {
+        Self::try_from(value).unwrap()
+    }
+}
+
+
+#[cfg(feature = "backend")]
+impl<'q> Encode<'q, Sqlite> for BookType {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Int(*self as i32));
+
+        IsNull::No
+    }
+}
+
+#[cfg(feature = "backend")]
+impl<'r> Decode<'r, Sqlite> for BookType {
+    fn decode(value: SqliteValueRef<'r>) -> sqlx::Result<Self, BoxDynError> {
+        Ok(Self::try_from(<i32 as Decode<'r, Sqlite>>::decode(value)?).unwrap())
+    }
+}
+
+#[cfg(feature = "backend")]
+impl Type<Sqlite> for BookType {
+    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+        <i32 as Type<Sqlite>>::type_info()
+    }
 }
 
 
@@ -509,6 +576,42 @@ impl BookItemCached {
     }
 }
 
+impl From<Option<String>> for BookItemCached {
+    fn from(value: Option<String>) -> Self {
+        match value {
+            Some(v) => Self::from_string(v),
+            None => Self::default(),
+        }
+    }
+}
+
+#[cfg(feature = "backend")]
+impl<'q> Encode<'q, Sqlite> for BookItemCached {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        if let Some(value) = self.as_string_optional() {
+            args.push(SqliteArgumentValue::Text(value.into()));
+            IsNull::No
+        } else {
+            args.push(SqliteArgumentValue::Null);
+            IsNull::Yes
+        }
+    }
+}
+
+#[cfg(feature = "backend")]
+impl<'r> Decode<'r, Sqlite> for BookItemCached {
+    fn decode(value: SqliteValueRef<'r>) -> sqlx::Result<Self, BoxDynError> {
+        Ok(Self::from_string(<String as Decode<'r, Sqlite>>::decode(value)?))
+    }
+}
+
+#[cfg(feature = "backend")]
+impl Type<Sqlite> for BookItemCached {
+    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+        <String as Type<Sqlite>>::type_info()
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SearchType {
     Book,
@@ -539,7 +642,7 @@ pub struct Poster {
 
     pub path: String,
 
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
 }
 
 

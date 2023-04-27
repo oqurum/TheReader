@@ -20,7 +20,7 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Address, Message, SmtpTransport, Transport};
 use serde::{Deserialize, Serialize};
 
-use crate::database::Database;
+use crate::SqlPool;
 
 use super::MemberCookie;
 
@@ -36,13 +36,13 @@ pub async fn post_passwordless_oauth(
     req: HttpRequest,
     query: web::Json<PostPasswordlessCallback>,
     member_cookie: Option<MemberCookie>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
     // If we're currently logged in as a guest.
     let mut guest_member = None;
 
     if let Some(cookie) = &member_cookie {
-        let member = cookie.fetch(&db.basic()).await?;
+        let member = cookie.fetch(&mut *db.acquire().await?).await?;
 
         if let Some(member) = member {
             if !member.type_of.is_guest() {
@@ -62,7 +62,7 @@ pub async fn post_passwordless_oauth(
     } = query.into_inner();
     email_str = email_str.trim().to_string();
 
-    if guest_member.is_none() && MemberModel::find_one_by_email(&email_str, &db.basic())
+    if guest_member.is_none() && MemberModel::find_one_by_email(&email_str, &mut *db.acquire().await?)
         .await?
         .is_none()
         && get_config().has_admin_account
@@ -111,7 +111,7 @@ pub async fn post_passwordless_oauth(
         &auth_callback_url
     );
 
-    auth_model.insert(&db.basic()).await?;
+    auth_model.insert(&mut *db.acquire().await?).await?;
 
     send_auth_email(email_str, auth_callback_url, main_html, &email_config)?;
 
@@ -128,13 +128,13 @@ pub async fn get_passwordless_oauth_callback(
     request: HttpRequest,
     query: web::Query<QueryCallback>,
     member_cookie: Option<MemberCookie>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<HttpResponse> {
     // If we're currently logged in as a guest.
     let mut guest_member = None;
 
     if let Some(cookie) = &member_cookie {
-        let member = cookie.fetch(&db.basic()).await?;
+        let member = cookie.fetch(&mut *db.acquire().await?).await?;
 
         if let Some(member) = member {
             if !member.type_of.is_guest() {
@@ -151,10 +151,10 @@ pub async fn get_passwordless_oauth_callback(
     // Verify that's is a proper email address.
     let address = email.parse::<Address>().map_err(Error::from)?;
 
-    if let Some(auth) = AuthModel::find_by_token(&oauth_token, &db.basic()).await? {
+    if let Some(auth) = AuthModel::find_by_token(&oauth_token, &mut *db.acquire().await?).await? {
         // Create or Update User.
         let mut member = if let Some(value) =
-            MemberModel::find_one_by_email(&email, &db.basic()).await?
+            MemberModel::find_one_by_email(&email, &mut *db.acquire().await?).await?
         {
             value
         } else if let Some(mut guest_member) = guest_member {
@@ -163,7 +163,7 @@ pub async fn get_passwordless_oauth_callback(
             guest_member
         } else if !get_config().has_admin_account {
             // Double check that we don't already have users in the database.
-            if MemberModel::count(&db.basic()).await? != 0 {
+            if MemberModel::count(&mut *db.acquire().await?).await? != 0 {
                 update_config(|config| {
                     config.has_admin_account = true;
                     Ok(())
@@ -183,15 +183,15 @@ pub async fn get_passwordless_oauth_callback(
                 type_of: MemberAuthType::Passwordless,
                 permissions: Permissions::owner(),
                 library_access: None,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
+                created_at: Utc::now().naive_utc(),
+                updated_at: Utc::now().naive_utc(),
             };
 
-            let mut inserted = new_member.insert(&db.basic()).await?;
+            let mut inserted = new_member.insert(&mut *db.acquire().await?).await?;
 
             // We instantly accept the invite.
             inserted
-                .accept_invite(MemberAuthType::Passwordless, None, &db.basic())
+                .accept_invite(MemberAuthType::Passwordless, None, &mut *db.acquire().await?)
                 .await?;
 
             update_config(|config| {
@@ -211,11 +211,11 @@ pub async fn get_passwordless_oauth_callback(
         // If we were invited update the invite with correct info.
         if member.type_of == MemberAuthType::Invite {
             member
-                .accept_invite(MemberAuthType::Passwordless, None, &db.basic())
+                .accept_invite(MemberAuthType::Passwordless, None, &mut *db.acquire().await?)
                 .await?;
         }
 
-        AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &db.basic()).await?;
+        AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &mut *db.acquire().await?).await?;
 
         super::remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
     }

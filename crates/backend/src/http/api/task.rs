@@ -6,7 +6,7 @@ use common_local::{
 };
 
 use crate::{
-    database::Database,
+    SqlPool,
     http::{ws::RUNNING_TASKS, JsonResponse, MemberCookie},
     queue_task, task, WebResult,
 };
@@ -16,11 +16,11 @@ use crate::{
 pub async fn run_task(
     modify: web::Json<api::RunTaskBody>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
     let modify = modify.into_inner();
 
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -45,9 +45,9 @@ pub async fn run_task(
 #[get("/tasks")]
 pub async fn get_tasks(
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<Vec<(TaskId, TaskInfo)>>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());

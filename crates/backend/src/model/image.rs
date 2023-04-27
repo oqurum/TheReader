@@ -1,17 +1,15 @@
-use chrono::{DateTime, Utc};
+use chrono::{Utc, NaiveDateTime};
 use common::{BookId, ImageId, ImageType, PersonId, ThumbnailStore};
-use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
+use sqlx::{FromRow, SqliteConnection};
 
-use crate::{DatabaseAccess, InternalError, Result};
+use crate::{InternalError, Result};
 
-use super::{AdvRow, TableRow};
-
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct ImageLinkModel {
     pub image_id: ImageId,
 
-    pub link_id: usize,
+    pub link_id: i64,
     pub type_of: ImageType,
 }
 
@@ -19,59 +17,39 @@ pub struct ImageLinkModel {
 pub struct NewUploadedImageModel {
     pub path: ThumbnailStore,
 
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct UploadedImageModel {
     pub id: ImageId,
 
     pub path: ThumbnailStore,
 
-    pub created_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct ImageWithLink {
     pub image_id: ImageId,
 
-    pub link_id: usize,
+    pub link_id: i64,
     pub type_of: ImageType,
 
     pub path: ThumbnailStore,
 
-    pub created_at: DateTime<Utc>,
-}
-
-impl TableRow<'_> for UploadedImageModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.next()?,
-            path: ThumbnailStore::from(row.next::<String>()?),
-            created_at: row.next()?,
-        })
-    }
-}
-
-impl TableRow<'_> for ImageLinkModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            image_id: row.next()?,
-            link_id: row.next()?,
-            type_of: ImageType::from_number(row.next()?).unwrap(),
-        })
-    }
+    pub created_at: NaiveDateTime,
 }
 
 impl NewUploadedImageModel {
     pub fn new(path: ThumbnailStore) -> Self {
         Self {
             path,
-            created_at: Utc::now(),
+            created_at: Utc::now().naive_utc(),
         }
     }
 
-    pub async fn get_or_insert(self, db: &dyn DatabaseAccess) -> Result<UploadedImageModel> {
+    pub async fn get_or_insert(self, db: &mut SqliteConnection) -> Result<UploadedImageModel> {
         if let Some(path) = self.path.as_value() {
             if let Some(value) = UploadedImageModel::get_by_path(path, db).await? {
                 Ok(value)
@@ -83,78 +61,61 @@ impl NewUploadedImageModel {
         }
     }
 
-    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<UploadedImageModel> {
+    pub async fn insert(self, db: &mut SqliteConnection) -> Result<UploadedImageModel> {
         let Some(path) = self.path.into_value() else {
             return Err(InternalError::InvalidModel.into());
         };
 
-        let conn = db.write().await;
-
-        conn.execute(
-            r#"
-            INSERT OR IGNORE INTO uploaded_images (path, created_at)
-            VALUES (?1, ?2)
-        "#,
-            params![path.as_str(), self.created_at],
-        )?;
+        let res = sqlx::query(
+            "INSERT OR IGNORE INTO uploaded_images (path, created_at) VALUES ($1, $2)"
+        )
+        .bind(&path)
+        .bind(self.created_at)
+        .execute(db).await?;
 
         Ok(UploadedImageModel {
-            id: ImageId::from(conn.last_insert_rowid() as usize),
+            id: ImageId::from(res.last_insert_rowid()),
             path: ThumbnailStore::Path(path),
             created_at: self.created_at,
         })
     }
 
-    pub async fn path_exists(path: &str, db: &dyn DatabaseAccess) -> Result<bool> {
-        Ok(db.read().await.query_row(
-            "SELECT COUNT(*) FROM uploaded_images WHERE path = ?1",
-            [path],
-            |v| Ok(v.get::<_, usize>(0)? != 0),
-        )?)
+    pub async fn path_exists(path: &str, db: &mut SqliteConnection) -> Result<bool> {
+        Ok(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM uploaded_images WHERE path = $1").bind(path).fetch_one(db).await? != 0)
     }
 }
 
 impl UploadedImageModel {
-    pub async fn get_by_path(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM uploaded_images WHERE path = ?1"#,
-                [value],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+    pub async fn get_by_path(value: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT * FROM uploaded_images WHERE path = $1"
+        ).bind(value).fetch_optional(db).await?)
     }
 
-    pub async fn get_by_id(value: ImageId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM uploaded_images WHERE id = ?1"#,
-                [value],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+    pub async fn get_by_id(id: ImageId, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT * FROM uploaded_images WHERE id = $1"
+        ).bind(id).fetch_optional(db).await?)
     }
 
-    pub async fn remove(
-        link_id: BookId,
-        path: ThumbnailStore,
-        db: &dyn DatabaseAccess,
-    ) -> Result<usize> {
-        // TODO: Check for currently set images
-        // TODO: Remove image links.
-        if let Some(path) = path.into_value() {
-            Ok(db.write().await.execute(
-                r#"DELETE FROM uploaded_images WHERE link_id = ?1 AND path = ?2"#,
-                params![link_id, path,],
-            )?)
-        } else {
-            Ok(0)
-        }
-    }
+    // pub async fn remove(
+    //     link_id: BookId,
+    //     path: ThumbnailStore,
+    //     db: &mut SqliteConnection,
+    // ) -> Result<usize> {
+    //     // TODO: Check for currently set images
+    //     // TODO: Remove image links.
+    //     if let Some(path) = path.into_value() {
+    //         let res = sqlx::query!(
+    //             "DELETE FROM uploaded_images WHERE link_id = $1 AND path = $2",
+    //             link_id, path
+    //         ).execute(db).await?;
+
+    //         Ok(res.rows_affected())
+    //     } else {
+    //         Ok(0)
+    //     }
+    // }
 }
 
 impl ImageLinkModel {
@@ -174,61 +135,43 @@ impl ImageLinkModel {
         }
     }
 
-    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<()> {
-        let conn = db.write().await;
-
-        conn.execute(
-            r#"
-            INSERT OR IGNORE INTO image_link (image_id, link_id, type_of)
-            VALUES (?1, ?2, ?3)
-        "#,
-            params![
-                self.image_id.to_string(),
-                self.link_id.to_string(),
-                self.type_of.as_num()
-            ],
-        )?;
+    pub async fn insert(&self, db: &mut SqliteConnection) -> Result<()> {
+        sqlx::query(
+            "INSERT OR IGNORE INTO image_link (image_id, link_id, type_of) VALUES ($1, $2, $3)",
+        )
+        .bind(self.image_id)
+        .bind(self.link_id)
+        .bind(self.type_of)
+        .execute(db).await?;
 
         Ok(())
     }
 
-    pub async fn delete(self, db: &dyn DatabaseAccess) -> Result<()> {
-        db.write().await.execute(
-            r#"DELETE FROM image_link WHERE image_id = ?1 AND link_id = ?2 AND type_of = ?3"#,
-            params![self.image_id, self.link_id, self.type_of.as_num(),],
-        )?;
+    pub async fn delete(self, db: &mut SqliteConnection) -> Result<()> {
+        sqlx::query(
+            "DELETE FROM image_link WHERE image_id = $1 AND link_id = $2 AND type_of = $3"
+        )
+        .bind(self.image_id)
+        .bind(self.link_id)
+        .bind(self.type_of)
+        .execute(db).await?;
 
         Ok(())
     }
 
     // TODO: Place into ImageWithLink struct?
     pub async fn find_with_link_by_link_id(
-        id: usize,
+        id: i64,
         type_of: ImageType,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Vec<ImageWithLink>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare(
-            r#"
-            SELECT image_link.*, uploaded_images.path, uploaded_images.created_at
-            FROM image_link
-            INNER JOIN uploaded_images
-                ON uploaded_images.id = image_link.image_id
-            WHERE link_id = ?1 AND type_of = ?2
-        "#,
-        )?;
-
-        let map = conn.query_map(params![id, type_of.as_num()], |row| {
-            Ok(ImageWithLink {
-                image_id: row.get(0)?,
-                link_id: row.get(1)?,
-                type_of: ImageType::from_number(row.get(2)?).unwrap(),
-                path: ThumbnailStore::from(row.get::<_, String>(3)?),
-                created_at: row.get(4)?,
-            })
-        })?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+        Ok(sqlx::query_as(
+            r#"SELECT image_link.*, uploaded_images.path, uploaded_images.created_at
+                FROM image_link
+                INNER JOIN uploaded_images
+                    ON uploaded_images.id = image_link.image_id
+                WHERE link_id = $1 AND type_of = $2
+            "#
+        ).bind(id).bind(type_of).fetch_all(db).await?)
     }
 }

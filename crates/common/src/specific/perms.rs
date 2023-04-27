@@ -2,17 +2,15 @@ use bitflags::bitflags;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(feature = "backend")]
-use rusqlite::{
-    types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
-    Result,
-};
+use sqlx::{Decode, Encode, Sqlite, sqlite::{SqliteArgumentValue, SqliteValueRef}, encode::IsNull, error::BoxDynError, Type};
+
 
 bitflags! {
     #[derive(Serialize, Deserialize)]
-    pub struct GroupPermissions: u64 {
-        const OWNER             = 1 << 0;
-        const BASIC             = 1 << 1;
-        const GUEST             = 1 << 2;
+    pub struct GroupPermissions: i64 {
+        const OWNER = 1 << 0;
+        const BASIC = 1 << 1;
+        const GUEST = 1 << 2;
     }
 }
 
@@ -69,24 +67,43 @@ impl Permissions {
 }
 
 #[cfg(feature = "backend")]
-impl FromSql for Permissions {
-    #[inline]
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let val = String::column_result(value)?;
+impl From<i64> for Permissions {
+    fn from(value: i64) -> Self {
+        Self {
+            group: GroupPermissions {
+                bits: value
+            }
+        }
+    }
+}
+
+#[cfg(feature = "backend")]
+impl<'q> Encode<'q, Sqlite> for Permissions {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Int64(self.group.bits));
+
+        IsNull::No
+    }
+}
+
+#[cfg(feature = "backend")]
+impl<'r> Decode<'r, Sqlite> for Permissions {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        let val = <i64 as Decode<'r, Sqlite>>::decode(value)?;
 
         Ok(Self {
             group: GroupPermissions {
-                bits: val.parse().unwrap(),
-            },
+                bits: val
+            }
         })
     }
 }
 
 #[cfg(feature = "backend")]
-impl ToSql for Permissions {
-    #[inline]
-    fn to_sql(&self) -> Result<ToSqlOutput<'_>> {
-        Ok((self.group.bits as i64).into())
+impl Type<Sqlite> for Permissions {
+    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+        // TODO: Why does it require i32 instead of i64
+        <i32 as Type<Sqlite>>::type_info()
     }
 }
 
@@ -97,7 +114,7 @@ impl<'de> Deserialize<'de> for Permissions {
     {
         Ok(Self {
             group: GroupPermissions {
-                bits: u64::deserialize(deserializer)?,
+                bits: i64::deserialize(deserializer)?,
             },
         })
     }

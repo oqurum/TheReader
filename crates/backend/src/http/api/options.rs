@@ -5,7 +5,7 @@ use common_local::{api, util::take_from_and_swap, LibraryColl};
 
 use crate::{
     config::{get_config, save_config, update_config},
-    database::Database,
+    SqlPool,
     http::{JsonResponse, MemberCookie},
     model::{
         DirectoryModel,
@@ -17,12 +17,12 @@ use crate::{
 #[get("/options")]
 async fn load_options(
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetOptionsResponse>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
-    let libraries = LibraryModel::get_all(&db.basic()).await?;
-    let mut directories = DirectoryModel::get_all(&db.basic()).await?;
+    let libraries = LibraryModel::get_all(&mut *db.acquire().await?).await?;
+    let mut directories = DirectoryModel::get_all(&mut *db.acquire().await?).await?;
 
     Ok(web::Json(WrappingResponse::okay(api::GetOptionsResponse {
         libraries: libraries
@@ -59,9 +59,9 @@ async fn load_options(
 async fn update_options_add(
     modify: web::Json<api::ModifyOptionsBody>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -81,11 +81,11 @@ async fn update_options_add(
                 is_public: library.is_public,
                 settings: library.settings,
 
-                created_at: Utc::now(),
-                scanned_at: Utc::now(),
-                updated_at: Utc::now(),
+                created_at: Utc::now().naive_utc(),
+                scanned_at: Utc::now().naive_utc(),
+                updated_at: Utc::now().naive_utc(),
             }
-            .insert(&db.basic())
+            .insert(&mut *db.acquire().await?)
             .await?;
 
             // TODO: Properly handle.
@@ -102,7 +102,7 @@ async fn update_options_add(
             // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
             for path in directories {
                 DirectoryModel { library_id, path }
-                    .insert(&db.basic())
+                    .insert(&mut *db.acquire().await?)
                     .await?;
             }
         }
@@ -125,9 +125,9 @@ async fn update_options_add(
 async fn update_options_remove(
     modify: web::Json<api::ModifyOptionsBody>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Err(ApiErrorResponse::new("Not owner").into());
@@ -137,12 +137,12 @@ async fn update_options_remove(
 
     if let Some(library) = library {
         if let Some(id) = library.id {
-            LibraryModel::delete_by_id(id, &db.basic()).await?;
+            LibraryModel::delete_by_id(id, &mut *db.acquire().await?).await?;
         }
 
         if let Some(directory) = library.directories {
             for path in directory {
-                DirectoryModel::remove_by_path(&path, &db.basic()).await?;
+                DirectoryModel::remove_by_path(&path, &mut *db.acquire().await?).await?;
             }
         }
     }

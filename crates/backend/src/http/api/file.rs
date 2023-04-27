@@ -10,11 +10,10 @@ use common_local::{api, Chapter, FileId, Progression};
 use reqwest::header::HeaderValue;
 use tracing::error;
 
-use crate::database::Database;
 use crate::http::{JsonResponse, MemberCookie};
 use crate::model::FileModel;
 use crate::model::FileProgressionModel;
-use crate::{Result, WebResult};
+use crate::{Result, WebResult, SqlPool};
 
 const BOOK_STYLING: &str = include_str!("../../../../../app/book_stylings.css");
 
@@ -24,11 +23,11 @@ const BOOK_STYLING: &str = include_str!("../../../../../app/book_stylings.css");
 pub async fn load_file_resource(
     path: web::Path<(FileId, String)>,
     res: web::Query<api::LoadResourceQuery>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<HttpResponse> {
     let (file_id, resource_path) = path.into_inner();
 
-    let file = FileModel::find_one_by_id(file_id, &db.basic())
+    let file = FileModel::find_one_by_id(file_id, &mut *db.acquire().await?)
         .await?
         .unwrap();
 
@@ -75,11 +74,11 @@ pub async fn load_file_resource(
 #[get("/file/{id}/pages/{pages}")]
 pub async fn load_file_pages(
     path: web::Path<(FileId, String)>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetFilePagesByIdResponse>> {
     let (file_id, chapters) = path.into_inner();
 
-    let file = FileModel::find_one_by_id(file_id, &db.basic())
+    let file = FileModel::find_one_by_id(file_id, &mut *db.acquire().await?)
         .await?
         .unwrap();
 
@@ -174,12 +173,12 @@ pub async fn load_file_pages(
 pub async fn load_file(
     member: MemberCookie,
     file_id: web::Path<FileId>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<Option<api::GetFileByIdResponse>>> {
     Ok(web::Json(WrappingResponse::okay(
-        if let Some(file) = FileModel::find_one_by_id(*file_id, &db.basic()).await? {
+        if let Some(file) = FileModel::find_one_by_id(*file_id, &mut *db.acquire().await?).await? {
             Some(api::GetFileByIdResponse {
-                progress: FileProgressionModel::find_one(member.member_id(), *file_id, &db.basic())
+                progress: FileProgressionModel::find_one(member.member_id(), *file_id, &mut *db.acquire().await?)
                     .await?
                     .map(|v| v.into()),
 
@@ -194,9 +193,9 @@ pub async fn load_file(
 #[get("/file/{id}/download")]
 pub async fn download_file(
     file_id: web::Path<FileId>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<NamedFile> {
-    let file_model = FileModel::find_one_by_id(*file_id, &db.basic())
+    let file_model = FileModel::find_one_by_id(*file_id, &mut *db.acquire().await?)
         .await?
         .ok_or(crate::Error::Internal(crate::InternalError::ItemMissing))?;
 
@@ -215,9 +214,9 @@ pub async fn download_file(
 #[get("/file/{id}/debug/{tail:.*}")]
 pub async fn load_file_debug(
     web_path: web::Path<(FileId, String)>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<HttpResponse> {
-    if let Some(file) = FileModel::find_one_by_id(web_path.0, &db.basic()).await? {
+    if let Some(file) = FileModel::find_one_by_id(web_path.0, &mut *db.acquire().await?).await? {
         if web_path.1.is_empty() {
             let book = bookie::load_from_path(&file.path)?.unwrap();
 
@@ -245,19 +244,19 @@ pub async fn progress_file_add(
     file_id: web::Path<FileId>,
     body: web::Json<Progression>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    if let Some(book_id) = FileModel::find_one_by_id(*file_id, &db.basic())
+    if let Some(book_id) = FileModel::find_one_by_id(*file_id, &mut *db.acquire().await?)
         .await?
         .and_then(|v| v.book_id)
     {
         // Check if the book already has progression. Return the progression.
         if let Some(prog) =
-            FileProgressionModel::find_one_by_book_id(member.member_id(), book_id, &db.basic())
+            FileProgressionModel::find_one_by_book_id(member.member_id(), book_id, &mut *db.acquire().await?)
                 .await?
         {
             if prog.file_id != *file_id {
-                FileProgressionModel::delete_one(prog.user_id, prog.file_id, &db.basic()).await?;
+                FileProgressionModel::delete_one(prog.user_id, prog.file_id, &mut *db.acquire().await?).await?;
             }
         }
 
@@ -266,7 +265,7 @@ pub async fn progress_file_add(
             book_id,
             *file_id,
             body.into_inner(),
-            &db.basic(),
+            &mut *db.acquire().await?,
         )
         .await?;
     }
@@ -278,8 +277,8 @@ pub async fn progress_file_add(
 pub async fn progress_file_delete(
     file_id: web::Path<FileId>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    FileProgressionModel::delete_one(member.member_id(), *file_id, &db.basic()).await?;
+    FileProgressionModel::delete_one(member.member_id(), *file_id, &mut *db.acquire().await?).await?;
     Ok(web::Json(WrappingResponse::okay("success")))
 }

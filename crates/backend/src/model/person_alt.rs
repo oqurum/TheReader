@@ -1,70 +1,55 @@
 use common::PersonId;
-use rusqlite::{params, OptionalExtension};
+use sqlx::{FromRow, SqliteConnection};
 
-use crate::{DatabaseAccess, Result};
+use crate::{SqlConnection, Result};
 use serde::Serialize;
 
-use super::{AdvRow, TableRow};
-
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct PersonAltModel {
     pub person_id: PersonId,
     pub name: String,
 }
 
-impl TableRow<'_> for PersonAltModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            person_id: row.next()?,
-            name: row.next()?,
-        })
-    }
-}
-
 impl PersonAltModel {
-    pub async fn insert(&self, db: &dyn DatabaseAccess) -> Result<()> {
-        db.write().await.execute(
-            r#"INSERT INTO tag_person_alt (name, person_id) VALUES (?1, ?2)"#,
-            params![&self.name, &self.person_id],
-        )?;
+    pub async fn insert(&self, db: &mut SqliteConnection) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO tag_person_alt (name, person_id) VALUES ($1, $2)"
+        ).bind(&self.name).bind(self.person_id).execute(db).await?;
 
         Ok(())
     }
 
-    pub async fn find_one_by_name(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM tag_person_alt WHERE name = ?1"#,
-                params![value],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+    pub async fn find_one_by_name(value: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT * FROM tag_person_alt WHERE name = $1"
+        ).bind(value).fetch_optional(db).await?)
     }
 
-    pub async fn delete(&self, db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"DELETE FROM tag_person_alt WHERE name = ?1 AND person_id = ?2"#,
-            params![&self.name, &self.person_id],
-        )?)
+    pub async fn delete(&self, db: &mut SqliteConnection) -> Result<u64> {
+        let res = sqlx::query(
+            "DELETE FROM tag_person_alt WHERE name = $1 AND person_id = $2"
+        ).bind(&self.name).bind(self.person_id).execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 
-    pub async fn delete_by_id(id: PersonId, db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"DELETE FROM tag_person_alt WHERE person_id = ?1"#,
-            params![id],
-        )?)
+    pub async fn delete_by_id(id: PersonId, db: &mut SqliteConnection) -> Result<u64> {
+        let res = sqlx::query(
+            "DELETE FROM tag_person_alt WHERE person_id = $1"
+        ).bind(id).execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 
     pub async fn transfer_or_ignore(
         from_id: PersonId,
         to_id: PersonId,
-        db: &dyn DatabaseAccess,
-    ) -> Result<usize> {
-        Ok(db.write().await.execute(
-            r#"UPDATE OR IGNORE tag_person_alt SET person_id = ?2 WHERE person_id = ?1"#,
-            params![from_id, to_id],
-        )?)
+        db: &mut SqliteConnection,
+    ) -> Result<u64> {
+        let res = sqlx::query(
+            "UPDATE OR IGNORE tag_person_alt SET person_id = $2 WHERE person_id = $1"
+        ).bind(from_id).bind(to_id).execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 }

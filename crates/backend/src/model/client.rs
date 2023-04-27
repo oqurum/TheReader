@@ -2,15 +2,13 @@
 //!
 //! References by AuthModel.
 
-use chrono::{DateTime, Utc};
+use chrono::{Utc, NaiveDateTime};
 use common::{ClientId};
 use lazy_static::lazy_static;
-use rusqlite::{params, OptionalExtension};
+use sqlx::{FromRow, SqliteConnection};
 use uaparser::{Parser, UserAgentParser};
 
-use crate::{DatabaseAccess, Result, http::gen_sample_alphanumeric};
-
-use super::{AdvRow, TableRow};
+use crate::{Result, http::gen_sample_alphanumeric};
 
 lazy_static! {
     static ref USER_AGENT_PARSER: UserAgentParser = UserAgentParser::from_bytes(include_bytes!("../../../../app/user_agents.yaml")).expect("User Agent Parsing");
@@ -30,6 +28,7 @@ pub struct NewClientModel {
     pub platform: Option<String>,
 }
 
+#[derive(FromRow)]
 pub struct ClientModel {
     pub id: ClientId,
 
@@ -46,26 +45,8 @@ pub struct ClientModel {
     /// Platform Name (egg. Windows 11)
     pub platform: Option<String>,
 
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-impl TableRow<'_> for ClientModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.next()?,
-
-            oauth: row.next()?,
-            identifier: row.next()?,
-
-            client: row.next()?,
-            device: row.next()?,
-            platform: row.next_opt()?,
-
-            created_at: row.next()?,
-            updated_at: row.next()?,
-        })
-    }
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl NewClientModel {
@@ -92,30 +73,26 @@ impl NewClientModel {
         }
     }
 
-    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<ClientModel> {
-        let now = Utc::now();
+    pub async fn insert(self, db: &mut SqliteConnection) -> Result<ClientModel> {
+        let now = Utc::now().naive_utc();
 
         let mut rng = rand::thread_rng();
         let identifier = gen_sample_alphanumeric(32, &mut rng);
         // TODO: Ensure identifier doesn't already exist.
 
-        let writer = db.write().await;
-
-        writer.execute(
-            "INSERT INTO client (oauth, identifier, client, device, platform, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                &self.oauth,
-                &identifier,
-                &self.client,
-                &self.device,
-                &self.platform,
-                now,
-                now,
-            ],
-        )?;
+        let res = sqlx::query(
+            "INSERT INTO client (oauth, identifier, client, device, platform, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)",
+        )
+        .bind(&self.oauth)
+        .bind(&identifier)
+        .bind(&self.client)
+        .bind(&self.device)
+        .bind(&self.platform)
+        .bind(now)
+        .execute(db).await?;
 
         Ok(ClientModel {
-            id: ClientId::from(writer.last_insert_rowid() as usize),
+            id: ClientId::from(res.last_insert_rowid()),
             identifier,
             oauth: self.oauth,
             client: self.client,
@@ -128,27 +105,7 @@ impl NewClientModel {
 }
 
 impl ClientModel {
-    pub async fn find_by_token(token: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .write()
-            .await
-            .query_row(
-                "SELECT * FROM client WHERE oauth_token = ?1",
-                [token],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
-    }
-
-    pub async fn find_by_token_secret(token: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .write()
-            .await
-            .query_row(
-                "SELECT * FROM client WHERE oauth_token_secret = ?1",
-                [token],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+    pub async fn find_by_token_secret(token: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as("SELECT * FROM client WHERE oauth = $1").bind(token).fetch_optional(db).await?)
     }
 }

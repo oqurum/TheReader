@@ -1,10 +1,12 @@
+use sqlx::{Executor, Row};
+
 use crate::Result;
 
-use super::Database;
+use super::SqlPool;
 
 mod current;
 
-pub async fn start_initiation(database: &Database) -> Result<()> {
+pub async fn start_initiation(database: &SqlPool) -> Result<()> {
     if does_migration_table_exist(database).await? {
         // TODO: Handle Migrations
     } else {
@@ -14,14 +16,10 @@ pub async fn start_initiation(database: &Database) -> Result<()> {
     Ok(())
 }
 
-async fn does_migration_table_exist(database: &Database) -> Result<bool> {
-    let read = database.read().await;
+async fn does_migration_table_exist(database: &SqlPool) -> Result<bool> {
+    let mut read = database.acquire().await?;
 
-    Ok(read.query_row(
-        r#"SELECT EXISTS(SELECT * from sqlite_master WHERE type = "table" AND name = "migration")"#,
-        [],
-        |v| v.get::<_, bool>(0),
-    )?)
+    Ok(sqlx::query(r#"SELECT EXISTS(SELECT * from sqlite_master WHERE type = "table" AND name = "migration")"#).fetch_one(&mut *read).await?.try_get(0)?)
 }
 
 // struct MigrationModel {

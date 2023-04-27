@@ -18,7 +18,7 @@ use crate::{
         get_config, is_setup as iss_setup, save_config, update_config, CONFIG_FILE, CONFIG_PATH,
         IS_SETUP,
     },
-    database::Database,
+    SqlPool,
     http::{passwordless::test_connection, JsonResponse, MemberCookie},
     model::{
         AuthModel,
@@ -31,7 +31,7 @@ use crate::{
 #[get("/settings")]
 pub async fn get_server_settings(
     _member: Option<MemberCookie>,
-    // db: web::Data<Database>,
+    // db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<PublicServerSettings>> {
     let config = get_config();
 
@@ -46,11 +46,11 @@ pub async fn get_server_settings(
 #[get("/setup")]
 pub async fn get_configg(
     member: Option<MemberCookie>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetSetupResponse>> {
     if iss_setup() {
         if let Some(member) = member.as_ref() {
-            let member = member.fetch_or_error(&db.basic()).await?;
+            let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
             if !member.permissions.is_owner() {
                 return Err(ApiErrorResponse::new("Not owner").into());
@@ -72,10 +72,10 @@ pub async fn get_configg(
 pub async fn save_initial_setup(
     body: web::Json<SetupConfig>,
     member: Option<MemberCookie>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<String>> {
     if let Some(member) = member {
-        let member = member.fetch_or_error(&db.basic()).await?;
+        let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
         if !member.permissions.is_owner() {
             return Err(ApiErrorResponse::new("Not owner").into());
@@ -97,7 +97,7 @@ pub async fn save_initial_setup(
         return Ok(web::Json(WrappingResponse::error("Invalid Server Name")));
     }
 
-    let mut library_count = LibraryModel::count(&db.basic()).await?;
+    let mut library_count = LibraryModel::count(&mut *db.acquire().await?).await?;
 
     for path in &config.directories {
         if tokio::fs::metadata(path).await.is_err() {
@@ -106,7 +106,7 @@ pub async fn save_initial_setup(
             ))));
         }
 
-        let now = Utc::now();
+        let now = Utc::now().naive_utc();
 
         let lib = NewLibraryModel {
             name: format!("New Library #{library_count}"),
@@ -119,7 +119,7 @@ pub async fn save_initial_setup(
             scanned_at: now,
             updated_at: now,
         }
-        .insert(&db.basic())
+        .insert(&mut *db.acquire().await?)
         .await?;
 
         // TODO: Don't trust that the path is correct. Also remove slashes at the end of path.
@@ -128,7 +128,7 @@ pub async fn save_initial_setup(
             library_id: lib.id,
             path: path.clone(),
         }
-        .insert(&db.basic())
+        .insert(&mut *db.acquire().await?)
         .await?;
 
         crate::task::queue_task(crate::task::TaskLibraryScan { library_id: lib.id });
@@ -150,9 +150,9 @@ pub async fn save_initial_setup(
 pub async fn post_setup_agent(
     req: HttpRequest,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<HttpResponse> {
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Ok(HttpResponse::NotAcceptable().body("Not owner"));
@@ -184,7 +184,7 @@ pub async fn post_setup_agent(
 
     // TODO: Should I store it in AuthModel?
     let auth_model = AuthModel::new(None);
-    auth_model.insert(&db.basic()).await?;
+    auth_model.insert(&mut *db.acquire().await?).await?;
 
     let mut location_uri = Url::parse(&config.libby.url).unwrap();
     location_uri.set_path("authorize");
@@ -209,10 +209,10 @@ pub async fn post_setup_agent(
 pub async fn get_setup_agent_verify(
     query: QsQuery<VerifyAgentQuery>,
     member: MemberCookie,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<HttpResponse> {
     let query = query.into_inner();
-    let member = member.fetch_or_error(&db.basic()).await?;
+    let member = member.fetch_or_error(&mut *db.acquire().await?).await?;
 
     if !member.permissions.is_owner() {
         return Ok(HttpResponse::NotAcceptable().body("Not owner"));
@@ -225,8 +225,8 @@ pub async fn get_setup_agent_verify(
     }
 
     // TODO: Somehow validate that the `auth_model` secret is the same as when we initiated the request.
-    if let Some(auth_model) = AuthModel::find_by_token(&query.state, &db.basic()).await? {
-        AuthModel::remove_by_token_secret(&auth_model.oauth_token_secret, &db.basic()).await?;
+    if let Some(auth_model) = AuthModel::find_by_token(&query.state, &mut *db.acquire().await?).await? {
+        AuthModel::remove_by_token_secret(&auth_model.oauth_token_secret, &mut *db.acquire().await?).await?;
 
         let mut location_uri = Url::parse(&config.libby.url).unwrap();
         location_uri.set_path("auth/handshake");

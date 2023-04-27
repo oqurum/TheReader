@@ -5,12 +5,6 @@ use std::{
     str::FromStr,
 };
 
-#[cfg(feature = "backend")]
-use rusqlite::{
-    types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
-    Result,
-};
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use common::create_single_id;

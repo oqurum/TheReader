@@ -252,8 +252,8 @@ pub async fn search_for(
 
 pub async fn get_books(
     library: Option<LibraryId>,
-    offset: Option<usize>,
-    limit: Option<usize>,
+    offset: Option<i64>,
+    limit: Option<i64>,
     search: Option<FilterContainer>,
 ) -> WrappingResponse<ApiGetBookListResponse> {
     let url = format!(
@@ -267,8 +267,8 @@ pub async fn get_books(
 }
 
 pub async fn get_books_preset(
-    offset: Option<usize>,
-    limit: Option<usize>,
+    offset: Option<i64>,
+    limit: Option<i64>,
     preset: BookPresetListType,
 ) -> WrappingResponse<ApiGetBookPresetListResponse> {
     let url = format!(

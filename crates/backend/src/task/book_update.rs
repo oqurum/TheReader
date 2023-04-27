@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use chrono::Utc;
 use common::{BookId, Source};
 use common_local::{LibraryId, ws::{WebsocketNotification, TaskType, TaskId}, SearchFor, SearchForBooksBy, filter::FilterContainer};
+use sqlx::SqliteConnection;
 use tracing::info;
 
-use crate::{DatabaseAccess, Result, metadata::{ActiveAgents, get_metadata_by_source, search_and_return_first_valid_agent, SearchItem, MetadataReturned, get_metadata_from_files, search_all_agents}, model::{BookModel, NewBookModel, FileModel, BookPersonModel, UploadedImageModel, ImageLinkModel}, http::send_message_to_clients, sort_by_similarity, Task};
+use crate::{Result, metadata::{ActiveAgents, get_metadata_by_source, search_and_return_first_valid_agent, SearchItem, MetadataReturned, get_metadata_from_files, search_all_agents}, model::{BookModel, NewBookModel, FileModel, BookPersonModel, UploadedImageModel, ImageLinkModel}, http::send_message_to_clients, sort_by_similarity, Task, SqlPool};
 
 
 #[derive(Clone)]
@@ -47,7 +48,9 @@ impl TaskUpdateInvalidBook {
 
 #[async_trait]
 impl Task for TaskUpdateInvalidBook {
-    async fn run(&mut self, task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()> {
+    async fn run(&mut self, task_id: TaskId, pool: &SqlPool) -> Result<()> {
+        let db = &mut *pool.acquire().await?;
+
         match self.state.clone() {
             UpdatingBook::UnMatch(book_id) => {
                 info!(id = ?book_id, "Unmatching Book By Id");
@@ -202,7 +205,7 @@ impl Task for TaskUpdateInvalidBook {
                             // Update new meta file count
                             BookModel::set_file_count(
                                 book_item.id,
-                                book_item.file_item_count as usize + changed_files,
+                                book_item.file_item_count + changed_files as i64,
                                 db,
                             )
                             .await?;
@@ -261,17 +264,17 @@ impl Task for TaskUpdateInvalidBook {
                                 }
 
                                 current_book.original_title = new_book.original_title;
-                                current_book.refreshed_at = Utc::now();
-                                current_book.updated_at = Utc::now();
+                                current_book.refreshed_at = Utc::now().naive_utc();
+                                current_book.updated_at = Utc::now().naive_utc();
 
                                 // No old thumb, but we have an new one. Set new one as old one.
-                                if current_book.thumb_path.is_none()
-                                    && new_book.thumb_path.is_some()
+                                if current_book.thumb_url.is_none()
+                                    && new_book.thumb_url.is_some()
                                 {
-                                    current_book.thumb_path = new_book.thumb_path;
+                                    current_book.thumb_url = new_book.thumb_url;
                                 }
 
-                                if let Some(thumb_path) = current_book.thumb_path.as_value() {
+                                if let Some(thumb_path) = current_book.thumb_url.as_value() {
                                     if let Some(image) =
                                         UploadedImageModel::get_by_path(thumb_path, db).await?
                                     {
@@ -342,15 +345,15 @@ impl Task for TaskUpdateInvalidBook {
                             }
 
                             // No new thumb, but we have an old one. Set old one as new one.
-                            if book.thumb_path.is_none() && old_book.thumb_path.is_some() {
-                                book.thumb_path = old_book.thumb_path;
+                            if book.thumb_url.is_none() && old_book.thumb_url.is_some() {
+                                book.thumb_url = old_book.thumb_url;
                             }
 
                             if book.description.is_none() {
                                 book.description = old_book.description;
                             }
 
-                            if let Some(thumb_path) = book.thumb_path.as_value() {
+                            if let Some(thumb_path) = book.thumb_url.as_value() {
                                 if let Some(image) =
                                     UploadedImageModel::get_by_path(thumb_path, db).await?
                                 {
@@ -393,11 +396,11 @@ impl Task for TaskUpdateInvalidBook {
                     openlib: false,
                 };
 
-                const LIMIT: usize = 100;
+                const LIMIT: i64 = 100;
 
                 let amount =
                     BookModel::count_search_by(&FilterContainer::default(), Some(library_id), db)
-                        .await?;
+                        .await? as i64;
                 let mut offset = 0;
 
                 while offset < amount {
@@ -406,7 +409,7 @@ impl Task for TaskUpdateInvalidBook {
 
                     for book in books {
                         if Utc::now()
-                            .signed_duration_since(book.refreshed_at)
+                            .signed_duration_since(book.refreshed_at.and_local_timezone(Utc).unwrap())
                             .num_days()
                             > 7
                         {
@@ -451,7 +454,7 @@ impl TaskUpdateInvalidBook {
     async fn return_found_metadata_by_files(
         book_model: &BookModel,
         agent: &ActiveAgents,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Option<MetadataReturned>> {
         let files = FileModel::find_by_book_id(book_model.id, db).await?;
 
@@ -505,7 +508,7 @@ impl TaskUpdateInvalidBook {
     async fn update_book_by_files(
         curr_book_model: BookModel,
         agent: &ActiveAgents,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<()> {
         // Check Files first.
         let found_meta = Self::return_found_metadata_by_files(&curr_book_model, agent, db).await?;
@@ -524,7 +527,7 @@ impl TaskUpdateInvalidBook {
 async fn overwrite_book_with_new_metadata(
     mut curr_book_model: BookModel,
     mut metadata: MetadataReturned,
-    db: &dyn DatabaseAccess,
+    db: &mut SqliteConnection,
 ) -> Result<()> {
     let (main_author, author_ids) = metadata.add_or_ignore_authors_into_database(db).await?;
 
@@ -568,8 +571,8 @@ async fn overwrite_book_with_new_metadata(
         }
 
         // No new thumb, but we have an old one. Set old one as new one.
-        if new_book_model.thumb_path.is_none() && curr_book_model.thumb_path.is_some() {
-            new_book_model.thumb_path = curr_book_model.thumb_path;
+        if new_book_model.thumb_url.is_none() && curr_book_model.thumb_url.is_some() {
+            new_book_model.thumb_url = curr_book_model.thumb_url;
         }
 
         if new_book_model.description.is_none() {
@@ -580,7 +583,7 @@ async fn overwrite_book_with_new_metadata(
     // TODO: Only if book exists and IS the same source.
     new_book_model.created_at = curr_book_model.created_at;
 
-    if let Some(thumb_path) = new_book_model.thumb_path.as_value() {
+    if let Some(thumb_path) = new_book_model.thumb_url.as_value() {
         if let Some(image) = UploadedImageModel::get_by_path(thumb_path, db).await? {
             ImageLinkModel::new_book(image.id, new_book_model.id)
                 .insert(db)
@@ -588,7 +591,7 @@ async fn overwrite_book_with_new_metadata(
         }
     }
 
-    new_book_model.refreshed_at = Utc::now();
+    new_book_model.refreshed_at = Utc::now().naive_utc();
 
     new_book_model.update(db).await?;
 

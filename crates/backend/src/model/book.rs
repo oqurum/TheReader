@@ -1,15 +1,15 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, NaiveDateTime};
 use common::{BookId, PersonId, Source, ThumbnailStore};
-use rusqlite::{params, OptionalExtension};
+use sqlx::{FromRow, SqliteConnection};
 
-use crate::{DatabaseAccess, Result, config::get_config};
+use crate::{Result, config::get_config};
 use common_local::{
     filter::{FilterContainer, FilterModifier, FilterTableType},
     BookEdit, BookItemCached, DisplayBookItem, LibraryId, BookType,
 };
 use serde::Serialize;
 
-use super::{book_person::BookPersonModel, AdvRow, TableRow};
+use super::book_person::BookPersonModel;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NewBookModel {
@@ -25,25 +25,23 @@ pub struct NewBookModel {
     pub description: Option<String>,
     pub rating: f64,
 
-    pub thumb_path: ThumbnailStore,
-    pub all_thumb_urls: Vec<String>,
+    pub thumb_url: ThumbnailStore,
+    // pub all_thumb_urls: Vec<String>,
 
     // TODO: Make table for all tags. Include publisher in it. Remove country.
     pub cached: BookItemCached,
     pub index: Option<i64>,
 
-    pub refreshed_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
+    pub refreshed_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub deleted_at: Option<NaiveDateTime>,
 
-    pub available_at: Option<DateTime<Utc>>,
+    pub available_at: Option<NaiveDateTime>,
     pub year: Option<i64>,
 }
 
-
-
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct BookModel {
     pub id: BookId,
 
@@ -59,19 +57,19 @@ pub struct BookModel {
     pub description: Option<String>,
     pub rating: f64,
 
-    pub thumb_path: ThumbnailStore,
-    pub all_thumb_urls: Vec<String>,
+    pub thumb_url: ThumbnailStore,
+    // pub all_thumb_urls: Vec<String>,
 
     // TODO: Make table for all tags. Include publisher in it. Remove country.
     pub cached: BookItemCached,
     pub index: Option<i64>,
 
-    pub refreshed_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub deleted_at: Option<DateTime<Utc>>,
+    pub refreshed_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub deleted_at: Option<NaiveDateTime>,
 
-    pub available_at: Option<DateTime<Utc>>,
+    pub available_at: Option<NaiveDateTime>,
     pub year: Option<i64>,
 }
 
@@ -104,7 +102,7 @@ impl From<BookModel> for DisplayBookItem {
             original_title: val.original_title,
             description: val.description,
             rating: val.rating,
-            thumb_path: val.thumb_path,
+            thumb_path: val.thumb_url,
             cached: val.cached,
             refreshed_at: val.refreshed_at,
             created_at: val.created_at,
@@ -116,36 +114,6 @@ impl From<BookModel> for DisplayBookItem {
     }
 }
 
-impl TableRow<'_> for BookModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.next()?,
-            library_id: row.next()?,
-            type_of: BookType::try_from(row.next::<i32>()?).unwrap(),
-            parent_id: row.next_opt()?,
-            source: Source::try_from(row.next::<String>()?).unwrap(),
-            file_item_count: row.next()?,
-            title: row.next()?,
-            original_title: row.next()?,
-            description: row.next()?,
-            rating: row.next()?,
-            thumb_path: ThumbnailStore::from(row.next_opt::<String>()?),
-            all_thumb_urls: Vec::new(),
-            cached: row
-                .next_opt::<String>()?
-                .map(BookItemCached::from_string)
-                .unwrap_or_default(),
-            index: row.next_opt()?,
-            available_at: row.next()?,
-            year: row.next()?,
-            refreshed_at: row.next()?,
-            created_at: row.next()?,
-            updated_at: row.next()?,
-            deleted_at: row.next_opt()?,
-        })
-    }
-}
-
 impl NewBookModel {
     pub fn new_section(
         is_prologue: bool,
@@ -153,7 +121,7 @@ impl NewBookModel {
         parent_id: BookId,
         source: Source,
     ) -> Self {
-        let now = Utc::now();
+        let now = Utc::now().naive_utc();
 
         Self {
             library_id,
@@ -165,8 +133,7 @@ impl NewBookModel {
             original_title: None,
             description: None,
             rating: 0.0,
-            thumb_path: ThumbnailStore::None,
-            all_thumb_urls: Vec::new(),
+            thumb_url: ThumbnailStore::None,
             cached: BookItemCached::default(),
             index: Some(if is_prologue { 0 } else { 1 }),
             refreshed_at: now,
@@ -178,50 +145,45 @@ impl NewBookModel {
         }
     }
 
-    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<BookModel> {
-        let writer = db.write().await;
-
-        writer.execute(
-            r#"
-            INSERT INTO book (
+    pub async fn insert(self, db: &mut SqliteConnection) -> Result<BookModel> {
+        let res = sqlx::query(
+            r#"INSERT INTO book (
                 library_id, type_of, parent_id, source, file_item_count,
                 title, original_title, description, rating, thumb_url,
                 cached, "index",
                 available_at, year,
                 refreshed_at, created_at, updated_at, deleted_at
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)"#,
-            params![
-                self.library_id,
-                i32::from(self.type_of),
-                self.parent_id,
-                self.source.to_string(),
-                &self.file_item_count,
-                &self.title,
-                &self.original_title,
-                &self.description,
-                &self.rating,
-                self.thumb_path.as_value(),
-                &self.cached.as_string_optional(),
-                &self.index,
-                &self.available_at,
-                &self.year,
-                self.refreshed_at,
-                self.created_at,
-                self.updated_at,
-                self.deleted_at,
-            ],
-        )?;
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)"#
+        )
+        .bind(self.library_id)
+        .bind(self.type_of)
+        .bind(self.parent_id)
+        .bind(self.source.to_string())
+        .bind(self.file_item_count)
+        .bind(&self.title)
+        .bind(&self.original_title)
+        .bind(&self.description)
+        .bind(self.rating)
+        .bind(self.thumb_url.as_value())
+        .bind(self.cached.as_string_optional())
+        .bind(self.index)
+        .bind(self.available_at)
+        .bind(self.year)
+        .bind(self.refreshed_at)
+        .bind(self.created_at)
+        .bind(self.updated_at)
+        .bind(self.deleted_at)
+        .execute(db).await?;
 
-        Ok(self.set_id(BookId::from(writer.last_insert_rowid() as usize)))
+        Ok(self.set_id(BookId::from(res.last_insert_rowid())))
     }
 
-    pub async fn insert_or_increment(self, db: &dyn DatabaseAccess) -> Result<BookModel> {
+    pub async fn insert_or_increment(self, db: &mut SqliteConnection) -> Result<BookModel> {
         if let Some(mut table_book) = BookModel::find_one_by_source(&self.source, db).await? {
-            db.write().await.execute(
-                r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE source = ?1"#,
-                params![self.source.to_string()],
-            )?;
+            sqlx::query(
+                "UPDATE book SET file_item_count = file_item_count + 1 WHERE source = $1"
+            ).bind(&self.source).execute(db).await?;
 
             table_book.file_item_count += 1;
 
@@ -243,8 +205,8 @@ impl NewBookModel {
             original_title: self.original_title,
             description: self.description,
             rating: self.rating,
-            thumb_path: self.thumb_path,
-            all_thumb_urls: self.all_thumb_urls,
+            thumb_url: self.thumb_url,
+            // all_thumb_urls: self.all_thumb_urls,
             cached: self.cached,
             index: self.index,
             available_at: self.available_at,
@@ -258,78 +220,71 @@ impl NewBookModel {
 }
 
 impl BookModel {
-    pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
-        self.updated_at = Utc::now();
+    pub async fn update(&mut self, db: &mut SqliteConnection) -> Result<()> {
+        self.updated_at = Utc::now().naive_utc();
 
-        db.write().await.execute(
-            r#"
-            UPDATE book SET
-                library_id = ?2, source = ?3, file_item_count = ?4,
-                title = ?5, original_title = ?6, description = ?7, rating = ?8, thumb_url = ?9,
-                cached = ?10,
-                available_at = ?11, year = ?12,
-                refreshed_at = ?13, updated_at = ?14, deleted_at = ?15, type_of = ?16, parent_id = ?17, "index" = ?18
-            WHERE id = ?1"#,
-            params![
-                self.id,
-                self.library_id,
-                self.source.to_string(),
-                &self.file_item_count,
-                &self.title,
-                &self.original_title,
-                &self.description,
-                &self.rating,
-                self.thumb_path.as_value(),
-                &self.cached.as_string_optional(),
-                &self.available_at,
-                &self.year,
-                self.refreshed_at,
-                self.updated_at,
-                self.deleted_at,
-                i32::from(self.type_of),
-                self.parent_id,
-                self.index,
-            ],
-        )?;
+        sqlx::query(
+            r#"UPDATE book SET
+                library_id = $2, source = $3, file_item_count = $4,
+                title = $5, original_title = $6, description = $7, rating = $8, thumb_url = $9,
+                cached = $10,
+                available_at = $11, year = $12,
+                refreshed_at = $13, updated_at = $14, deleted_at = $15, type_of = $16, parent_id = $17, "index" = $18
+            WHERE id = $1"#
+        )
+        .bind(self.id)
+        .bind(self.library_id)
+        .bind(self.source.to_string())
+        .bind(self.file_item_count)
+        .bind(&self.title)
+        .bind(&self.original_title)
+        .bind(&self.description)
+        .bind(self.rating)
+        .bind(self.thumb_url.as_value())
+        .bind(self.cached.as_string_optional())
+        .bind(self.available_at)
+        .bind(self.year)
+        .bind(self.refreshed_at)
+        .bind(self.updated_at)
+        .bind(self.deleted_at)
+        .bind(self.type_of)
+        .bind(self.parent_id)
+        .bind(self.index)
+        .execute(db).await?;
 
         Ok(())
     }
 
-    pub async fn increment(id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
-        if let Some(model) = Self::find_one_by_id(id, db).await? {
-            db.write().await.execute(
-                r#"UPDATE book SET file_item_count = file_item_count + 1 WHERE id = ?1"#,
-                params![id],
-            )?;
-        }
+    pub async fn increment(id: BookId, db: &mut SqliteConnection) -> Result<()> {
+        sqlx::query(
+            "UPDATE book SET file_item_count = file_item_count + 1 WHERE id = $1"
+        ).bind(id).execute(db).await?;
 
         Ok(())
     }
 
-    pub async fn delete_or_decrement(id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn delete_or_decrement(id: BookId, db: &mut SqliteConnection) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count < 1 {
-                db.write().await.execute(
-                    r#"UPDATE book SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-                    params![id],
-                )?;
+                sqlx::query(
+                    "UPDATE book SET file_item_count = file_item_count - 1 WHERE id = $1"
+                ).bind(id).execute(db).await?;
             } else {
-                db.write()
-                    .await
-                    .execute(r#"DELETE FROM book WHERE id = ?1"#, params![id])?;
+                sqlx::query(
+                    "DELETE FROM book WHERE id = $1"
+                ).bind(id).execute(db).await?;
             }
         }
 
         Ok(())
     }
 
-    pub async fn decrement(id: BookId, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn decrement(id: BookId, db: &mut SqliteConnection) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count > 0 {
-                db.write().await.execute(
-                    r#"UPDATE book SET file_item_count = file_item_count - 1 WHERE id = ?1"#,
-                    params![id],
-                )?;
+                sqlx::query(
+                    "UPDATE book SET file_item_count = file_item_count - 1 WHERE id = $1"
+                ).bind(id).execute(db).await?;
             }
         }
 
@@ -338,13 +293,12 @@ impl BookModel {
 
     pub async fn set_file_count(
         id: BookId,
-        file_count: usize,
-        db: &dyn DatabaseAccess,
+        file_count: i64,
+        db: &mut SqliteConnection,
     ) -> Result<()> {
-        db.write().await.execute(
-            r#"UPDATE book SET file_item_count = ?2 WHERE id = ?1"#,
-            params![id, file_count],
-        )?;
+        sqlx::query(
+            "UPDATE book SET file_item_count = $2 WHERE id = $1"
+        ).bind(id).bind(file_count).execute(db).await?;
 
         Ok(())
     }
@@ -352,66 +306,46 @@ impl BookModel {
     // TODO: Change to get_metadata_by_hash. We shouldn't get metadata by source. Local metadata could be different with the same source id.
     pub async fn find_one_by_source(
         source: &Source,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM book WHERE source = ?1 AND (type_of = ?2 OR type_of = ?3)"#,
-                params![source.to_string(), i32::from(BookType::Book), i32::from(BookType::ComicBook)],
-                |v| BookModel::from_row(v),
-            )
-            .optional()?)
+        Ok(sqlx::query_as(
+            "SELECT id, library_id, type_of, parent_id, source, file_item_count, title, original_title, description, rating, thumb_url, cached, \"index\", refreshed_at, created_at, updated_at, deleted_at, available_at, year FROM book WHERE source = $1 AND (type_of = $2 OR type_of = $3)"
+        ).bind(source).bind(BookType::Book).bind(BookType::ComicBook).fetch_optional(db).await?)
     }
 
-    pub async fn find_one_by_id(id: BookId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(r#"SELECT * FROM book WHERE id = ?1"#, params![id], |v| {
-                BookModel::from_row(v)
-            })
-            .optional()?)
+    pub async fn find_one_by_id(id: BookId, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT id, library_id, type_of, parent_id, source, file_item_count, title, original_title, description, rating, thumb_url, cached, \"index\", refreshed_at, created_at, updated_at, deleted_at, available_at, year FROM book WHERE id = $1"
+        ).bind(id).fetch_optional(db).await?)
     }
 
-    pub async fn find_by_parent_id(id: BookId, db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
-        let mut conn = this.prepare("SELECT * FROM book WHERE parent_id = ?1")?;
-
-        let map = conn.query_map([id], |v| BookModel::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    pub async fn find_by_parent_id(id: BookId, db: &mut SqliteConnection) -> Result<Vec<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT id, library_id, type_of, parent_id, source, file_item_count, title, original_title, description, rating, thumb_url, cached, \"index\", refreshed_at, created_at, updated_at, deleted_at, available_at, year FROM book WHERE parent_id = $1"
+        ).bind(id).fetch_all(db).await?)
     }
 
-    pub async fn find_one_by_parent_id_and_index(id: BookId, index: usize, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                "SELECT * FROM book WHERE parent_id = ?1 AND \"index\" = ?2",
-                params![id, index as i32],
-                |v| BookModel::from_row(v))
-            .optional()?)
+    pub async fn find_one_by_parent_id_and_index(id: BookId, index: i64, db: &mut SqliteConnection) -> Result<Option<Self>> {
+            Ok(sqlx::query_as(
+                "SELECT id, library_id, type_of, parent_id, source, file_item_count, title, original_title, description, rating, thumb_url, cached, \"index\", refreshed_at, created_at, updated_at, deleted_at, available_at, year FROM book WHERE parent_id = $1 AND \"index\" = $2"
+            ).bind(id).bind(index).fetch_optional(db).await?)
     }
 
-    pub async fn delete_by_id(id: BookId, db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db
-            .write()
-            .await
-            .execute(r#"DELETE FROM book WHERE id = ?1"#, params![id])?)
+    pub async fn delete_by_id(id: BookId, db: &mut SqliteConnection) -> Result<u64> {
+        let res = sqlx::query(
+            "DELETE FROM book WHERE id = $1"
+        ).bind(id).execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 
     pub async fn find_by(
         library: Option<LibraryId>,
-        offset: usize,
-        limit: usize,
+        offset: i64,
+        limit: i64,
         person_id: Option<PersonId>,
-        db: &dyn DatabaseAccess,
+        db: &mut SqliteConnection,
     ) -> Result<Vec<Self>> {
-        let this = db.read().await;
-
         let insert_where = (library.is_some() || person_id.is_some())
             .then_some("WHERE")
             .unwrap_or_default();
@@ -429,50 +363,45 @@ impl BookModel {
             })
             .unwrap_or_default();
 
-        let mut conn = this.prepare(&format!(r#"SELECT * FROM book {insert_where} {lib_id} {insert_and} {inner_query} LIMIT ?1 OFFSET ?2"#))?;
+        let sql = format!(r#"SELECT * FROM book {insert_where} {lib_id} {insert_and} {inner_query} LIMIT $1 OFFSET $2"#);
 
-        let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
+        let conn = sqlx::query_as(&sql);
 
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+        Ok(conn.bind(limit).bind(offset).fetch_all(db).await?)
     }
 
     pub async fn edit_book_by_id(
         book_id: BookId,
         edit: BookEdit,
-        db: &dyn DatabaseAccess,
-    ) -> Result<usize> {
-        let mut items = Vec::new();
+        db: &mut SqliteConnection,
+    ) -> Result<u64> {
+        const INIT: &str = "UPDATE book SET ";
 
-        let mut values = vec![&book_id as &dyn rusqlite::ToSql];
+        let mut builder = sqlx::QueryBuilder::new(INIT);
 
+        let mut sep = builder.separated(", ");
         if let Some(value) = edit.title.as_ref() {
-            items.push("title");
-            values.push(value as &dyn rusqlite::ToSql);
+            sep.push_unseparated("title = ").push_bind(value);
         }
 
         if let Some(value) = edit.original_title.as_ref() {
-            items.push("original_title");
-            values.push(value as &dyn rusqlite::ToSql);
+            sep.push_unseparated("original_title = ").push_bind(value);
         }
 
         if let Some(value) = edit.description.as_ref() {
-            items.push("description");
-            values.push(value as &dyn rusqlite::ToSql);
+            sep.push_unseparated("description = ").push_bind(value);
         }
 
         if let Some(value) = edit.rating.as_ref() {
-            items.push("rating");
-            values.push(value as &dyn rusqlite::ToSql);
+            sep.push_unseparated("rating = ").push_bind(value);
         }
 
         if let Some(value) = edit.available_at.as_ref() {
-            items.push("available_at");
-            values.push(value as &dyn rusqlite::ToSql);
+            sep.push_unseparated("available_at = ").push_bind(value);
         }
 
         if let Some(value) = edit.year.as_ref() {
-            items.push("year");
-            values.push(value as &dyn rusqlite::ToSql);
+            sep.push_unseparated("year = ").push_bind(value);
         }
 
         if let Some(_value) = edit.publisher {
@@ -493,22 +422,13 @@ impl BookModel {
             }
         }
 
-        if items.is_empty() {
+        if builder.sql() == INIT {
             return Ok(0);
         }
 
-        Ok(db.write().await.execute(
-            &format!(
-                "UPDATE book SET {} WHERE id = ?1",
-                items
-                    .iter()
-                    .enumerate()
-                    .map(|(i, v)| format!("{v} = ?{}", 2 + i))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-            rusqlite::params_from_iter(values.iter()),
-        )?)
+        builder.push(" WHERE id = ").push_bind(book_id);
+
+        Ok(builder.build().execute(db).await?.rows_affected())
     }
 
     // Search
@@ -629,31 +549,25 @@ impl BookModel {
     pub async fn search_by(
         filter: &FilterContainer,
         library: Option<LibraryId>,
-        offset: usize,
-        limit: usize,
-        db: &dyn DatabaseAccess,
+        offset: i64,
+        limit: i64,
+        db: &mut SqliteConnection,
     ) -> Result<Vec<Self>> {
         let mut sql = Self::gen_search_query(filter, library);
 
-        sql += "LIMIT ?1 OFFSET ?2";
+        sql += "LIMIT $1 OFFSET $2";
 
-        let this = db.read().await;
-
-        let mut conn = this.prepare(&sql)?;
-
-        let map = conn.query_map([limit, offset], |v| BookModel::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+        Ok(sqlx::query_as(&sql).bind(limit).bind(offset).fetch_all(db).await?)
     }
 
     pub async fn count_search_by(
         filter: &FilterContainer,
         library: Option<LibraryId>,
-        db: &dyn DatabaseAccess,
-    ) -> Result<usize> {
+        db: &mut SqliteConnection,
+    ) -> Result<i64> {
         let sql = Self::gen_search_query(filter, library).replace("SELECT *", "SELECT COUNT(*)");
 
-        Ok(db.read().await.query_row(&sql, [], |v| v.get(0))?)
+        Ok(sqlx::query_scalar(&sql).fetch_one(db).await?)
     }
 }
 

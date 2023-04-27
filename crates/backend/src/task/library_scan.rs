@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common_local::{LibraryId, ws::TaskId};
 
-use crate::{DatabaseAccess, model::{LibraryModel, DirectoryModel}, Result, Task};
+use crate::{model::{LibraryModel, DirectoryModel}, Result, Task, SqlPool};
 
 
 pub struct TaskLibraryScan {
@@ -10,7 +10,9 @@ pub struct TaskLibraryScan {
 
 #[async_trait]
 impl Task for TaskLibraryScan {
-    async fn run(&mut self, task_id: TaskId, db: &dyn DatabaseAccess) -> Result<()> {
+    async fn run(&mut self, task_id: TaskId, pool: &SqlPool) -> Result<()> {
+        let db = &mut *pool.acquire().await?;
+
         let library = LibraryModel::find_one_by_id(self.library_id, db)
             .await?
             .unwrap();

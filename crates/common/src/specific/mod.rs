@@ -2,10 +2,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
-use rusqlite::{
-    types::{FromSql, FromSqlResult, ToSqlOutput, ValueRef},
-    Result, ToSql,
-};
+use sqlx::{Decode, Encode, Sqlite, sqlite::{SqliteArgumentValue, SqliteValueRef}, encode::IsNull, error::BoxDynError, Type};
 
 mod edit;
 pub mod filter;
@@ -43,18 +40,33 @@ impl MemberAuthType {
     }
 }
 
+// Used for DB
 #[cfg(feature = "backend")]
-impl FromSql for MemberAuthType {
-    #[inline]
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        Ok(Self::try_from(u8::column_result(value)?).unwrap())
+impl From<i64> for MemberAuthType {
+    fn from(value: i64) -> Self {
+        Self::try_from(value as u8).unwrap()
     }
 }
 
 #[cfg(feature = "backend")]
-impl ToSql for MemberAuthType {
-    #[inline]
-    fn to_sql(&self) -> Result<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::from(u8::from(*self)))
+impl<'q> Encode<'q, Sqlite> for MemberAuthType {
+    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
+        args.push(SqliteArgumentValue::Int(u8::from(*self) as i32));
+
+        IsNull::No
+    }
+}
+
+#[cfg(feature = "backend")]
+impl<'r> Decode<'r, Sqlite> for MemberAuthType {
+    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+        Ok(Self::try_from(u8::decode(value)?).unwrap())
+    }
+}
+
+#[cfg(feature = "backend")]
+impl Type<Sqlite> for MemberAuthType {
+    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
+        <i32 as Type<Sqlite>>::type_info()
     }
 }

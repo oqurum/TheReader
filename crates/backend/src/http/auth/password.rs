@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::get_config;
 use crate::config::save_config;
 use crate::config::update_config;
-use crate::database::Database;
+use crate::SqlPool;
 use crate::http::JsonResponse;
 use crate::model::AuthModel;
 use crate::model::NewClientModel;
@@ -38,13 +38,13 @@ pub async fn post_password_oauth(
     request: HttpRequest,
     query: web::Json<PostPasswordCallback>,
     member_cookie: Option<MemberCookie>,
-    db: web::Data<Database>,
+    db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<String>> {
     // If we're currently logged in as a guest.
     let mut guest_member = None;
 
     if let Some(cookie) = &member_cookie {
-        let member = cookie.fetch(&db.basic()).await?;
+        let member = cookie.fetch(&mut *db.acquire().await?).await?;
 
         if let Some(member) = member {
             if !member.type_of.is_guest() {
@@ -66,7 +66,7 @@ pub async fn post_password_oauth(
 
     // Create or Update User.
     let mut member = if let Some(value) =
-        MemberModel::find_one_by_email(&email_str, &db.basic()).await?
+        MemberModel::find_one_by_email(&email_str, &mut *db.acquire().await?).await?
     {
         // TODO: Check if we're currently logged in as a guest member?
 
@@ -88,7 +88,7 @@ pub async fn post_password_oauth(
         guest_member
     } else if !get_config().has_admin_account {
         // Double check that we don't already have users in the database.
-        if MemberModel::count(&db.basic()).await? != 0 {
+        if MemberModel::count(&mut *db.acquire().await?).await? != 0 {
             update_config(|config| {
                 config.has_admin_account = true;
                 Ok(())
@@ -106,17 +106,17 @@ pub async fn post_password_oauth(
             type_of: MemberAuthType::Password,
             permissions: Permissions::owner(),
             library_access: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
         };
 
-        let mut inserted = new_member.insert(&db.basic()).await?;
+        let mut inserted = new_member.insert(&mut *db.acquire().await?).await?;
 
         let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
         // We instantly accept the invite.
         inserted
-            .accept_invite(MemberAuthType::Password, Some(hash), &db.basic())
+            .accept_invite(MemberAuthType::Password, Some(hash), &mut *db.acquire().await?)
             .await?;
 
         update_config(|config| {
@@ -138,20 +138,20 @@ pub async fn post_password_oauth(
         let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
         member
-            .accept_invite(MemberAuthType::Password, Some(hash), &db.basic())
+            .accept_invite(MemberAuthType::Password, Some(hash), &mut *db.acquire().await?)
             .await?;
     }
 
     let model = AuthModel::new(Some(member.id));
 
-    model.insert(&db.basic()).await?;
+    model.insert(&mut *db.acquire().await?).await?;
 
     if let Some(header) = request.headers().get(reqwest::header::USER_AGENT).and_then(|v| v.to_str().ok()) {
         NewClientModel::new(
             model.oauth_token_secret.clone(),
             String::from("Web"),
             header,
-        ).insert(&db.basic()).await?;
+        ).insert(&mut *db.acquire().await?).await?;
     }
 
     super::remember_member_auth(&request.extensions(), member.id, model.oauth_token_secret)?;

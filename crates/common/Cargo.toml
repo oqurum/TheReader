@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-backend = ["common/backend", "rusqlite"]
+backend = ["common/backend", "sqlx"]
 frontend = ["common/frontend", "getrandom"]
 
 [dependencies]
@@ -29,4 +29,4 @@ common = { path = "../../global_common" }
 
 
 # Backend
-rusqlite = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }

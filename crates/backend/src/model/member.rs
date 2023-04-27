@@ -1,15 +1,13 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, NaiveDateTime};
 use common::MemberId;
 use rand::Rng;
-use rusqlite::{params, OptionalExtension};
+use sqlx::{FromRow, SqliteConnection};
 
-use crate::{DatabaseAccess, Result};
+use crate::{SqlConnection, Result};
 use common_local::{MemberAuthType, Permissions, MemberUpdate, LibraryAccess};
 use serde::Serialize;
-
-use super::{AdvRow, TableRow};
 
 pub static GUEST_INDEX: AtomicUsize = AtomicUsize::new(1);
 
@@ -24,8 +22,8 @@ pub struct NewMemberModel {
 
     pub library_access: Option<String>,
 
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl NewMemberModel {
@@ -48,8 +46,8 @@ impl NewMemberModel {
             type_of: MemberAuthType::Guest,
             permissions: Permissions::guest(),
             library_access: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
         }
     }
 
@@ -67,8 +65,8 @@ impl NewMemberModel {
             type_of: MemberAuthType::Invite,
             permissions: Permissions::basic(),
             library_access: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
         }
     }
 
@@ -87,7 +85,7 @@ impl NewMemberModel {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct MemberModel {
     pub id: MemberId,
 
@@ -101,8 +99,8 @@ pub struct MemberModel {
 
     pub library_access: Option<String>,
 
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl From<MemberModel> for common_local::Member {
@@ -120,43 +118,23 @@ impl From<MemberModel> for common_local::Member {
     }
 }
 
-impl TableRow<'_> for MemberModel {
-    fn create(row: &mut AdvRow<'_>) -> rusqlite::Result<Self> {
-        Ok(Self {
-            id: row.next()?,
-            name: row.next()?,
-            email: row.next()?,
-            password: row.next()?,
-            type_of: row.next()?,
-            permissions: row.next()?,
-            library_access: row.next_opt()?,
-
-            created_at: row.next()?,
-            updated_at: row.next()?,
-        })
-    }
-}
-
 impl NewMemberModel {
-    pub async fn insert(self, db: &dyn DatabaseAccess) -> Result<MemberModel> {
-        let conn = db.write().await;
-
-        conn.execute(
+    pub async fn insert(self, db: &mut SqliteConnection) -> Result<MemberModel> {
+        let res = sqlx::query(
             r#"
-            INSERT INTO members (name, email, type_of, permissions, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-        "#,
-            params![
-                &self.name,
-                &self.email,
-                self.type_of,
-                self.permissions,
-                self.created_at,
-                self.updated_at
-            ],
-        )?;
+                INSERT INTO members (name, email, type_of, permissions, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(&self.name)
+        .bind(&self.email)
+        .bind(self.type_of)
+        .bind(self.permissions)
+        .bind(self.created_at)
+        .bind(self.updated_at)
+        .execute(db).await?;
 
-        Ok(self.into_member(MemberId::from(conn.last_insert_rowid() as usize)))
+        Ok(self.into_member(MemberId::from(res.last_insert_rowid())))
     }
 }
 
@@ -185,7 +163,7 @@ impl MemberModel {
         self.permissions = Permissions::basic();
     }
 
-    pub async fn update_with(&mut self, update: MemberUpdate, db: &dyn DatabaseAccess) -> Result<()> {
+    pub async fn update_with(&mut self, update: MemberUpdate, db: &mut SqliteConnection) -> Result<()> {
         let mut is_updated = false;
 
         if let Some(name) = update.name {
@@ -243,103 +221,84 @@ impl MemberModel {
         Ok(())
     }
 
-    pub async fn update(&mut self, db: &dyn DatabaseAccess) -> Result<()> {
-        self.updated_at = Utc::now();
+    pub async fn update(&mut self, db: &mut SqliteConnection) -> Result<u64> {
+        self.updated_at = Utc::now().naive_utc();
 
-        db.write().await.execute(
-            r#"
-            UPDATE members SET
-                name = ?2,
-                email = ?3,
-                password = ?4,
-                type_of = ?5,
-                permissions = ?6,
-                library_access = ?7,
-                updated_at = ?8
-            WHERE id = ?1"#,
-            params![
-                self.id,
-                &self.name,
-                &self.email,
-                &self.password,
-                &self.type_of,
-                &self.permissions,
-                &self.library_access,
-                self.updated_at,
-            ],
-        )?;
+        let res = sqlx::query(
+            r#"UPDATE members SET
+                name = $2,
+                email = $3,
+                password = $4,
+                type_of = $5,
+                permissions = $6,
+                library_access = $7,
+                updated_at = $8
+            WHERE id = $1"#,
+        )
+        .bind(self.id)
+        .bind(&self.name)
+        .bind(&self.email)
+        .bind(&self.password)
+        .bind(self.type_of)
+        .bind(self.permissions)
+        .bind(&self.library_access)
+        .bind(self.updated_at)
+        .execute(db).await?;
 
-        Ok(())
+        Ok(res.rows_affected())
     }
 
-    pub async fn find_one_by_email(value: &str, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(
-                r#"SELECT * FROM members WHERE email = ?1"#,
-                params![value],
-                |v| Self::from_row(v),
-            )
-            .optional()?)
+    pub async fn find_one_by_email(value: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT id, name, email, password, type_of, permissions, library_access, created_at, updated_at FROM members WHERE email = $1"
+        ).bind(value).fetch_optional(db).await?)
     }
 
-    pub async fn find_one_by_id(id: MemberId, db: &dyn DatabaseAccess) -> Result<Option<Self>> {
-        Ok(db
-            .read()
-            .await
-            .query_row(r#"SELECT * FROM members WHERE id = ?1"#, params![id], |v| {
-                Self::from_row(v)
-            })
-            .optional()?)
+    pub async fn find_one_by_id(id: MemberId, db: &mut SqliteConnection) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
+            "SELECT id, name, email, password, type_of, permissions, library_access, created_at, updated_at FROM members WHERE id = $1"
+        ).bind(id).fetch_optional(db).await?)
     }
 
     pub async fn accept_invite(
         &mut self,
         login_type: MemberAuthType,
         password: Option<String>,
-        db: &dyn DatabaseAccess,
-    ) -> Result<usize> {
+        db: &mut SqliteConnection,
+    ) -> Result<u64> {
         if self.type_of != MemberAuthType::Invite {
             return Ok(0);
         }
 
         self.type_of = login_type;
         self.password = password;
-        self.updated_at = Utc::now();
+        self.updated_at = Utc::now().naive_utc();
 
-        Ok(db.write().await.execute(
-            "UPDATE members SET type_of = ?2, password = ?3, updated_at = ?4 WHERE id = ?1",
-            params![
-                self.id,
-                self.type_of,
-                self.password.as_ref(),
-                self.updated_at
-            ],
-        )?)
+        let res = sqlx::query(
+            "UPDATE members SET type_of = $2, password = $3, updated_at = $4 WHERE id = $1",
+        )
+        .bind(self.id)
+        .bind(self.type_of)
+        .bind(&self.password)
+        .bind(self.updated_at)
+        .execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 
-    pub async fn delete(id: MemberId, db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db
-            .write()
-            .await
-            .execute("DELETE FROM members WHERE id = ?1", [id])?)
+    pub async fn delete(id: MemberId, db: &mut SqliteConnection) -> Result<u64> {
+        let res = sqlx::query(
+            "DELETE FROM members WHERE id = $1"
+        ).bind(id).execute(db).await?;
+
+        Ok(res.rows_affected())
     }
 
-    pub async fn get_all(db: &dyn DatabaseAccess) -> Result<Vec<Self>> {
-        let read = db.read().await;
-
-        let mut stmt = read.prepare("SELECT * FROM members")?;
-
-        let map = stmt.query_map([], |v| Self::from_row(v))?;
-
-        Ok(map.collect::<std::result::Result<Vec<_>, _>>()?)
+    pub async fn get_all(db: &mut SqliteConnection) -> Result<Vec<Self>> {
+        Ok(sqlx::query_as("SELECT id, name, email, password, type_of, permissions, library_access, created_at, updated_at FROM members").fetch_all(db).await?)
     }
 
-    pub async fn count(db: &dyn DatabaseAccess) -> Result<usize> {
-        Ok(db
-            .read()
-            .await
-            .query_row(r#"SELECT COUNT(*) FROM members"#, [], |v| v.get(0))?)
+    pub async fn count(db: &mut SqliteConnection) -> Result<i32> {
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM members").fetch_one(db).await?)
     }
 }

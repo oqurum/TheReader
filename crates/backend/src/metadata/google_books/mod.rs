@@ -95,7 +95,7 @@ impl Metadata for GoogleBooksMetadata {
                         ));
 
                         books.push(SearchItem::Book(FoundItem {
-                            source: self.prefix_text(&item.id).try_into()?,
+                            source: self.prefix_text(&item.id).as_str().try_into()?,
                             title: item.volume_info.title.clone(),
                             description: item
                                 .volume_info
@@ -169,7 +169,7 @@ impl GoogleBooksMetadata {
             authors: None,
             publisher: None,
             meta: FoundItem {
-                source: self.prefix_text(value.id).try_into()?,
+                source: self.prefix_text(value.id).as_str().try_into()?,
                 title: value.volume_info.title.clone(),
                 description: value
                     .volume_info

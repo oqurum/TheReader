@@ -1,9 +1,11 @@
-use crate::{database::Database, Result};
+use sqlx::Executor;
 
-pub async fn init(database: &Database) -> Result<()> {
-    let conn = database.write().await;
+use crate::{database::SqlPool, Result};
 
-    // TODO: Migrations https://github.com/rusqlite/rusqlite/discussions/1117
+pub async fn init(database: &SqlPool) -> Result<()> {
+    let mut conn = database.acquire().await?;
+
+    // TODO: Migrations
 
     // Migrations
     conn.execute(
@@ -14,30 +16,28 @@ pub async fn init(database: &Database) -> Result<()> {
             duration    INT NOT NULL,
             notes       TEXT NOT NULL,
 
-            created_at  TEXT NOT NULL
+            created_at  DATETIME NOT NULL
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Library
     conn.execute(
         r#"CREATE TABLE "library" (
             "id"                 INTEGER NOT NULL UNIQUE,
 
-            "name"               TEXT UNIQUE,
+            "name"               TEXT NOT NULL UNIQUE,
             "type_of"            INT NOT NULL,
 
             "is_public"          BOOLEAN NOT NULL,
             "settings"           TEXT,
 
-            "scanned_at"         TEXT NOT NULL,
-            "created_at"         TEXT NOT NULL,
-            "updated_at"         TEXT NOT NULL,
+            "scanned_at"         DATETIME NOT NULL,
+            "created_at"         DATETIME NOT NULL,
+            "updated_at"         DATETIME NOT NULL,
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Directory
     conn.execute(
@@ -47,8 +47,7 @@ pub async fn init(database: &Database) -> Result<()> {
 
             FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // File
     conn.execute(
@@ -57,78 +56,75 @@ pub async fn init(database: &Database) -> Result<()> {
 
             "path"             TEXT NOT NULL UNIQUE,
             "file_name"        TEXT NOT NULL,
-            "file_type"        TEXT,
+            "file_type"        TEXT NOT NULL,
             "file_size"        INTEGER NOT NULL,
 
-            "library_id"       INTEGER,
+            "library_id"       INTEGER NOT NULL,
             "book_id"          INTEGER,
-            "chapter_count"    INTEGER,
+            "chapter_count"    INTEGER NOT NULL,
 
             "identifier"       TEXT,
             "hash"             TEXT NOT NULL UNIQUE,
 
-            "modified_at"      TEXT NOT NULL,
-            "accessed_at"      TEXT NOT NULL,
-            "created_at"       TEXT NOT NULL,
-            "deleted_at"       TEXT,
+            "modified_at"      DATETIME NOT NULL,
+            "accessed_at"      DATETIME NOT NULL,
+            "created_at"       DATETIME NOT NULL,
+            "deleted_at"       DATETIME,
 
             PRIMARY KEY("id" AUTOINCREMENT),
 
             FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Book Item
     conn.execute(
         r#"CREATE TABLE "book" (
             "id"                  INTEGER NOT NULL,
 
-            "library_id"          INTEGER,
+            "library_id"          INTEGER NOT NULL,
 
             "type_of"             INT NOT NULL,
 
             "parent_id"           INTEGER REFERENCES book("id") ON DELETE CASCADE,
 
-            "source"              TEXT,
-            "file_item_count"     INTEGER,
+            "source"              TEXT NOT NULL,
+            "file_item_count"     INTEGER NOT NULL,
             "title"               TEXT,
             "original_title"      TEXT,
             "description"         TEXT,
-            "rating"              FLOAT,
+            "rating"              FLOAT NOT NULL,
             "thumb_url"           TEXT,
 
-            "cached"              TEXT,
+            "cached"              TEXT NOT NULL,
             "index"               INTEGER,
 
-            "available_at"        TEXT,
+            "available_at"        DATETIME,
             "year"                INTEGER,
 
-            "refreshed_at"        TEXT,
-            "created_at"          TEXT,
-            "updated_at"          TEXT,
-            "deleted_at"          TEXT,
+            "refreshed_at"        DATETIME NOT NULL,
+            "created_at"          DATETIME NOT NULL,
+            "updated_at"          DATETIME NOT NULL,
+            "deleted_at"          DATETIME,
 
             PRIMARY KEY("id" AUTOINCREMENT),
 
             FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Book People
     conn.execute(
         r#"CREATE TABLE "book_person" (
-            "book_id"    INTEGER NOT NULL,
-            "person_id"      INTEGER NOT NULL,
+            "book_id"   INTEGER NOT NULL,
+            "person_id" INTEGER NOT NULL,
 
             FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE,
         	FOREIGN KEY("person_id") REFERENCES tag_person("id") ON DELETE CASCADE,
 
             UNIQUE(book_id, person_id)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
     // File Note
@@ -140,16 +136,15 @@ pub async fn init(database: &Database) -> Result<()> {
             "data"          TEXT NOT NULL,
             "data_size"     INTEGER NOT NULL,
 
-            "updated_at"    TEXT NOT NULL,
-            "created_at"    TEXT NOT NULL,
+            "updated_at"    DATETIME NOT NULL,
+            "created_at"    DATETIME NOT NULL,
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
 
             UNIQUE(file_id, user_id)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // File Progression
     conn.execute(
@@ -165,8 +160,8 @@ pub async fn init(database: &Database) -> Result<()> {
             "char_pos"      INTEGER,
             "seek_pos"      INTEGER,
 
-            "updated_at"    TEXT NOT NULL,
-            "created_at"    TEXT NOT NULL,
+            "updated_at"    DATETIME NOT NULL,
+            "created_at"    DATETIME NOT NULL,
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
@@ -174,8 +169,7 @@ pub async fn init(database: &Database) -> Result<()> {
 
             UNIQUE(book_id, user_id)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // File Notation
     conn.execute(
@@ -187,16 +181,15 @@ pub async fn init(database: &Database) -> Result<()> {
             "data_size"     INTEGER NOT NULL,
             "version"       INTEGER NOT NULL,
 
-            "updated_at"    TEXT NOT NULL,
-            "created_at"    TEXT NOT NULL,
+            "updated_at"    DATETIME NOT NULL,
+            "created_at"    DATETIME NOT NULL,
 
             FOREIGN KEY("user_id") REFERENCES members("id") ON DELETE CASCADE,
         	FOREIGN KEY("file_id") REFERENCES file("id") ON DELETE CASCADE,
 
             UNIQUE(file_id, user_id)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Tags People
     conn.execute(
@@ -211,13 +204,12 @@ pub async fn init(database: &Database) -> Result<()> {
 
             "thumb_url"      TEXT,
 
-            "updated_at"     TEXT NOT NULL,
-            "created_at"     TEXT NOT NULL,
+            "updated_at"     DATETIME NOT NULL,
+            "created_at"     DATETIME NOT NULL,
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // People Alt names
     conn.execute(
@@ -230,8 +222,7 @@ pub async fn init(database: &Database) -> Result<()> {
 
             UNIQUE(person_id, name)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Members
     conn.execute(
@@ -239,23 +230,22 @@ pub async fn init(database: &Database) -> Result<()> {
             "id"             INTEGER NOT NULL,
 
             "name"           TEXT NOT NULL COLLATE NOCASE,
-            "email"          TEXT COLLATE NOCASE,
+            "email"          TEXT NOT NULL COLLATE NOCASE,
             "password"       TEXT,
 
             "type_of"        INTEGER NOT NULL,
 
-            "permissions"    TEXT NOT NULL,
+            "permissions"    INTEGER NOT NULL,
 
             "library_access" TEXT,
 
-            "created_at"     TEXT NOT NULL,
-            "updated_at"     TEXT NOT NULL,
+            "created_at"     DATETIME NOT NULL,
+            "updated_at"     DATETIME NOT NULL,
 
             UNIQUE(email),
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Auth
     conn.execute(
@@ -265,32 +255,33 @@ pub async fn init(database: &Database) -> Result<()> {
 
             "member_id"             INTEGER,
 
-            "created_at"            TEXT NOT NULL,
-            "updated_at"            TEXT NOT NULL,
+            "created_at"            DATETIME NOT NULL,
+            "updated_at"            DATETIME NOT NULL,
 
             FOREIGN KEY("member_id") REFERENCES members("id") ON DELETE CASCADE
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Client
     conn.execute(
         r#"CREATE TABLE client (
-            oauth       INTEGER,
+            id          INTEGER NOT NULL,
 
-            identifier  TEXT UNIQUE,
+            oauth       INTEGER NOT NULL,
+
+            identifier  TEXT NOT NULL UNIQUE,
 
             client      TEXT NOT NULL,
             device      TEXT NOT NULL,
             platform    TEXT,
 
-            created_at  TEXT NOT NULL,
-            updated_at  TEXT NOT NULL,
+            created_at  DATETIME NOT NULL,
+            updated_at  DATETIME NOT NULL,
 
-            FOREIGN KEY("oauth") REFERENCES auth("oauth_token_secret") ON DELETE CASCADE
+            FOREIGN KEY("oauth") REFERENCES auth("oauth_token_secret") ON DELETE CASCADE,
+            PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Uploaded Images
     conn.execute(
@@ -298,14 +289,12 @@ pub async fn init(database: &Database) -> Result<()> {
             "id"            INTEGER NOT NULL,
 
             "path"          TEXT NOT NULL,
-
-            "created_at"    TEXT NOT NULL,
+            "created_at"    DATETIME NOT NULL,
 
             UNIQUE(path),
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Image Link
     conn.execute(
@@ -319,8 +308,7 @@ pub async fn init(database: &Database) -> Result<()> {
 
             UNIQUE(image_id, link_id, type_of)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Collection
     conn.execute(
@@ -334,15 +322,14 @@ pub async fn init(database: &Database) -> Result<()> {
 
             "thumb_url"      TEXT,
 
-            "created_at"     TEXT NOT NULL,
-            "updated_at"     TEXT NOT NULL,
+            "created_at"     DATETIME NOT NULL,
+            "updated_at"     DATETIME NOT NULL,
 
             FOREIGN KEY("member_id") REFERENCES members("id") ON DELETE CASCADE,
 
             PRIMARY KEY("id" AUTOINCREMENT)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     // Collection Item
     conn.execute(
@@ -355,8 +342,7 @@ pub async fn init(database: &Database) -> Result<()> {
 
             UNIQUE(collection_id, book_id)
         );"#,
-        [],
-    )?;
+    ).await?;
 
     Ok(())
 }
