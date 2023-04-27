@@ -5,11 +5,12 @@ use common_local::{api, LibraryColl, LibraryId};
 use yew::{html::Scope, prelude::*};
 use yew_router::{
     prelude::{Link, Location},
-    scope_ext::{RouterScopeExt, LocationHandle},
+    scope_ext::{LocationHandle, RouterScopeExt},
 };
 
 use crate::{
-    components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, BaseRoute, AppState,
+    components::edit::library::LibraryEdit, pages::settings::SettingsRoute, request, AppState,
+    BaseRoute,
 };
 
 use super::OwnerBarrier;
@@ -149,9 +150,8 @@ impl Sidebar {
                     ("Libraries", SettingsRoute::AdminLibraries),
                 ];
 
-                const MEMBERS_LOCATIONS: [(&str, SettingsRoute); 1] = [
-                    ("General", SettingsRoute::MemberGeneral),
-                ];
+                const MEMBERS_LOCATIONS: [(&str, SettingsRoute); 1] =
+                    [("General", SettingsRoute::MemberGeneral)];
 
                 let cr = ctx.link().route::<SettingsRoute>().unwrap();
 

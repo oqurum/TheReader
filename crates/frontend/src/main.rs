@@ -1,23 +1,25 @@
 #![allow(clippy::let_unit_value, clippy::type_complexity)]
 
-#[macro_use(info, debug, error)] extern crate log;
+#[macro_use(info, debug, error)]
+extern crate log;
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
     mem::MaybeUninit,
     rc::Rc,
-    sync::{Arc, Mutex}, cell::RefCell,
+    sync::{Arc, Mutex},
 };
 
 use common::{
-    api::{ApiErrorResponse, WrappingResponse, ErrorCodeResponse},
+    api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse},
     component::popup::{Popup, PopupType},
     BookId, PersonId,
 };
 use common_local::{
     api,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Member, Permissions, LibraryColl, PublicServerSettings,
+    CollectionId, FileId, LibraryColl, LibraryId, Member, Permissions, PublicServerSettings,
 };
 use gloo_utils::{body, document};
 use lazy_static::lazy_static;
@@ -28,15 +30,15 @@ use yew_router::prelude::*;
 use components::{NavbarModule, Sidebar};
 
 mod components;
+mod error;
 mod pages;
+mod preferences;
 mod request;
 mod services;
 mod util;
-mod preferences;
-mod error;
 
-pub use preferences::*;
 pub use error::*;
+pub use preferences::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
@@ -141,19 +143,18 @@ impl Component for Model {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::LoadServerSettings(resp) => {
-                match resp {
-                    WrappingResponse::Resp(settings) => {
-                        let state = Rc::make_mut(&mut self.state);
-                        state.settings = settings;
+            Msg::LoadServerSettings(resp) => match resp {
+                WrappingResponse::Resp(settings) => {
+                    let state = Rc::make_mut(&mut self.state);
+                    state.settings = settings;
 
-                        ctx.link()
-                            .send_future(async { Msg::LoadMemberSelf(request::get_member_self().await) });
-                    }
-
-                    WrappingResponse::Error(e) => display_error(e),
+                    ctx.link().send_future(async {
+                        Msg::LoadMemberSelf(request::get_member_self().await)
+                    });
                 }
-            }
+
+                WrappingResponse::Error(e) => display_error(e),
+            },
 
             Msg::LoadMemberSelf(resp) => {
                 let mut await_tasks = false;
@@ -392,7 +393,6 @@ fn html_container(value: &'static str) -> Html {
         </div>
     }
 }
-
 
 fn main() {
     wasm_logger::init(wasm_logger::Config::default());

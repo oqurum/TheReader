@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use common::{BookId, PersonId, Source, ThumbnailStore};
 use sqlx::{FromRow, SqliteConnection};
 
@@ -123,7 +123,11 @@ impl PersonModel {
             escape_char
         );
 
-        Ok(sqlx::query_as(&sql).bind(limit).bind(offset).fetch_all(db).await?)
+        Ok(sqlx::query_as(&sql)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(db)
+            .await?)
     }
 
     pub async fn find_one_by_name(value: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
@@ -146,14 +150,19 @@ impl PersonModel {
         ).bind(id).fetch_optional(db).await?)
     }
 
-    pub async fn find_one_by_source(value: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+    pub async fn find_one_by_source(
+        value: &str,
+        db: &mut SqliteConnection,
+    ) -> Result<Option<Self>> {
         Ok(sqlx::query_as(
             "SELECT id, source, name, description, birth_date, thumb_url, updated_at, created_at FROM tag_person WHERE source = $1"
         ).bind(value).fetch_optional(db).await?)
     }
 
     pub async fn count(db: &mut SqliteConnection) -> Result<i32> {
-        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM tag_person").fetch_one(db).await?)
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM tag_person")
+            .fetch_one(db)
+            .await?)
     }
 
     pub async fn update(&mut self, db: &mut SqliteConnection) -> Result<()> {
@@ -178,13 +187,17 @@ impl PersonModel {
         .bind(&self.thumb_url)
         .bind(self.updated_at)
         .bind(self.created_at)
-        .execute(db).await?;
+        .execute(db)
+        .await?;
 
         Ok(())
     }
 
     pub async fn delete_by_id(id: PersonId, db: &mut SqliteConnection) -> Result<u64> {
-        let res = sqlx::query("DELETE FROM tag_person WHERE id = $1").bind(id).execute(db).await?;
+        let res = sqlx::query("DELETE FROM tag_person WHERE id = $1")
+            .bind(id)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected())
     }

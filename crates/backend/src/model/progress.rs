@@ -1,6 +1,6 @@
-use chrono::{Utc, NaiveDateTime};
+use chrono::{NaiveDateTime, Utc};
 use common::{BookId, MemberId};
-use sqlx::{FromRow, SqliteConnection, Row};
+use sqlx::{FromRow, Row, SqliteConnection};
 
 use crate::Result;
 use common_local::{FileId, Progression};
@@ -144,9 +144,11 @@ impl FileProgressionModel {
         file_id: FileId,
         db: &mut SqliteConnection,
     ) -> Result<()> {
-        sqlx::query(
-            "DELETE FROM file_progression WHERE user_id = $1 AND file_id = $2"
-        ).bind(member_id).bind(file_id).execute(db).await?;
+        sqlx::query("DELETE FROM file_progression WHERE user_id = $1 AND file_id = $2")
+            .bind(member_id)
+            .bind(file_id)
+            .execute(db)
+            .await?;
 
         Ok(())
     }
@@ -183,43 +185,46 @@ impl FileProgressionModel {
         .fetch_all(db).await?;
 
         // TODO: Optimize. Don't need to use fetch_all
-        items.into_iter().map(|v| {
-            let prog = Self {
-                book_id: v.try_get(0)?,
-                file_id: v.try_get(1)?,
-                user_id: v.try_get(2)?,
-                type_of: v.try_get(3)?,
-                chapter: v.try_get(4)?,
-                page: v.try_get(5)?,
-                char_pos: v.try_get(6)?,
-                seek_pos: v.try_get(7)?,
-                updated_at: v.try_get(8)?,
-                created_at: v.try_get(9)?,
-            };
+        items
+            .into_iter()
+            .map(|v| {
+                let prog = Self {
+                    book_id: v.try_get(0)?,
+                    file_id: v.try_get(1)?,
+                    user_id: v.try_get(2)?,
+                    type_of: v.try_get(3)?,
+                    chapter: v.try_get(4)?,
+                    page: v.try_get(5)?,
+                    char_pos: v.try_get(6)?,
+                    seek_pos: v.try_get(7)?,
+                    updated_at: v.try_get(8)?,
+                    created_at: v.try_get(9)?,
+                };
 
-            let book = BookModel {
-                id: v.try_get(10)?,
-                library_id: v.try_get(11)?,
-                type_of: v.try_get(12)?,
-                parent_id: v.try_get(13)?,
-                source: v.try_get(14)?,
-                file_item_count: v.try_get(15)?,
-                title: v.try_get(16)?,
-                original_title: v.try_get(17)?,
-                description: v.try_get(18)?,
-                rating: v.try_get(19)?,
-                thumb_url: v.try_get(20)?,
-                cached: v.try_get(21)?,
-                index: v.try_get(22)?,
-                refreshed_at: v.try_get(23)?,
-                created_at: v.try_get(24)?,
-                updated_at: v.try_get(25)?,
-                deleted_at: v.try_get(26)?,
-                available_at: v.try_get(27)?,
-                year: v.try_get(28)?,
-            };
+                let book = BookModel {
+                    id: v.try_get(10)?,
+                    library_id: v.try_get(11)?,
+                    type_of: v.try_get(12)?,
+                    parent_id: v.try_get(13)?,
+                    source: v.try_get(14)?,
+                    file_item_count: v.try_get(15)?,
+                    title: v.try_get(16)?,
+                    original_title: v.try_get(17)?,
+                    description: v.try_get(18)?,
+                    rating: v.try_get(19)?,
+                    thumb_url: v.try_get(20)?,
+                    cached: v.try_get(21)?,
+                    index: v.try_get(22)?,
+                    refreshed_at: v.try_get(23)?,
+                    created_at: v.try_get(24)?,
+                    updated_at: v.try_get(25)?,
+                    deleted_at: v.try_get(26)?,
+                    available_at: v.try_get(27)?,
+                    year: v.try_get(28)?,
+                };
 
-            Ok((prog, book))
-        }).collect()
+                Ok((prog, book))
+            })
+            .collect()
     }
 }

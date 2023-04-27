@@ -33,10 +33,7 @@ impl SettingsRoute {
     pub fn is_admin(&self) -> bool {
         matches!(
             self,
-            Self::AdminLibraries |
-            Self::AdminMembers |
-            Self::AdminMyServer |
-            Self::AdminTasks
+            Self::AdminLibraries | Self::AdminMembers | Self::AdminMyServer | Self::AdminTasks
         )
     }
 }

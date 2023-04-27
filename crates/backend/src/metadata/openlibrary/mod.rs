@@ -98,7 +98,10 @@ impl Metadata for OpenLibraryMetadata {
 
                     for item in found.items {
                         authors.push(SearchItem::Author(AuthorInfo {
-                            source: self.prefix_text(item.key.as_deref().unwrap()).as_str().try_into()?,
+                            source: self
+                                .prefix_text(item.key.as_deref().unwrap())
+                                .as_str()
+                                .try_into()?,
                             cover_image_url: Some(FoundImageLocation::Url(
                                 self::CoverId::Olid(item.key.unwrap()).get_author_cover_url(),
                             )),
@@ -223,18 +226,24 @@ impl OpenLibraryMetadata {
 
         // TODO: Parse record.publish_date | Millions of different variations. No specifics' were followed.
 
-        let source_id = book_info.isbn_13.as_ref().and_then(|v| {
-            v.first()
-                .or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first()))
-                .map(|v| v.to_string())
-        }).unwrap_or_else(|| id.value().to_string());
+        let source_id = book_info
+            .isbn_13
+            .as_ref()
+            .and_then(|v| {
+                v.first()
+                    .or_else(|| book_info.isbn_10.as_ref().and_then(|v| v.first()))
+                    .map(|v| v.to_string())
+            })
+            .unwrap_or_else(|| id.value().to_string());
 
         Ok(Some(MetadataReturned {
             authors: Some(authors).filter(|v| !v.is_empty()),
             publisher: book_info.publishers.and_then(|v| v.first().cloned()),
 
             meta: FoundItem {
-                source: format!("{}:{}", self.get_agent(), source_id).as_str().try_into()?,
+                source: format!("{}:{}", self.get_agent(), source_id)
+                    .as_str()
+                    .try_into()?,
                 title: Some(book_info.title.clone()),
                 description: book_info
                     .description

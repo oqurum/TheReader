@@ -17,19 +17,19 @@ pub mod cli;
 pub mod database;
 pub mod error;
 pub mod http;
+mod imd;
 pub mod metadata;
 pub mod model;
 pub mod scanner;
 pub mod task;
 pub mod util;
-mod imd;
 
 pub use cli::CliArgs;
 pub use database::{SqlConnection, SqlPool};
 pub use error::{Error, InternalError, Result, WebError, WebResult};
+pub use imd::IN_MEM_DB;
 pub use task::{queue_task, Task};
 pub use util::*;
-pub use imd::IN_MEM_DB;
 
 #[actix_web::main]
 async fn main() -> Result<()> {

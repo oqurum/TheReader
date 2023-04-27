@@ -6,7 +6,6 @@ use crate::Result;
 
 const PREFERENCE_ITEM_NAME: &str = "prefs";
 
-
 pub fn get_preferences() -> Result<Option<MemberPreferences>> {
     let Some(store) = window().local_storage()? else {
         return Err(ApiErrorResponse::new("Unable to Access Local Storage for Preferences.").into());

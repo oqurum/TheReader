@@ -1,12 +1,12 @@
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use common::BookId;
 
-use common_local::{FileId, LibraryId, MediaItem, LibraryType};
+use common_local::{FileId, LibraryId, LibraryType, MediaItem};
 use serde::Serialize;
-use sqlx::{FromRow, SqliteConnection, sqlite::SqliteRow, Row};
+use sqlx::{sqlite::SqliteRow, FromRow, Row, SqliteConnection};
 
-use crate::Result;
 use super::book::BookModel;
+use crate::Result;
 
 // FileModel
 
@@ -129,7 +129,14 @@ impl FileModel {
     }
 
     pub async fn exists(path: &str, hash: &str, db: &mut SqliteConnection) -> Result<bool> {
-        Ok(sqlx::query("SELECT EXISTS(SELECT id FROM file WHERE path = $1 OR hash = $2)").bind(path).bind(hash).fetch_one(db).await?.try_get(0)?)
+        Ok(
+            sqlx::query("SELECT EXISTS(SELECT id FROM file WHERE path = $1 OR hash = $2)")
+                .bind(path)
+                .bind(hash)
+                .fetch_one(db)
+                .await?
+                .try_get(0)?,
+        )
     }
 
     pub async fn find_by(
@@ -155,8 +162,13 @@ impl FileModel {
                 WHERE file.library_id = $1
                 LIMIT $2
                 OFFSET $3
-            "#
-        ).bind(library).bind(limit).bind(offset).fetch_all(db).await?)
+            "#,
+        )
+        .bind(library)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(db)
+        .await?)
     }
 
     pub async fn find_by_missing_book(db: &mut SqliteConnection) -> Result<Vec<Self>> {
@@ -185,7 +197,12 @@ impl FileModel {
         id: FileId,
         db: &mut SqliteConnection,
     ) -> Result<Option<FileWithBook>> {
-        Ok(sqlx::query_as("SELECT * FROM file LEFT JOIN book ON book.id = file.book_id WHERE file.id = $1").bind(id).fetch_optional(db).await?)
+        Ok(sqlx::query_as(
+            "SELECT * FROM file LEFT JOIN book ON book.id = file.book_id WHERE file.id = $1",
+        )
+        .bind(id)
+        .fetch_optional(db)
+        .await?)
     }
 
     pub async fn find_by_book_id(book_id: BookId, db: &mut SqliteConnection) -> Result<Vec<Self>> {
@@ -205,11 +222,17 @@ impl FileModel {
     }
 
     pub async fn count_by_missing_hash(db: &mut SqliteConnection) -> Result<i32> {
-        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM file WHERE hash IS NULL").fetch_one(db).await?)
+        Ok(
+            sqlx::query_scalar("SELECT COUNT(*) FROM file WHERE hash IS NULL")
+                .fetch_one(db)
+                .await?,
+        )
     }
 
     pub async fn count(db: &mut SqliteConnection) -> Result<i32> {
-        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM file").fetch_one(db).await?)
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM file")
+            .fetch_one(db)
+            .await?)
     }
 
     pub async fn update_book_id(
@@ -217,9 +240,11 @@ impl FileModel {
         book_id: BookId,
         db: &mut SqliteConnection,
     ) -> Result<()> {
-        sqlx::query(
-            "UPDATE file SET book_id = $1 WHERE id = $2"
-        ).bind(book_id).bind(file_id).execute(db).await?;
+        sqlx::query("UPDATE file SET book_id = $1 WHERE id = $2")
+            .bind(book_id)
+            .bind(file_id)
+            .execute(db)
+            .await?;
 
         Ok(())
     }
@@ -245,7 +270,8 @@ impl FileModel {
         .bind(self.accessed_at)
         .bind(self.created_at)
         .bind(self.deleted_at)
-        .execute(db).await?;
+        .execute(db)
+        .await?;
 
         Ok(())
     }
@@ -255,9 +281,11 @@ impl FileModel {
         new_book_id: BookId,
         db: &mut SqliteConnection,
     ) -> Result<u64> {
-        let res = sqlx::query(
-            "UPDATE file SET book_id = $1 WHERE book_id = $2"
-        ).bind(new_book_id).bind(old_book_id).execute(db).await?;
+        let res = sqlx::query("UPDATE file SET book_id = $1 WHERE book_id = $2")
+            .bind(new_book_id)
+            .bind(old_book_id)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected())
     }
@@ -276,7 +304,7 @@ impl FromRow<'_, SqliteRow> for FileWithBook {
                 Some(BookModel::from_row(row)?)
             } else {
                 None
-            }
+            },
         })
     }
 }

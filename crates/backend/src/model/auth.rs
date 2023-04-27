@@ -1,9 +1,8 @@
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use common::MemberId;
 use sqlx::{FromRow, SqliteConnection};
 
 use crate::{http::gen_sample_alphanumeric, Result, IN_MEM_DB};
-
 
 /// Used for Pending Authentications and Completed Authentications when member_id is defined.
 ///
@@ -57,8 +56,12 @@ impl AuthModel {
         db: &mut SqliteConnection,
     ) -> Result<bool> {
         let res = sqlx::query(
-            "UPDATE auth SET member_id = $2, oauth_token = NULL WHERE oauth_token_secret = $1"
-        ).bind(token_secret).bind(member_id).execute(db).await?;
+            "UPDATE auth SET member_id = $2, oauth_token = NULL WHERE oauth_token_secret = $1",
+        )
+        .bind(token_secret)
+        .bind(member_id)
+        .execute(db)
+        .await?;
 
         Ok(res.rows_affected() != 0)
     }
@@ -69,9 +72,10 @@ impl AuthModel {
     ) -> Result<bool> {
         IN_MEM_DB.delete(token_secret).await;
 
-        let res = sqlx::query(
-            "DELETE FROM auth WHERE oauth_token_secret = $1"
-        ).bind(token_secret).execute(db).await?;
+        let res = sqlx::query("DELETE FROM auth WHERE oauth_token_secret = $1")
+            .bind(token_secret)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected() != 0)
     }
@@ -83,7 +87,10 @@ impl AuthModel {
         ).bind(token).fetch_optional(db).await?)
     }
 
-    pub async fn find_by_token_secret(token: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
+    pub async fn find_by_token_secret(
+        token: &str,
+        db: &mut SqliteConnection,
+    ) -> Result<Option<Self>> {
         Ok(sqlx::query_as(
             "SELECT oauth_token, oauth_token_secret, member_id, created_at, updated_at FROM auth WHERE oauth_token_secret = $1"
         ).bind(token).fetch_optional(db).await?)

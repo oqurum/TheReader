@@ -18,7 +18,6 @@ pub use scroll::*;
 
 pub use common_local::reader::{LayoutType, PageMovement};
 
-
 /// Describes how to display a section.
 #[derive(Clone)]
 pub enum LayoutDisplay {
@@ -60,7 +59,9 @@ impl LayoutDisplay {
 
     pub fn add_to_iframe(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Reader>) {
         match self {
-            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => v.add_to_iframe(iframe, ctx),
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => {
+                v.add_to_iframe(iframe, ctx)
+            }
             LayoutDisplay::VerticalScroll(v) => v.add_to_iframe(iframe, ctx),
             LayoutDisplay::Image(v) => v.add_to_iframe(iframe, ctx),
         }
@@ -68,7 +69,9 @@ impl LayoutDisplay {
 
     pub fn transitioning_page(&self, amount: isize, section: &SectionContents) {
         match self {
-            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::VerticalScroll(_) => {
+            LayoutDisplay::SinglePage(_)
+            | LayoutDisplay::DoublePage(_)
+            | LayoutDisplay::VerticalScroll(_) => {
                 let body = section.get_iframe_body().unwrap_throw();
 
                 let page = section.page_offset;
@@ -93,11 +96,7 @@ impl LayoutDisplay {
                 body.style()
                     .set_property(
                         "left",
-                        &format!(
-                            "calc(-{}% - {}px)",
-                            100 * page,
-                            page as isize * 10 - amount
-                        ),
+                        &format!("calc(-{}% - {}px)", 100 * page, page as isize * 10 - amount),
                     )
                     .unwrap();
             }
@@ -108,7 +107,9 @@ impl LayoutDisplay {
 
     pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
         match self {
-            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => v.set_page(index, section),
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => {
+                v.set_page(index, section)
+            }
             LayoutDisplay::VerticalScroll(v) => v.set_page(index, section),
             LayoutDisplay::Image(v) => v.set_page(index, section),
         }
@@ -140,21 +141,27 @@ impl LayoutDisplay {
 
     pub fn on_start_viewing(&self, section: &SectionContents) {
         match self {
-            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::Image(_) => (),
+            LayoutDisplay::SinglePage(_)
+            | LayoutDisplay::DoublePage(_)
+            | LayoutDisplay::Image(_) => (),
             LayoutDisplay::VerticalScroll(v) => v.on_start_viewing(section),
         }
     }
 
     pub fn on_stop_viewing(&self, section: &SectionContents) {
         match self {
-            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::Image(_) => (),
+            LayoutDisplay::SinglePage(_)
+            | LayoutDisplay::DoublePage(_)
+            | LayoutDisplay::Image(_) => (),
             LayoutDisplay::VerticalScroll(v) => v.on_stop_viewing(section),
         }
     }
 
     pub fn get_movement(&self) -> PageMovement {
         match self {
-            LayoutDisplay::SinglePage(_) | LayoutDisplay::DoublePage(_) | LayoutDisplay::VerticalScroll(_) => PageMovement::LeftToRight,
+            LayoutDisplay::SinglePage(_)
+            | LayoutDisplay::DoublePage(_)
+            | LayoutDisplay::VerticalScroll(_) => PageMovement::LeftToRight,
             LayoutDisplay::Image(v) => v.movement,
         }
     }

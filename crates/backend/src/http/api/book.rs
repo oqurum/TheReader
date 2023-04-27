@@ -12,7 +12,7 @@ use common::{
 };
 use common_local::{
     api::{self, BookPresetListType, BookProgression},
-    DisplayItem, ModifyValuesBy, Poster, SearchFor, SearchForBooksBy, SearchType, BookType,
+    BookType, DisplayItem, ModifyValuesBy, Poster, SearchFor, SearchForBooksBy, SearchType,
 };
 use serde_qs::actix::QsQuery;
 
@@ -20,16 +20,12 @@ use crate::{
     http::{JsonResponse, MemberCookie},
     metadata::{self, ActiveAgents},
     model::{
-        BookModel,
-        BookPersonModel,
-        FileModel,
-        ImageLinkModel, UploadedImageModel,
-        PersonModel,
-        FileProgressionModel, LibraryModel,
+        BookModel, BookPersonModel, FileModel, FileProgressionModel, ImageLinkModel, LibraryModel,
+        PersonModel, UploadedImageModel,
     },
     queue_task, store_image,
     task::{self, queue_task_priority},
-    Error, WebResult, SqlPool,
+    Error, SqlPool, WebResult,
 };
 
 const QUERY_LIMIT: i64 = 100;
@@ -61,8 +57,8 @@ pub async fn load_book_list(
         return Err(ApiErrorResponse::new("Not accessible. Not owner.").into());
     }
 
-
-    let count = BookModel::count_search_by(&filters, query.library, &mut *db.acquire().await?).await?;
+    let count =
+        BookModel::count_search_by(&filters, query.library, &mut *db.acquire().await?).await?;
 
     let items = if count == 0 {
         Vec::new()
@@ -86,7 +82,10 @@ pub async fn load_book_list(
     };
 
     Ok(web::Json(WrappingResponse::okay(
-        api::GetBookListResponse { items, count: count as usize },
+        api::GetBookListResponse {
+            items,
+            count: count as usize,
+        },
     )))
 }
 
@@ -103,14 +102,13 @@ pub async fn load_book_preset_list(
         BookPresetListType::Progressing => {
             let mut items = Vec::new();
 
-            for (a, book) in
-                FileProgressionModel::get_member_progression_and_books(
-                    member.id,
-                    query.offset.unwrap_or(0),
-                    query.limit.unwrap_or(50).min(QUERY_LIMIT),
-                    &mut *db.acquire().await?
-                )
-                    .await?
+            for (a, book) in FileProgressionModel::get_member_progression_and_books(
+                member.id,
+                query.offset.unwrap_or(0),
+                query.limit.unwrap_or(50).min(QUERY_LIMIT),
+                &mut *db.acquire().await?,
+            )
+            .await?
             {
                 let file = FileModel::find_one_by_id(a.file_id, &mut *db.acquire().await?)
                     .await?
@@ -166,8 +164,10 @@ pub async fn update_books(
 
                 // Update the cached author name
                 if let Some(person_id) = edit.people_list.first().copied() {
-                    let person = PersonModel::find_one_by_id(person_id, &mut *db.acquire().await?).await?;
-                    let book = BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
+                    let person =
+                        PersonModel::find_one_by_id(person_id, &mut *db.acquire().await?).await?;
+                    let book =
+                        BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
 
                     if let Some((person, mut book)) = person.zip(book) {
                         book.cached.author = Some(person.name);
@@ -201,7 +201,8 @@ pub async fn update_books(
                     .await?
                     .is_empty()
                 {
-                    let book = BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
+                    let book =
+                        BookModel::find_one_by_id(book_id, &mut *db.acquire().await?).await?;
 
                     if let Some(mut book) = book {
                         book.cached.author = None;
@@ -232,8 +233,12 @@ pub async fn load_book_info(
     if book.type_of == BookType::Book {
         for file in FileModel::find_by_book_id(book.id, &mut *db.acquire().await?).await? {
             let prog = if !found_progression {
-                let prog =
-                    FileProgressionModel::find_one(member.member_id(), file.id, &mut *db.acquire().await?).await?;
+                let prog = FileProgressionModel::find_one(
+                    member.member_id(),
+                    file.id,
+                    &mut *db.acquire().await?,
+                )
+                .await?;
 
                 found_progression = prog.is_some();
 
@@ -257,8 +262,12 @@ pub async fn load_book_info(
                 // Copy of above
                 for file in FileModel::find_by_book_id(file_model.id, &mut acq_pool).await? {
                     let prog = if !found_progression {
-                        let prog =
-                            FileProgressionModel::find_one(member.member_id(), file.id, &mut acq_pool).await?;
+                        let prog = FileProgressionModel::find_one(
+                            member.member_id(),
+                            file.id,
+                            &mut acq_pool,
+                        )
+                        .await?;
 
                         found_progression = prog.is_some();
 
@@ -287,7 +296,10 @@ pub async fn load_book_info(
         proc_pro_progress.sort_by_key(|&(i, _)| i);
 
         // Place into main vec
-        for (file, prog) in proc_pro_media.into_iter().zip(proc_pro_progress.into_iter()) {
+        for (file, prog) in proc_pro_media
+            .into_iter()
+            .zip(proc_pro_progress.into_iter())
+        {
             media.push(file.1.into());
             progress.push(prog.1.map(|v| v.into()));
         }
@@ -415,24 +427,27 @@ async fn get_book_posters(
     // Work is the main book. Usually consisting of more posters.
     // We can do they by works[0].key = "/works/OLXXXXXXW"
 
-    let mut items: Vec<Poster> =
-        ImageLinkModel::find_with_link_by_link_id(**path, ImageType::Book, &mut *db.acquire().await?)
-            .await?
-            .into_iter()
-            .map(|poster| Poster {
-                id: Some(poster.image_id),
+    let mut items: Vec<Poster> = ImageLinkModel::find_with_link_by_link_id(
+        **path,
+        ImageType::Book,
+        &mut *db.acquire().await?,
+    )
+    .await?
+    .into_iter()
+    .map(|poster| Poster {
+        id: Some(poster.image_id),
 
-                selected: poster.path == book.thumb_url,
+        selected: poster.path == book.thumb_url,
 
-                path: poster
-                    .path
-                    .into_value()
-                    .map(|v| format!("/api/image/{v}"))
-                    .unwrap_or_else(|| String::from(MISSING_THUMB_PATH)),
+        path: poster
+            .path
+            .into_value()
+            .map(|v| format!("/api/image/{v}"))
+            .unwrap_or_else(|| String::from(MISSING_THUMB_PATH)),
 
-                created_at: poster.created_at,
-            })
-            .collect();
+        created_at: poster.created_at,
+    })
+    .collect();
 
     let search = crate::metadata::search_all_agents(
         &format!(
@@ -531,9 +546,12 @@ async fn get_book_progress(
     member: MemberCookie,
     db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<api::ApiGetBookProgressResponse>> {
-    let model =
-        FileProgressionModel::find_one_by_book_id(member.member_id(), *book_id, &mut *db.acquire().await?)
-            .await?;
+    let model = FileProgressionModel::find_one_by_book_id(
+        member.member_id(),
+        *book_id,
+        &mut *db.acquire().await?,
+    )
+    .await?;
 
     Ok(web::Json(WrappingResponse::okay(model.map(|v| v.into()))))
 }

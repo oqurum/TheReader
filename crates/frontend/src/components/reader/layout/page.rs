@@ -1,12 +1,16 @@
-use wasm_bindgen::{UnwrapThrowExt, JsCast, prelude::Closure};
+use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::HtmlIFrameElement;
 use yew::Context;
 
-use crate::{components::{Reader, reader::{section::SectionContents, ReaderMsg}}, util::ElementEvent};
+use crate::{
+    components::{
+        reader::{section::SectionContents, ReaderMsg},
+        Reader,
+    },
+    util::ElementEvent,
+};
 
 use super::PAGE_DISPLAYS;
-
-
 
 pub struct PageDisplay {
     /// Total pages Being displayed at once.

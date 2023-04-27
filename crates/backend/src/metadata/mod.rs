@@ -6,11 +6,7 @@ use std::{
 use crate::{
     config::get_config,
     model::{
-        NewBookModel,
-        BookPersonModel,
-        FileModel,
-        NewPersonModel, PersonModel,
-        PersonAltModel,
+        BookPersonModel, FileModel, NewBookModel, NewPersonModel, PersonAltModel, PersonModel,
     },
     util, Result,
 };
@@ -492,7 +488,9 @@ impl From<FoundItem> for NewBookModel {
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             deleted_at: None,
-            available_at: val.available_at.map(|v| Utc.timestamp_millis_opt(v).unwrap().naive_utc()),
+            available_at: val
+                .available_at
+                .map(|v| Utc.timestamp_millis_opt(v).unwrap().naive_utc()),
             year: val.year,
             parent_id: None,
             index: None,

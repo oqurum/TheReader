@@ -1,14 +1,19 @@
-use std::{rc::Rc, cell::Cell};
+use std::{cell::Cell, rc::Rc};
 
 use chrono::Utc;
-use wasm_bindgen::{UnwrapThrowExt, prelude::Closure, JsCast};
-use web_sys::{HtmlIFrameElement, Document, WheelEvent, MouseEvent, HtmlElement};
+use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
+use web_sys::{Document, HtmlElement, HtmlIFrameElement, MouseEvent, WheelEvent};
 use yew::Context;
 
-use crate::{util::ElementEvent, components::{Reader, reader::{ReaderMsg, DragType, OverlayEvent, section::SectionContents}}};
+use crate::{
+    components::{
+        reader::{section::SectionContents, DragType, OverlayEvent, ReaderMsg},
+        Reader,
+    },
+    util::ElementEvent,
+};
 
 use super::PAGE_DISPLAYS;
-
 
 pub struct ScrollDisplay {
     class_name: &'static str,

@@ -2,18 +2,18 @@
 //!
 //! For Example, this'll contain an iframe along with a collection of "chapters" which have the same header hash.
 
-use std::{rc::Rc, cell::RefCell};
+use std::{cell::RefCell, rc::Rc};
 
 use common_local::Chapter;
-use editor::{ListenerId, MouseListener, ListenerEvent, ListenerHandle};
+use editor::{ListenerEvent, ListenerHandle, ListenerId, MouseListener};
 use wasm_bindgen::{prelude::Closure, UnwrapThrowExt};
-use web_sys::{HtmlElement, HtmlIFrameElement, HtmlHeadElement};
+use web_sys::{HtmlElement, HtmlHeadElement, HtmlIFrameElement};
 use yew::Context;
 
 use super::{
-    js_update_iframe_after_load, update_iframe_size,
+    color, js_update_iframe_after_load, update_iframe_size,
     util::{for_each_child_map, table::TableContainer},
-    CachedPage, Reader, color, ReaderSettings, LayoutDisplay,
+    CachedPage, LayoutDisplay, Reader, ReaderSettings,
 };
 
 pub enum SectionLoadProgress {
@@ -35,7 +35,9 @@ impl SectionLoadProgress {
         match std::mem::replace(self, Self::Waiting) {
             SectionLoadProgress::Loading(v) => *self = Self::Loaded(v),
             SectionLoadProgress::Loaded(v) => *self = Self::Loaded(v),
-            SectionLoadProgress::Waiting => panic!("Shouldn't have tried to convert a waiting variant"),
+            SectionLoadProgress::Waiting => {
+                panic!("Shouldn't have tried to convert a waiting variant")
+            }
         }
     }
 
@@ -88,7 +90,11 @@ pub struct SectionContents {
 }
 
 impl SectionContents {
-    pub fn new(header_hash: String, iframe: HtmlIFrameElement, on_load: Closure<dyn FnMut()>) -> Self {
+    pub fn new(
+        header_hash: String,
+        iframe: HtmlIFrameElement,
+        on_load: Closure<dyn FnMut()>,
+    ) -> Self {
         Self {
             iframe,
             on_load,
@@ -183,21 +189,32 @@ impl SectionContents {
                 {
                     // Start of Section Declaration
                     let section_break = document.create_element("div").unwrap_throw();
-                    section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
-                    section_break.class_list().add_2("reader-ignore", "reader-section-start").unwrap_throw();
+                    section_break
+                        .set_attribute("data-section-id", &chapter.value.to_string())
+                        .unwrap_throw();
+                    section_break
+                        .class_list()
+                        .add_2("reader-ignore", "reader-section-start")
+                        .unwrap_throw();
                     section_break.set_id(&format!("section-{}-start", chapter.value));
                     body.append_child(&section_break).unwrap_throw();
 
-                    section_break.insert_adjacent_html("afterend", chapter.info.inner_body.trim()).unwrap_throw();
+                    section_break
+                        .insert_adjacent_html("afterend", chapter.info.inner_body.trim())
+                        .unwrap_throw();
 
                     // End of Section Declaration
                     let section_break = document.create_element("div").unwrap_throw();
-                    section_break.set_attribute("data-section-id", &chapter.value.to_string()).unwrap_throw();
-                    section_break.class_list().add_2("reader-ignore", "reader-section-end").unwrap_throw();
+                    section_break
+                        .set_attribute("data-section-id", &chapter.value.to_string())
+                        .unwrap_throw();
+                    section_break
+                        .class_list()
+                        .add_2("reader-ignore", "reader-section-end")
+                        .unwrap_throw();
                     section_break.set_id(&format!("section-{}-end", chapter.value));
                     body.append_child(&section_break).unwrap_throw();
                 }
-
             }
         }
 
@@ -215,7 +232,11 @@ impl SectionContents {
             }
         });
 
-        js_update_iframe_after_load(self.get_iframe(), &self.header_hash, handle_js_redirect_clicks);
+        js_update_iframe_after_load(
+            self.get_iframe(),
+            &self.header_hash,
+            handle_js_redirect_clicks,
+        );
 
         cached_display.add_to_iframe(self.get_iframe(), ctx);
         cached_display.on_stop_viewing(self);
@@ -229,7 +250,8 @@ impl SectionContents {
             Some(Rc::new(RefCell::new(move |_id: ListenerId| {
                 // let save = id.try_save();
             })) as ListenerEvent),
-        ).expect_throw("Failed to register editor listener");
+        )
+        .expect_throw("Failed to register editor listener");
 
         // TODO: Detect if there's a single image in the whole section. If so, expand across both page views and center.
     }

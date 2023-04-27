@@ -67,7 +67,7 @@ impl ResponseError for WebError {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
         let resp_value = match self {
             Self::ApiResponse(r) => WrappingResponse::<()>::Error(r.clone()),
-            this => WrappingResponse::<()>::error(format!("{this}"))
+            this => WrappingResponse::<()>::error(format!("{this}")),
         };
 
         let mut res = actix_web::HttpResponse::new(self.status_code());
@@ -152,7 +152,6 @@ pub enum Error {
     #[error(transparent)]
     Bookie(#[from] BookieError),
 }
-
 
 impl From<Error> for actix_web::Error {
     fn from(val: Error) -> Self {

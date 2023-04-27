@@ -4,14 +4,9 @@ use common::{api::WrappingResponse, BookId, ThumbnailStore};
 use common_local::{api, CollectionId, DisplayItem};
 
 use crate::{
-    SqlPool,
     http::{JsonResponse, MemberCookie},
-    model::{
-        BookModel,
-        CollectionModel, NewCollectionModel,
-        CollectionItemModel,
-    },
-    WebResult,
+    model::{BookModel, CollectionItemModel, CollectionModel, NewCollectionModel},
+    SqlPool, WebResult,
 };
 
 #[get("/collections")]

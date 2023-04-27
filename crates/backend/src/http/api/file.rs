@@ -5,7 +5,7 @@ use actix_web::http::header::ContentDisposition;
 use actix_web::{delete, get, post, web, HttpResponse};
 
 use common::api::WrappingResponse;
-use common_local::api::{FileUnwrappedInfo, FileUnwrappedHeaderType};
+use common_local::api::{FileUnwrappedHeaderType, FileUnwrappedInfo};
 use common_local::{api, Chapter, FileId, Progression};
 use reqwest::header::HeaderValue;
 use tracing::error;
@@ -13,7 +13,7 @@ use tracing::error;
 use crate::http::{JsonResponse, MemberCookie};
 use crate::model::FileModel;
 use crate::model::FileProgressionModel;
-use crate::{Result, WebResult, SqlPool};
+use crate::{Result, SqlPool, WebResult};
 
 const BOOK_STYLING: &str = include_str!("../../../../../app/book_stylings.css");
 
@@ -131,23 +131,20 @@ pub async fn load_file_pages(
                 .into_dimensions()?;
 
             FileUnwrappedInfo {
-                header_items: vec![
-                    FileUnwrappedHeaderType {
-                        name: String::from("style"),
-                        attributes: Vec::new(),
-                        chars: Some(String::from(BOOK_STYLING))
-                    }
-                ],
+                header_items: vec![FileUnwrappedHeaderType {
+                    name: String::from("style"),
+                    attributes: Vec::new(),
+                    chars: Some(String::from(BOOK_STYLING)),
+                }],
                 header_hash: String::from("ignored"),
                 inner_body: format!(
                     r#"<div class="comic-strip"><img src="data:image;charset=utf-8;base64,{}" data-width="{width}" data-height="{height}" /></div>"#,
                     base64::encode(body)
-                )
+                ),
             }
         } else {
             bookie::epub::extract_body_and_header_values(&body).unwrap()
         };
-
 
         // TODO: Return file names along with Chapter. Useful for redirecting to certain chapter for <a> tags.
 
@@ -178,9 +175,13 @@ pub async fn load_file(
     Ok(web::Json(WrappingResponse::okay(
         if let Some(file) = FileModel::find_one_by_id(*file_id, &mut *db.acquire().await?).await? {
             Some(api::GetFileByIdResponse {
-                progress: FileProgressionModel::find_one(member.member_id(), *file_id, &mut *db.acquire().await?)
-                    .await?
-                    .map(|v| v.into()),
+                progress: FileProgressionModel::find_one(
+                    member.member_id(),
+                    *file_id,
+                    &mut *db.acquire().await?,
+                )
+                .await?
+                .map(|v| v.into()),
 
                 media: file.into(),
             })
@@ -251,12 +252,20 @@ pub async fn progress_file_add(
         .and_then(|v| v.book_id)
     {
         // Check if the book already has progression. Return the progression.
-        if let Some(prog) =
-            FileProgressionModel::find_one_by_book_id(member.member_id(), book_id, &mut *db.acquire().await?)
-                .await?
+        if let Some(prog) = FileProgressionModel::find_one_by_book_id(
+            member.member_id(),
+            book_id,
+            &mut *db.acquire().await?,
+        )
+        .await?
         {
             if prog.file_id != *file_id {
-                FileProgressionModel::delete_one(prog.user_id, prog.file_id, &mut *db.acquire().await?).await?;
+                FileProgressionModel::delete_one(
+                    prog.user_id,
+                    prog.file_id,
+                    &mut *db.acquire().await?,
+                )
+                .await?;
             }
         }
 
@@ -279,6 +288,7 @@ pub async fn progress_file_delete(
     member: MemberCookie,
     db: web::Data<SqlPool>,
 ) -> WebResult<JsonResponse<&'static str>> {
-    FileProgressionModel::delete_one(member.member_id(), *file_id, &mut *db.acquire().await?).await?;
+    FileProgressionModel::delete_one(member.member_id(), *file_id, &mut *db.acquire().await?)
+        .await?;
     Ok(web::Json(WrappingResponse::okay("success")))
 }

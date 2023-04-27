@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use common::{BookId, PersonId, Source, ThumbnailStore};
 use sqlx::{FromRow, SqliteConnection};
 
-use crate::{Result, config::get_config};
+use crate::{config::get_config, Result};
 use common_local::{
     filter::{FilterContainer, FilterModifier, FilterTableType},
-    BookEdit, BookItemCached, DisplayBookItem, LibraryId, BookType,
+    BookEdit, BookItemCached, BookType, DisplayBookItem, LibraryId,
 };
 use serde::Serialize;
 
@@ -79,7 +79,10 @@ impl From<BookModel> for DisplayBookItem {
         fn get_public_url(source: &Source, libby_url: Option<String>) -> Option<String> {
             match source.agent.as_ref() {
                 "libby" => Some(format!("{}/book/{}", libby_url?, source.value)),
-                "googlebooks" => Some(format!("https://books.google.com/books?id={}", source.value)),
+                "googlebooks" => Some(format!(
+                    "https://books.google.com/books?id={}",
+                    source.value
+                )),
                 "openlibrary" => Some(format!("https://openlibrary.org/isbn/{}", source.value)),
 
                 _ => None,
@@ -94,7 +97,7 @@ impl From<BookModel> for DisplayBookItem {
                 &val.source,
                 Some(get_config().libby.url)
                     .filter(|v| !v.is_empty())
-                    .map(|v| v.trim().to_string())
+                    .map(|v| v.trim().to_string()),
             ),
             source: val.source,
             file_item_count: val.file_item_count,
@@ -181,9 +184,10 @@ impl NewBookModel {
 
     pub async fn insert_or_increment(self, db: &mut SqliteConnection) -> Result<BookModel> {
         if let Some(mut table_book) = BookModel::find_one_by_source(&self.source, db).await? {
-            sqlx::query(
-                "UPDATE book SET file_item_count = file_item_count + 1 WHERE source = $1"
-            ).bind(&self.source).execute(db).await?;
+            sqlx::query("UPDATE book SET file_item_count = file_item_count + 1 WHERE source = $1")
+                .bind(&self.source)
+                .execute(db)
+                .await?;
 
             table_book.file_item_count += 1;
 
@@ -256,9 +260,10 @@ impl BookModel {
     }
 
     pub async fn increment(id: BookId, db: &mut SqliteConnection) -> Result<()> {
-        sqlx::query(
-            "UPDATE book SET file_item_count = file_item_count + 1 WHERE id = $1"
-        ).bind(id).execute(db).await?;
+        sqlx::query("UPDATE book SET file_item_count = file_item_count + 1 WHERE id = $1")
+            .bind(id)
+            .execute(db)
+            .await?;
 
         Ok(())
     }
@@ -266,13 +271,15 @@ impl BookModel {
     pub async fn delete_or_decrement(id: BookId, db: &mut SqliteConnection) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count < 1 {
-                sqlx::query(
-                    "UPDATE book SET file_item_count = file_item_count - 1 WHERE id = $1"
-                ).bind(id).execute(db).await?;
+                sqlx::query("UPDATE book SET file_item_count = file_item_count - 1 WHERE id = $1")
+                    .bind(id)
+                    .execute(db)
+                    .await?;
             } else {
-                sqlx::query(
-                    "DELETE FROM book WHERE id = $1"
-                ).bind(id).execute(db).await?;
+                sqlx::query("DELETE FROM book WHERE id = $1")
+                    .bind(id)
+                    .execute(db)
+                    .await?;
             }
         }
 
@@ -282,9 +289,10 @@ impl BookModel {
     pub async fn decrement(id: BookId, db: &mut SqliteConnection) -> Result<()> {
         if let Some(model) = Self::find_one_by_id(id, db).await? {
             if model.file_item_count > 0 {
-                sqlx::query(
-                    "UPDATE book SET file_item_count = file_item_count - 1 WHERE id = $1"
-                ).bind(id).execute(db).await?;
+                sqlx::query("UPDATE book SET file_item_count = file_item_count - 1 WHERE id = $1")
+                    .bind(id)
+                    .execute(db)
+                    .await?;
             }
         }
 
@@ -296,9 +304,11 @@ impl BookModel {
         file_count: i64,
         db: &mut SqliteConnection,
     ) -> Result<()> {
-        sqlx::query(
-            "UPDATE book SET file_item_count = $2 WHERE id = $1"
-        ).bind(id).bind(file_count).execute(db).await?;
+        sqlx::query("UPDATE book SET file_item_count = $2 WHERE id = $1")
+            .bind(id)
+            .bind(file_count)
+            .execute(db)
+            .await?;
 
         Ok(())
     }
@@ -325,16 +335,21 @@ impl BookModel {
         ).bind(id).fetch_all(db).await?)
     }
 
-    pub async fn find_one_by_parent_id_and_index(id: BookId, index: i64, db: &mut SqliteConnection) -> Result<Option<Self>> {
-            Ok(sqlx::query_as(
+    pub async fn find_one_by_parent_id_and_index(
+        id: BookId,
+        index: i64,
+        db: &mut SqliteConnection,
+    ) -> Result<Option<Self>> {
+        Ok(sqlx::query_as(
                 "SELECT id, library_id, type_of, parent_id, source, file_item_count, title, original_title, description, rating, thumb_url, cached, \"index\", refreshed_at, created_at, updated_at, deleted_at, available_at, year FROM book WHERE parent_id = $1 AND \"index\" = $2"
             ).bind(id).bind(index).fetch_optional(db).await?)
     }
 
     pub async fn delete_by_id(id: BookId, db: &mut SqliteConnection) -> Result<u64> {
-        let res = sqlx::query(
-            "DELETE FROM book WHERE id = $1"
-        ).bind(id).execute(db).await?;
+        let res = sqlx::query("DELETE FROM book WHERE id = $1")
+            .bind(id)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected())
     }
@@ -363,7 +378,9 @@ impl BookModel {
             })
             .unwrap_or_default();
 
-        let sql = format!(r#"SELECT * FROM book {insert_where} {lib_id} {insert_and} {inner_query} LIMIT $1 OFFSET $2"#);
+        let sql = format!(
+            r#"SELECT * FROM book {insert_where} {lib_id} {insert_and} {inner_query} LIMIT $1 OFFSET $2"#
+        );
 
         let conn = sqlx::query_as(&sql);
 
@@ -557,7 +574,11 @@ impl BookModel {
 
         sql += "LIMIT $1 OFFSET $2";
 
-        Ok(sqlx::query_as(&sql).bind(limit).bind(offset).fetch_all(db).await?)
+        Ok(sqlx::query_as(&sql)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(db)
+            .await?)
     }
 
     pub async fn count_search_by(

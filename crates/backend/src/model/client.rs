@@ -2,18 +2,19 @@
 //!
 //! References by AuthModel.
 
-use chrono::{Utc, NaiveDateTime};
-use common::{ClientId};
+use chrono::{NaiveDateTime, Utc};
+use common::ClientId;
 use lazy_static::lazy_static;
 use sqlx::{FromRow, SqliteConnection};
 use uaparser::{Parser, UserAgentParser};
 
-use crate::{Result, http::gen_sample_alphanumeric};
+use crate::{http::gen_sample_alphanumeric, Result};
 
 lazy_static! {
-    static ref USER_AGENT_PARSER: UserAgentParser = UserAgentParser::from_bytes(include_bytes!("../../../../app/user_agents.yaml")).expect("User Agent Parsing");
+    static ref USER_AGENT_PARSER: UserAgentParser =
+        UserAgentParser::from_bytes(include_bytes!("../../../../app/user_agents.yaml"))
+            .expect("User Agent Parsing");
 }
-
 
 // We have this separated from the Auth Model because we use the auth model for more than just User Clients.
 pub struct NewClientModel {
@@ -69,7 +70,8 @@ impl NewClientModel {
                 } else {
                     ua.os.family.to_string()
                 }
-            }).filter(|v| !v.trim().is_empty()),
+            })
+            .filter(|v| !v.trim().is_empty()),
         }
     }
 
@@ -105,7 +107,13 @@ impl NewClientModel {
 }
 
 impl ClientModel {
-    pub async fn find_by_token_secret(token: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
-        Ok(sqlx::query_as("SELECT * FROM client WHERE oauth = $1").bind(token).fetch_optional(db).await?)
+    pub async fn find_by_token_secret(
+        token: &str,
+        db: &mut SqliteConnection,
+    ) -> Result<Option<Self>> {
+        Ok(sqlx::query_as("SELECT * FROM client WHERE oauth = $1")
+            .bind(token)
+            .fetch_optional(db)
+            .await?)
     }
 }

@@ -2,8 +2,12 @@ use bitflags::bitflags;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(feature = "backend")]
-use sqlx::{Decode, Encode, Sqlite, sqlite::{SqliteArgumentValue, SqliteValueRef}, encode::IsNull, error::BoxDynError, Type};
-
+use sqlx::{
+    encode::IsNull,
+    error::BoxDynError,
+    sqlite::{SqliteArgumentValue, SqliteValueRef},
+    Decode, Encode, Sqlite, Type,
+};
 
 bitflags! {
     #[derive(Serialize, Deserialize)]
@@ -70,9 +74,7 @@ impl Permissions {
 impl From<i64> for Permissions {
     fn from(value: i64) -> Self {
         Self {
-            group: GroupPermissions {
-                bits: value
-            }
+            group: GroupPermissions { bits: value },
         }
     }
 }
@@ -92,9 +94,7 @@ impl<'r> Decode<'r, Sqlite> for Permissions {
         let val = <i64 as Decode<'r, Sqlite>>::decode(value)?;
 
         Ok(Self {
-            group: GroupPermissions {
-                bits: val
-            }
+            group: GroupPermissions { bits: val },
         })
     }
 }

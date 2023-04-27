@@ -9,9 +9,8 @@ use common_local::api::{self, GetDirectoryQuery};
 
 use crate::{
     config::get_config,
-    SqlPool,
     http::{JsonResponse, MemberCookie},
-    Error, WebResult,
+    Error, SqlPool, WebResult,
 };
 
 #[get("/directory")]

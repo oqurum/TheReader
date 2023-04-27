@@ -5,13 +5,9 @@ use common_local::{api, util::take_from_and_swap, LibraryColl};
 
 use crate::{
     config::{get_config, save_config, update_config},
-    SqlPool,
     http::{JsonResponse, MemberCookie},
-    model::{
-        DirectoryModel,
-        LibraryModel, NewLibraryModel,
-    },
-    WebResult,
+    model::{DirectoryModel, LibraryModel, NewLibraryModel},
+    SqlPool, WebResult,
 };
 
 #[get("/options")]

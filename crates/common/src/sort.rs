@@ -3,7 +3,6 @@ pub fn filename_sort<T: AsRef<str>>(arr: &mut [T]) {
     numeric_sort::sort(arr);
 }
 
-
 #[cfg(test)]
 mod sorting_test {
     use super::*;

@@ -34,7 +34,6 @@ pub fn render_placeholder_item() -> Html {
     }
 }
 
-
 #[derive(Properties)]
 pub struct BookPosterItemProps {
     // TODO: Convert to Either<DisplayItem, BookProgression> and remove progress field.
@@ -363,7 +362,9 @@ impl BookPosterItem {
                 let resp = request::get_media_view(book_id).await;
 
                 match resp.ok() {
-                    Ok(res) => BookPosterItemMsg::ShowPopup(DisplayOverlayItem::Edit(Box::new(res))),
+                    Ok(res) => {
+                        BookPosterItemMsg::ShowPopup(DisplayOverlayItem::Edit(Box::new(res)))
+                    }
                     Err(err) => {
                         crate::display_error(err);
                         BookPosterItemMsg::Ignore

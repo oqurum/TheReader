@@ -1,28 +1,32 @@
-use std::{collections::VecDeque, path::{PathBuf, Path}, time::UNIX_EPOCH};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+    time::UNIX_EPOCH,
+};
 
 use crate::{
     http::send_message_to_clients,
-    metadata::{get_metadata_from_files, MetadataReturned, search_all_agents, Metadata, get_metadata_by_source, openlibrary::OpenLibraryMetadata},
-    model::{
-        BookModel, NewBookModel,
-        BookPersonModel,
-        DirectoryModel,
-        FileModel, NewFileModel,
-        ImageLinkModel, UploadedImageModel,
-        LibraryModel,
+    metadata::{
+        get_metadata_by_source, get_metadata_from_files, openlibrary::OpenLibraryMetadata,
+        search_all_agents, Metadata, MetadataReturned,
     },
-    Result, parse::{extract_name_from_path, extract_comic_volume, VolumeType},
+    model::{
+        BookModel, BookPersonModel, DirectoryModel, FileModel, ImageLinkModel, LibraryModel,
+        NewBookModel, NewFileModel, UploadedImageModel,
+    },
+    parse::{extract_comic_volume, extract_name_from_path, VolumeType},
+    Result,
 };
 use bookie::BookSearch;
 use chrono::{TimeZone, Utc};
 use common::parse_book_id;
 use common_local::{
     ws::{TaskId, TaskType, WebsocketNotification},
-    LibraryId, LibraryType, BookType,
+    BookType, LibraryId, LibraryType,
 };
 use sqlx::SqliteConnection;
 use tokio::fs;
-use tracing::{error, info, trace, debug};
+use tracing::{debug, error, info, trace};
 
 pub static WHITELISTED_FILE_TYPES: [&str; 2] = ["epub", "cbz"];
 
@@ -74,7 +78,9 @@ pub async fn library_scan(
                     None => (file_name, String::new()),
                 };
 
-                if WHITELISTED_FILE_TYPES.contains(&file_type.as_str()) && library.type_of.is_filetype_valid(file_type.as_str()) {
+                if WHITELISTED_FILE_TYPES.contains(&file_type.as_str())
+                    && library.type_of.is_filetype_valid(file_type.as_str())
+                {
                     send_message_to_clients(WebsocketNotification::update_task(
                         task_id,
                         TaskType::LibraryScan(file_name.clone()),
@@ -126,15 +132,24 @@ pub async fn library_scan(
                             model.chapter_count = chapter_count;
                             model.hash = hash;
 
-                            model.modified_at = Utc.timestamp_millis_opt(
-                                meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ).unwrap().naive_utc();
-                            model.accessed_at = Utc.timestamp_millis_opt(
-                                meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ).unwrap().naive_utc();
-                            model.created_at = Utc.timestamp_millis_opt(
-                                meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ).unwrap().naive_utc();
+                            model.modified_at = Utc
+                                .timestamp_millis_opt(
+                                    meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                                )
+                                .unwrap()
+                                .naive_utc();
+                            model.accessed_at = Utc
+                                .timestamp_millis_opt(
+                                    meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                                )
+                                .unwrap()
+                                .naive_utc();
+                            model.created_at = Utc
+                                .timestamp_millis_opt(
+                                    meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                                )
+                                .unwrap()
+                                .naive_utc();
                             model.deleted_at = None;
 
                             info!(target: "scanner", id = ?model.id, "Overwriting Missing File");
@@ -174,15 +189,24 @@ pub async fn library_scan(
                             identifier,
                             hash,
 
-                            modified_at: Utc.timestamp_millis_opt(
-                                meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ).unwrap().naive_utc(),
-                            accessed_at: Utc.timestamp_millis_opt(
-                                meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ).unwrap().naive_utc(),
-                            created_at: Utc.timestamp_millis_opt(
-                                meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
-                            ).unwrap().naive_utc(),
+                            modified_at: Utc
+                                .timestamp_millis_opt(
+                                    meta.modified()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                                )
+                                .unwrap()
+                                .naive_utc(),
+                            accessed_at: Utc
+                                .timestamp_millis_opt(
+                                    meta.accessed()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                                )
+                                .unwrap()
+                                .naive_utc(),
+                            created_at: Utc
+                                .timestamp_millis_opt(
+                                    meta.created()?.duration_since(UNIX_EPOCH)?.as_millis() as i64,
+                                )
+                                .unwrap()
+                                .naive_utc(),
                             deleted_at: None,
                         };
 
@@ -199,7 +223,10 @@ pub async fn library_scan(
                             if let Err(e) = file_match_or_create_book(file, library.id, db).await {
                                 error!(error = ?e, "File #{file_id} file_match_or_create_metadata");
                             }
-                        } else if let Err(e) = file_match_or_create_comic_book(file, &inside_root_dir, library.id, db).await {
+                        } else if let Err(e) =
+                            file_match_or_create_comic_book(file, &inside_root_dir, library.id, db)
+                                .await
+                        {
                             error!(error = ?e, "File #{file_id} file_match_or_create_metadata");
                         }
                     }
@@ -272,7 +299,6 @@ async fn file_match_or_create_book(
     Ok(())
 }
 
-
 async fn file_match_or_create_comic_book(
     file: FileModel,
     root_dir_path: &Path,
@@ -296,15 +322,15 @@ async fn file_match_or_create_comic_book(
         &stripped_book_name,
         common_local::SearchFor::Book(common_local::SearchForBooksBy::Title),
         &Default::default(),
-    ).await?;
+    )
+    .await?;
 
     let mut source = None;
 
     // Find first exact match in the OpenLibrary Agent.
     if let Some(source2) = items.iter().find_map(|(agent, items)| {
         if agent == &OpenLibraryMetadata.get_agent() {
-            items.iter()
-            .find_map(|item| {
+            items.iter().find_map(|item| {
                 if let Some(book) = item.as_book() {
                     if let Some(title) = book.title.as_deref() {
                         if title == stripped_book_name {
@@ -318,8 +344,7 @@ async fn file_match_or_create_comic_book(
         } else {
             None
         }
-    })
-    {
+    }) {
         source = Some(source2);
     } else {
         let sim = items.sort_items_by_similarity(&stripped_book_name);
@@ -333,8 +358,7 @@ async fn file_match_or_create_comic_book(
             }
 
             None
-        })
-        {
+        }) {
             source = Some(item.as_book().unwrap().source.clone());
         }
         // Just find closest match in any Agent.
@@ -355,9 +379,7 @@ async fn file_match_or_create_comic_book(
         let (main_author, author_ids) = ret.add_or_ignore_authors_into_database(db).await?;
 
         let MetadataReturned {
-            meta,
-            publisher,
-            ..
+            meta, publisher, ..
         } = ret;
 
         // TODO: Make BookModel creation more readable.
@@ -381,7 +403,6 @@ async fn file_match_or_create_comic_book(
 
         debug!("Main Book ID: {main_book_id:?}");
 
-
         let Some(volume_type) = extract_comic_volume(&file.file_name) else {
             // TODO: How to handle this?
             // We don't know what volume this is.
@@ -391,17 +412,34 @@ async fn file_match_or_create_comic_book(
             return Ok(());
         };
 
-
         // Either find the section book, or create it.
         let (sec_book_id, book_index, is_prologue) = match volume_type {
-            VolumeType::Prologue(i) => match BookModel::find_one_by_parent_id_and_index(main_book_id, 0, db).await? {
-                Some(v) => (v.id, i, true),
-                None => (NewBookModel::new_section(true, library_id, main_book_id, source).insert(db).await?.id, i, true)
+            VolumeType::Prologue(i) => {
+                match BookModel::find_one_by_parent_id_and_index(main_book_id, 0, db).await? {
+                    Some(v) => (v.id, i, true),
+                    None => (
+                        NewBookModel::new_section(true, library_id, main_book_id, source)
+                            .insert(db)
+                            .await?
+                            .id,
+                        i,
+                        true,
+                    ),
+                }
             }
 
-            VolumeType::Volume(i) => match BookModel::find_one_by_parent_id_and_index(main_book_id, 1, db).await? {
-                Some(v) => (v.id, i, false),
-                None => (NewBookModel::new_section(false, library_id, main_book_id, source).insert(db).await?.id, i, false)
+            VolumeType::Volume(i) => {
+                match BookModel::find_one_by_parent_id_and_index(main_book_id, 1, db).await? {
+                    Some(v) => (v.id, i, false),
+                    None => (
+                        NewBookModel::new_section(false, library_id, main_book_id, source)
+                            .insert(db)
+                            .await?
+                            .id,
+                        i,
+                        false,
+                    ),
+                }
             }
 
             VolumeType::Unknown(_) => todo!(),
@@ -413,23 +451,24 @@ async fn file_match_or_create_comic_book(
         let book_index = book_index as i64 * 10;
 
         // Now we can officially find or create the sub book.
-        let sub_book_model = match BookModel::find_one_by_parent_id_and_index(sec_book_id, book_index, db).await? {
-            Some(v) => v,
-            None => {
-                book_model.library_id = library_id;
-                book_model.type_of = BookType::ComicBookChapter;
-                book_model.parent_id = Some(sec_book_id);
-                book_model.index = Some(book_index);
-                book_model.title = Some(format!(
-                    "{} - {}",
-                    if is_prologue { "Prologue" } else { "Chapter" },
-                    book_index / 10
-                ));
-                book_model.original_title = book_model.title.clone();
+        let sub_book_model =
+            match BookModel::find_one_by_parent_id_and_index(sec_book_id, book_index, db).await? {
+                Some(v) => v,
+                None => {
+                    book_model.library_id = library_id;
+                    book_model.type_of = BookType::ComicBookChapter;
+                    book_model.parent_id = Some(sec_book_id);
+                    book_model.index = Some(book_index);
+                    book_model.title = Some(format!(
+                        "{} - {}",
+                        if is_prologue { "Prologue" } else { "Chapter" },
+                        book_index / 10
+                    ));
+                    book_model.original_title = book_model.title.clone();
 
-                book_model.insert(db).await?
-            }
-        };
+                    book_model.insert(db).await?
+                }
+            };
 
         debug!("Update File Id");
 

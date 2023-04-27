@@ -1,12 +1,15 @@
 use std::rc::Rc;
 
-use common::{component::select::{SelectModule, SelectItem}};
-use common_local::{reader::{ReaderColor, LayoutType, ReaderLoadType}, MemberPreferences, GeneralBookPreferences, ReaderImagePreferences};
+use common::component::select::{SelectItem, SelectModule};
+use common_local::{
+    reader::{LayoutType, ReaderColor, ReaderLoadType},
+    GeneralBookPreferences, MemberPreferences, ReaderImagePreferences,
+};
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
-use crate::{AppState, util::is_mobile_or_tablet, get_preferences, save_preferences};
+use crate::{get_preferences, save_preferences, util::is_mobile_or_tablet, AppState};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum TabVisible {
@@ -16,7 +19,11 @@ pub enum TabVisible {
 
 pub enum Msg {
     // Events
-    UpdateSettingsGeneral(EditingType, Box<dyn Fn(&mut GeneralBookPreferences, serde_json::Value)>, serde_json::Value),
+    UpdateSettingsGeneral(
+        EditingType,
+        Box<dyn Fn(&mut GeneralBookPreferences, serde_json::Value)>,
+        serde_json::Value,
+    ),
 
     ContextChanged(Rc<AppState>),
 
@@ -75,19 +82,29 @@ impl Component for MemberGeneralPage {
 
             Msg::ChangeTab(tab) => self.viewing_tab = tab,
 
-            Msg::ToggleGrouping(group) => {
-                match self.viewing_tab {
-                    TabVisible::TextReader => self.visible_groupings[group] = !self.visible_groupings[group],
-                    TabVisible::ImageReader => self.visible_groupings[group + 2] = !self.visible_groupings[group + 2],
+            Msg::ToggleGrouping(group) => match self.viewing_tab {
+                TabVisible::TextReader => {
+                    self.visible_groupings[group] = !self.visible_groupings[group]
                 }
-            }
+                TabVisible::ImageReader => {
+                    self.visible_groupings[group + 2] = !self.visible_groupings[group + 2]
+                }
+            },
 
             Msg::UpdateSettingsGeneral(type_of, func, json_value) => {
                 match (self.viewing_tab, type_of) {
-                    (TabVisible::TextReader, EditingType::Desktop) => func(&mut self.preferences.text_book.desktop.general, json_value),
-                    (TabVisible::TextReader, EditingType::Mobile) => func(&mut self.preferences.text_book.mobile.general, json_value),
-                    (TabVisible::ImageReader, EditingType::Desktop) => func(&mut self.preferences.image_book.desktop.general, json_value),
-                    (TabVisible::ImageReader, EditingType::Mobile) => func(&mut self.preferences.image_book.mobile.general, json_value),
+                    (TabVisible::TextReader, EditingType::Desktop) => {
+                        func(&mut self.preferences.text_book.desktop.general, json_value)
+                    }
+                    (TabVisible::TextReader, EditingType::Mobile) => {
+                        func(&mut self.preferences.text_book.mobile.general, json_value)
+                    }
+                    (TabVisible::ImageReader, EditingType::Desktop) => {
+                        func(&mut self.preferences.image_book.desktop.general, json_value)
+                    }
+                    (TabVisible::ImageReader, EditingType::Mobile) => {
+                        func(&mut self.preferences.image_book.mobile.general, json_value)
+                    }
                 }
 
                 return false;
@@ -267,13 +284,21 @@ impl MemberGeneralPage {
         }
     }
 
-    fn render_image_group(editing: EditingType, prefs: &ReaderImagePreferences, ctx: &Context<Self>) -> Html {
+    fn render_image_group(
+        editing: EditingType,
+        prefs: &ReaderImagePreferences,
+        ctx: &Context<Self>,
+    ) -> Html {
         html! {
             //
         }
     }
 
-    fn render_general_group(editing: EditingType, reader: &GeneralBookPreferences, ctx: &Context<Self>) -> Html {
+    fn render_general_group(
+        editing: EditingType,
+        reader: &GeneralBookPreferences,
+        ctx: &Context<Self>,
+    ) -> Html {
         html! {
             <>
                 <h4>{ "General Settings" }</h4>

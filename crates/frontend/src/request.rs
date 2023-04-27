@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use common::{
-    api::{ApiErrorResponse, WrappingResponse, ErrorCodeResponse},
-    BookId, Either, ImageId, ImageIdType, PersonId, MemberId,
+    api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse},
+    BookId, Either, ImageId, ImageIdType, MemberId, PersonId,
 };
 use gloo_utils::{format::JsValueSerdeExt, window};
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,8 @@ use common_local::{
     filter::FilterContainer,
     setup::SetupConfig,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, Progression, SearchType, MemberPreferences, MemberUpdate, PublicServerSettings,
+    CollectionId, FileId, LibraryId, MemberPreferences, MemberUpdate, Progression,
+    PublicServerSettings, SearchType,
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {
@@ -29,7 +30,6 @@ pub fn get_download_path(value: Either<BookId, FileId>) -> String {
 
     format!("{path}/api/{type_of}/{id}/download")
 }
-
 
 pub async fn get_server_settings() -> WrappingResponse<PublicServerSettings> {
     fetch("GET", "/api/settings", Option::<&()>::None)
@@ -70,7 +70,10 @@ pub async fn update_member(options: UpdateMember) -> WrappingResponse<String> {
         .unwrap_or_else(def)
 }
 
-pub async fn update_member_id(id: MemberId, update: MemberUpdate) -> WrappingResponse<ApiGetMemberSelfResponse> {
+pub async fn update_member_id(
+    id: MemberId,
+    update: MemberUpdate,
+) -> WrappingResponse<ApiGetMemberSelfResponse> {
     fetch("POST", &format!("/api/member/{id}"), Some(&update))
         .await
         .unwrap_or_else(def)
@@ -448,13 +451,9 @@ pub async fn login_without_password(email: String) -> WrappingResponse<String> {
 }
 
 pub async fn login_as_guest() -> WrappingResponse<String> {
-    fetch(
-        "POST",
-        "/auth/guest",
-        Option::<&()>::None,
-    )
-    .await
-    .unwrap_or_else(def)
+    fetch("POST", "/auth/guest", Option::<&()>::None)
+        .await
+        .unwrap_or_else(def)
 }
 
 // Directory

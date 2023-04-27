@@ -1,4 +1,4 @@
-use chrono::{Utc, NaiveDateTime};
+use chrono::{NaiveDateTime, Utc};
 use common::{BookId, ImageId, ImageType, PersonId, ThumbnailStore};
 use serde::Serialize;
 use sqlx::{FromRow, SqliteConnection};
@@ -66,12 +66,12 @@ impl NewUploadedImageModel {
             return Err(InternalError::InvalidModel.into());
         };
 
-        let res = sqlx::query(
-            "INSERT OR IGNORE INTO uploaded_images (path, created_at) VALUES ($1, $2)"
-        )
-        .bind(&path)
-        .bind(self.created_at)
-        .execute(db).await?;
+        let res =
+            sqlx::query("INSERT OR IGNORE INTO uploaded_images (path, created_at) VALUES ($1, $2)")
+                .bind(&path)
+                .bind(self.created_at)
+                .execute(db)
+                .await?;
 
         Ok(UploadedImageModel {
             id: ImageId::from(res.last_insert_rowid()),
@@ -81,21 +81,33 @@ impl NewUploadedImageModel {
     }
 
     pub async fn path_exists(path: &str, db: &mut SqliteConnection) -> Result<bool> {
-        Ok(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM uploaded_images WHERE path = $1").bind(path).fetch_one(db).await? != 0)
+        Ok(
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM uploaded_images WHERE path = $1")
+                .bind(path)
+                .fetch_one(db)
+                .await?
+                != 0,
+        )
     }
 }
 
 impl UploadedImageModel {
     pub async fn get_by_path(value: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
-        Ok(sqlx::query_as(
-            "SELECT * FROM uploaded_images WHERE path = $1"
-        ).bind(value).fetch_optional(db).await?)
+        Ok(
+            sqlx::query_as("SELECT * FROM uploaded_images WHERE path = $1")
+                .bind(value)
+                .fetch_optional(db)
+                .await?,
+        )
     }
 
     pub async fn get_by_id(id: ImageId, db: &mut SqliteConnection) -> Result<Option<Self>> {
-        Ok(sqlx::query_as(
-            "SELECT * FROM uploaded_images WHERE id = $1"
-        ).bind(id).fetch_optional(db).await?)
+        Ok(
+            sqlx::query_as("SELECT * FROM uploaded_images WHERE id = $1")
+                .bind(id)
+                .fetch_optional(db)
+                .await?,
+        )
     }
 
     // pub async fn remove(
@@ -142,19 +154,19 @@ impl ImageLinkModel {
         .bind(self.image_id)
         .bind(self.link_id)
         .bind(self.type_of)
-        .execute(db).await?;
+        .execute(db)
+        .await?;
 
         Ok(())
     }
 
     pub async fn delete(self, db: &mut SqliteConnection) -> Result<()> {
-        sqlx::query(
-            "DELETE FROM image_link WHERE image_id = $1 AND link_id = $2 AND type_of = $3"
-        )
-        .bind(self.image_id)
-        .bind(self.link_id)
-        .bind(self.type_of)
-        .execute(db).await?;
+        sqlx::query("DELETE FROM image_link WHERE image_id = $1 AND link_id = $2 AND type_of = $3")
+            .bind(self.image_id)
+            .bind(self.link_id)
+            .bind(self.type_of)
+            .execute(db)
+            .await?;
 
         Ok(())
     }
@@ -171,7 +183,11 @@ impl ImageLinkModel {
                 INNER JOIN uploaded_images
                     ON uploaded_images.id = image_link.image_id
                 WHERE link_id = $1 AND type_of = $2
-            "#
-        ).bind(id).bind(type_of).fetch_all(db).await?)
+            "#,
+        )
+        .bind(id)
+        .bind(type_of)
+        .fetch_all(db)
+        .await?)
     }
 }

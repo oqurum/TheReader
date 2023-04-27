@@ -1,28 +1,31 @@
 use std::{
     rc::Rc,
-    sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
 };
 
-use common::{
-    api::WrappingResponse,
-};
+use common::api::WrappingResponse;
 use common_local::{
     api::{self, GetChaptersResponse},
     FileId, MediaItem, Progression,
 };
 use gloo_timers::callback::Timeout;
-use gloo_utils::{window, body};
+use gloo_utils::{body, window};
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::Element;
 use yew::{context::ContextHandle, prelude::*};
 
 use crate::{
     components::reader::{
-        LoadedChapters, ReaderEvent, ReaderSettings, OverlayEvent, Reader, LayoutDisplay, layout::PageMovement, SharedReaderSettings, SharedInnerReaderSettings
+        layout::PageMovement, LayoutDisplay, LoadedChapters, OverlayEvent, Reader, ReaderEvent,
+        ReaderSettings, SharedInnerReaderSettings, SharedReaderSettings,
     },
-    request, AppState, util::{ElementEvent, is_mobile_or_tablet}, get_preferences,
+    get_preferences, request,
+    util::{is_mobile_or_tablet, ElementEvent},
+    AppState,
 };
-
 
 static IS_FULL_SCREEN: AtomicBool = AtomicBool::new(false);
 
@@ -85,7 +88,6 @@ impl Component for ReadingBook {
             .link()
             .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
             .expect("context to be set");
-
 
         let reader_settings = {
             let prefs = get_preferences().unwrap().unwrap_or_default();
@@ -167,7 +169,8 @@ impl Component for ReadingBook {
                     // FIX: Using "if let" since container can be null if this is called before first render.
                     if let Some(cont) = self.ref_book_container.cast::<Element>() {
                         // TODO: Remove. We don't want to update the settings. It should be immutable.
-                        self.book_dimensions = (cont.client_width().max(0), cont.client_height().max(0));
+                        self.book_dimensions =
+                            (cont.client_width().max(0), cont.client_height().max(0));
 
                         debug!("Window Resize: {:?}", self.reader_settings.dimensions);
                     } else {
@@ -219,14 +222,13 @@ impl Component for ReadingBook {
             Msg::ReaderEvent(event) => {
                 match event {
                     ReaderEvent::ViewOverlay(o_event) => {
-                        if let OverlayEvent::Release {
-                            instant, ..
-                        } = o_event
-                        {
+                        if let OverlayEvent::Release { instant, .. } = o_event {
                             if is_full_screen() {
                                 // TODO: This is causing yew to "reload" the page.
                                 if let Some(dur) = instant {
-                                    self.state.update_nav_visibility.emit(dur.num_milliseconds() > 500);
+                                    self.state
+                                        .update_nav_visibility
+                                        .emit(dur.num_milliseconds() > 500);
                                 }
                             }
                         }
@@ -248,7 +250,8 @@ impl Component for ReadingBook {
                 book_class += " overlay-x overlay-y";
             }
 
-            let style = (is_full_screen() && self.state.is_navbar_visible).then_some("transform: scale(0.8); height: 80%;");
+            let style = (is_full_screen() && self.state.is_navbar_visible)
+                .then_some("transform: scale(0.8); height: 80%;");
 
             html! {
                 <div class="reading-container">
@@ -313,12 +316,27 @@ impl ReadingBook {
 
         let prefs = get_preferences().unwrap().unwrap_or_default();
 
-
         let (general, text, image) = match (book.is_comic_book(), is_mobile_or_tablet()) {
-            (true, true) => (prefs.image_book.mobile.general, None, Some(prefs.image_book.mobile.image)),
-            (true, false) => (prefs.image_book.desktop.general, None, Some(prefs.image_book.desktop.image)),
-            (false, true) => (prefs.text_book.mobile.general, Some(prefs.text_book.mobile.reader), None),
-            (false, false) => (prefs.text_book.desktop.general, Some(prefs.text_book.desktop.reader), None),
+            (true, true) => (
+                prefs.image_book.mobile.general,
+                None,
+                Some(prefs.image_book.mobile.image),
+            ),
+            (true, false) => (
+                prefs.image_book.desktop.general,
+                None,
+                Some(prefs.image_book.desktop.image),
+            ),
+            (false, true) => (
+                prefs.text_book.mobile.general,
+                Some(prefs.text_book.mobile.reader),
+                None,
+            ),
+            (false, false) => (
+                prefs.text_book.desktop.general,
+                Some(prefs.text_book.desktop.reader),
+                None,
+            ),
         };
 
         let mut general = ReaderSettings::from(general);

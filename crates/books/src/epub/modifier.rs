@@ -106,7 +106,6 @@ where
     Ok(output)
 }
 
-
 fn insert_event(this: &mut FileUnwrappedHeaderType, event: ReaderEvent) {
     match event {
         ReaderEvent::ProcessingInstruction { name, data } => todo!("{name}, {data:?}"),
@@ -119,10 +118,7 @@ fn insert_event(this: &mut FileUnwrappedHeaderType, event: ReaderEvent) {
     }
 }
 
-
-pub fn extract_body_and_header_values(
-    input: &[u8],
-) -> Result<FileUnwrappedInfo> {
+pub fn extract_body_and_header_values(input: &[u8]) -> Result<FileUnwrappedInfo> {
     let reader = xml::ParserConfig::new()
         .add_entity("nbsp", " ")
         .add_entity("copy", "©")
@@ -152,7 +148,8 @@ pub fn extract_body_and_header_values(
                     if is_inside_head {
                         header_items.push(FileUnwrappedHeaderType {
                             name: name.borrow().local_name.to_string(),
-                            attributes: attributes.into_iter()
+                            attributes: attributes
+                                .into_iter()
                                 .map(|v| (v.name.to_string(), v.value))
                                 .collect(),
                             chars: None,
@@ -160,7 +157,9 @@ pub fn extract_body_and_header_values(
                     } else if is_inside_body {
                         body_writer
                             .write(WriterEvent::StartElement {
-                                attributes: Cow::Owned(attributes.iter().map(|v| v.borrow()).collect()),
+                                attributes: Cow::Owned(
+                                    attributes.iter().map(|v| v.borrow()).collect(),
+                                ),
                                 name: name.borrow(),
                                 namespace: Cow::Owned(namespace),
                             })
@@ -220,7 +219,7 @@ pub fn extract_body_and_header_values(
                 }
             }
 
-            _ => ()
+            _ => (),
         }
     }
 
@@ -230,7 +229,6 @@ pub fn extract_body_and_header_values(
         inner_body: unsafe { String::from_utf8_unchecked(body_output) },
     })
 }
-
 
 /// Updates the path `value` to include the internal zip `path`
 ///

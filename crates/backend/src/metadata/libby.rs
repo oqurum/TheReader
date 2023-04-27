@@ -107,7 +107,10 @@ impl Metadata for LibbyMetadata {
                         if let PublicSearchType::AuthorList(resp) = resp {
                             for item in resp.items {
                                 books.push(SearchItem::Author(AuthorInfo {
-                                    source: self.prefix_text(item.id.to_string()).as_str().try_into()?,
+                                    source: self
+                                        .prefix_text(item.id.to_string())
+                                        .as_str()
+                                        .try_into()?,
                                     name: item.name,
                                     other_names: None,
                                     description: item.description,
@@ -147,7 +150,10 @@ impl Metadata for LibbyMetadata {
                         if let PublicSearchType::BookList(books_cont) = resp {
                             for item in books_cont.items {
                                 books.push(SearchItem::Book(FoundItem {
-                                    source: self.prefix_text(item.id.to_string()).as_str().try_into()?,
+                                    source: self
+                                        .prefix_text(item.id.to_string())
+                                        .as_str()
+                                        .try_into()?,
                                     title: item.title,
                                     description: item.description,
                                     rating: item.rating,

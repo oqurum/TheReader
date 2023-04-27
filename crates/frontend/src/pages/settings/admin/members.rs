@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
-use common::MemberId;
+use common::component::select::{SelectItem, SelectModule};
 use common::component::PopupType;
-use common::component::select::{SelectModule, SelectItem};
+use common::MemberId;
 use common::{api::WrappingResponse, component::Popup};
-use common_local::{api, GroupPermissions, Member, MemberUpdate, Permissions, LibraryAccess};
+use common_local::{api, GroupPermissions, LibraryAccess, Member, MemberUpdate, Permissions};
 use gloo_utils::window;
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
@@ -18,9 +18,14 @@ pub enum Msg {
     MemberResults(Box<WrappingResponse<api::ApiGetMemberSelfResponse>>),
 
     RequestUpdateOptions(api::UpdateMember),
-    InviteMember { email: String },
+    InviteMember {
+        email: String,
+    },
 
-    UpdateMember { id: MemberId, update: Box<MemberUpdate> },
+    UpdateMember {
+        id: MemberId,
+        update: Box<MemberUpdate>,
+    },
     OpenMemberPopup(usize),
     CloseMemberPopup,
 
@@ -72,7 +77,9 @@ impl Component for AdminMembersPage {
             Msg::MemberResults(resp) => match resp.ok() {
                 Ok(resp) => {
                     if let Some((members, updated_member)) = self.resp.as_mut().zip(resp.member) {
-                        if let Some(member) = members.items.iter_mut().find(|v| v.id == updated_member.id) {
+                        if let Some(member) =
+                            members.items.iter_mut().find(|v| v.id == updated_member.id)
+                        {
                             *member = updated_member;
                         }
                     }
@@ -290,8 +297,9 @@ impl Component for AdminMembersPage {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            ctx.link()
-                .send_future(async { Msg::MemberListResults(Box::new(request::get_members().await)) });
+            ctx.link().send_future(async {
+                Msg::MemberListResults(Box::new(request::get_members().await))
+            });
         }
     }
 }
@@ -307,7 +315,6 @@ impl AdminMembersPage {
         }
     }
 }
-
 
 #[derive(PartialEq, Properties)]
 struct PopupMemberEditProps {
@@ -327,7 +334,10 @@ fn _popup_member_edit(props: &PopupMemberEditProps) -> Html {
 
         Callback::from(move |v| {
             let mut write = updating.borrow_mut();
-            write.permissions.get_or_insert_with(Permissions::basic).group = v;
+            write
+                .permissions
+                .get_or_insert_with(Permissions::basic)
+                .group = v;
         })
     };
 
@@ -335,11 +345,9 @@ fn _popup_member_edit(props: &PopupMemberEditProps) -> Html {
         let updating = updating.clone();
         let member_id = member.id;
 
-        ctx.reform(move |_| {
-            Msg::UpdateMember {
-                id: member_id,
-                update: Box::new(updating.borrow().clone()),
-            }
+        ctx.reform(move |_| Msg::UpdateMember {
+            id: member_id,
+            update: Box::new(updating.borrow().clone()),
         })
     };
 
@@ -353,10 +361,12 @@ fn _popup_member_edit(props: &PopupMemberEditProps) -> Html {
         // TODO: Should not be baked in. We should have to call a endpoint get the person's (proper) preferences.
         match member.parse_library_access_or_default() {
             Ok(v) => v.get_accessible_libraries(&libraries),
-            Err(e) => return html! {
-                <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.reform(|_| Msg::CloseMemberPopup) }>
-                    <h2>{ "Parse Preferences Error: " }{ e }</h2>
-                </Popup>
+            Err(e) => {
+                return html! {
+                    <Popup type_of={ PopupType::FullOverlay } on_close={ ctx.reform(|_| Msg::CloseMemberPopup) }>
+                        <h2>{ "Parse Preferences Error: " }{ e }</h2>
+                    </Popup>
+                }
             }
         }
     };

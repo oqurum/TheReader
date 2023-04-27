@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use regex::{Regex, RegexBuilder};
 
-
 const WORD_DELIMITER: [char; 8] = [' ', '_', '-', '.', ',', '=', '\'', '|'];
 const SPECIAL_CHARS: [char; 4] = ['&', ':', '\\', '/'];
 const USELESS: [char; 3] = [' ', '_', '-'];
@@ -102,7 +101,10 @@ pub fn extract_comic_volume(value: &str) -> Option<VolumeType> {
 
                 if lower.contains("prologue") {
                     last_found = Some(VolumeType::Prologue(found.as_str().parse().unwrap()));
-                } else if lower.contains("chapter") || lower.contains("volume") || lower.contains("tome") {
+                } else if lower.contains("chapter")
+                    || lower.contains("volume")
+                    || lower.contains("tome")
+                {
                     last_found = Some(VolumeType::Volume(found.as_str().parse().unwrap()));
                 } else {
                     last_found = Some(VolumeType::Unknown(found.as_str().parse().unwrap()));
@@ -134,7 +136,9 @@ pub fn extract_name_from_path<V: AsRef<str>>(value: V) -> String {
             folder_name = MULTIPLE_CHAPTERS.replace_all(&folder_name, "").to_string();
             // println!("- {file_name:?} || {folder_name:?}");
 
-            if file_name.contains(&folder_name) || ((!folder_name.is_empty()) && folder_name.len() < file_name.len()) {
+            if file_name.contains(&folder_name)
+                || ((!folder_name.is_empty()) && folder_name.len() < file_name.len())
+            {
                 return folder_name;
             } else {
                 return file_name;
@@ -152,7 +156,9 @@ pub fn extract_name_from_path<V: AsRef<str>>(value: V) -> String {
 
             println!("++++ {file_name:?} || {folder_name:?}");
 
-            if file_name.contains(&folder_name) || ((!folder_name.is_empty()) && folder_name.len() < file_name.len()) {
+            if file_name.contains(&folder_name)
+                || ((!folder_name.is_empty()) && folder_name.len() < file_name.len())
+            {
                 return folder_name;
             } else {
                 return file_name;
@@ -199,12 +205,18 @@ fn strip_text<V: ToString>(value: V) -> String {
 /// For Example: Bracketed text, text in parentheses, etc.
 fn remove_filler(value: &mut String) {
     // Remove text in brackets.
-    while let Some((l_index, r_index)) = value.find('[').and_then(|index| Some((index, value.chars().skip(index).position(|c| c == ']')?))) {
+    while let Some((l_index, r_index)) = value
+        .find('[')
+        .and_then(|index| Some((index, value.chars().skip(index).position(|c| c == ']')?)))
+    {
         value.drain(l_index..=l_index + r_index);
     }
 
     // Remove text in parentheses.
-    while let Some((l_index, r_index)) = value.find('(').and_then(|index| Some((index, value.chars().skip(index).position(|c| c == ')')?))) {
+    while let Some((l_index, r_index)) = value
+        .find('(')
+        .and_then(|index| Some((index, value.chars().skip(index).position(|c| c == ')')?)))
+    {
         value.drain(l_index..=l_index + r_index);
     }
 
@@ -229,36 +241,81 @@ mod tests {
 
     #[test]
     fn parse_file_name() {
-        assert_eq!("Sports-Illustrated-1954-08-16", extract_name_from_path("Sports-Illustrated-1954-08-16"));
-        assert_eq!("No. 159 January 3rd 1992", extract_name_from_path("No. 159 January 3rd 1992"));
+        assert_eq!(
+            "Sports-Illustrated-1954-08-16",
+            extract_name_from_path("Sports-Illustrated-1954-08-16")
+        );
+        assert_eq!(
+            "No. 159 January 3rd 1992",
+            extract_name_from_path("No. 159 January 3rd 1992")
+        );
         assert_eq!("One Piece", extract_name_from_path("One Piece - Tome 01"));
         assert_eq!("One Piece", extract_name_from_path("One Piece T2-23"));
-        assert_eq!("Naruto", extract_name_from_path("Naruto - Tome #002 - [V1]"));
+        assert_eq!(
+            "Naruto",
+            extract_name_from_path("Naruto - Tome #002 - [V1]")
+        );
         assert_eq!("013 - Golf", extract_name_from_path("001-100/013 - Golf"));
         assert_eq!("JoJo's Bizarre Adventure", extract_name_from_path("JoJo's Bizarre Adventure - Part 01 - Phantom Blood T01 (Araki) [Digital-1920] [Manga FR]"));
         assert_eq!("JoJo's Bizarre Adventure", extract_name_from_path("JoJo's Bizarre Adventure - Part 01 - Phantom Blood T02 (Araki) [Digital-1920] [Manga FR]"));
         assert_eq!("JoJo's Bizarre Adventure", extract_name_from_path("JoJo's Bizarre Adventure - Part 02 - Battle Tendency T01 (Araki) [Digital-1920] [Manga FR]"));
-        assert_eq!("Dream Team", extract_name_from_path("Dream Team T02 (Hinata) (2011) [Digital-1598] [Manga FR] (PapriKa)"));
+        assert_eq!(
+            "Dream Team",
+            extract_name_from_path(
+                "Dream Team T02 (Hinata) (2011) [Digital-1598] [Manga FR] (PapriKa)"
+            )
+        );
         assert_eq!("fairygirls", extract_name_from_path("fairygirls_vol1"));
         assert_eq!("fairytail", extract_name_from_path("fairytail_vol1"));
-        assert_eq!("Name Here", extract_name_from_path("Name Here (115 tomes) FR CBZ/002 - Name Here (Info 1994)"));
-        assert_eq!("Name Here", extract_name_from_path("Name Here (115 tomes) EN CBZ/001-100/002 - Name Here (Info 1994)"));
+        assert_eq!(
+            "Name Here",
+            extract_name_from_path("Name Here (115 tomes) FR CBZ/002 - Name Here (Info 1994)")
+        );
+        assert_eq!(
+            "Name Here",
+            extract_name_from_path(
+                "Name Here (115 tomes) EN CBZ/001-100/002 - Name Here (Info 1994)"
+            )
+        );
     }
 
     #[test]
     fn extract_volume() {
         // Volume Tests
-        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - Tome 01"));
-        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - T1"));
-        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - Vol. 1"));
-        assert_eq!(Some(VolumeType::Volume(1)), extract_comic_volume("One Piece - Volume 1"));
+        assert_eq!(
+            Some(VolumeType::Volume(1)),
+            extract_comic_volume("One Piece - Tome 01")
+        );
+        assert_eq!(
+            Some(VolumeType::Volume(1)),
+            extract_comic_volume("One Piece - T1")
+        );
+        assert_eq!(
+            Some(VolumeType::Volume(1)),
+            extract_comic_volume("One Piece - Vol. 1")
+        );
+        assert_eq!(
+            Some(VolumeType::Volume(1)),
+            extract_comic_volume("One Piece - Volume 1")
+        );
 
         // Prologue Tests
-        assert_eq!(Some(VolumeType::Prologue(1)), extract_comic_volume("One Piece - Prologue 1"));
+        assert_eq!(
+            Some(VolumeType::Prologue(1)),
+            extract_comic_volume("One Piece - Prologue 1")
+        );
 
         // Unknown Tests
-        assert_eq!(Some(VolumeType::Unknown(1)), extract_comic_volume("One Piece - Item 1"));
-        assert_eq!(Some(VolumeType::Unknown(1)), extract_comic_volume("One Piece - Item 1 (Hinata) (2011) [Digital-1598] [Manga FR] (PapriKa)"));
+        assert_eq!(
+            Some(VolumeType::Unknown(1)),
+            extract_comic_volume("One Piece - Item 1")
+        );
+        assert_eq!(
+            Some(VolumeType::Unknown(1)),
+            extract_comic_volume(
+                "One Piece - Item 1 (Hinata) (2011) [Digital-1598] [Manga FR] (PapriKa)"
+            )
+        );
 
         // Invalid Multiple Volumes
         assert_eq!(None, extract_comic_volume("One Piece - T2-3"));

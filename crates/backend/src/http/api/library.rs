@@ -1,12 +1,11 @@
 use actix_web::{get, post, web};
-use common::api::{WrappingResponse, ApiErrorResponse};
+use common::api::{ApiErrorResponse, WrappingResponse};
 use common_local::{api, LibraryColl, LibraryId};
 
 use crate::{
-    SqlPool,
     http::{JsonResponse, MemberCookie},
     model::{DirectoryModel, LibraryModel},
-    WebResult,
+    SqlPool, WebResult,
 };
 
 #[get("/libraries")]
@@ -23,7 +22,9 @@ async fn load_library_list(
                 .await?
                 .into_iter()
                 .filter_map(|lib| {
-                    if member.permissions.is_owner() || lib_access.is_accessible(lib.id, lib.is_public) {
+                    if member.permissions.is_owner()
+                        || lib_access.is_accessible(lib.id, lib.is_public)
+                    {
                         Some(LibraryColl {
                             id: lib.id,
 
@@ -65,7 +66,8 @@ async fn load_library_id(
         return Err(ApiErrorResponse::new("Not accessible").into());
     }
 
-    let directories = DirectoryModel::find_directories_by_library_id(*id, &mut *db.acquire().await?).await?;
+    let directories =
+        DirectoryModel::find_directories_by_library_id(*id, &mut *db.acquire().await?).await?;
 
     let library = LibraryColl {
         id: model.id,

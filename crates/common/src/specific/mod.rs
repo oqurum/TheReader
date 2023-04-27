@@ -2,14 +2,19 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
-use sqlx::{Decode, Encode, Sqlite, sqlite::{SqliteArgumentValue, SqliteValueRef}, encode::IsNull, error::BoxDynError, Type};
+use sqlx::{
+    encode::IsNull,
+    error::BoxDynError,
+    sqlite::{SqliteArgumentValue, SqliteValueRef},
+    Decode, Encode, Sqlite, Type,
+};
 
 mod edit;
 pub mod filter;
 mod id;
 mod perms;
-pub mod setup;
 mod preferences;
+pub mod setup;
 
 pub use edit::*;
 pub use id::*;

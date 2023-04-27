@@ -1,12 +1,25 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use common::{BookId, Source};
-use common_local::{LibraryId, ws::{WebsocketNotification, TaskType, TaskId}, SearchFor, SearchForBooksBy, filter::FilterContainer};
+use common_local::{
+    filter::FilterContainer,
+    ws::{TaskId, TaskType, WebsocketNotification},
+    LibraryId, SearchFor, SearchForBooksBy,
+};
 use sqlx::SqliteConnection;
 use tracing::info;
 
-use crate::{Result, metadata::{ActiveAgents, get_metadata_by_source, search_and_return_first_valid_agent, SearchItem, MetadataReturned, get_metadata_from_files, search_all_agents}, model::{BookModel, NewBookModel, FileModel, BookPersonModel, UploadedImageModel, ImageLinkModel}, http::send_message_to_clients, sort_by_similarity, Task, SqlPool};
-
+use crate::{
+    http::send_message_to_clients,
+    metadata::{
+        get_metadata_by_source, get_metadata_from_files, search_all_agents,
+        search_and_return_first_valid_agent, ActiveAgents, MetadataReturned, SearchItem,
+    },
+    model::{
+        BookModel, BookPersonModel, FileModel, ImageLinkModel, NewBookModel, UploadedImageModel,
+    },
+    sort_by_similarity, Result, SqlPool, Task,
+};
 
 #[derive(Clone)]
 pub enum UpdatingBook {
@@ -268,8 +281,7 @@ impl Task for TaskUpdateInvalidBook {
                                 current_book.updated_at = Utc::now().naive_utc();
 
                                 // No old thumb, but we have an new one. Set new one as old one.
-                                if current_book.thumb_url.is_none()
-                                    && new_book.thumb_url.is_some()
+                                if current_book.thumb_url.is_none() && new_book.thumb_url.is_some()
                                 {
                                     current_book.thumb_url = new_book.thumb_url;
                                 }
@@ -409,7 +421,9 @@ impl Task for TaskUpdateInvalidBook {
 
                     for book in books {
                         if Utc::now()
-                            .signed_duration_since(book.refreshed_at.and_local_timezone(Utc).unwrap())
+                            .signed_duration_since(
+                                book.refreshed_at.and_local_timezone(Utc).unwrap(),
+                            )
                             .num_days()
                             > 7
                         {

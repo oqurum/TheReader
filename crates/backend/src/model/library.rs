@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::Serialize;
 use sqlx::{FromRow, SqliteConnection};
 
 use common_local::{LibraryId, LibraryType};
 
-use crate::{SqlConnection, Result};
 use super::directory::DirectoryModel;
+use crate::{Result, SqlConnection};
 
 pub struct NewLibraryModel {
     pub name: String,
@@ -65,34 +65,31 @@ impl LibraryModel {
     pub async fn delete_by_id(id: LibraryId, db: &mut SqliteConnection) -> Result<u64> {
         DirectoryModel::delete_by_library_id(id, db).await?;
 
-        let res = sqlx::query(
-            "DELETE FROM library WHERE id = $1"
-        ).bind(id).execute(db).await?;
+        let res = sqlx::query("DELETE FROM library WHERE id = $1")
+            .bind(id)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected())
     }
 
     pub async fn count(db: &mut SqliteConnection) -> Result<i32> {
-            Ok(sqlx::query_scalar("SELECT COUNT(*) FROM library").fetch_one(db).await?)
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM library")
+            .fetch_one(db)
+            .await?)
     }
 
     pub async fn get_all(db: &mut SqliteConnection) -> Result<Vec<Self>> {
         Ok(sqlx::query_as("SELECT id, name, type_of, is_public, settings, scanned_at, created_at, updated_at FROM library").fetch_all(db).await?)
     }
 
-    pub async fn find_one_by_name(
-        name: &str,
-        db: &mut SqliteConnection,
-    ) -> Result<Option<Self>> {
+    pub async fn find_one_by_name(name: &str, db: &mut SqliteConnection) -> Result<Option<Self>> {
         Ok(sqlx::query_as(
             "SELECT id, name, type_of, is_public, settings, scanned_at, created_at, updated_at FROM library WHERE name = $1"
         ).bind(name).fetch_optional(db).await?)
     }
 
-    pub async fn find_one_by_id(
-        id: LibraryId,
-        db: &mut SqliteConnection,
-    ) -> Result<Option<Self>> {
+    pub async fn find_one_by_id(id: LibraryId, db: &mut SqliteConnection) -> Result<Option<Self>> {
         Ok(sqlx::query_as(
             "SELECT id, name, type_of, is_public, settings, scanned_at, created_at, updated_at FROM library WHERE id = $1",
         ).bind(id).fetch_optional(db).await?)
@@ -101,9 +98,12 @@ impl LibraryModel {
     pub async fn update(&mut self, db: &mut SqliteConnection) -> Result<u64> {
         self.updated_at = Utc::now().naive_utc();
 
-        let res = sqlx::query(
-            "UPDATE library SET name = $2, updated_at = $3 WHERE id = $1"
-        ).bind(self.id).bind(&self.name).bind(self.updated_at).execute(db).await?;
+        let res = sqlx::query("UPDATE library SET name = $2, updated_at = $3 WHERE id = $1")
+            .bind(self.id)
+            .bind(&self.name)
+            .bind(self.updated_at)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected())
     }

@@ -4,7 +4,10 @@ use common::{
     api::WrappingResponse,
     component::{
         multi_select::{MultiSelectEvent, MultiSelectItem, MultiSelectModule},
-        popup::{button::{ButtonWithPopup, ButtonPopupPosition}, Popup, PopupClose, PopupType},
+        popup::{
+            button::{ButtonPopupPosition, ButtonWithPopup},
+            Popup, PopupClose, PopupType,
+        },
     },
     BookId, PersonId,
 };

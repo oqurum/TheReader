@@ -1,7 +1,6 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use serde::{Serialize, Deserialize};
-use serde_repr::{Serialize_repr, Deserialize_repr};
-
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReaderColor {
@@ -27,12 +26,23 @@ impl ReaderColor {
             0 => Self::Default,
             1 => Self::Black,
 
-            _ => unimplemented!()
+            _ => unimplemented!(),
         }
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive, Serialize_repr, Deserialize_repr)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    TryFromPrimitive,
+    IntoPrimitive,
+    Serialize_repr,
+    Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum ReaderLoadType {
     All = 0,
@@ -40,15 +50,23 @@ pub enum ReaderLoadType {
     Select,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PageMovement {
     LeftToRight,
     RightToLeft,
 }
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive, Serialize_repr, Deserialize_repr)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    IntoPrimitive,
+    TryFromPrimitive,
+    Serialize_repr,
+    Deserialize_repr,
+)]
 #[repr(u8)]
 pub enum LayoutType {
     Single = 0,

@@ -1,12 +1,14 @@
 use actix_web::{get, post, web};
-use common::{api::{ApiErrorResponse, WrappingResponse, ErrorCodeResponse}, MemberId};
+use common::{
+    api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse},
+    MemberId,
+};
 use common_local::{api, MemberUpdate};
 
 use crate::{
-    SqlPool,
     http::{JsonResponse, MemberCookie},
     model::{MemberModel, NewMemberModel},
-    WebResult,
+    SqlPool, WebResult,
 };
 
 // TODO: Add body requests for specifics
@@ -24,7 +26,10 @@ pub async fn load_member_self(
             },
         )))
     } else {
-        Ok(web::Json(WrappingResponse::error_code("Not Signed in.", ErrorCodeResponse::NotLoggedIn)))
+        Ok(web::Json(WrappingResponse::error_code(
+            "Not Signed in.",
+            ErrorCodeResponse::NotLoggedIn,
+        )))
     }
 }
 
@@ -100,9 +105,13 @@ pub async fn update_member_id(
         return Err(ApiErrorResponse::new("Unable to find Member to Update").into());
     };
 
-    member_updating.update_with(update.into_inner(), &mut *db.acquire().await?).await?;
+    member_updating
+        .update_with(update.into_inner(), &mut *db.acquire().await?)
+        .await?;
 
-    Ok(web::Json(WrappingResponse::okay(api::GetMemberSelfResponse {
-        member: Some(member_updating.into()),
-    })))
+    Ok(web::Json(WrappingResponse::okay(
+        api::GetMemberSelfResponse {
+            member: Some(member_updating.into()),
+        },
+    )))
 }

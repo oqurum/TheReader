@@ -7,18 +7,13 @@ use common::{
 use common_local::api;
 
 use crate::{
-    SqlPool,
     http::{JsonResponse, MemberCookie},
     model::{
-        BookModel,
-        BookPersonModel,
-        ImageLinkModel, UploadedImageModel,
-        PersonModel,
-        PersonAltModel,
+        BookModel, BookPersonModel, ImageLinkModel, PersonAltModel, PersonModel, UploadedImageModel,
     },
     queue_task, store_image,
     task::{self, queue_task_priority},
-    Error, WebResult,
+    Error, SqlPool, WebResult,
 };
 
 const QUERY_LIMIT: i64 = 100;
@@ -171,12 +166,18 @@ pub async fn update_person_data(
             let old_person = PersonModel::find_one_by_id(person_id, &mut *db.acquire().await?)
                 .await?
                 .unwrap();
-            let mut into_person = PersonModel::find_one_by_id(into_person_id, &mut *db.acquire().await?)
-                .await?
-                .unwrap();
+            let mut into_person =
+                PersonModel::find_one_by_id(into_person_id, &mut *db.acquire().await?)
+                    .await?
+                    .unwrap();
 
             // Attempt to transfer to other person
-            PersonAltModel::transfer_or_ignore(old_person.id, into_person.id, &mut *db.acquire().await?).await?;
+            PersonAltModel::transfer_or_ignore(
+                old_person.id,
+                into_person.id,
+                &mut *db.acquire().await?,
+            )
+            .await?;
 
             // Delete remaining Alt Names
             PersonAltModel::delete_by_id(old_person.id, &mut *db.acquire().await?).await?;
@@ -191,7 +192,8 @@ pub async fn update_person_data(
 
             // Transfer Old Person Book to New Person
             let trans_book_person_vec =
-                BookPersonModel::find_by(Either::Right(old_person.id), &mut *db.acquire().await?).await?;
+                BookPersonModel::find_by(Either::Right(old_person.id), &mut *db.acquire().await?)
+                    .await?;
             for met_per in &trans_book_person_vec {
                 let _ = BookPersonModel {
                     book_id: met_per.book_id,
@@ -225,8 +227,10 @@ pub async fn update_person_data(
 
             // Update book cache author name cache
             for met_per in trans_book_person_vec {
-                let person = PersonModel::find_one_by_id(into_person_id, &mut *db.acquire().await?).await?;
-                let book = BookModel::find_one_by_id(met_per.book_id, &mut *db.acquire().await?).await?;
+                let person =
+                    PersonModel::find_one_by_id(into_person_id, &mut *db.acquire().await?).await?;
+                let book =
+                    BookModel::find_one_by_id(met_per.book_id, &mut *db.acquire().await?).await?;
 
                 if let Some((person, mut book)) = person.zip(book) {
                     book.cached.author = Some(person.name);

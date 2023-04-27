@@ -1,4 +1,7 @@
-use std::{sync::{Arc, Mutex}, rc::Rc};
+use std::{
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use common::{api::WrappingResponse, util::does_parent_contain_class};
 use common_local::{api::GetBookListResponse, filter::FilterContainer, ThumbnailStoreExt};
@@ -9,8 +12,7 @@ use yew::prelude::*;
 use yew_router::{components::Link, Routable};
 
 use crate::{
-    components::BookListItemInfo, pages::settings::SettingsRoute, request,
-    BaseRoute, AppState,
+    components::BookListItemInfo, pages::settings::SettingsRoute, request, AppState, BaseRoute,
 };
 
 #[derive(PartialEq, Eq, Properties)]
@@ -87,12 +89,18 @@ impl Component for NavbarModule {
                 if self.search_results.iter().all(|v| v.is_some()) {
                     self.search_results.clear();
 
-                    let limit = if self.state.libraries.len() > 1 { 5 } else { 10 };
+                    let limit = if self.state.libraries.len() > 1 {
+                        5
+                    } else {
+                        10
+                    };
 
                     self.search_results = vec![Option::None; self.state.libraries.len()];
 
                     let mut search = FilterContainer::default();
-                    search.add_query_filter(self.input_ref.cast::<HtmlInputElement>().unwrap().value());
+                    search.add_query_filter(
+                        self.input_ref.cast::<HtmlInputElement>().unwrap().value(),
+                    );
 
                     for (index, coll) in self.state.libraries.iter().enumerate() {
                         let search = search.clone();
@@ -105,7 +113,7 @@ impl Component for NavbarModule {
                                     Some(library_id),
                                     Some(0),
                                     Some(limit),
-                                    Some(search)
+                                    Some(search),
                                 )
                                 .await,
                             )
@@ -202,7 +210,10 @@ impl Component for NavbarModule {
 impl NavbarModule {
     fn render_item(&self, route: BaseRoute, name: &DisplayType) -> Html {
         let inner = if route == BaseRoute::Settings {
-            let route = if self.state.member.as_ref()
+            let route = if self
+                .state
+                .member
+                .as_ref()
                 .map(|v| v.permissions.is_owner())
                 .unwrap_or_default()
             {

@@ -62,9 +62,10 @@ pub async fn post_passwordless_oauth(
     } = query.into_inner();
     email_str = email_str.trim().to_string();
 
-    if guest_member.is_none() && MemberModel::find_one_by_email(&email_str, &mut *db.acquire().await?)
-        .await?
-        .is_none()
+    if guest_member.is_none()
+        && MemberModel::find_one_by_email(&email_str, &mut *db.acquire().await?)
+            .await?
+            .is_none()
         && get_config().has_admin_account
     {
         return Err(
@@ -104,12 +105,7 @@ pub async fn post_passwordless_oauth(
         .map_err(Error::from)?
     );
 
-    let main_html = render_email(
-        proto,
-        host,
-        &email_config.display_name,
-        &auth_callback_url
-    );
+    let main_html = render_email(proto, host, &email_config.display_name, &auth_callback_url);
 
     auth_model.insert(&mut *db.acquire().await?).await?;
 
@@ -191,7 +187,11 @@ pub async fn get_passwordless_oauth_callback(
 
             // We instantly accept the invite.
             inserted
-                .accept_invite(MemberAuthType::Passwordless, None, &mut *db.acquire().await?)
+                .accept_invite(
+                    MemberAuthType::Passwordless,
+                    None,
+                    &mut *db.acquire().await?,
+                )
                 .await?;
 
             update_config(|config| {
@@ -211,11 +211,20 @@ pub async fn get_passwordless_oauth_callback(
         // If we were invited update the invite with correct info.
         if member.type_of == MemberAuthType::Invite {
             member
-                .accept_invite(MemberAuthType::Passwordless, None, &mut *db.acquire().await?)
+                .accept_invite(
+                    MemberAuthType::Passwordless,
+                    None,
+                    &mut *db.acquire().await?,
+                )
                 .await?;
         }
 
-        AuthModel::update_with_member_id(&auth.oauth_token_secret, member.id, &mut *db.acquire().await?).await?;
+        AuthModel::update_with_member_id(
+            &auth.oauth_token_secret,
+            member.id,
+            &mut *db.acquire().await?,
+        )
+        .await?;
 
         super::remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;
     }

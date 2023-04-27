@@ -52,7 +52,6 @@ impl Component for HomePage {
             .context::<Rc<AppState>>(ctx.link().callback(Msg::ContextChanged))
             .expect("context to be set");
 
-
         let mut this = Self {
             state,
             _listener,

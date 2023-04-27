@@ -1,16 +1,21 @@
-use wasm_bindgen::{UnwrapThrowExt, prelude::Closure, JsCast};
+use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::HtmlIFrameElement;
 use yew::Context;
 
-use crate::{components::{Reader, reader::{ReaderMsg, section::SectionContents}}, util::ElementEvent};
+use crate::{
+    components::{
+        reader::{section::SectionContents, ReaderMsg},
+        Reader,
+    },
+    util::ElementEvent,
+};
 
 use super::{PageMovement, PAGE_DISPLAYS};
-
 
 pub struct ImageDisplay {
     class_name: &'static str,
     _events: Vec<ElementEvent>,
-    pub(in super) movement: PageMovement,
+    pub(super) movement: PageMovement,
 }
 
 impl ImageDisplay {
@@ -37,14 +42,16 @@ impl ImageDisplay {
             let _ = body.class_list().remove_1(v);
         });
 
-        body.class_list().add_2(
-            self.class_name,
-            if self.movement == PageMovement::LeftToRight {
-                "move-left-to-right"
-            } else {
-                "move-right-to-left"
-            },
-        ).unwrap_throw();
+        body.class_list()
+            .add_2(
+                self.class_name,
+                if self.movement == PageMovement::LeftToRight {
+                    "move-left-to-right"
+                } else {
+                    "move-right-to-left"
+                },
+            )
+            .unwrap_throw();
 
         let link = ctx.link().clone();
 
@@ -106,11 +113,7 @@ impl ImageDisplay {
         body.style()
             .set_property(
                 "left",
-                &format!(
-                    "calc(-{}% - {}px)",
-                    100 * page,
-                    page as isize * 10 - amount
-                ),
+                &format!("calc(-{}% - {}px)", 100 * page, page as isize * 10 - amount),
             )
             .unwrap();
     }
@@ -134,11 +137,7 @@ impl ImageDisplay {
             body.style()
                 .set_property(
                     "width",
-                    &format!(
-                        "calc({}% + {}px)",
-                        100 * count,
-                        actual_offset * 10
-                    )
+                    &format!("calc({}% + {}px)", 100 * count, actual_offset * 10),
                 )
                 .unwrap_throw();
         }
@@ -149,11 +148,7 @@ impl ImageDisplay {
         body.style()
             .set_property(
                 "left",
-                &format!(
-                    "calc(-{}% - {}px)",
-                    100 * actual_offset,
-                    actual_offset * 10
-                ),
+                &format!("calc(-{}% - {}px)", 100 * actual_offset, actual_offset * 10),
             )
             .unwrap_throw();
 
@@ -163,9 +158,13 @@ impl ImageDisplay {
     pub fn next_page(&mut self, section: &mut SectionContents) -> bool {
         match self.movement {
             // Forwards
-            PageMovement::LeftToRight if section.page_offset + 1 < section.page_count() => self.set_page(section.page_offset + 1, section),
+            PageMovement::LeftToRight if section.page_offset + 1 < section.page_count() => {
+                self.set_page(section.page_offset + 1, section)
+            }
             // Backwards
-            PageMovement::RightToLeft if section.page_offset != 0 => self.set_page(section.page_offset - 1, section),
+            PageMovement::RightToLeft if section.page_offset != 0 => {
+                self.set_page(section.page_offset - 1, section)
+            }
             _ => false,
         }
     }
@@ -173,9 +172,13 @@ impl ImageDisplay {
     pub fn previous_page(&mut self, section: &mut SectionContents) -> bool {
         match self.movement {
             // Backwards
-            PageMovement::LeftToRight if section.page_offset != 0 => self.set_page(section.page_offset - 1, section),
+            PageMovement::LeftToRight if section.page_offset != 0 => {
+                self.set_page(section.page_offset - 1, section)
+            }
             // Forwards
-            PageMovement::RightToLeft if section.page_offset + 1 < section.page_count() => self.set_page(section.page_offset + 1, section),
+            PageMovement::RightToLeft if section.page_offset + 1 < section.page_count() => {
+                self.set_page(section.page_offset + 1, section)
+            }
             _ => false,
         }
     }
@@ -187,7 +190,9 @@ impl ImageDisplay {
     pub fn viewing_page(&self, section: &SectionContents) -> usize {
         match self.movement {
             PageMovement::LeftToRight => section.page_offset,
-            PageMovement::RightToLeft => (section.page_count() - section.page_offset).saturating_sub(1),
+            PageMovement::RightToLeft => {
+                (section.page_count() - section.page_offset).saturating_sub(1)
+            }
         }
     }
 }

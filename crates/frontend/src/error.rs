@@ -1,9 +1,8 @@
 use std::fmt::Debug;
 
 use common::api::ApiErrorResponse;
-use wasm_bindgen::JsValue;
 use thiserror::Error as ThisError;
-
+use wasm_bindgen::JsValue;
 
 pub type Result<V> = std::result::Result<V, Error>;
 
@@ -34,7 +33,6 @@ impl From<Error> for ApiErrorResponse {
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct InnerValue(JsValue);

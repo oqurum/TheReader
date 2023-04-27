@@ -1,8 +1,8 @@
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::HtmlElement;
 
-pub mod table;
 pub mod selection;
+pub mod table;
 
 pub fn for_each_child<V: Fn(&HtmlElement)>(element: &HtmlElement, func: &V) {
     let children = element.children();
@@ -50,7 +50,6 @@ pub fn for_each_child_map<E, V: Fn(&HtmlElement) -> Option<E>>(
 
     items
 }
-
 
 pub fn for_each_sibling_until<V: Fn(&HtmlElement) -> bool>(element: &HtmlElement, func: &V) {
     let mut sibling = element.next_element_sibling();

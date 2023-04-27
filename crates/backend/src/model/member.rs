@@ -1,12 +1,12 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use common::MemberId;
 use rand::Rng;
 use sqlx::{FromRow, SqliteConnection};
 
-use crate::{SqlConnection, Result};
-use common_local::{MemberAuthType, Permissions, MemberUpdate, LibraryAccess};
+use crate::{Result, SqlConnection};
+use common_local::{LibraryAccess, MemberAuthType, MemberUpdate, Permissions};
 use serde::Serialize;
 
 pub static GUEST_INDEX: AtomicUsize = AtomicUsize::new(1);
@@ -132,7 +132,8 @@ impl NewMemberModel {
         .bind(self.permissions)
         .bind(self.created_at)
         .bind(self.updated_at)
-        .execute(db).await?;
+        .execute(db)
+        .await?;
 
         Ok(self.into_member(MemberId::from(res.last_insert_rowid())))
     }
@@ -163,7 +164,11 @@ impl MemberModel {
         self.permissions = Permissions::basic();
     }
 
-    pub async fn update_with(&mut self, update: MemberUpdate, db: &mut SqliteConnection) -> Result<()> {
+    pub async fn update_with(
+        &mut self,
+        update: MemberUpdate,
+        db: &mut SqliteConnection,
+    ) -> Result<()> {
         let mut is_updated = false;
 
         if let Some(name) = update.name {
@@ -243,7 +248,8 @@ impl MemberModel {
         .bind(self.permissions)
         .bind(&self.library_access)
         .bind(self.updated_at)
-        .execute(db).await?;
+        .execute(db)
+        .await?;
 
         Ok(res.rows_affected())
     }
@@ -281,15 +287,17 @@ impl MemberModel {
         .bind(self.type_of)
         .bind(&self.password)
         .bind(self.updated_at)
-        .execute(db).await?;
+        .execute(db)
+        .await?;
 
         Ok(res.rows_affected())
     }
 
     pub async fn delete(id: MemberId, db: &mut SqliteConnection) -> Result<u64> {
-        let res = sqlx::query(
-            "DELETE FROM members WHERE id = $1"
-        ).bind(id).execute(db).await?;
+        let res = sqlx::query("DELETE FROM members WHERE id = $1")
+            .bind(id)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected())
     }
@@ -299,6 +307,8 @@ impl MemberModel {
     }
 
     pub async fn count(db: &mut SqliteConnection) -> Result<i32> {
-        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM members").fetch_one(db).await?)
+        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM members")
+            .fetch_one(db)
+            .await?)
     }
 }

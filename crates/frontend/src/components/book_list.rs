@@ -20,7 +20,7 @@ use yew_agent::{Bridge, Bridged};
 
 use crate::{request, services::WsEventBus};
 
-use super::book_poster_item::{BookPosterItem, BookPosterItemMsg, render_placeholder_item};
+use super::book_poster_item::{render_placeholder_item, BookPosterItem, BookPosterItemMsg};
 use super::MassSelectBar;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

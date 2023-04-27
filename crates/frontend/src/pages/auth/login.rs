@@ -6,7 +6,7 @@ use yew::prelude::*;
 use yew_hooks::use_async;
 use yew_router::prelude::RouterScopeExt;
 
-use crate::{request, BaseRoute, AppState};
+use crate::{request, AppState, BaseRoute};
 
 pub enum Msg {
     LoginGuestResponse(std::result::Result<String, ApiErrorResponse>),
@@ -261,11 +261,7 @@ pub fn _guest(props: &InnerProps) -> Html {
 
     let response_error = use_state_eq(|| Option::<String>::None);
 
-    let submit_passless = use_async(async move {
-        request::login_as_guest()
-            .await
-            .ok()
-    });
+    let submit_passless = use_async(async move { request::login_as_guest().await.ok() });
 
     let async_resp = submit_passless.clone();
     let callback = props.cb.clone();

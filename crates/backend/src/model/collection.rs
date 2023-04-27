@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use common::{MemberId, ThumbnailStore};
 use serde::Serialize;
 
@@ -70,11 +70,21 @@ impl NewCollectionModel {
 
 impl CollectionModel {
     pub async fn count_by_member_id(id: MemberId, db: &mut SqliteConnection) -> Result<i32> {
-        Ok(sqlx::query_scalar("SELECT COUNT(*) FROM collection WHERE member_id = $1").bind(id).fetch_one(db).await?)
+        Ok(
+            sqlx::query_scalar("SELECT COUNT(*) FROM collection WHERE member_id = $1")
+                .bind(id)
+                .fetch_one(db)
+                .await?,
+        )
     }
 
     pub async fn find_by_member_id(id: MemberId, db: &mut SqliteConnection) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as("SELECT * FROM collection WHERE member_id = $1").bind(id).fetch_all(db).await?)
+        Ok(
+            sqlx::query_as("SELECT * FROM collection WHERE member_id = $1")
+                .bind(id)
+                .fetch_all(db)
+                .await?,
+        )
     }
 
     pub async fn find_one_by_id(
@@ -82,9 +92,13 @@ impl CollectionModel {
         member_id: MemberId,
         db: &mut SqliteConnection,
     ) -> Result<Option<Self>> {
-        Ok(sqlx::query_as(
-            "SELECT * FROM collection WHERE id = $1 AND member_id = $2"
-        ).bind(id).bind(member_id).fetch_optional(db).await?)
+        Ok(
+            sqlx::query_as("SELECT * FROM collection WHERE id = $1 AND member_id = $2")
+                .bind(id)
+                .bind(member_id)
+                .fetch_optional(db)
+                .await?,
+        )
     }
 
     pub async fn update(&mut self, db: &mut SqliteConnection) -> Result<()> {
@@ -97,15 +111,23 @@ impl CollectionModel {
                 thumb_url = $4,
                 updated_at = $5
             WHERE id = $1"#,
-        ).bind(self.id).bind(&self.name).bind(&self.description).bind(&self.thumb_url).bind(self.updated_at).execute(db).await?;
+        )
+        .bind(self.id)
+        .bind(&self.name)
+        .bind(&self.description)
+        .bind(&self.thumb_url)
+        .bind(self.updated_at)
+        .execute(db)
+        .await?;
 
         Ok(())
     }
 
     pub async fn delete_by_id(id: CollectionId, db: &mut SqliteConnection) -> Result<u64> {
-        let res = sqlx::query(
-            "DELETE FROM collection WHERE id = $1"
-        ).bind(id).execute(db).await?;
+        let res = sqlx::query("DELETE FROM collection WHERE id = $1")
+            .bind(id)
+            .execute(db)
+            .await?;
 
         Ok(res.rows_affected())
     }

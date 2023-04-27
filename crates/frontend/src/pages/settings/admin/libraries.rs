@@ -2,12 +2,17 @@ use std::path::PathBuf;
 
 use common::{
     api::WrappingResponse,
-    component::{popup::{Popup, PopupType}, select::{SelectModule, SelectItem}, FileSearchComponent, FileSearchEvent, FileSearchRequest, file_search::FileInfo},
+    component::{
+        file_search::FileInfo,
+        popup::{Popup, PopupType},
+        select::{SelectItem, SelectModule},
+        FileSearchComponent, FileSearchEvent, FileSearchRequest,
+    },
 };
 use common_local::{api, BasicLibrary, LibraryId, LibraryType};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
-use yew_hooks::{use_list, use_async};
+use yew_hooks::{use_async, use_list};
 
 use crate::{components::edit::library::LibraryEdit, request};
 
@@ -165,17 +170,21 @@ fn new_library(props: &NewLibraryProps) -> Html {
     let dir_req_state2 = dir_req_state.clone();
     let dir_req_async = use_async(async move {
         if let Some(req) = dir_req_state2.as_ref() {
-            match request::get_directory_contents(req.path.display().to_string()).await.ok() {
+            match request::get_directory_contents(req.path.display().to_string())
+                .await
+                .ok()
+            {
                 Ok(v) => {
                     req.update.emit((
                         Some(v.path),
-                        v.items.into_iter()
+                        v.items
+                            .into_iter()
                             .map(|v| FileInfo {
                                 title: v.title,
                                 path: v.path,
                                 is_file: v.is_file,
                             })
-                            .collect()
+                            .collect(),
                     ));
                 }
 
@@ -213,16 +222,14 @@ fn new_library(props: &NewLibraryProps) -> Html {
 
     let on_new_dir_path = {
         let dirs = directories.clone();
-        Callback::from(move |v: FileSearchEvent| {
-            match v {
-                FileSearchEvent::Request(req) => {
-                    dir_req_state.set(Some(req));
-                    dir_req_async.run();
-                }
+        Callback::from(move |v: FileSearchEvent| match v {
+            FileSearchEvent::Request(req) => {
+                dir_req_state.set(Some(req));
+                dir_req_async.run();
+            }
 
-                FileSearchEvent::Submit(directory) => {
-                    dirs.push(directory.display().to_string().replace('\\', "/"));
-                }
+            FileSearchEvent::Submit(directory) => {
+                dirs.push(directory.display().to_string().replace('\\', "/"));
             }
         })
     };

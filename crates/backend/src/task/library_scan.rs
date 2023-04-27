@@ -1,8 +1,10 @@
 use async_trait::async_trait;
-use common_local::{LibraryId, ws::TaskId};
+use common_local::{ws::TaskId, LibraryId};
 
-use crate::{model::{LibraryModel, DirectoryModel}, Result, Task, SqlPool};
-
+use crate::{
+    model::{DirectoryModel, LibraryModel},
+    Result, SqlPool, Task,
+};
 
 pub struct TaskLibraryScan {
     pub library_id: LibraryId,

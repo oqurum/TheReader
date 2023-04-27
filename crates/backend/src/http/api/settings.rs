@@ -7,7 +7,8 @@ use common::api::{
 };
 use common_local::{
     api,
-    setup::{Config, LibraryConnection, SetupConfig}, LibraryType, PublicServerSettings,
+    setup::{Config, LibraryConnection, SetupConfig},
+    LibraryType, PublicServerSettings,
 };
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -18,14 +19,9 @@ use crate::{
         get_config, is_setup as iss_setup, save_config, update_config, CONFIG_FILE, CONFIG_PATH,
         IS_SETUP,
     },
-    SqlPool,
     http::{passwordless::test_connection, JsonResponse, MemberCookie},
-    model::{
-        AuthModel,
-        DirectoryModel,
-        LibraryModel, NewLibraryModel,
-    },
-    Result, WebResult,
+    model::{AuthModel, DirectoryModel, LibraryModel, NewLibraryModel},
+    Result, SqlPool, WebResult,
 };
 
 #[get("/settings")]
@@ -38,10 +34,9 @@ pub async fn get_server_settings(
     Ok(web::Json(WrappingResponse::okay(PublicServerSettings {
         is_auth_guest_enabled: config.is_public_access,
         is_auth_password_enabled: config.authenticators.email_pass,
-        is_auth_passwordless_enabled: config.authenticators.email_no_pass
+        is_auth_passwordless_enabled: config.authenticators.email_no_pass,
     })))
 }
-
 
 #[get("/setup")]
 pub async fn get_configg(
@@ -225,8 +220,14 @@ pub async fn get_setup_agent_verify(
     }
 
     // TODO: Somehow validate that the `auth_model` secret is the same as when we initiated the request.
-    if let Some(auth_model) = AuthModel::find_by_token(&query.state, &mut *db.acquire().await?).await? {
-        AuthModel::remove_by_token_secret(&auth_model.oauth_token_secret, &mut *db.acquire().await?).await?;
+    if let Some(auth_model) =
+        AuthModel::find_by_token(&query.state, &mut *db.acquire().await?).await?
+    {
+        AuthModel::remove_by_token_secret(
+            &auth_model.oauth_token_secret,
+            &mut *db.acquire().await?,
+        )
+        .await?;
 
         let mut location_uri = Url::parse(&config.libby.url).unwrap();
         location_uri.set_path("auth/handshake");

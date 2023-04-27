@@ -11,8 +11,11 @@ use actix_web::{
     dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
     FromRequest, HttpRequest, HttpResponse,
 };
-use chrono::{Utc, Duration};
-use common::{api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse}, MemberId};
+use chrono::{Duration, Utc};
+use common::{
+    api::{ApiErrorResponse, ErrorCodeResponse, WrappingResponse},
+    MemberId,
+};
 use futures::{future::LocalBoxFuture, FutureExt};
 use rand::{rngs::ThreadRng, Rng};
 use serde::{Deserialize, Serialize};
@@ -20,7 +23,7 @@ use sqlx::SqliteConnection;
 
 use crate::{
     model::{AuthModel, MemberModel},
-    InternalError, Result, WebError, IN_MEM_DB, SqlPool,
+    InternalError, Result, SqlPool, WebError, IN_MEM_DB,
 };
 
 pub mod guest;
@@ -33,7 +36,10 @@ pub async fn does_token_exist(token_secret: &str, db: &mut SqliteConnection) -> 
         Ok(true)
     } else if let Some(auth) = AuthModel::find_by_token_secret(token_secret, db).await? {
         if auth.member_id.is_some() {
-            if let Err(e) = IN_MEM_DB.write_item_duration(auth.oauth_token_secret, Duration::days(1)).await {
+            if let Err(e) = IN_MEM_DB
+                .write_item_duration(auth.oauth_token_secret, Duration::days(1))
+                .await
+            {
                 tracing::error!(error=?e, "Error writing to ImD");
             }
         } else {
@@ -45,7 +51,6 @@ pub async fn does_token_exist(token_secret: &str, db: &mut SqliteConnection) -> 
         Ok(false)
     }
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CookieAuth {
@@ -192,19 +197,20 @@ where
                     .map(|res| res.map_into_left_body());
             }
 
-
             let identity = match Identity::from_request(&r, &mut pl).await {
                 Ok(v) => v,
                 Err(err) => {
                     let res = actix_web::error::InternalError::from_response(
                         err,
-                        HttpResponse::Unauthorized().json(WrappingResponse::<()>::error_code("Unauthorized", ErrorCodeResponse::NotLoggedIn)),
+                        HttpResponse::Unauthorized().json(WrappingResponse::<()>::error_code(
+                            "Unauthorized",
+                            ErrorCodeResponse::NotLoggedIn,
+                        )),
                     );
 
                     return Err(actix_web::Error::from(res));
                 }
             };
-
 
             match get_auth_value(&identity) {
                 Ok(Some(cookie)) => {
@@ -216,7 +222,8 @@ where
                             tracing::error!(error=?e, "Unable to Acquire Connection");
                             return Ok(ServiceResponse::new(
                                 r,
-                                HttpResponse::Unauthorized().json(WrappingResponse::<()>::error("an error occured")),
+                                HttpResponse::Unauthorized()
+                                    .json(WrappingResponse::<()>::error("an error occured")),
                             )
                             .map_into_right_body::<B>());
                         }
@@ -263,7 +270,10 @@ where
 
             Ok(ServiceResponse::new(
                 r,
-                HttpResponse::Unauthorized().json(WrappingResponse::<()>::error_code("unauthorized", ErrorCodeResponse::NotLoggedIn)),
+                HttpResponse::Unauthorized().json(WrappingResponse::<()>::error_code(
+                    "unauthorized",
+                    ErrorCodeResponse::NotLoggedIn,
+                )),
             )
             .map_into_right_body::<B>())
         }

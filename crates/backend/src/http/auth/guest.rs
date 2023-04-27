@@ -5,11 +5,11 @@ use actix_web::HttpRequest;
 use common::api::ApiErrorResponse;
 use common::api::WrappingResponse;
 
-use crate::SqlPool;
 use crate::http::JsonResponse;
 use crate::model::AuthModel;
 use crate::model::NewClientModel;
 use crate::model::NewMemberModel;
+use crate::SqlPool;
 use crate::WebResult;
 
 use super::MemberCookie;
@@ -36,12 +36,14 @@ pub async fn post_guest_oauth(
 
     auth.insert(&mut *conn).await?;
 
-    if let Some(header) = request.headers().get(reqwest::header::USER_AGENT).and_then(|v| v.to_str().ok()) {
-        NewClientModel::new(
-            auth.oauth_token_secret.clone(),
-            String::from("Web"),
-            header,
-        ).insert(&mut *conn).await?;
+    if let Some(header) = request
+        .headers()
+        .get(reqwest::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+    {
+        NewClientModel::new(auth.oauth_token_secret.clone(), String::from("Web"), header)
+            .insert(&mut *conn)
+            .await?;
     }
 
     super::remember_member_auth(&request.extensions(), member.id, auth.oauth_token_secret)?;

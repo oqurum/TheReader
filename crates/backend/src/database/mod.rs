@@ -1,14 +1,15 @@
 use crate::Result;
-use sqlx::{SqlitePool, Sqlite, migrate::MigrateDatabase, Connection, Executor};
+use sqlx::{migrate::MigrateDatabase, Connection, Executor, Sqlite, SqlitePool};
 
 const DATABASE_PATH: &str = "./app/database.db";
 
 pub type SqlPool = sqlx::Pool<sqlx::Sqlite>;
 pub type SqlConnection = sqlx::pool::PoolConnection<sqlx::Sqlite>;
 
-
 pub async fn init() -> Result<SqlPool> {
-    let does_db_exist = Sqlite::database_exists(DATABASE_PATH).await.unwrap_or(false);
+    let does_db_exist = Sqlite::database_exists(DATABASE_PATH)
+        .await
+        .unwrap_or(false);
 
     if !does_db_exist {
         tracing::debug!("Creating database {DATABASE_PATH}");
@@ -35,10 +36,11 @@ pub async fn init() -> Result<SqlPool> {
 pub async fn create_tables(database: &SqlPool) -> Result<()> {
     let mut conn = database.acquire().await?;
 
-    conn.transaction(|conn| Box::pin(async move {
-        // Library
-        conn.execute(
-            r#"CREATE TABLE "library" (
+    conn.transaction(|conn| {
+        Box::pin(async move {
+            // Library
+            conn.execute(
+                r#"CREATE TABLE "library" (
                 "id"                 INTEGER NOT NULL UNIQUE,
 
                 "name"               TEXT NOT NULL UNIQUE,
@@ -53,21 +55,23 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 PRIMARY KEY("id" AUTOINCREMENT)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Directory
-        conn.execute(
-            r#"CREATE TABLE "directory" (
+            // Directory
+            conn.execute(
+                r#"CREATE TABLE "directory" (
                 "library_id"    INTEGER NOT NULL,
                 "path"          TEXT NOT NULL UNIQUE,
 
                 FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // File
-        conn.execute(
-            r#"CREATE TABLE "file" (
+            // File
+            conn.execute(
+                r#"CREATE TABLE "file" (
                 "id"               INTEGER NOT NULL UNIQUE,
 
                 "path"             TEXT NOT NULL UNIQUE,
@@ -91,11 +95,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 FOREIGN KEY("book_id") REFERENCES book("id") ON DELETE CASCADE
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Book Item
-        conn.execute(
-            r#"CREATE TABLE "book" (
+            // Book Item
+            conn.execute(
+                r#"CREATE TABLE "book" (
                 "id"                  INTEGER NOT NULL,
 
                 "library_id"          INTEGER NOT NULL,
@@ -127,11 +132,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 FOREIGN KEY("library_id") REFERENCES library("id") ON DELETE CASCADE
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Book People
-        conn.execute(
-            r#"CREATE TABLE "book_person" (
+            // Book People
+            conn.execute(
+                r#"CREATE TABLE "book_person" (
                 "book_id"   INTEGER NOT NULL,
                 "person_id" INTEGER NOT NULL,
 
@@ -140,12 +146,13 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 UNIQUE(book_id, person_id)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
-        // File Note
-        conn.execute(
-            r#"CREATE TABLE "file_note" (
+            // TODO: Versionize Notes. Keep last 20 versions for X one month. Auto delete old versions.
+            // File Note
+            conn.execute(
+                r#"CREATE TABLE "file_note" (
                 "file_id"       INTEGER NOT NULL,
                 "user_id"       INTEGER NOT NULL,
 
@@ -160,11 +167,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 UNIQUE(file_id, user_id)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // File Progression
-        conn.execute(
-            r#"CREATE TABLE "file_progression" (
+            // File Progression
+            conn.execute(
+                r#"CREATE TABLE "file_progression" (
                 "book_id"       INTEGER NOT NULL,
                 "file_id"       INTEGER NOT NULL,
                 "user_id"       INTEGER NOT NULL,
@@ -185,11 +193,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 UNIQUE(book_id, user_id)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // File Notation
-        conn.execute(
-            r#"CREATE TABLE "file_notation" (
+            // File Notation
+            conn.execute(
+                r#"CREATE TABLE "file_notation" (
                 "file_id"       INTEGER NOT NULL,
                 "user_id"       INTEGER NOT NULL,
 
@@ -205,11 +214,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 UNIQUE(file_id, user_id)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Tags People
-        conn.execute(
-            r#"CREATE TABLE "tag_person" (
+            // Tags People
+            conn.execute(
+                r#"CREATE TABLE "tag_person" (
                 "id"             INTEGER NOT NULL,
 
                 "source"         TEXT NOT NULL,
@@ -225,11 +235,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 PRIMARY KEY("id" AUTOINCREMENT)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // People Alt names
-        conn.execute(
-            r#"CREATE TABLE "tag_person_alt" (
+            // People Alt names
+            conn.execute(
+                r#"CREATE TABLE "tag_person_alt" (
                 "person_id"    INTEGER NOT NULL,
 
                 "name"         TEXT NOT NULL COLLATE NOCASE,
@@ -238,11 +249,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 UNIQUE(person_id, name)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Members
-        conn.execute(
-            r#"CREATE TABLE "members" (
+            // Members
+            conn.execute(
+                r#"CREATE TABLE "members" (
                 "id"             INTEGER NOT NULL,
 
                 "name"           TEXT NOT NULL COLLATE NOCASE,
@@ -261,11 +273,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
                 UNIQUE(email),
                 PRIMARY KEY("id" AUTOINCREMENT)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Auth
-        conn.execute(
-            r#"CREATE TABLE "auth" (
+            // Auth
+            conn.execute(
+                r#"CREATE TABLE "auth" (
                 "oauth_token"           TEXT UNIQUE,
                 "oauth_token_secret"    TEXT NOT NULL UNIQUE,
 
@@ -276,11 +289,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 FOREIGN KEY("member_id") REFERENCES members("id") ON DELETE CASCADE
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Client
-        conn.execute(
-            r#"CREATE TABLE client (
+            // Client
+            conn.execute(
+                r#"CREATE TABLE client (
                 id          INTEGER NOT NULL,
 
                 oauth       INTEGER NOT NULL,
@@ -297,11 +311,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
                 FOREIGN KEY("oauth") REFERENCES auth("oauth_token_secret") ON DELETE CASCADE,
                 PRIMARY KEY("id" AUTOINCREMENT)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Uploaded Images
-        conn.execute(
-            r#"CREATE TABLE "uploaded_images" (
+            // Uploaded Images
+            conn.execute(
+                r#"CREATE TABLE "uploaded_images" (
                 "id"            INTEGER NOT NULL,
 
                 "path"          TEXT NOT NULL,
@@ -310,11 +325,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
                 UNIQUE(path),
                 PRIMARY KEY("id" AUTOINCREMENT)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Image Link
-        conn.execute(
-            r#"CREATE TABLE "image_link" (
+            // Image Link
+            conn.execute(
+                r#"CREATE TABLE "image_link" (
                 "image_id"    INTEGER NOT NULL,
 
                 "link_id"     INTEGER NOT NULL,
@@ -324,11 +340,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 UNIQUE(image_id, link_id, type_of)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Collection
-        conn.execute(
-            r#"CREATE TABLE "collection" (
+            // Collection
+            conn.execute(
+                r#"CREATE TABLE "collection" (
                 "id"             INTEGER NOT NULL UNIQUE,
 
                 "member_id"      INTEGER NOT NULL,
@@ -345,11 +362,12 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 PRIMARY KEY("id" AUTOINCREMENT)
             );"#,
-        ).await?;
+            )
+            .await?;
 
-        // Collection Item
-        conn.execute(
-            r#"CREATE TABLE "collection_item" (
+            // Collection Item
+            conn.execute(
+                r#"CREATE TABLE "collection_item" (
                 "collection_id"   INTEGER NOT NULL,
                 "book_id"         INTEGER NOT NULL,
 
@@ -358,8 +376,11 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
 
                 UNIQUE(collection_id, book_id)
             );"#,
-        ).await
-    })).await?;
+            )
+            .await
+        })
+    })
+    .await?;
 
     Ok(())
 }

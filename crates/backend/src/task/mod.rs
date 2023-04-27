@@ -13,11 +13,7 @@ use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
 use tracing::{error, info};
 
-use crate::{
-    SqlPool,
-    http::send_message_to_clients,
-    Result
-};
+use crate::{http::send_message_to_clients, Result, SqlPool};
 
 mod book_update;
 mod library_scan;
@@ -27,8 +23,7 @@ pub use book_update::*;
 pub use library_scan::*;
 pub use update_people::*;
 
-
-pub(in self) static MAX_CONCURRENT_RUNS: usize = 2;
+pub(self) static MAX_CONCURRENT_RUNS: usize = 2;
 
 // TODO: Unused Image Deletion task.
 // TODO: A should stop boolean
@@ -43,7 +38,6 @@ lazy_static! {
     /// Currently running Tasks
     static ref TASKS_RUNNING: Mutex<Vec<TaskRunning>> = Mutex::new(Vec::new());
 }
-
 
 struct TaskRunning {
     id: TaskId,
@@ -131,7 +125,7 @@ pub fn start_task_manager(db: web::Data<SqlPool>) {
                         tasks.push(TaskRunning {
                             id: task_id,
                             name: task.name(),
-                            started: Utc::now()
+                            started: Utc::now(),
                         });
                     }
 

@@ -1,8 +1,8 @@
 //! An In Memory Database used for caching Auths.
 
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::{hash_map::Entry, HashMap};
 
-use chrono::{Utc, DateTime, Duration};
+use chrono::{DateTime, Duration, Utc};
 use lazy_static::lazy_static;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::sync::RwLock;
@@ -15,7 +15,7 @@ lazy_static! {
 
 #[derive(Default)]
 pub struct ImD {
-    store: RwLock<HashMap<String, ImdItem>>
+    store: RwLock<HashMap<String, ImdItem>>,
 }
 
 impl ImD {
@@ -39,8 +39,18 @@ impl ImD {
     }
 
     /// Returns a boolean on whether or not we wrote a NEW value.
-    pub async fn write_value_duration<S: Serialize>(&self, name: String, value: S, valid_for: Duration) -> Result<bool> {
-        self._write_entry(name, Some(value), Some(Utc::now().checked_add_signed(valid_for).unwrap())).await
+    pub async fn write_value_duration<S: Serialize>(
+        &self,
+        name: String,
+        value: S,
+        valid_for: Duration,
+    ) -> Result<bool> {
+        self._write_entry(
+            name,
+            Some(value),
+            Some(Utc::now().checked_add_signed(valid_for).unwrap()),
+        )
+        .await
     }
 
     /// Returns a boolean on whether or not we wrote a NEW value.
@@ -50,7 +60,12 @@ impl ImD {
 
     /// Returns a boolean on whether or not we wrote a NEW value.
     pub async fn write_item_duration(&self, name: String, valid_for: Duration) -> Result<bool> {
-        self._write_entry(name, Option::<()>::None, Some(Utc::now().checked_add_signed(valid_for).unwrap())).await
+        self._write_entry(
+            name,
+            Option::<()>::None,
+            Some(Utc::now().checked_add_signed(valid_for).unwrap()),
+        )
+        .await
     }
 
     pub async fn contains(&self, name: &str) -> bool {
@@ -62,7 +77,12 @@ impl ImD {
     }
 
     /// Returns a boolean on whether or not we wrote a NEW value.
-    async fn _write_entry(&self, name: String, value: Option<impl Serialize>, delete_after: Option<DateTime<Utc>>) -> Result<bool> {
+    async fn _write_entry(
+        &self,
+        name: String,
+        value: Option<impl Serialize>,
+        delete_after: Option<DateTime<Utc>>,
+    ) -> Result<bool> {
         let mut write = self.store.write().await;
 
         match write.entry(name) {

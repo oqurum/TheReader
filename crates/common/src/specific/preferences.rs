@@ -1,6 +1,6 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::reader::{ReaderColor, LayoutType, ReaderLoadType};
+use crate::reader::{LayoutType, ReaderColor, ReaderLoadType};
 
 // TODO: I don't want to store it like this but it's easiest way.
 
@@ -53,7 +53,6 @@ impl Default for GeneralBookPreferences {
     }
 }
 
-
 // Reader
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,7 +60,6 @@ pub struct TextBookPreferences {
     pub desktop: TextBookInnerPreferences,
     pub mobile: TextBookInnerPreferences,
 }
-
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TextBookInnerPreferences {
@@ -74,8 +72,6 @@ pub struct ReaderTextPreferences {
     pub text_size: u32,
 }
 
-
-
 // Images
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,7 +79,6 @@ pub struct ImageBookPreferences {
     pub desktop: ImageBookInnerPreferences,
     pub mobile: ImageBookInnerPreferences,
 }
-
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageBookInnerPreferences {

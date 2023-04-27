@@ -5,8 +5,8 @@ use actix_session::storage::CookieSessionStore;
 use actix_session::SessionMiddleware;
 use actix_web::cookie::Key;
 use actix_web::http::header;
-use actix_web::{HttpResponse, HttpRequest};
 use actix_web::{cookie::SameSite, web, App, HttpServer};
+use actix_web::{HttpRequest, HttpResponse};
 use common::api::WrappingResponse;
 use tracing_actix_web::TracingLogger;
 
@@ -32,8 +32,8 @@ async fn default_handler(
 ) -> crate::WebResult<HttpResponse> {
     if !req.path().contains('.') && !is_setup() && !req.uri().path().contains("/setup") {
         Ok(HttpResponse::TemporaryRedirect()
-        .insert_header((header::LOCATION, "/setup"))
-        .finish())
+            .insert_header((header::LOCATION, "/setup"))
+            .finish())
     } else {
         // TODO: HTTP Caching may mess this up
         // TODO: Better Place
@@ -46,7 +46,7 @@ async fn default_handler(
 
                         return Ok(HttpResponse::TemporaryRedirect()
                             .insert_header((header::LOCATION, LOGGED_OUT_PATH))
-                            .finish())
+                            .finish());
                     }
                 }
             }
@@ -109,14 +109,10 @@ pub async fn register_http_service(
             // WS
             .service(ws::ws_index)
             .route("/manifest.json", web::get().to(manifest))
-
             .route("/auth/logout", web::get().to(logout))
             .route(LOGGED_OUT_PATH, web::get().to(logged_out))
             // Guest
-            .route(
-                guest::GUEST_PATH,
-                web::post().to(guest::post_guest_oauth),
-            )
+            .route(guest::GUEST_PATH, web::post().to(guest::post_guest_oauth))
             // Password
             .route(
                 password::PASSWORD_PATH,

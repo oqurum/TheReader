@@ -1,21 +1,26 @@
 use std::path::PathBuf;
 
-use chrono::{DateTime, NaiveDate, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use common::{Agent, BookId, ImageId, MemberId, PersonId, Source, ThumbnailStore};
 use http::api::FileUnwrappedInfo;
-use num_enum::{TryFromPrimitive, IntoPrimitive};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "backend")]
-use sqlx::{Decode, Encode, Sqlite, sqlite::{SqliteArgumentValue, SqliteValueRef}, encode::IsNull, error::BoxDynError, Type};
+use sqlx::{
+    encode::IsNull,
+    error::BoxDynError,
+    sqlite::{SqliteArgumentValue, SqliteValueRef},
+    Decode, Encode, Sqlite, Type,
+};
 
 pub mod error;
 mod ext;
 mod http;
-pub mod specific;
-pub mod util;
 pub mod reader;
 pub mod sort;
+pub mod specific;
+pub mod util;
 
 pub use error::{Error, Result};
 pub use ext::*;
@@ -74,7 +79,6 @@ impl MemberUpdate {
     }
 }
 
-
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum LibraryAccess {
@@ -105,13 +109,23 @@ impl LibraryAccess {
         };
 
         match self {
-            Self::None => if value {
-                *self = Self::Specific(vec![library.id]);
-            },
+            Self::None => {
+                if value {
+                    *self = Self::Specific(vec![library.id]);
+                }
+            }
 
-            Self::All => if !value {
-                *self = Self::Specific(all_libraries.iter().filter(|v| v.id != library.id).map(|v| v.id).collect());
-            },
+            Self::All => {
+                if !value {
+                    *self = Self::Specific(
+                        all_libraries
+                            .iter()
+                            .filter(|v| v.id != library.id)
+                            .map(|v| v.id)
+                            .collect(),
+                    );
+                }
+            }
 
             Self::AllPublic => {
                 if value {
@@ -125,9 +139,15 @@ impl LibraryAccess {
                         *self = Self::Specific(viewing);
                     }
                 } else if library.is_public {
-                    *self = Self::Specific(all_libraries.iter().filter(|v| v.id != library.id && v.is_public).map(|v| v.id).collect());
+                    *self = Self::Specific(
+                        all_libraries
+                            .iter()
+                            .filter(|v| v.id != library.id && v.is_public)
+                            .map(|v| v.id)
+                            .collect(),
+                    );
                 }
-            },
+            }
 
             Self::Specific(items) => {
                 if value {
@@ -142,7 +162,11 @@ impl LibraryAccess {
                     }
 
                     // If all libraries are public, then we can just switch to AllPublic
-                    if all_libraries.iter().filter(|v| v.is_public).all(|v| items.contains(&v.id)) {
+                    if all_libraries
+                        .iter()
+                        .filter(|v| v.is_public)
+                        .all(|v| items.contains(&v.id))
+                    {
                         *self = Self::AllPublic;
                         return;
                     }
@@ -157,7 +181,10 @@ impl LibraryAccess {
         }
     }
 
-    pub fn get_accessible_libraries<'a>(&self, libraries: &'a [LibraryColl]) -> Vec<&'a LibraryColl> {
+    pub fn get_accessible_libraries<'a>(
+        &self,
+        libraries: &'a [LibraryColl],
+    ) -> Vec<&'a LibraryColl> {
         let mut items = Vec::new();
 
         match self {
@@ -177,7 +204,6 @@ impl LibraryAccess {
         items
     }
 }
-
 
 // Used for People View
 
@@ -386,7 +412,9 @@ pub struct Chapter {
     pub info: FileUnwrappedInfo,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive,
+)]
 #[repr(i32)]
 pub enum LibraryType {
     Book = 1,
@@ -411,7 +439,6 @@ impl From<i64> for LibraryType {
     }
 }
 
-
 #[cfg(feature = "backend")]
 impl<'q> Encode<'q, Sqlite> for LibraryType {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
@@ -435,8 +462,9 @@ impl Type<Sqlite> for LibraryType {
     }
 }
 
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, TryFromPrimitive, IntoPrimitive,
+)]
 #[repr(i32)]
 pub enum BookType {
     Book = 1,
@@ -456,7 +484,6 @@ impl From<i64> for BookType {
         Self::try_from(value).unwrap()
     }
 }
-
 
 #[cfg(feature = "backend")]
 impl<'q> Encode<'q, Sqlite> for BookType {
@@ -480,7 +507,6 @@ impl Type<Sqlite> for BookType {
         <i32 as Type<Sqlite>>::type_info()
     }
 }
-
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct LibraryColl {
@@ -601,7 +627,9 @@ impl<'q> Encode<'q, Sqlite> for BookItemCached {
 #[cfg(feature = "backend")]
 impl<'r> Decode<'r, Sqlite> for BookItemCached {
     fn decode(value: SqliteValueRef<'r>) -> sqlx::Result<Self, BoxDynError> {
-        Ok(Self::from_string(<String as Decode<'r, Sqlite>>::decode(value)?))
+        Ok(Self::from_string(<String as Decode<'r, Sqlite>>::decode(
+            value,
+        )?))
     }
 }
 
@@ -644,9 +672,6 @@ pub struct Poster {
 
     pub created_at: NaiveDateTime,
 }
-
-
-
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PublicServerSettings {

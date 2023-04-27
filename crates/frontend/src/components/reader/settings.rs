@@ -1,10 +1,11 @@
 use std::rc::Rc;
 
-use common_local::{reader::{ReaderColor, ReaderLoadType}, GeneralBookPreferences, ReaderTextPreferences, ReaderImagePreferences};
+use common_local::{
+    reader::{ReaderColor, ReaderLoadType},
+    GeneralBookPreferences, ReaderImagePreferences, ReaderTextPreferences,
+};
 
 use super::LayoutDisplay;
-
-
 
 #[derive(Clone)]
 /// Immutable settings for the reader.
@@ -45,7 +46,6 @@ pub struct SharedInnerReaderSettings {
     pub image: Option<ReaderImagePreferences>,
 }
 
-
 #[derive(Default, PartialEq)]
 pub struct ReaderSettings {
     pub type_of: ReaderLoadType,
@@ -74,4 +74,3 @@ impl From<GeneralBookPreferences> for ReaderSettings {
         }
     }
 }
-

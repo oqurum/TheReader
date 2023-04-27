@@ -1,7 +1,10 @@
 use std::{path::PathBuf, rc::Rc, sync::Mutex, time::Duration};
 
-use common_local::{Chapter, MediaItem, Progression, reader::{LayoutType, ReaderLoadType}};
-use gloo_timers::callback::{Timeout, Interval};
+use common_local::{
+    reader::{LayoutType, ReaderLoadType},
+    Chapter, MediaItem, Progression,
+};
+use gloo_timers::callback::{Interval, Timeout};
 use gloo_utils::{body, window};
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
@@ -15,14 +18,14 @@ use crate::{request, util::ElementEvent};
 pub mod color;
 pub mod layout;
 pub mod section;
+mod settings;
 pub mod util;
 pub mod view_overlay;
-mod settings;
 
-pub use settings::*;
 pub use self::layout::LayoutDisplay;
 use self::section::{SectionContents, SectionLoadProgress};
 pub use self::view_overlay::{DragType, OverlayEvent, ViewOverlay};
+pub use settings::*;
 
 const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
 
@@ -32,7 +35,8 @@ extern "C" {
     fn get_iframe_page_count(iframe: &HtmlIFrameElement) -> usize;
 
     // TODO: Use Struct instead. Returns (byte position, section index)
-    fn js_get_current_byte_pos(iframe: &HtmlIFrameElement, is_vertical: bool) -> Option<Vec<usize>>;
+    fn js_get_current_byte_pos(iframe: &HtmlIFrameElement, is_vertical: bool)
+        -> Option<Vec<usize>>;
     fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize)
         -> Option<usize>;
     fn js_get_element_from_byte_position(
@@ -51,18 +55,20 @@ extern "C" {
 
 macro_rules! get_current_section_mut {
     ($self:ident) => {{
-        let hash = $self.cached_sections.get($self.viewing_section).map(|v| v.info.header_hash.as_str());
+        let hash = $self
+            .cached_sections
+            .get($self.viewing_section)
+            .map(|v| v.info.header_hash.as_str());
 
-        $self.section_frames.iter_mut()
-            .find_map(|sec| {
-                let chap = sec.as_chapter_mut()?;
+        $self.section_frames.iter_mut().find_map(|sec| {
+            let chap = sec.as_chapter_mut()?;
 
-                if chap.header_hash.as_str() == hash? {
-                    Some(chap)
-                } else {
-                    None
-                }
-            })
+            if chap.header_hash.as_str() == hash? {
+                Some(chap)
+            } else {
+                None
+            }
+        })
     }};
 }
 
@@ -101,9 +107,13 @@ impl LoadedChapters {
 
 impl PartialEq for LoadedChapters {
     fn eq(&self, other: &Self) -> bool {
-        self.total == other.total &&
-        self.chapters.len() == other.chapters.len() &&
-        self.chapters.iter().zip(other.chapters.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+        self.total == other.total
+            && self.chapters.len() == other.chapters.len()
+            && self
+                .chapters
+                .iter()
+                .zip(other.chapters.iter())
+                .all(|(a, b)| Rc::ptr_eq(a, b))
     }
 }
 
@@ -127,11 +137,11 @@ pub struct Property {
 
 impl PartialEq for Property {
     fn eq(&self, other: &Self) -> bool {
-        self.width == other.width &&
-        self.height == other.height &&
-        Rc::ptr_eq(&self.book, &other.book) &&
-        Rc::ptr_eq(&self.progress, &other.progress) &&
-        self.chapters == other.chapters
+        self.width == other.width
+            && self.height == other.height
+            && Rc::ptr_eq(&self.book, &other.book)
+            && Rc::ptr_eq(&self.progress, &other.progress)
+            && self.chapters == other.chapters
     }
 }
 
@@ -197,7 +207,7 @@ pub struct Reader {
     initial_progression_set: bool,
 
     settings: SharedReaderSettings,
-    _settings_listener: ContextHandle<SharedReaderSettings>
+    _settings_listener: ContextHandle<SharedReaderSettings>,
 }
 
 impl Component for Reader {
@@ -213,7 +223,11 @@ impl Component for Reader {
                     .map(|(a, b)| (a.to_string(), Some(b.to_string())))
                     .unwrap_or((path, None));
 
-                link.send_message(ReaderMsg::HandleJsRedirect(section_hash, file_path, id_value));
+                link.send_message(ReaderMsg::HandleJsRedirect(
+                    section_hash,
+                    file_path,
+                    id_value,
+                ));
             });
 
         let link = ctx.link().clone();
@@ -241,10 +255,7 @@ impl Component for Reader {
         );
 
         let link = ctx.link().clone();
-        let interval = Interval::new(
-            10_000,
-            move || link.send_message(ReaderMsg::UploadProgress)
-        );
+        let interval = Interval::new(10_000, move || link.send_message(ReaderMsg::UploadProgress));
 
         let (settings, _settings_listener) = ctx
             .link()
@@ -329,7 +340,8 @@ impl Component for Reader {
                 // let mut path = chaps.chapters.iter().find(|v| v.value == chapter).unwrap().file_path.clone();
                 // path.pop();
 
-                if let Some(chap) = self.cached_sections
+                if let Some(chap) = self
+                    .cached_sections
                     .iter()
                     .find(|v| v.file_path.ends_with(&file_path))
                     .cloned()
@@ -380,7 +392,13 @@ impl Component for Reader {
                         }
                     }
 
-                    OverlayEvent::Release { x, y, width, height, instant } => {
+                    OverlayEvent::Release {
+                        x,
+                        y,
+                        width,
+                        height,
+                        instant,
+                    } => {
                         // Return if we've click and held.
                         if self.on_held_toggle {
                             self.on_held_toggle = false;
@@ -389,7 +407,9 @@ impl Component for Reader {
 
                         self.on_held_toggle = false;
 
-                        debug!("Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}");
+                        debug!(
+                            "Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}"
+                        );
 
                         let orig_drag_distance = self.drag_distance;
 
@@ -406,10 +426,11 @@ impl Component for Reader {
                             }
                             // Handle after dragging
                         }
-
                         // Handle Prev/Next Page Clicking
                         else if let Some(duration) = instant {
-                            if !self.settings.display.is_scroll() && duration.to_std().unwrap_throw() < Duration::from_millis(800) {
+                            if !self.settings.display.is_scroll()
+                                && duration.to_std().unwrap_throw() < Duration::from_millis(800)
+                            {
                                 let clickable_size = (width as f32 * 0.15) as i32;
 
                                 // Previous Page
@@ -417,7 +438,6 @@ impl Component for Reader {
                                     debug!("Clicked Previous");
                                     return Component::update(self, ctx, ReaderMsg::PreviousPage);
                                 }
-
                                 // Next Page
                                 else if x >= width - clickable_size {
                                     debug!("Clicked Next");
@@ -447,7 +467,9 @@ impl Component for Reader {
                                 self.drag_distance = distance as isize;
 
                                 if let Some(section) = self.get_current_frame() {
-                                    self.settings.display.transitioning_page(self.drag_distance, section);
+                                    self.settings
+                                        .display
+                                        .transitioning_page(self.drag_distance, section);
                                 }
                             }
 
@@ -457,7 +479,9 @@ impl Component for Reader {
                                 self.drag_distance = -(distance as isize);
 
                                 if let Some(section) = self.get_current_frame() {
-                                    self.settings.display.transitioning_page(self.drag_distance, section);
+                                    self.settings
+                                        .display
+                                        .transitioning_page(self.drag_distance, section);
                                 }
                             }
 
@@ -467,8 +491,7 @@ impl Component for Reader {
                                     if dur.num_milliseconds() < 500 {
                                         if let Some(section) = self.get_current_frame() {
                                             let frame = section.get_iframe();
-                                            let document =
-                                                frame.content_document().unwrap_throw();
+                                            let document = frame.content_document().unwrap_throw();
                                             let bb = frame.get_bounding_client_rect();
 
                                             let (x, y) = (
@@ -496,8 +519,7 @@ impl Component for Reader {
                                                     }
                                                 }
 
-                                                if let Some(element) = contains_a_href(element)
-                                                {
+                                                if let Some(element) = contains_a_href(element) {
                                                     element.click();
                                                     return false;
                                                 }
@@ -599,8 +621,7 @@ impl Component for Reader {
 
             ReaderMsg::SetPage(new_page) => match self.settings.display.as_type() {
                 LayoutType::Single | LayoutType::Double => {
-                    return self
-                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
+                    return self.set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
                 }
 
                 LayoutType::Scroll => {
@@ -608,8 +629,7 @@ impl Component for Reader {
                 }
 
                 LayoutType::Image => {
-                    return self
-                        .set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
+                    return self.set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
                 }
             },
 
@@ -706,11 +726,14 @@ impl Component for Reader {
                     return false;
                 }
 
-                let next_section = if let Some(sec) = self.section_frames[new_section_index].as_chapter() {
-                    self.cached_sections.iter().position(|chap| chap.info.header_hash == sec.header_hash)
-                } else {
-                    None
-                };
+                let next_section =
+                    if let Some(sec) = self.section_frames[new_section_index].as_chapter() {
+                        self.cached_sections
+                            .iter()
+                            .position(|chap| chap.info.header_hash == sec.header_hash)
+                    } else {
+                        None
+                    };
 
                 self.set_section(next_section.unwrap_or(new_section_index), ctx);
 
@@ -724,20 +747,22 @@ impl Component for Reader {
                     return false;
                 };
 
-                let next_section = if let Some(sec) = self.section_frames[new_section_index].as_chapter() {
-                    self.cached_sections.iter()
-                        .enumerate()
-                        .rev()
-                        .find_map(|(i, chap)| {
-                            if chap.info.header_hash == sec.header_hash {
-                                Some(i)
-                            } else {
-                                None
-                            }
-                        })
-                } else {
-                    None
-                };
+                let next_section =
+                    if let Some(sec) = self.section_frames[new_section_index].as_chapter() {
+                        self.cached_sections
+                            .iter()
+                            .enumerate()
+                            .rev()
+                            .find_map(|(i, chap)| {
+                                if chap.info.header_hash == sec.header_hash {
+                                    Some(i)
+                                } else {
+                                    None
+                                }
+                            })
+                    } else {
+                        None
+                    };
 
                 self.set_section(next_section.unwrap_or(new_section_index), ctx);
 
@@ -755,7 +780,9 @@ impl Component for Reader {
                 debug!("Generated Section Frame {}", section_index);
 
                 // Call on_load for the newly loaded frame.
-                if let SectionLoadProgress::Loaded(section) = &mut self.section_frames[section_index] {
+                if let SectionLoadProgress::Loaded(section) =
+                    &mut self.section_frames[section_index]
+                {
                     section.after_load(
                         &self.handle_js_redirect_clicks,
                         &self.settings,
@@ -809,7 +836,7 @@ impl Component for Reader {
             LayoutDisplay::Image(_) => format!(
                 "width: {}%;",
                 (self.current_page_pos() + 1) as f64 / page_count as f64 * 100.0
-            )
+            ),
         };
 
         let (frame_class, frame_style) = self.get_frame_class_and_style();
@@ -909,7 +936,10 @@ impl Component for Reader {
             // Refresh all page styles and sizes.
             for prog in &self.section_frames {
                 if let SectionLoadProgress::Loaded(section) = prog {
-                    update_iframe_size(Some((ctx.props().width, ctx.props().height)), section.get_iframe());
+                    update_iframe_size(
+                        Some((ctx.props().width, ctx.props().height)),
+                        section.get_iframe(),
+                    );
 
                     self.cached_display.add_to_iframe(section.get_iframe(), ctx);
                 }
@@ -931,10 +961,7 @@ impl Component for Reader {
 
 impl Reader {
     fn loaded_count(&self) -> usize {
-        self.section_frames
-            .iter()
-            .filter(|v| v.is_loaded())
-            .count()
+        self.section_frames.iter().filter(|v| v.is_loaded()).count()
     }
 
     fn load_surrounding_sections(&mut self, ctx: &Context<Self>) {
@@ -943,11 +970,11 @@ impl Reader {
         // TODO: Re-implement Select
         // match self.settings.type_of {
         //     ReaderLoadType::All => {
-                let chapter_count = ctx.props().book.chapter_count;
+        let chapter_count = ctx.props().book.chapter_count;
 
-                for chapter in 0..chapter_count {
-                    self.load_section(chapter, ctx);
-                }
+        for chapter in 0..chapter_count {
+            self.load_section(chapter, ctx);
+        }
         //     }
 
         //     ReaderLoadType::Select => {
@@ -978,12 +1005,18 @@ impl Reader {
     fn get_frame_class_and_style(&self) -> (&'static str, String) {
         let animate_page_transitions = self.settings.animate_page_transitions;
 
-        let hash = self.cached_sections.get(self.viewing_section).map(|v| v.info.header_hash.as_str());
+        let hash = self
+            .cached_sections
+            .get(self.viewing_section)
+            .map(|v| v.info.header_hash.as_str());
 
-        let mut transition = Some("transition: left 0.5s ease 0s;").filter(|_| animate_page_transitions);
+        let mut transition =
+            Some("transition: left 0.5s ease 0s;").filter(|_| animate_page_transitions);
 
         if self.settings.display.is_scroll() {
-            let viewing = self.section_frames.iter()
+            let viewing = self
+                .section_frames
+                .iter()
                 .enumerate()
                 .find_map(|(idx, sec)| {
                     if sec.as_chapter()?.header_hash.as_str() == hash? {
@@ -1011,8 +1044,8 @@ impl Reader {
                     if self
                         .get_current_frame()
                         .map(|v| v.page_offset == 0)
-                        .unwrap_or_default() &&
-                        self.section_frames.len() > self.viewing_section + 1
+                        .unwrap_or_default()
+                        && self.section_frames.len() > self.viewing_section + 1
                     {
                         self.drag_distance
                     } else {
@@ -1063,7 +1096,9 @@ impl Reader {
                 _ => 0,
             };
 
-            let viewing = self.section_frames.iter()
+            let viewing = self
+                .section_frames
+                .iter()
                 .enumerate()
                 .find_map(|(idx, sec)| {
                     if sec.as_chapter()?.header_hash.as_str() == hash? {
@@ -1095,7 +1130,12 @@ impl Reader {
         debug!("use_progression: {:?}", prog);
 
         if let Some(prog) = prog {
-            if let Progression::Ebook { chapter, char_pos, page } = prog {
+            if let Progression::Ebook {
+                chapter,
+                char_pos,
+                page,
+            } = prog
+            {
                 let chapter = chapter as usize;
 
                 if self.viewing_section != chapter {
@@ -1165,7 +1205,6 @@ impl Reader {
                     get_iframe_page_count(ele.get_iframe()).max(1)
                 };
 
-
                 ele.gpi = total_page_pos;
 
                 total_page_pos += page_count;
@@ -1213,7 +1252,9 @@ impl Reader {
             if frame_index + 1 != section_count {
                 self.settings.display.on_stop_viewing(curr_sect);
 
-                let (start, _) = self.get_frame_start_and_end_sections(frame_index + 1).unwrap();
+                let (start, _) = self
+                    .get_frame_start_and_end_sections(frame_index + 1)
+                    .unwrap();
 
                 self.viewing_section = start;
                 debug!("Next Section");
@@ -1248,7 +1289,9 @@ impl Reader {
             if frame_index != 0 {
                 self.settings.display.on_stop_viewing(curr_sect);
 
-                let (_, end) = self.get_frame_start_and_end_sections(frame_index - 1).unwrap();
+                let (_, end) = self
+                    .get_frame_start_and_end_sections(frame_index - 1)
+                    .unwrap();
 
                 self.viewing_section = end;
                 debug!("Previous Section");
@@ -1297,7 +1340,9 @@ impl Reader {
     }
 
     fn set_section(&mut self, next_section: usize, ctx: &Context<Self>) -> bool {
-        let hash = self.cached_sections.get(next_section)
+        let hash = self
+            .cached_sections
+            .get(next_section)
             .map(|v| v.info.header_hash.as_str());
 
         // Retrieve next section index and frame.
@@ -1389,19 +1434,20 @@ impl Reader {
     }
 
     fn get_current_frame(&self) -> Option<&SectionContents> {
-        let hash = self.cached_sections.get(self.viewing_section)
+        let hash = self
+            .cached_sections
+            .get(self.viewing_section)
             .map(|v| v.info.header_hash.as_str());
 
-        self.section_frames.iter()
-            .find_map(|sec| {
-                let chap = sec.as_chapter()?;
+        self.section_frames.iter().find_map(|sec| {
+            let chap = sec.as_chapter()?;
 
-                if chap.header_hash.as_str() == hash? {
-                    Some(chap)
-                } else {
-                    None
-                }
-            })
+            if chap.header_hash.as_str() == hash? {
+                Some(chap)
+            } else {
+                None
+            }
+        })
     }
 
     fn get_frame_start_and_end_sections(&self, index: usize) -> Option<(usize, usize)> {
@@ -1424,10 +1470,13 @@ impl Reader {
 
     fn get_current_frame_index(&self) -> usize {
         // TODO: Cannot compare against hash. The `section_frames` hashes can be separated but have same hash, hashes ex: [ "unique0", "unique1", "unique0" ]
-        let hash = self.cached_sections.get(self.viewing_section)
+        let hash = self
+            .cached_sections
+            .get(self.viewing_section)
             .map(|v| v.info.header_hash.as_str());
 
-        self.section_frames.iter()
+        self.section_frames
+            .iter()
             .enumerate()
             .find_map(|(index, sec)| {
                 let chap = sec.as_chapter()?;
@@ -1446,13 +1495,18 @@ impl Reader {
         // Ensure our current chapter is fully loaded AND NOT loading.
         // FIX: For first load of the reader. js_get_current_byte_pos needs the frame body to be loaded. Otherwise error.
         // Could remove once we optimize the upload requests.
-        if let Some(chap) = self
-            .get_current_frame()
-            .filter(|sec|
-                self.section_frames.iter()
-                .find_map(|v| if v.as_chapter()?.header_hash == sec.header_hash { Some(v.is_loaded()) } else { None })
-                .unwrap_or_default())
-        {
+        if let Some(chap) = self.get_current_frame().filter(|sec| {
+            self.section_frames
+                .iter()
+                .find_map(|v| {
+                    if v.as_chapter()?.header_hash == sec.header_hash {
+                        Some(v.is_loaded())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default()
+        }) {
             // Clone to prevent immutable hold on self.
             let iframe = chap.get_iframe().clone();
 
@@ -1463,9 +1517,10 @@ impl Reader {
     // TODO: Move to SectionLoadProgress
     fn upload_progress(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = {
-            let (char_pos, viewing_section) = js_get_current_byte_pos(iframe, self.settings.display.is_scroll())
-                .map(|v| (v[0] as i64, v[1]))
-                .unwrap_or((-1, self.viewing_section));
+            let (char_pos, viewing_section) =
+                js_get_current_byte_pos(iframe, self.settings.display.is_scroll())
+                    .map(|v| (v[0] as i64, v[1]))
+                    .unwrap_or((-1, self.viewing_section));
 
             self.viewing_section = viewing_section;
 
@@ -1565,7 +1620,11 @@ impl Reader {
         // FIX: If the Properties changes this would be called again.
         {
             for sec in self.section_frames.iter().filter_map(|v| v.as_chapter()) {
-                if sec.get_chapters().iter().any(|v| v.value == curr_chap.value) {
+                if sec
+                    .get_chapters()
+                    .iter()
+                    .any(|v| v.value == curr_chap.value)
+                {
                     return;
                 }
             }
@@ -1574,11 +1633,16 @@ impl Reader {
         let section_index = self.section_frames.len();
 
         // Create or append section.
-        let use_last_section = self.section_frames.last()
+        let use_last_section = self
+            .section_frames
+            .last()
             .and_then(|v| Some(v.as_chapter()?.header_hash == curr_chap.info.header_hash))
             .unwrap_or_default();
 
-        if let Some(section_frame) = use_last_section.then_some(self.section_frames.last_mut()).flatten() {
+        if let Some(section_frame) = use_last_section
+            .then_some(self.section_frames.last_mut())
+            .flatten()
+        {
             if section_frame.is_waiting() {
                 info!("Generating Section {}", curr_chap.value + 1);
 
@@ -1590,12 +1654,13 @@ impl Reader {
                 ));
             }
         } else {
-            self.section_frames.push(SectionLoadProgress::Loading(generate_section(
-                Some((ctx.props().width, ctx.props().height)),
-                curr_chap.info.header_hash.clone(),
-                section_index,
-                ctx.link().clone(),
-            )));
+            self.section_frames
+                .push(SectionLoadProgress::Loading(generate_section(
+                    Some((ctx.props().width, ctx.props().height)),
+                    curr_chap.info.header_hash.clone(),
+                    section_index,
+                    ctx.link().clone(),
+                )));
         }
 
         // If last section was loaded.
@@ -1609,7 +1674,7 @@ impl Reader {
                 contents.append_chapter(curr_chap.clone());
             }
 
-            _ => ()
+            _ => (),
         }
     }
 }

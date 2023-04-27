@@ -1,4 +1,7 @@
-use common::component::{PopupClose, select::{SelectModule, SelectItem}};
+use common::component::{
+    select::{SelectItem, SelectModule},
+    PopupClose,
+};
 use common_local::{api::UpdateLibrary, LibraryId, LibraryType};
 use web_sys::{Event, HtmlInputElement};
 use yew::prelude::*;
@@ -107,7 +110,6 @@ pub fn _lib_edit(prop: &LibraryEditProperty) -> Html {
             update();
         })
     };
-
 
     let func_update_lib = {
         let library_update = library_update.clone();

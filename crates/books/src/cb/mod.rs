@@ -126,7 +126,9 @@ impl Book for ComicBook {
     fn read_page_raw_as_bytes(&mut self) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
 
-        self.archive.by_name(&self.files[self.offset])?.read_to_end(&mut buf)?;
+        self.archive
+            .by_name(&self.files[self.offset])?
+            .read_to_end(&mut buf)?;
 
         Ok(buf)
     }
@@ -155,7 +157,9 @@ impl Book for ComicBook {
     ) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
 
-        self.archive.by_name(&self.files[self.offset])?.read_to_end(&mut buf)?;
+        self.archive
+            .by_name(&self.files[self.offset])?
+            .read_to_end(&mut buf)?;
 
         Ok(buf)
     }

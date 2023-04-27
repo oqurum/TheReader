@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 use crate::config::get_config;
 use crate::config::save_config;
 use crate::config::update_config;
-use crate::SqlPool;
 use crate::http::JsonResponse;
 use crate::model::AuthModel;
-use crate::model::NewClientModel;
 use crate::model::MemberModel;
+use crate::model::NewClientModel;
 use crate::model::NewMemberModel;
 use crate::Error;
+use crate::SqlPool;
 use crate::WebResult;
 
 use super::MemberCookie;
@@ -116,7 +116,11 @@ pub async fn post_password_oauth(
 
         // We instantly accept the invite.
         inserted
-            .accept_invite(MemberAuthType::Password, Some(hash), &mut *db.acquire().await?)
+            .accept_invite(
+                MemberAuthType::Password,
+                Some(hash),
+                &mut *db.acquire().await?,
+            )
             .await?;
 
         update_config(|config| {
@@ -138,7 +142,11 @@ pub async fn post_password_oauth(
         let hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST).map_err(Error::from)?;
 
         member
-            .accept_invite(MemberAuthType::Password, Some(hash), &mut *db.acquire().await?)
+            .accept_invite(
+                MemberAuthType::Password,
+                Some(hash),
+                &mut *db.acquire().await?,
+            )
             .await?;
     }
 
@@ -146,12 +154,18 @@ pub async fn post_password_oauth(
 
     model.insert(&mut *db.acquire().await?).await?;
 
-    if let Some(header) = request.headers().get(reqwest::header::USER_AGENT).and_then(|v| v.to_str().ok()) {
+    if let Some(header) = request
+        .headers()
+        .get(reqwest::header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+    {
         NewClientModel::new(
             model.oauth_token_secret.clone(),
             String::from("Web"),
             header,
-        ).insert(&mut *db.acquire().await?).await?;
+        )
+        .insert(&mut *db.acquire().await?)
+        .await?;
     }
 
     super::remember_member_auth(&request.extensions(), member.id, model.oauth_token_secret)?;

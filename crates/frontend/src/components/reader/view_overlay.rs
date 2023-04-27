@@ -5,13 +5,12 @@ use gloo_timers::callback::Interval;
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{DomRect, HtmlElement, MouseEvent};
 use yew::{
-    function_component, hook, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state_eq,
-    Callback, Html, NodeRef, Properties, UseStateHandle, use_state,
+    function_component, hook, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state,
+    use_state_eq, Callback, Html, NodeRef, Properties, UseStateHandle,
 };
 use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
 
 const THRESHOLD: i32 = 5;
-
 
 #[derive(Debug)]
 pub enum OverlayEvent {
@@ -27,10 +26,7 @@ pub enum OverlayEvent {
     },
 
     /// Mouse hovering over overlay.
-    Hover {
-        x: i32,
-        y: i32,
-    },
+    Hover { x: i32, y: i32 },
 
     /// Mouse Drag
     Drag {
@@ -41,12 +37,7 @@ pub enum OverlayEvent {
     },
 
     /// Hold Event.
-    Hold {
-        since: Duration,
-
-        x: i32,
-        y: i32,
-    }
+    Hold { since: Duration, x: i32, y: i32 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -235,7 +226,8 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                             x: handle.coords_start.0,
                             y: handle.coords_start.1,
 
-                            width, height,
+                            width,
+                            height,
                         });
                     }
                 } else {
