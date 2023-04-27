@@ -36,19 +36,6 @@ pub async fn create_tables(database: &SqlPool) -> Result<()> {
     let mut conn = database.acquire().await?;
 
     conn.transaction(|conn| Box::pin(async move {
-        // Migrations
-        conn.execute(
-            r#"CREATE TABLE migration (
-                id          INT NOT NULL,
-
-                title       TEXT NOT NULL,
-                duration    INT NOT NULL,
-                notes       TEXT NOT NULL,
-
-                created_at  DATETIME NOT NULL
-            );"#,
-        ).await?;
-
         // Library
         conn.execute(
             r#"CREATE TABLE "library" (
