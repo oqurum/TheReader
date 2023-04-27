@@ -162,9 +162,9 @@ impl Metadata for LibbyMetadata {
                                         .map(|v| vec![FoundImageLocation::Url(v)])
                                         .unwrap_or_default(),
                                     cached: BookItemCached::default(),
-                                    available_at: item
-                                        .available_at
-                                        .map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
+                                    available_at: item.available_at.map(|v| {
+                                        v.and_hms_opt(0, 0, 0).unwrap().timestamp_millis()
+                                    }),
                                     year: None,
                                 }));
                             }
@@ -315,7 +315,7 @@ impl LibbyMetadata {
                     .author_optional(author_name),
                 available_at: value
                     .available_at
-                    .map(|v| v.and_hms(0, 0, 0).timestamp_millis()),
+                    .map(|v| v.and_hms_opt(0, 0, 0).unwrap().timestamp_millis()),
                 year: None,
             },
         }))

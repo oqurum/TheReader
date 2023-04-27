@@ -285,9 +285,9 @@ impl MemberGeneralPage {
     }
 
     fn render_image_group(
-        editing: EditingType,
-        prefs: &ReaderImagePreferences,
-        ctx: &Context<Self>,
+        _editing: EditingType,
+        _prefs: &ReaderImagePreferences,
+        _ctx: &Context<Self>,
     ) -> Html {
         html! {
             //

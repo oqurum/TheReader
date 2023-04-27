@@ -11,8 +11,6 @@ use wasm_bindgen::{
 };
 use yew::prelude::*;
 
-use crate::request;
-
 #[derive(Properties)]
 pub struct Property {
     pub book: Rc<MediaItem>,
@@ -63,8 +61,8 @@ impl Component for Notes {
                 self.timeout = None;
 
                 if let Some(notes) = self.quill.as_ref() {
-                    let book_id = ctx.props().book.id;
-                    let body = js_sys::JSON::stringify(&notes.quill.get_contents())
+                    let _book_id = ctx.props().book.id;
+                    let _body = js_sys::JSON::stringify(&notes.quill.get_contents())
                         .unwrap()
                         .as_string()
                         .unwrap();

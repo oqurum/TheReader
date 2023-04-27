@@ -16,8 +16,7 @@ use common_local::{
     filter::FilterContainer,
     setup::SetupConfig,
     ws::{TaskId, TaskInfo},
-    CollectionId, FileId, LibraryId, MemberPreferences, MemberUpdate, Progression,
-    PublicServerSettings, SearchType,
+    CollectionId, FileId, LibraryId, MemberUpdate, Progression, PublicServerSettings, SearchType,
 };
 
 pub fn get_download_path(value: Either<BookId, FileId>) -> String {

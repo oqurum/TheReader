@@ -1,6 +1,5 @@
 use common::api::{ApiErrorResponse, WrappingResponse};
 use reqwest::header::InvalidHeaderValue;
-use std::fmt::Write;
 
 use std::io::Error as IoError;
 use std::time::SystemTimeError;

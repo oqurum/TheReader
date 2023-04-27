@@ -1,11 +1,11 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use serde::Serialize;
 use sqlx::{FromRow, SqliteConnection};
 
 use common_local::{LibraryId, LibraryType};
 
 use super::directory::DirectoryModel;
-use crate::{Result, SqlConnection};
+use crate::Result;
 
 pub struct NewLibraryModel {
     pub name: String,

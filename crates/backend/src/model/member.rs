@@ -1,11 +1,11 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use common::MemberId;
 use rand::Rng;
 use sqlx::{FromRow, SqliteConnection};
 
-use crate::{Result, SqlConnection};
+use crate::Result;
 use common_local::{LibraryAccess, MemberAuthType, MemberUpdate, Permissions};
 use serde::Serialize;
 

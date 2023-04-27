@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use common::{BookId, PersonId, Source, ThumbnailStore};
 use sqlx::{FromRow, SqliteConnection};
 

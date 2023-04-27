@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use common::{MemberId, ThumbnailStore};
 use serde::Serialize;
 
@@ -50,7 +50,7 @@ impl NewCollectionModel {
     pub async fn insert(self, db: &mut SqliteConnection) -> Result<CollectionModel> {
         let now = Utc::now().naive_utc();
 
-        let thumb_url = self.thumb_url.as_value();
+        let _thumb_url = self.thumb_url.as_value();
 
         let res = sqlx::query(
             "INSERT INTO collection (member_id, name, description, thumb_url, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $5)"

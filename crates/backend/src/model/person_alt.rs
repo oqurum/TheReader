@@ -1,7 +1,7 @@
 use common::PersonId;
 use sqlx::{FromRow, SqliteConnection};
 
-use crate::{Result, SqlConnection};
+use crate::Result;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, FromRow)]
