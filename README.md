@@ -2,8 +2,6 @@
 
 An organizer for your books that allows you to read them in your browser. With a focus on simplicity and ease of use. Currently only supports epub (cbz is almost impl. too) files.
 
-## [View Example Webpage](https://example.oqurum.io)
-
 My intention will be to make it [Plex](https://plex.tv) for Books.
 
 TODO:
