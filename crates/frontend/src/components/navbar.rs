@@ -38,6 +38,7 @@ pub struct NavbarModule {
 
     input_ref: NodeRef,
 
+    /// Each item index is a library
     search_results: Vec<Option<GetBookListResponse>>,
     #[allow(clippy::type_complexity)]
     closure: Arc<Mutex<Option<Closure<dyn FnMut(MouseEvent)>>>>,
@@ -87,8 +88,6 @@ impl Component for NavbarModule {
             Msg::SearchInput => {
                 // TODO: Remove if and properly handle.
                 if self.search_results.iter().all(|v| v.is_some()) {
-                    self.search_results.clear();
-
                     let limit = if self.state.libraries.len() > 1 {
                         5
                     } else {
@@ -102,13 +101,13 @@ impl Component for NavbarModule {
                         self.input_ref.cast::<HtmlInputElement>().unwrap().value(),
                     );
 
-                    for (index, coll) in self.state.libraries.iter().enumerate() {
+                    for (library_index, coll) in self.state.libraries.iter().enumerate() {
                         let search = search.clone();
                         let library_id = coll.id;
 
                         ctx.link().send_future(async move {
                             Msg::SearchResults(
-                                index,
+                                library_index,
                                 request::get_books(
                                     Some(library_id),
                                     Some(0),
@@ -122,8 +121,10 @@ impl Component for NavbarModule {
                 }
             }
 
-            Msg::SearchResults(index, resp) => match resp.ok() {
-                Ok(res) => self.search_results[index] = Some(res),
+            Msg::SearchResults(library_index, resp) => match resp.ok() {
+                Ok(res) => {
+                    self.search_results[library_index] = Some(res);
+                }
                 Err(err) => crate::display_error(err),
             },
         }
@@ -137,7 +138,7 @@ impl Component for NavbarModule {
         }
 
         html! {
-            <nav class={ classes!("navbar", "navbar-expand-sm", "text-bg-dark") }>
+            <nav class={ classes!("navbar", "navbar-expand-sm", "text-bg-dark", "search-bar") }>
                 <div class="container-fluid">
                     <button
                         class="navbar-toggler navbar-dark"

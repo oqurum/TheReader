@@ -42,7 +42,7 @@ pub struct MemberGeneralPage {
     viewing_tab: TabVisible,
     is_desktop: bool,
 
-    visible_groupings: [bool; 4],
+    visible_groupings: [bool; 2],
 }
 
 impl Component for MemberGeneralPage {
@@ -69,9 +69,9 @@ impl Component for MemberGeneralPage {
             is_desktop,
 
             visible_groupings: if is_desktop {
-                [true, false, true, false]
+                [true, true]
             } else {
-                [false, true, false, true]
+                [false, false]
             },
         }
     }
@@ -86,8 +86,9 @@ impl Component for MemberGeneralPage {
                 TabVisible::TextReader => {
                     self.visible_groupings[group] = !self.visible_groupings[group]
                 }
+
                 TabVisible::ImageReader => {
-                    self.visible_groupings[group + 2] = !self.visible_groupings[group + 2]
+                    self.visible_groupings[group + 1] = !self.visible_groupings[group + 1]
                 }
             },
 
@@ -143,8 +144,8 @@ impl Component for MemberGeneralPage {
 
                     {
                         match self.viewing_tab {
-                            TabVisible::TextReader => self.render_text_reader_tab(&self.visible_groupings[0..2], ctx),
-                            TabVisible::ImageReader => self.render_image_reader_tab(&self.visible_groupings[2..4], ctx),
+                            TabVisible::TextReader => self.render_text_reader_tab(self.visible_groupings[0], ctx),
+                            TabVisible::ImageReader => self.render_image_reader_tab(self.visible_groupings[1], ctx),
                         }
                     }
 
@@ -158,14 +159,14 @@ impl Component for MemberGeneralPage {
 }
 
 impl MemberGeneralPage {
-    fn render_image_reader_tab(&self, visible: &[bool], ctx: &Context<Self>) -> Html {
+    fn render_image_reader_tab(&self, visible: bool, ctx: &Context<Self>) -> Html {
         html! {
             <>
                 // Desktop
                 <div onclick={ ctx.link().callback(|_| Msg::ToggleGrouping(0)) }>
                     <span class="fs-2">{ "Desktop" }</span>
                     {
-                        if visible[0] {
+                        if visible {
                             html! {
                                 <span class="ms-2">{ "(close)" }</span>
                             }
@@ -177,7 +178,7 @@ impl MemberGeneralPage {
                     }
                 </div>
                 {
-                    if visible[0] {
+                    if visible {
                         html! {
                             <>
                                 <hr/>
@@ -189,47 +190,18 @@ impl MemberGeneralPage {
                         html! {}
                     }
                 }
-
-                // Mobile & Tablet
-                <div onclick={ ctx.link().callback(|_| Msg::ToggleGrouping(1)) }>
-                    <span class="fs-2">{ "Mobile & Tablet" }</span>
-                    {
-                        if visible[1] {
-                            html! {
-                                <span class="ms-2">{ "(close)" }</span>
-                            }
-                        } else {
-                            html! {
-                                <span class="ms-2">{ "(open)" }</span>
-                            }
-                        }
-                    }
-                </div>
-                {
-                    if visible[1] {
-                        html! {
-                            <>
-                                <hr/>
-                                { Self::render_image_group(EditingType::Mobile, &self.preferences.image_book.mobile.image, ctx) }
-                                { Self::render_general_group(EditingType::Mobile, &self.preferences.image_book.mobile.general, ctx) }
-                            </>
-                        }
-                    } else {
-                        html! {}
-                    }
-                }
             </>
         }
     }
 
-    fn render_text_reader_tab(&self, visible: &[bool], ctx: &Context<Self>) -> Html {
+    fn render_text_reader_tab(&self, visible: bool, ctx: &Context<Self>) -> Html {
         html! {
             <>
                 // Desktop
                 <div onclick={ ctx.link().callback(|_| Msg::ToggleGrouping(0)) }>
                     <span class="fs-2">{ "Desktop" }</span>
                     {
-                        if visible[0] {
+                        if visible {
                             html! {
                                 <span class="ms-2">{ "(close)" }</span>
                             }
@@ -241,39 +213,11 @@ impl MemberGeneralPage {
                     }
                 </div>
                 {
-                    if visible[0] {
+                    if visible {
                         html! {
                             <>
                                 <hr/>
                                 { Self::render_general_group(EditingType::Desktop, &self.preferences.text_book.desktop.general, ctx) }
-                            </>
-                        }
-                    } else {
-                        html! {}
-                    }
-                }
-
-                // Mobile & Tablet
-                <div onclick={ ctx.link().callback(|_| Msg::ToggleGrouping(1)) }>
-                    <span class="fs-2">{ "Mobile & Tablet" }</span>
-                    {
-                        if visible[1] {
-                            html! {
-                                <span class="ms-2">{ "(close)" }</span>
-                            }
-                        } else {
-                            html! {
-                                <span class="ms-2">{ "(open)" }</span>
-                            }
-                        }
-                    }
-                </div>
-                {
-                    if visible[1] {
-                        html! {
-                            <>
-                                <hr/>
-                                { Self::render_general_group(EditingType::Mobile, &self.preferences.text_book.mobile.general, ctx) }
                             </>
                         }
                     } else {
