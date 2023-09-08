@@ -15,7 +15,7 @@ pub async fn export() -> Result<()> {
         let entry = entry?;
 
         if !PUBLIC_DIR.contains(format!("dist/{}", entry.file_name().to_str().unwrap())) {
-            tracing::info!("Removing Existing /dist Folder");
+            info!("Removing Existing /dist Folder");
 
             std::fs::remove_dir_all("./app/public/dist")?;
 

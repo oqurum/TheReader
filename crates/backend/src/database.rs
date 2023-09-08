@@ -13,17 +13,17 @@ pub async fn init() -> Result<SqlPool> {
         .unwrap_or(false);
 
     if !does_db_exist {
-        tracing::debug!("Creating database {DATABASE_PATH}");
+        debug!("Creating database {DATABASE_PATH}");
 
         Sqlite::create_database(DATABASE_PATH).await?;
     } else {
-        tracing::debug!("Database already exists");
+        debug!("Database already exists");
     }
 
     let pool = SqlitePool::connect(DATABASE_PATH).await?;
 
     match sqlx::migrate!("./migrations").run(&pool).await {
-        Ok(_) => tracing::debug!("Migration success"),
+        Ok(_) => debug!("Migration success"),
         Err(error) => panic!("Migration Error: {error}"),
     }
 

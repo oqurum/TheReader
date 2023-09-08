@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use crate::Result;
 use common::parse_book_id;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use super::{KeyItem, RecordDescription, TypeValueItem};
 

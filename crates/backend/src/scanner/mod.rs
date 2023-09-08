@@ -26,7 +26,6 @@ use common_local::{
 };
 use sqlx::SqliteConnection;
 use tokio::fs;
-use tracing::{debug, error, info, trace};
 
 pub static WHITELISTED_FILE_TYPES: [&str; 2] = ["epub", "cbz"];
 
@@ -305,7 +304,10 @@ async fn file_match_or_create_comic_book(
     library_id: LibraryId,
     db: &mut SqliteConnection,
 ) -> Result<()> {
-    let Some(local_path) = file.path.strip_prefix(&root_dir_path.display().to_string().replace('\\', "/")) else {
+    let Some(local_path) = file
+        .path
+        .strip_prefix(&root_dir_path.display().to_string().replace('\\', "/"))
+    else {
         error!("File Path is not a child of the root directory");
 
         return Ok(());
@@ -407,7 +409,10 @@ async fn file_match_or_create_comic_book(
             // TODO: How to handle this?
             // We don't know what volume this is.
 
-            error!("Unable to extract volume from file name: {:?}", file.file_name);
+            error!(
+                "Unable to extract volume from file name: {:?}",
+                file.file_name
+            );
 
             return Ok(());
         };

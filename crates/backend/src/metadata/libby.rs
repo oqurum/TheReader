@@ -16,8 +16,6 @@ use common::{
 };
 use common_local::{BookItemCached, SearchFor};
 
-use tracing::{error, info};
-
 use super::{FoundImageLocation, FoundItem, Metadata, MetadataReturned};
 
 pub struct LibbyMetadata;

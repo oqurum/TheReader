@@ -11,7 +11,6 @@ use common_local::{BookItemCached, SearchForBooksBy};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
 
 use super::{Metadata, MetadataReturned, SearchFor, SearchItem};
 use crate::metadata::{FoundImageLocation, FoundItem};

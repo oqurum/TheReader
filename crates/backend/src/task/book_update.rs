@@ -7,7 +7,6 @@ use common_local::{
     LibraryId, SearchFor, SearchForBooksBy,
 };
 use sqlx::SqliteConnection;
-use tracing::info;
 
 use crate::{
     http::send_message_to_clients,

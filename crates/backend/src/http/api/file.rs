@@ -8,7 +8,6 @@ use common::api::WrappingResponse;
 use common_local::api::{FileUnwrappedHeaderType, FileUnwrappedInfo};
 use common_local::{api, Chapter, FileId, Progression};
 use reqwest::header::HeaderValue;
-use tracing::error;
 
 use crate::http::{JsonResponse, MemberCookie};
 use crate::model::FileModel;

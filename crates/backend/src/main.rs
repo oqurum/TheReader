@@ -4,11 +4,14 @@
 )]
 #![allow(clippy::manual_map)]
 
+#[macro_use]
+extern crate tracing;
+
 // TODO: Ping/Pong if currently viewing book. View time. How long been on page. Etc.
 
 use actix_web::web;
 use clap::Parser;
-use tracing::{info, subscriber::set_global_default, Level};
+use tracing::{subscriber::set_global_default, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[cfg(feature = "bundled")]

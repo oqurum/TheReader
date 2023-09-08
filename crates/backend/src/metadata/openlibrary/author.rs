@@ -1,7 +1,5 @@
 // https://www.w3.org/RDF/
 
-use tracing::info;
-
 use crate::Result;
 
 use super::book::BookId;

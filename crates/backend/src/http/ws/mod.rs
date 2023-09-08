@@ -11,7 +11,6 @@ use actix_web::{get, web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use common_local::ws::{TaskId, TaskInfo, WebsocketNotification, WebsocketResponse};
 use lazy_static::lazy_static;
-use tracing::{info, trace};
 
 lazy_static! {
     // TODO: Change lock type.

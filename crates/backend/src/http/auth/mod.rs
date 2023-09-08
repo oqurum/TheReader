@@ -40,7 +40,7 @@ pub async fn does_token_exist(token_secret: &str, db: &mut SqliteConnection) -> 
                 .write_item_duration(auth.oauth_token_secret, Duration::days(1))
                 .await
             {
-                tracing::error!(error=?e, "Error writing to ImD");
+                error!(error=?e, "Error writing to ImD");
             }
         } else {
             AuthModel::remove_by_token_secret(&auth.oauth_token_secret, db).await?;
@@ -219,7 +219,7 @@ where
                     let mut acq = match db.acquire().await {
                         Ok(v) => v,
                         Err(e) => {
-                            tracing::error!(error=?e, "Unable to Acquire Connection");
+                            error!(error=?e, "Unable to Acquire Connection");
                             return Ok(ServiceResponse::new(
                                 r,
                                 HttpResponse::Unauthorized()

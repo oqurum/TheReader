@@ -16,7 +16,6 @@ use common::{Agent, Either, PersonId, Source, ThumbnailStore};
 use common_local::{BookItemCached, LibraryId, SearchFor};
 use futures::Future;
 use sqlx::SqliteConnection;
-use tracing::error;
 
 use self::{
     google_books::GoogleBooksMetadata, libby::LibbyMetadata, local::LocalMetadata,

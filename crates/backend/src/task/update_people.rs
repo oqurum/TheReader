@@ -3,7 +3,6 @@ use chrono::Utc;
 use common::{PersonId, Source};
 use common_local::ws::TaskId;
 use sqlx::SqliteConnection;
-use tracing::{debug, error, info};
 
 use crate::{
     metadata::{get_person_by_source, FoundImageLocation},

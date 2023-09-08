@@ -11,7 +11,6 @@ use chrono::{DateTime, Utc};
 use common_local::ws::{TaskId, WebsocketNotification};
 use lazy_static::lazy_static;
 use tokio::{runtime::Runtime, time::sleep};
-use tracing::{error, info};
 
 use crate::{http::send_message_to_clients, Result, SqlPool};
 

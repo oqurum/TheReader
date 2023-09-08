@@ -6,7 +6,6 @@ use chrono::NaiveDate;
 use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
 use serde::{Deserialize, Serialize};
-use tracing::{error, info};
 
 use self::book::BookSearchType;
 
