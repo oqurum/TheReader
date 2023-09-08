@@ -11,8 +11,7 @@ extern crate tracing;
 
 use actix_web::web;
 use clap::Parser;
-use tracing::{subscriber::set_global_default, Level};
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[cfg(feature = "bundled")]
 mod bundle;
@@ -36,14 +35,14 @@ pub use util::*;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
-        .with_file(false)
-        .with_line_number(true)
-        .finish();
-
-    #[allow(clippy::expect_used)]
-    set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                "books_backend=debug,actix_server=debug,actix_web=debug".into()
+            }),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     #[cfg(feature = "bundled")]
     bundle::export().await?;
