@@ -5,7 +5,7 @@
 /files
 
 /app/public/css/gcommon.css
-/app/database.db
+/app/database.*
 /app/thumbnails
 /app/config.toml
 /app/public/dist
