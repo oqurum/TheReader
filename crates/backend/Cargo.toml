@@ -51,7 +51,7 @@ toml_edit = { version = "0.15", features = ["easy"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-actix-web = "0.6"
 tracing = "0.1"
 
@@ -72,4 +72,10 @@ validator = { workspace = true }
 lettre = "0.10"
 
 # rusqlite = { workspace = true, features = [ "bundled", "trace", "blob", "serde_json", "chrono" ] }
-sqlx = { workspace = true, features = [ "runtime-tokio", "sqlite", "chrono", "macros", "migrate" ] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio",
+    "sqlite",
+    "chrono",
+    "macros",
+    "migrate",
+] }

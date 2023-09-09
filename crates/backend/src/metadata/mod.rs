@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use chrono::{NaiveDate, TimeZone, Utc};
 use common::{Agent, Either, PersonId, Source, ThumbnailStore};
 use common_local::{BookItemCached, LibraryId, SearchFor};
-use futures::Future;
+use futures::{Future, StreamExt};
 use sqlx::SqliteConnection;
 
 use self::{
@@ -97,7 +97,10 @@ pub trait Metadata {
 
     // Both
 
-    async fn search(&mut self, _search: &str, _search_for: SearchFor) -> Result<Vec<SearchItem>> {
+    async fn search(self, _search: &str, _search_for: SearchFor) -> Result<Vec<SearchItem>>
+    where
+        Self: Sized,
+    {
         Ok(Vec::new())
     }
 }
@@ -219,7 +222,7 @@ pub async fn search_all_agents(
         OpenLibraryMetadata.get_agent(),
         GoogleBooksMetadata.get_agent(),
     ];
-    let asdf = futures::future::join_all([
+    let mut buffer = futures::stream::iter([
         search_or_ignore(
             agent.libby && config.authenticators.main_server && config.libby.token.is_some(),
             LibbyMetadata.search(search, search_for),
@@ -230,17 +233,18 @@ pub async fn search_all_agents(
         ),
         search_or_ignore(agent.google, GoogleBooksMetadata.search(search, search_for)),
     ])
-    .await;
+    .buffered(3)
+    .enumerate();
 
-    for (val, prefix) in asdf.into_iter().zip(prefixes) {
+    while let Some((index, val)) = buffer.next().await {
         match val {
             Ok(val) => {
                 if !val.is_empty() {
-                    map.insert(prefix, val);
+                    map.insert(prefixes[index].clone(), val);
                 }
             }
 
-            Err(error) => error!(?error),
+            Err(error) => error!(agent=?prefixes[index], ?error),
         }
     }
 

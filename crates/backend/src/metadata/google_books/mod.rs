@@ -61,7 +61,7 @@ impl Metadata for GoogleBooksMetadata {
         }
     }
 
-    async fn search(&mut self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
+    async fn search(self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
         match search_for {
             SearchFor::Person => Ok(Vec::new()),
 

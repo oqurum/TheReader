@@ -89,7 +89,7 @@ impl Metadata for OpenLibraryMetadata {
         }
     }
 
-    async fn search(&mut self, value: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
+    async fn search(self, value: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
         match search_for {
             SearchFor::Person => {
                 if let Some(found) = author::search_for_authors(value).await? {

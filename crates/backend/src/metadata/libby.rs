@@ -83,7 +83,7 @@ impl Metadata for LibbyMetadata {
         Ok(None)
     }
 
-    async fn search(&mut self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
+    async fn search(self, search: &str, search_for: SearchFor) -> Result<Vec<SearchItem>> {
         let libby = get_config().libby;
 
         match search_for {
