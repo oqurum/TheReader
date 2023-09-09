@@ -37,6 +37,9 @@ extern "C" {
     // TODO: Use Struct instead. Returns (byte position, section index)
     fn js_get_current_byte_pos(iframe: &HtmlIFrameElement, is_vertical: bool)
         -> Option<Vec<usize>>;
+    // TODO: Use Struct instead. Returns (byte position, section index)
+    fn js_get_element_byte_pos(iframe: &HtmlIFrameElement, element: &Element)
+        -> Option<Vec<usize>>;
     fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize)
         -> Option<usize>;
     fn js_get_element_from_byte_position(
@@ -151,7 +154,7 @@ pub enum ReaderMsg {
     GenerateIFrameLoaded(usize),
 
     // Event
-    HandleJsRedirect(String, String, Option<String>),
+    HandleJsRedirect(String, String, Option<String>, String),
 
     PageTransitionStart,
     PageTransitionEnd,
@@ -221,12 +224,13 @@ impl Component for Reader {
                 let (file_path, id_value) = path
                     .split_once('#')
                     .map(|(a, b)| (a.to_string(), Some(b.to_string())))
-                    .unwrap_or((path, None));
+                    .unwrap_or_else(|| (path.clone(), None));
 
                 link.send_message(ReaderMsg::HandleJsRedirect(
                     section_hash,
                     file_path,
                     id_value,
+                    path,
                 ));
             });
 
@@ -331,8 +335,8 @@ impl Component for Reader {
                 }
             }
 
-            ReaderMsg::HandleJsRedirect(_section_hash, file_path, _id_name) => {
-                debug!("ReaderMsg::HandleJsRedirect(section_hash: {_section_hash}, file_path: {file_path:?}, id_name: {_id_name:?})");
+            ReaderMsg::HandleJsRedirect(_section_hash, file_path, id_name, _file_path_and_id) => {
+                debug!("ReaderMsg::HandleJsRedirect(section_hash: {_section_hash}, file_path: {file_path:?}, id_name: {id_name:?})");
 
                 let file_path = PathBuf::from(file_path);
 
@@ -347,7 +351,53 @@ impl Component for Reader {
                     .cloned()
                 {
                     self.set_section(chap.value, ctx);
-                    // TODO: Handle id_name
+
+                    let Some(id_name) = id_name else {
+                        return false;
+                    };
+
+                    let found = self
+                        .get_current_frame()
+                        .unwrap()
+                        .find_elements(&format!("[id=\"{id_name}\"]"));
+
+                    if !found.is_empty() {
+                        let found = found.last().unwrap();
+
+                        fn find_reader_section_start(element: &Element) -> Option<usize> {
+                            if element.class_list().contains("reader-section-start") {
+                                return element.get_attribute("data-section-id")?.parse().ok();
+                            }
+
+                            if let Some(element) = element.previous_element_sibling() {
+                                return find_reader_section_start(&element);
+                            }
+
+                            if let Some(element) = element.parent_element() {
+                                return find_reader_section_start(&element);
+                            }
+
+                            None
+                        }
+
+                        if let Some(section) = find_reader_section_start(found) {
+                            debug!("Found In Section {section}");
+                        }
+
+                        let element_bounds = found.get_bounding_client_rect();
+                        let frame_bounds = self
+                            .get_current_frame()
+                            .unwrap()
+                            .get_iframe_body()
+                            .unwrap()
+                            .get_bounding_client_rect();
+
+                        let dist = frame_bounds.x().abs()
+                            + element_bounds.x()
+                            + frame_bounds.right().abs();
+
+                        self.set_page((dist / ctx.props().width as f64).ceil() as usize);
+                    }
                 }
             }
 
@@ -431,17 +481,55 @@ impl Component for Reader {
                             if !self.settings.display.is_scroll()
                                 && duration.to_std().unwrap_throw() < Duration::from_millis(800)
                             {
-                                let clickable_size = (width as f32 * 0.15) as i32;
+                                // If it's a pointer then we're hovering over a clickable
+                                if self.cursor_type == "pointer" {
+                                    // Clicked on a[href]
+                                    if duration.num_milliseconds() < 500 {
+                                        if let Some(section) = self.get_current_frame() {
+                                            if let Some(element) =
+                                                section.get_element_at(x as f32, y as f32)
+                                            {
+                                                fn contains_a_href(
+                                                    element: Element,
+                                                ) -> Option<HtmlElement>
+                                                {
+                                                    if element.local_name() == "a"
+                                                        && element.has_attribute("href")
+                                                    {
+                                                        Some(element.unchecked_into())
+                                                    } else if let Some(element) =
+                                                        element.parent_element()
+                                                    {
+                                                        contains_a_href(element)
+                                                    } else {
+                                                        None
+                                                    }
+                                                }
 
-                                // Previous Page
-                                if x <= clickable_size {
-                                    debug!("Clicked Previous");
-                                    return Component::update(self, ctx, ReaderMsg::PreviousPage);
-                                }
-                                // Next Page
-                                else if x >= width - clickable_size {
-                                    debug!("Clicked Next");
-                                    return Component::update(self, ctx, ReaderMsg::NextPage);
+                                                if let Some(element) = contains_a_href(element) {
+                                                    element.click();
+                                                    return false;
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    let clickable_size = (width as f32 * 0.15) as i32;
+
+                                    // Previous Page
+                                    if x <= clickable_size {
+                                        debug!("Clicked Previous");
+                                        return Component::update(
+                                            self,
+                                            ctx,
+                                            ReaderMsg::PreviousPage,
+                                        );
+                                    }
+                                    // Next Page
+                                    else if x >= width - clickable_size {
+                                        debug!("Clicked Next");
+                                        return Component::update(self, ctx, ReaderMsg::NextPage);
+                                    }
                                 }
                             }
                         }
@@ -457,6 +545,10 @@ impl Component for Reader {
                         coords_start,
                         ..
                     } => {
+                        debug!(
+                            "Input Drag: [typeof {type_of:?}], [coords {coords_start:?}], took: {instant:?}"
+                        );
+
                         match type_of {
                             DragType::Up(_distance) => (),
                             DragType::Down(_distance) => (),
@@ -485,49 +577,8 @@ impl Component for Reader {
                                 }
                             }
 
-                            DragType::None => {
-                                // Clicked on a[href]
-                                if let Some(dur) = instant {
-                                    if dur.num_milliseconds() < 500 {
-                                        if let Some(section) = self.get_current_frame() {
-                                            let frame = section.get_iframe();
-                                            let document = frame.content_document().unwrap_throw();
-                                            let bb = frame.get_bounding_client_rect();
-
-                                            let (x, y) = (
-                                                coords_start.0 as f64 - bb.x(),
-                                                coords_start.1 as f64 - bb.y(),
-                                            );
-
-                                            if let Some(element) =
-                                                document.element_from_point(x as f32, y as f32)
-                                            {
-                                                fn contains_a_href(
-                                                    element: Element,
-                                                ) -> Option<HtmlElement>
-                                                {
-                                                    if element.local_name() == "a"
-                                                        && element.has_attribute("href")
-                                                    {
-                                                        Some(element.unchecked_into())
-                                                    } else if let Some(element) =
-                                                        element.parent_element()
-                                                    {
-                                                        contains_a_href(element)
-                                                    } else {
-                                                        None
-                                                    }
-                                                }
-
-                                                if let Some(element) = contains_a_href(element) {
-                                                    element.click();
-                                                    return false;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // TODO: Is this the same as Release? It is called after
+                            DragType::None => {}
                         }
                     }
 
@@ -621,7 +672,8 @@ impl Component for Reader {
 
             ReaderMsg::SetPage(new_page) => match self.settings.display.as_type() {
                 LayoutType::Single | LayoutType::Double => {
-                    return self.set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
+                    return self
+                        .set_page(new_page.min(self.page_count(ctx.props()).saturating_sub(1)));
                 }
 
                 LayoutType::Scroll => {
@@ -629,14 +681,15 @@ impl Component for Reader {
                 }
 
                 LayoutType::Image => {
-                    return self.set_page(new_page.min(self.page_count(ctx).saturating_sub(1)));
+                    return self
+                        .set_page(new_page.min(self.page_count(ctx.props()).saturating_sub(1)));
                 }
             },
 
             ReaderMsg::NextPage => {
                 match self.settings.display.as_type() {
                     LayoutType::Single | LayoutType::Double => {
-                        if self.current_page_pos() + 1 == self.page_count(ctx) {
+                        if self.current_page_pos() + 1 == self.page_count(ctx.props()) {
                             return false;
                         }
 
@@ -650,7 +703,7 @@ impl Component for Reader {
                     LayoutType::Image => {
                         match self.settings.display.get_movement() {
                             layout::PageMovement::LeftToRight => {
-                                if self.current_page_pos() + 1 == self.page_count(ctx) {
+                                if self.current_page_pos() + 1 == self.page_count(ctx.props()) {
                                     return false;
                                 }
                             }
@@ -692,7 +745,7 @@ impl Component for Reader {
                             }
 
                             layout::PageMovement::RightToLeft => {
-                                if self.current_page_pos() + 1 == self.page_count(ctx) {
+                                if self.current_page_pos() + 1 == self.page_count(ctx.props()) {
                                     return false;
                                 }
                             }
@@ -813,7 +866,7 @@ impl Component for Reader {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let page_count = self.page_count(ctx);
+        let page_count = self.page_count(ctx.props());
         let section_count = ctx.props().book.chapter_count;
 
         let pages_style = format!(
@@ -901,7 +954,7 @@ impl Component for Reader {
                     </div>
                 </div>
 
-                { self.render_toolbar() }
+                { self.render_toolbar(ctx) }
 
                 {
                     if self.settings.show_progress {
@@ -988,14 +1041,14 @@ impl Reader {
         // }
     }
 
-    fn render_toolbar(&self) -> Html {
+    fn render_toolbar(&self, ctx: &Context<Self>) -> Html {
         if self.settings.display.is_scroll() {
             html! {}
         } else {
             html! {
                 <div class="toolbar">
                     <div class="d-flex w-100">
-                        <span>{ "Page " } { self.current_page_pos() + 1 }</span>
+                        <span>{ "Page " } { self.current_page_pos() + 1 } { "/" } { self.page_count(ctx.props()) }</span>
                     </div>
                 </div>
             }
@@ -1346,9 +1399,8 @@ impl Reader {
             .map(|v| v.info.header_hash.as_str());
 
         // Retrieve next section index and frame.
-        let Some((next_section_index, next_section_frame)) = self.section_frames.iter()
-            .enumerate()
-            .find_map(|(i, sec)| {
+        let Some((next_section_index, next_section_frame)) =
+            self.section_frames.iter().enumerate().find_map(|(i, sec)| {
                 if let Some((chap, other_hash)) = sec.as_chapter().zip(hash) {
                     if chap.header_hash.as_str() == other_hash {
                         Some((i, sec))
@@ -1358,9 +1410,10 @@ impl Reader {
                 } else {
                     None
                 }
-            }) else {
-                return false;
-            };
+            })
+        else {
+            return false;
+        };
 
         debug!("Change Section {next_section_index}");
 
@@ -1411,8 +1464,8 @@ impl Reader {
     }
 
     /// Expensive. Iterates through sections backwards from last -> first.
-    fn page_count(&self, ctx: &Context<Self>) -> usize {
-        let section_count = ctx.props().book.chapter_count;
+    fn page_count(&self, props: &Property) -> usize {
+        let section_count = props.book.chapter_count;
 
         for index in 1..=section_count {
             if let Some(pos) = self
@@ -1534,11 +1587,11 @@ impl Reader {
             )
         };
 
-        let last_page = self.page_count(ctx).saturating_sub(1);
+        let last_page = self.page_count(ctx.props()).saturating_sub(1);
 
         let stored_prog = Rc::clone(&ctx.props().progress);
 
-        let req = match self.page_count(ctx) {
+        let req = match self.page_count(ctx.props()) {
             0 if chapter == 0 => {
                 *stored_prog.lock().unwrap() = None;
 

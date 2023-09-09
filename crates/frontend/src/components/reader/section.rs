@@ -6,8 +6,8 @@ use std::{cell::RefCell, rc::Rc};
 
 use common_local::Chapter;
 use editor::{ListenerEvent, ListenerHandle, ListenerId, MouseListener};
-use wasm_bindgen::{prelude::Closure, UnwrapThrowExt};
-use web_sys::{HtmlElement, HtmlHeadElement, HtmlIFrameElement};
+use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
+use web_sys::{Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement};
 use yew::Context;
 
 use super::{
@@ -106,6 +106,31 @@ impl SectionContents {
             page_offset: 0,
             cached_tables: Vec::new(),
         }
+    }
+
+    /// Based upon relative coords
+    pub fn get_element_at(&self, x: f32, y: f32) -> Option<Element> {
+        let frame = self.get_iframe();
+
+        let document = frame.content_document().unwrap();
+
+        document.element_from_point(x, y)
+    }
+
+    pub fn find_elements(&self, selector: &str) -> Vec<Element> {
+        let frame = self.get_iframe();
+
+        let document = frame.content_document().unwrap();
+
+        let nodes = document.query_selector_all(selector).unwrap();
+
+        let mut items = Vec::new();
+
+        for i in 0..nodes.length() as usize {
+            items.push(nodes.item(i as u32).unwrap().unchecked_into());
+        }
+
+        items
     }
 
     pub fn get_iframe(&self) -> &HtmlIFrameElement {

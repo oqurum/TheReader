@@ -48,7 +48,7 @@ function shrinkVerticalMargins(element, max_margins) {
  * @returns boolean
 **/
 function doesContainAnyText(element) {
-	for(let node of element.childNodes) {
+	for (let node of element.childNodes) {
 		// Check if Text Node and trim the text of NL's to check it it has any normal characters remaining.
 		if (node.nodeType == Node.TEXT_NODE && node.data.trim().length != 0) {
 			return true;
@@ -118,20 +118,20 @@ export function js_update_iframe_after_load(iframe, section_hash, handle_redirec
 	let started_at = Date.now();
 
 	document.querySelectorAll('a[href]')
-	.forEach(element => {
-		const path = element.getAttribute('href');
+		.forEach(element => {
+			const path = element.getAttribute('href');
 
-		// TODO: Use single listener for whole iframe.
-		element.addEventListener('click', event => {
-			event.preventDefault();
-			handle_redirect_click(section_hash, path);
+			// TODO: Use single listener for whole iframe.
+			element.addEventListener('click', event => {
+				event.preventDefault();
+				handle_redirect_click(section_hash, path);
+			});
 		});
-	});
 
 	// Caching width here removes a second of render time. Caused by Reflow - width also shouldn't change.
 	let document_width = document.body.clientWidth;
 
-	for(let i = 0; i < document.body.children.length; i++) {
+	for (let i = 0; i < document.body.children.length; i++) {
 		let child = document.body.children[i];
 
 		// TODO: Optimize shrinkVerticalMargins
@@ -141,13 +141,20 @@ export function js_update_iframe_after_load(iframe, section_hash, handle_redirec
 		if (canFlattenElement(child, document_width) &&
 			!doesContainAnyText(child)
 		) {
+			// TODO: Improve. Used b/c we may need this id later on for clickable page changes.
+			if (child.id.length != 0) {
+				let item = document.createElement('div');
+				item.id = child.id;
+				child.before(item);
+			}
+
 			while (child.firstChild != null) {
 				child.before(child.firstChild);
 			}
 
 			child.remove();
 
-			i--; // Go back once since we remove this child from the array.
+			// i--; // Go back once since we remove this child from the array.
 		}
 	}
 
@@ -167,7 +174,50 @@ export function js_update_iframe_after_load(iframe, section_hash, handle_redirec
 		}
 	});
 
-	console.log(`Rendered Frame: ${ (Date.now() - started_at)/1000 }sec`);
+	console.log(`Rendered Frame: ${(Date.now() - started_at) / 1000}sec`);
+}
+
+/**
+ * @param {HTMLIFrameElement} iframe
+ * @param {Element} element
+ * @returns {[number, number]}
+**/
+export function js_get_element_byte_pos(iframe, element) {
+	let document = iframe.contentDocument;
+
+	let byte_count = 0;
+	let last_section_id = 0;
+
+	/**
+	 *
+	 * @param {Node} cont
+	 * @returns {boolean}
+	 */
+	function findPos(cont) {
+		if (cont.nodeType == Node.ELEMENT_NODE && (cont.classList.contains('reader-section-start') || cont.classList.contains('reader-section-end'))) {
+			last_section_id = parseInt(cont.getAttribute('data-section-id'));
+		} else if (cont == element) {
+			return true;
+		}
+
+		if (cont.nodeType == Node.TEXT_NODE && cont.nodeValue.trim().length != 0) {
+			byte_count += cont.nodeValue.length;
+		}
+
+		for (let node of cont.childNodes) {
+			if (findPos(node)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if (findPos(document.body)) {
+		return [byte_count, last_section_id];
+	} else {
+		return null;
+	}
 }
 
 /**
