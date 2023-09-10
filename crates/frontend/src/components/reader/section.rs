@@ -6,8 +6,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use common_local::Chapter;
 use editor::{ListenerEvent, ListenerHandle, ListenerId, MouseListener};
+use gloo_utils::window;
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
-use web_sys::{Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement};
+use web_sys::{Document, Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement, Node};
 use yew::Context;
 
 use super::{
@@ -131,6 +132,159 @@ impl SectionContents {
         }
 
         items
+    }
+
+    // TODO: Handle images. Potentially add +100 bytes for each image?
+    pub fn get_page_from_byte_position(&self, position: usize) -> Option<usize> {
+        fn find_text_pos(
+            byte_count: &mut usize,
+            position: usize,
+            cont: Node,
+            document: &Document,
+        ) -> Option<usize> {
+            let value = cont.node_value().unwrap_or_default();
+
+            if cont.node_type() == Node::TEXT_NODE && !value.trim().is_empty() {
+                *byte_count += value.len();
+
+                if *byte_count > position {
+                    let body = document.body().unwrap().get_bounding_client_rect();
+                    // We need to parent element since we're inside a Text Node.
+                    let node = cont
+                        .parent_node()
+                        .unwrap()
+                        .unchecked_into::<Element>()
+                        .get_bounding_client_rect();
+
+                    return Some(
+                        ((body.x().abs()
+                            + node.x()
+                            + node.width() / 2.0
+                            + (node.x() / body.width()).ceil() * 10.0)
+                            / body.width())
+                        .abs()
+                        .floor() as usize,
+                    );
+                }
+            }
+
+            let nodes = cont.child_nodes();
+            for index in 0..nodes.length() as usize {
+                let node = nodes.item(index as u32).unwrap();
+                let found = find_text_pos(byte_count, position, node, document);
+
+                if found.is_some() {
+                    return found;
+                }
+            }
+
+            None
+        }
+
+        find_text_pos(
+            &mut 0,
+            position,
+            self.get_iframe_body().unwrap().unchecked_into(),
+            &self.get_iframe().content_document().unwrap(),
+        )
+    }
+
+    // TODO: Handle images. Potentially add +100 bytes for each image?
+    pub fn get_current_byte_pos(&self, is_vertical: bool) -> Option<(usize, usize)> {
+        fn find_text_pos(
+            moved_amount: f32,
+            byte_count: &mut usize,
+            last_section_id: &mut usize,
+            is_vertical: bool,
+            cont: Node,
+        ) -> Option<(usize, usize)> {
+            if cont.node_type() == Node::ELEMENT_NODE
+                && (cont
+                    .unchecked_ref::<HtmlElement>()
+                    .class_list()
+                    .contains("reader-section-start")
+                    || cont
+                        .unchecked_ref::<HtmlElement>()
+                        .class_list()
+                        .contains("reader-section-end"))
+            {
+                *last_section_id = cont
+                    .unchecked_ref::<Element>()
+                    .get_attribute("data-section-id")
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+            }
+
+            if cont.node_type() == Node::TEXT_NODE
+                && !cont.node_value().unwrap_or_default().trim().is_empty()
+            {
+                // TODO: Will probably mess up if element takes up a full page.
+                if (is_vertical
+                    && (moved_amount
+                        - (cont
+                            .parent_element()
+                            .unwrap()
+                            .unchecked_into::<HtmlElement>()
+                            .offset_top() as f32)
+                        < 0.0))
+                    || (!is_vertical
+                        && (moved_amount
+                            - (cont
+                                .parent_element()
+                                .unwrap()
+                                .unchecked_into::<HtmlElement>()
+                                .offset_left() as f32)
+                            < 0.0))
+                {
+                    return Some((*byte_count, *last_section_id));
+                } else {
+                    *byte_count += cont.node_value().unwrap().len();
+                    // TODO: Check if we overshot the view page. If so half it and check again
+                }
+            }
+
+            let nodes = cont.child_nodes();
+            for index in 0..nodes.length() as usize {
+                let node = nodes.item(index as u32).unwrap();
+                let found =
+                    find_text_pos(moved_amount, byte_count, last_section_id, is_vertical, node);
+
+                if found.is_some() {
+                    return found;
+                }
+            }
+
+            None
+        }
+
+        // How much we've moved our current view.
+        let amount;
+
+        if is_vertical {
+            amount = self.get_iframe_body().unwrap().scroll_top() as f32;
+        } else {
+            let cs = window()
+                .get_computed_style(&self.get_iframe_body().unwrap())
+                .unwrap()
+                .unwrap();
+
+            amount = cs
+                .get_property_value("left")
+                .unwrap()
+                .replace("px", "")
+                .parse::<f32>()
+                .unwrap()
+                .abs();
+        }
+
+        find_text_pos(
+            amount,
+            &mut 0,
+            &mut 0,
+            is_vertical,
+            self.get_iframe_body().unwrap().unchecked_into(),
+        )
     }
 
     pub fn get_iframe(&self) -> &HtmlIFrameElement {

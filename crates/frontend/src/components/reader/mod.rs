@@ -33,15 +33,9 @@ const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
 extern "C" {
     // TODO: Sometimes will be 0. Example: if cover image is larger than body height. (Need to auto-resize.)
     fn get_iframe_page_count(iframe: &HtmlIFrameElement) -> usize;
-
-    // TODO: Use Struct instead. Returns (byte position, section index)
-    fn js_get_current_byte_pos(iframe: &HtmlIFrameElement, is_vertical: bool)
-        -> Option<Vec<usize>>;
     // TODO: Use Struct instead. Returns (byte position, section index)
     fn js_get_element_byte_pos(iframe: &HtmlIFrameElement, element: &Element)
         -> Option<Vec<usize>>;
-    fn js_get_page_from_byte_position(iframe: &HtmlIFrameElement, position: usize)
-        -> Option<usize>;
     fn js_get_element_from_byte_position(
         iframe: &HtmlIFrameElement,
         position: usize,
@@ -846,13 +840,8 @@ impl Component for Reader {
 
                 if self.are_all_sections_generated() {
                     self.on_all_frames_generated(ctx);
-                }
-
-                self.update_cached_pages(ctx.props());
-
-                // TODO: Ensure this works.
-                if self.settings.type_of == ReaderLoadType::Select {
-                    self.use_progression(*ctx.props().progress.lock().unwrap(), ctx);
+                } else {
+                    self.update_cached_pages(ctx.props());
                 }
 
                 // Make sure the previous section is on the last page for better page turning on initial load.
@@ -1003,9 +992,11 @@ impl Component for Reader {
 
         self.load_surrounding_sections(ctx);
 
-        // TODO: Ensure this works.
-        if self.settings.type_of == ReaderLoadType::Select {
-            self.use_progression(*props.progress.lock().unwrap(), ctx);
+        if self.are_all_sections_generated() {
+            // TODO: Ensure this works.
+            if self.settings.type_of == ReaderLoadType::Select {
+                self.use_progression(*props.progress.lock().unwrap(), ctx);
+            }
         }
 
         true
@@ -1216,10 +1207,8 @@ impl Reader {
                                             element.scroll_into_view();
                                         }
                                     } else {
-                                        let page = js_get_page_from_byte_position(
-                                            section.get_iframe(),
-                                            char_pos as usize,
-                                        );
+                                        let page =
+                                            section.get_page_from_byte_position(char_pos as usize);
 
                                         debug!("use_progression - set page: {:?}", page);
 
@@ -1546,34 +1535,37 @@ impl Reader {
     // TODO: Move to SectionLoadProgress and combine into upload_progress
     fn upload_progress_and_emit(&mut self, ctx: &Context<Self>) {
         // Ensure our current chapter is fully loaded AND NOT loading.
-        // FIX: For first load of the reader. js_get_current_byte_pos needs the frame body to be loaded. Otherwise error.
+        // FIX: For first load of the reader. get_current_byte_pos needs the frame body to be loaded. Otherwise error.
         // Could remove once we optimize the upload requests.
-        if let Some(chap) = self.get_current_frame().filter(|sec| {
-            self.section_frames
-                .iter()
-                .find_map(|v| {
-                    if v.as_chapter()?.header_hash == sec.header_hash {
-                        Some(v.is_loaded())
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_default()
-        }) {
-            // Clone to prevent immutable hold on self.
-            let iframe = chap.get_iframe().clone();
-
-            self.upload_progress(&iframe, ctx);
+        if self
+            .get_current_frame()
+            .filter(|sec| {
+                self.section_frames
+                    .iter()
+                    .find_map(|v| {
+                        if v.as_chapter()?.header_hash == sec.header_hash {
+                            Some(v.is_loaded())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default()
+            })
+            .is_some()
+        {
+            self.upload_progress(ctx);
         }
     }
 
     // TODO: Move to SectionLoadProgress
-    fn upload_progress(&mut self, iframe: &HtmlIFrameElement, ctx: &Context<Self>) {
+    fn upload_progress(&mut self, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = {
-            let (char_pos, viewing_section) =
-                js_get_current_byte_pos(iframe, self.settings.display.is_scroll())
-                    .map(|v| (v[0] as i64, v[1]))
-                    .unwrap_or((-1, self.viewing_section));
+            let (char_pos, viewing_section) = self
+                .get_current_frame()
+                .unwrap()
+                .get_current_byte_pos(self.settings.display.is_scroll())
+                .map(|v| (v.0 as i64, v.1))
+                .unwrap_or((-1, self.viewing_section));
 
             self.viewing_section = viewing_section;
 
@@ -1770,9 +1762,17 @@ fn generate_section(
     update_iframe_size(book_dimensions, &iframe);
 
     let f = Closure::wrap(Box::new(move || {
-        scope.send_message(ReaderMsg::GenerateIFrameLoaded(section_index));
+        let scope = scope.clone();
+        gloo_timers::callback::Timeout::new(500, move || {
+            scope.send_message(ReaderMsg::GenerateIFrameLoaded(section_index));
+        })
+        // TODO: MEMORY LEAK
+        .forget();
     }) as Box<dyn FnMut()>);
 
+    // TODO: Doesn't guarantee that the images have rendered.
+    // They may not have their widths and heights set giving wrong page positions for example
+    // This is an issue w/ setting the last reading page from byte position
     iframe.set_onload(Some(f.as_ref().unchecked_ref()));
 
     SectionContents::new(header_hash, iframe, f)
