@@ -960,7 +960,7 @@ impl Component for Reader {
         }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>, _prev: &Self::Properties) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, prev: &Self::Properties) -> bool {
         let props = ctx.props();
 
         self.cached_sections = props.chapters.chapters.clone();
@@ -975,7 +975,7 @@ impl Component for Reader {
                 self.cached_display = self.settings.display.clone();
             }
 
-            // Refresh all page styles and sizes.
+            // Refresh all section styles and sizes.
             for prog in &self.section_frames {
                 if let SectionLoadProgress::Loaded(section) = prog {
                     update_iframe_size(
@@ -988,6 +988,16 @@ impl Component for Reader {
             }
 
             self.update_cached_pages(ctx.props());
+        } else if ctx.props().width != prev.width || ctx.props().height != prev.height {
+            // Refresh all sizes.
+            for prog in &self.section_frames {
+                if let SectionLoadProgress::Loaded(section) = prog {
+                    update_iframe_size(
+                        Some((ctx.props().width, ctx.props().height)),
+                        section.get_iframe(),
+                    );
+                }
+            }
         }
 
         self.load_surrounding_sections(ctx);

@@ -12,7 +12,7 @@ use web_sys::{Document, Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement
 use yew::Context;
 
 use super::{
-    color, js_update_iframe_after_load, update_iframe_size,
+    color, js_update_iframe_after_load,
     util::{for_each_child_map, table::TableContainer},
     CachedPage, LayoutDisplay, Reader, ReaderSettings,
 };
@@ -419,8 +419,6 @@ impl SectionContents {
 
         cached_display.add_to_iframe(self.get_iframe(), ctx);
         cached_display.on_stop_viewing(self);
-
-        update_iframe_size(Some(settings.dimensions), self.get_iframe());
 
         self.editor_handle = editor::register(
             self.get_iframe_body().unwrap_throw(),
