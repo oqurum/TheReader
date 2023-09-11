@@ -109,6 +109,8 @@ enum Msg {
     GetTasksResponse(WrappingResponse<Vec<(TaskId, TaskInfo)>>),
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
 
+    LocationChange(Location),
+
     UpdateNavVis(bool),
 
     Update,
@@ -118,6 +120,7 @@ struct Model {
     state: Rc<AppState>,
 
     has_loaded_member: bool,
+    _location_handle: Option<LocationHandle>,
 }
 
 impl Component for Model {
@@ -134,15 +137,27 @@ impl Component for Model {
                 libraries: Vec::new(),
                 settings: PublicServerSettings::default(),
 
-                is_navbar_visible: false,
+                is_navbar_visible: true,
                 update_nav_visibility: ctx.link().callback(Msg::UpdateNavVis),
             }),
             has_loaded_member: false,
+            _location_handle: ctx
+                .link()
+                .add_location_listener(ctx.link().callback(Msg::LocationChange)),
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::LocationChange(_nav) => {
+                let state = Rc::make_mut(&mut self.state);
+
+                state.is_navbar_visible = !matches!(
+                    ctx.link().route::<BaseRoute>().unwrap(),
+                    BaseRoute::ReadBook { .. }
+                );
+            }
+
             Msg::LoadServerSettings(resp) => match resp {
                 WrappingResponse::Resp(settings) => {
                     let state = Rc::make_mut(&mut self.state);
@@ -398,8 +413,6 @@ fn main() {
     wasm_logger::init(wasm_logger::Config::default());
 
     debug!("starting...");
-
-    body().set_class_name("text-light d-flex");
 
     let handle = yew::Renderer::<Model>::new().render();
 

@@ -8,8 +8,8 @@ use std::{
 
 use common::api::WrappingResponse;
 use common_local::{
-    api::{self, GetChaptersResponse},
-    FileId, MediaItem, Progression,
+    api::{self, GetBookResponse, GetChaptersResponse},
+    DisplayBookItem, FileId, MediaItem, Progression,
 };
 use gloo_timers::callback::Timeout;
 use gloo_utils::{body, window};
@@ -19,8 +19,8 @@ use yew::{context::ContextHandle, prelude::*};
 
 use crate::{
     components::reader::{
-        layout::PageMovement, LayoutDisplay, LoadedChapters, OverlayEvent, Reader, ReaderEvent,
-        ReaderSettings, SharedInnerReaderSettings, SharedReaderSettings,
+        layout::PageMovement, navbar::ReaderNavbar, LayoutDisplay, LoadedChapters, OverlayEvent,
+        Reader, ReaderEvent, ReaderSettings, SharedInnerReaderSettings, SharedReaderSettings,
     },
     get_preferences, request,
     util::{is_mobile_or_tablet, ElementEvent},
@@ -45,7 +45,8 @@ pub enum Msg {
     ReaderEvent(ReaderEvent),
 
     // Retrieve
-    RetrieveBook(WrappingResponse<api::ApiGetFileByIdResponse>),
+    RetrieveBook(WrappingResponse<api::GetBookResponse>),
+    RetrieveBookFile(WrappingResponse<api::ApiGetFileByIdResponse>),
     RetrievePages(WrappingResponse<GetChaptersResponse>),
 
     ContextChanged(Rc<AppState>),
@@ -65,7 +66,8 @@ pub struct ReadingBook {
 
     reader_settings: SharedReaderSettings,
     progress: Rc<Mutex<Option<Progression>>>,
-    book: Option<Rc<MediaItem>>,
+    book: Option<Rc<DisplayBookItem>>,
+    book_file: Option<Rc<MediaItem>>,
     chapters: LoadedChapters,
     last_grabbed_count: usize,
     // TODO: Cache pages
@@ -104,10 +106,11 @@ impl Component for ReadingBook {
             window().inner_height().unwrap_throw().as_f64().unwrap(),
         );
 
-        // Full screen the reader if our screen size is too small or we automatically do it.
-        if reader_settings.auto_full_screen || win_width < 1200.0 || win_height < 720.0 {
-            state.update_nav_visibility.emit(false);
+        state.update_nav_visibility.emit(false);
 
+        // Full screen the reader if our screen size is too small or we automatically do it.
+        // TODO: We'll have custom reader widths. Remove these hardcoded ones.
+        if reader_settings.auto_full_screen || win_width < 1200.0 || win_height < 720.0 {
             set_full_screen(true);
         } else {
             set_full_screen(false);
@@ -136,6 +139,7 @@ impl Component for ReadingBook {
             chapters: LoadedChapters::new(),
             last_grabbed_count: 0,
             progress: Rc::new(Mutex::new(None)),
+            book_file: None,
             book: None,
 
             auto_resize_cb: None,
@@ -165,18 +169,19 @@ impl Component for ReadingBook {
             Msg::WindowResize => {
                 // We have the display_toolbar check here since the "zoom out" function will re-expand it.
                 // We want to ensure we don't "zoom out", resize, and have incorrect dimensions.
-                if is_full_screen() && !self.state.is_navbar_visible {
+                if is_full_screen() {
                     // FIX: Using "if let" since container can be null if this is called before first render.
                     if let Some(cont) = self.ref_book_container.cast::<Element>() {
                         // TODO: Remove. We don't want to update the settings. It should be immutable.
                         self.book_dimensions =
                             (cont.client_width().max(0), cont.client_height().max(0));
 
-                        debug!("Window Resize: {:?}", self.reader_settings.dimensions);
+                        debug!("Window Resize: {:?}", self.book_dimensions);
                     } else {
                         debug!("Window Resize: book container doesn't exist");
                     }
                 } else {
+                    // TODO: Fullscreen once we're so small -- also have to re-adjust location
                     return false;
                 }
             }
@@ -195,6 +200,14 @@ impl Component for ReadingBook {
             },
 
             Msg::RetrieveBook(resp) => match resp.ok() {
+                Ok(resp) => {
+                    self.book = Some(Rc::new(resp.book));
+                }
+
+                Err(err) => crate::display_error(err),
+            },
+
+            Msg::RetrieveBookFile(resp) => match resp.ok() {
                 Ok(Some(resp)) => {
                     // Get Chapters.
 
@@ -208,7 +221,20 @@ impl Component for ReadingBook {
                         });
                     }
 
-                    self.book = Some(Rc::new(resp.media));
+                    {
+                        let Some(book_id) = resp.media.book_id else {
+                            crate::display_error(common::api::ApiErrorResponse::new(
+                                "No Book affiliated w/ file",
+                            ));
+                            return false;
+                        };
+
+                        ctx.link().send_future(async move {
+                            Msg::RetrieveBook(request::get_media_view(book_id).await)
+                        });
+                    }
+
+                    self.book_file = Some(Rc::new(resp.media));
                     *self.progress.lock().unwrap() = resp.progress;
 
                     self.update_settings();
@@ -243,7 +269,7 @@ impl Component for ReadingBook {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if let Some(book) = self.book.as_ref() {
+        if let Some((file, book)) = self.book_file.as_ref().zip(self.book.as_ref()) {
             let mut book_class = String::from("book");
 
             if is_full_screen() {
@@ -252,13 +278,27 @@ impl Component for ReadingBook {
 
             html! {
                 <div class="reading-container">
+                    {
+                        if is_full_screen() {
+                            html! {}
+                        } else {
+                            html! {
+                                <ReaderNavbar
+                                    file={ Rc::clone(file) }
+                                    book={ Rc::clone(book) }
+                                    progress={ Rc::clone(&self.progress) }
+                                />
+                            }
+                        }
+                    }
+
                     <div class={ book_class } ref={ self.ref_book_container.clone() }>
                         <ContextProvider<SharedReaderSettings> context={ self.reader_settings.clone() }>
                             <Reader
                                 width={ self.book_dimensions.0 }
                                 height={ self.book_dimensions.1 }
 
-                                book={ Rc::clone(book) }
+                                book={ Rc::clone(file) }
                                 progress={ Rc::clone(&self.progress) }
                                 chapters={ self.chapters.clone() }
 
@@ -281,17 +321,18 @@ impl Component for ReadingBook {
 
             let id = ctx.props().id;
 
-            ctx.link()
-                .send_future(async move { Msg::RetrieveBook(request::get_book_info(id).await) });
+            ctx.link().send_future(async move {
+                Msg::RetrieveBookFile(request::get_book_info(id).await)
+            });
         }
 
         // TODO: This is a duplicate of Msg::WindowResize
-        if is_full_screen() && !self.state.is_navbar_visible {
+        if is_full_screen() {
             if let Some(cont) = self.ref_book_container.cast::<Element>() {
                 // TODO: Remove. We don't want to update the settings. It should be immutable.
                 self.book_dimensions = (cont.client_width().max(0), cont.client_height().max(0));
 
-                debug!("Render Size: {:?}", self.reader_settings.dimensions);
+                debug!("Render Size: {:?}", self.book_dimensions);
             }
         }
     }
@@ -307,7 +348,7 @@ impl Component for ReadingBook {
 
 impl ReadingBook {
     fn update_settings(&mut self) {
-        let Some(book) = self.book.as_ref() else {
+        let Some(book) = self.book_file.as_ref() else {
             return;
         };
 

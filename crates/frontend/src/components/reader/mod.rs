@@ -17,6 +17,7 @@ use crate::{request, util::ElementEvent};
 
 pub mod color;
 pub mod layout;
+pub mod navbar;
 pub mod section;
 mod settings;
 pub mod util;
@@ -1797,6 +1798,8 @@ fn update_iframe_size(book_dimensions: Option<(i32, i32)>, iframe: &HtmlIFrameEl
             gloo_utils::body().client_height().max(0),
         ),
     };
+
+    debug!("--------------------- {width}, {height}");
 
     iframe
         .style()

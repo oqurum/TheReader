@@ -1,44 +1,43 @@
 <!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="utf-8" />
-		<title>The Bookie</title>
 
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<head>
+	<meta charset="utf-8" />
+	<title>The Bookie</title>
 
-		<meta name="mobile-web-app-capable" content="yes">
-		<meta name="apple-mobile-web-app-capable" content="yes">
-		<link rel="manifest" href="/manifest.json" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
-		<script src="/js/quill.js"></script>
-		<script src="/js/bootstrap.min.js"></script>
-		<link href="/css/quill.snow.css" rel="stylesheet" />
-		<link href="/css/bootstrap.css" rel="stylesheet" />
-		<!-- <link href="/css/bootstrap-grid.css" rel="stylesheet" />
-		<link href="/css/bootstrap-reboot.css" rel="stylesheet" />
-		<link href="/css/bootstrap-utilities.css" rel="stylesheet" /> -->
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<link rel="manifest" href="/manifest.json" />
 
-		<!-- <link href="/css/open-props.min.css" rel="stylesheet" />
-		<link href="/css/open-props-normalize.min.css" rel="stylesheet" />
-		<link href="/css/open-props-buttons.min.css" rel="stylesheet" /> -->
+	<script src="/js/quill.js"></script>
+	<script src="/js/bootstrap.bundle.js"></script>
+	<link rel="stylesheet" href="/css/quill.snow.css" />
+	<link rel="stylesheet" href="/css/bootstrap.css" />
+	<link rel="stylesheet" href="/css/bootstrap-icons.css" />
 
-		<link href="/css/gcommon.css" type="text/css" rel="stylesheet" />
+	<link href="/css/gcommon.css" type="text/css" rel="stylesheet" />
 
-		<link href="scss/main.scss" rel="scss" data-trunk />
-		<script>
-			window.addEventListener("load", () => window.scrollTo(0, 1));
+	<link href="scss/main.scss" rel="scss" data-trunk />
+	<script>
+		window.addEventListener("load", () => window.scrollTo(0, 1));
 
-			let is_mobile = false;
-			if ("maxTouchPoints" in window.navigator) {
-				is_mobile = window.navigator.maxTouchPoints != 0;
-			}
-			// TODO: Check user agent instead.
+		let is_mobile = false;
+		if ("maxTouchPoints" in window.navigator) {
+			is_mobile = window.navigator.maxTouchPoints != 0;
+		}
+		// TODO: Check user agent instead.
 
-			if (is_mobile) {
-				let asdfsdf = false;
-				window.addEventListener('click', () => asdfsdf ? true : (asdfsdf = true) && document.body.requestFullscreen());
-			}
-		</script>
-	</head>
+		if (is_mobile) {
+			let asdfsdf = false;
+			window.addEventListener('click', () => asdfsdf ? true : (asdfsdf = true) && document.body.requestFullscreen());
+		}
+	</script>
+</head>
+
+<body class="text-light d-flex">
+</body>
+
 </html>
