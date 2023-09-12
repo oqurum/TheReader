@@ -682,6 +682,7 @@ dependencies = [
  "common-local",
  "editor",
  "futures",
+ "gloo-events",
  "gloo-file",
  "gloo-timers",
  "gloo-utils",

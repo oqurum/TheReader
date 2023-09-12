@@ -8,12 +8,13 @@ use std::{
 
 use common::api::WrappingResponse;
 use common_local::{
-    api::{self, GetBookResponse, GetChaptersResponse},
+    api::{self, GetChaptersResponse},
     DisplayBookItem, FileId, MediaItem, Progression,
 };
+use gloo_events::EventListener;
 use gloo_timers::callback::Timeout;
 use gloo_utils::{body, window};
-use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
+use wasm_bindgen::UnwrapThrowExt;
 use web_sys::Element;
 use yew::{context::ContextHandle, prelude::*};
 
@@ -23,7 +24,7 @@ use crate::{
         Reader, ReaderEvent, ReaderSettings, SharedInnerReaderSettings, SharedReaderSettings,
     },
     get_preferences, request,
-    util::{is_mobile_or_tablet, ElementEvent},
+    util::is_mobile_or_tablet,
     AppState,
 };
 
@@ -71,11 +72,10 @@ pub struct ReadingBook {
     chapters: LoadedChapters,
     last_grabbed_count: usize,
     // TODO: Cache pages
-    auto_resize_cb: Option<Closure<dyn FnMut()>>,
-
     timeout: Option<Timeout>,
 
-    _on_fullscreen_event: ElementEvent,
+    _on_fullscreen_event: EventListener,
+    _on_resize_event: EventListener,
 
     // Refs
     ref_book_container: NodeRef,
@@ -116,19 +116,6 @@ impl Component for ReadingBook {
             set_full_screen(false);
         }
 
-        let on_fullscreen_event = {
-            let link = ctx.link().clone();
-            let function: Closure<dyn FnMut(Event)> =
-                Closure::new(move |_: Event| link.send_message(Msg::WindowResize));
-
-            ElementEvent::link(
-                body().unchecked_into(),
-                function,
-                |e, f| e.add_event_listener_with_callback("fullscreenchange", f),
-                Box::new(|e, f| e.remove_event_listener_with_callback("fullscreenchange", f)),
-            )
-        };
-
         Self {
             state,
             _listener,
@@ -142,11 +129,34 @@ impl Component for ReadingBook {
             book_file: None,
             book: None,
 
-            auto_resize_cb: None,
+            _on_resize_event: {
+                let link = ctx.link().clone();
+                let timeout: Arc<Mutex<Option<Timeout>>> = Arc::new(Mutex::new(None));
+
+                EventListener::new(&window(), "resize", move |_: &Event| {
+                    let link = link.clone();
+
+                    let timeout_cloned = timeout.clone();
+
+                    drop(timeout_cloned.lock().unwrap().take());
+
+                    let to = Timeout::new(250, move || {
+                        link.send_message(Msg::WindowResize);
+                    });
+
+                    *timeout_cloned.lock().unwrap() = Some(to);
+                })
+            },
 
             timeout: None,
 
-            _on_fullscreen_event: on_fullscreen_event,
+            _on_fullscreen_event: {
+                let link = ctx.link().clone();
+
+                EventListener::new(&body(), "fullscreenchange", move |_: &Event| {
+                    link.send_message(Msg::WindowResize)
+                })
+            },
 
             ref_book_container: NodeRef::default(),
         }
@@ -172,13 +182,18 @@ impl Component for ReadingBook {
                 if is_full_screen() {
                     // FIX: Using "if let" since container can be null if this is called before first render.
                     if let Some(cont) = self.ref_book_container.cast::<Element>() {
-                        // TODO: Remove. We don't want to update the settings. It should be immutable.
                         self.book_dimensions =
                             (cont.client_width().max(0), cont.client_height().max(0));
 
                         debug!("Window Resize: {:?}", self.book_dimensions);
                     } else {
                         debug!("Window Resize: book container doesn't exist");
+                    }
+                } else if self.reader_settings.display.is_scroll() {
+                    if let Some(cont) = self.ref_book_container.cast::<Element>() {
+                        self.book_dimensions.1 = cont.client_height().saturating_sub(20).max(0);
+
+                        debug!("Window Resize: {:?}", self.book_dimensions);
                     }
                 } else {
                     // TODO: Fullscreen once we're so small -- also have to re-adjust location
@@ -317,8 +332,6 @@ impl Component for ReadingBook {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            self.init_resize_cb(ctx);
-
             let id = ctx.props().id;
 
             ctx.link().send_future(async move {
@@ -334,14 +347,12 @@ impl Component for ReadingBook {
 
                 debug!("Render Size: {:?}", self.book_dimensions);
             }
-        }
-    }
+        } else if self.reader_settings.display.is_scroll() {
+            if let Some(cont) = self.ref_book_container.cast::<Element>() {
+                self.book_dimensions.1 = cont.client_height().saturating_sub(20).max(0);
 
-    fn destroy(&mut self, _ctx: &Context<Self>) {
-        if let Some(cb) = self.auto_resize_cb.take() {
-            window()
-                .remove_event_listener_with_callback("resize", cb.as_ref().unchecked_ref())
-                .unwrap();
+                debug!("Render Size: {:?}", self.book_dimensions);
+            }
         }
     }
 }
@@ -389,30 +400,5 @@ impl ReadingBook {
             text,
             image,
         });
-    }
-
-    fn init_resize_cb(&mut self, ctx: &Context<Self>) {
-        let link = ctx.link().clone();
-        let timeout: Arc<Mutex<Option<Timeout>>> = Arc::new(Mutex::new(None));
-
-        let handle_resize = Closure::wrap(Box::new(move || {
-            let link = link.clone();
-
-            let timeout_cloned = timeout.clone();
-
-            drop(timeout_cloned.lock().unwrap().take());
-
-            let to = Timeout::new(250, move || {
-                link.send_message(Msg::WindowResize);
-            });
-
-            *timeout_cloned.lock().unwrap() = Some(to);
-        }) as Box<dyn FnMut()>);
-
-        window()
-            .add_event_listener_with_callback("resize", handle_resize.as_ref().unchecked_ref())
-            .unwrap();
-
-        self.auto_resize_cb = Some(handle_resize);
     }
 }
