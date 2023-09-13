@@ -33,6 +33,8 @@ pub use settings::*;
 
 const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
 
+// TODO: Don't run self.use_progression until images are rendered or we should set widths for images. Causing on-load position to be incorrect
+
 #[wasm_bindgen(module = "/js_generate_pages.js")]
 extern "C" {
     // TODO: Sometimes will be 0. Example: if cover image is larger than body height. (Need to auto-resize.)
@@ -401,10 +403,11 @@ impl Component for Reader {
                         return false;
                     };
 
-                    let found = self
-                        .get_current_frame()
-                        .unwrap()
-                        .find_elements(&format!("[id=\"{id_name}\"]"));
+                    let frame = self.get_current_frame().unwrap();
+
+                    let found = frame.find_elements(&format!("[id=\"{id_name}\"]"));
+
+                    let offset = frame.gpi;
 
                     if !found.is_empty() {
                         let found = found.last().unwrap();
@@ -429,19 +432,12 @@ impl Component for Reader {
                             debug!("Found In Section {section}");
                         }
 
-                        let element_bounds = found.get_bounding_client_rect();
-                        let frame_bounds = self
-                            .get_current_frame()
-                            .unwrap()
-                            .get_iframe_body()
-                            .unwrap()
-                            .get_bounding_client_rect();
-
-                        let dist = frame_bounds.x().abs()
-                            + element_bounds.x()
-                            + frame_bounds.right().abs();
-
-                        self.set_page((dist / ctx.props().width as f64).ceil() as usize);
+                        self.set_page(
+                            offset
+                                + (found.unchecked_ref::<HtmlElement>().offset_left() as f64
+                                    / ctx.props().width as f64)
+                                    .floor() as usize,
+                        );
                     }
                 }
             }

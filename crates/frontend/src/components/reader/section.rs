@@ -8,7 +8,7 @@ use common_local::Chapter;
 use editor::{ListenerEvent, ListenerHandle, ListenerId, MouseListener};
 use gloo_utils::window;
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
-use web_sys::{Document, Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement, Node};
+use web_sys::{Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement, Node};
 use yew::Context;
 
 use super::{
@@ -150,7 +150,7 @@ impl SectionContents {
             byte_count: &mut usize,
             position: usize,
             cont: Node,
-            document: &Document,
+            iframe: &HtmlIFrameElement,
         ) -> Option<usize> {
             let value = cont.node_value().unwrap_or_default();
 
@@ -158,19 +158,12 @@ impl SectionContents {
                 *byte_count += value.len();
 
                 if *byte_count > position {
-                    let body = document.body().unwrap().get_bounding_client_rect();
                     // We need to parent element since we're inside a Text Node.
-                    let node = cont
-                        .parent_node()
-                        .unwrap()
-                        .unchecked_into::<Element>()
-                        .get_bounding_client_rect();
+                    let node = cont.parent_node().unwrap().unchecked_into::<HtmlElement>();
 
                     return Some(
-                        ((body.x().abs() + node.x() + (node.x() / body.width()).ceil() * 10.0)
-                            / body.width())
-                        .abs()
-                        .floor() as usize,
+                        (node.offset_left() as f32 / (iframe.client_width() - 10) as f32).floor()
+                            as usize,
                     );
                 }
             }
@@ -178,7 +171,7 @@ impl SectionContents {
             let nodes = cont.child_nodes();
             for index in 0..nodes.length() as usize {
                 let node = nodes.item(index as u32).unwrap();
-                let found = find_text_pos(byte_count, position, node, document);
+                let found = find_text_pos(byte_count, position, node, iframe);
 
                 if found.is_some() {
                     return found;
@@ -192,7 +185,7 @@ impl SectionContents {
             &mut 0,
             position,
             self.get_iframe_body().unwrap().unchecked_into(),
-            &self.get_iframe().content_document().unwrap(),
+            self.get_iframe(),
         )
     }
 

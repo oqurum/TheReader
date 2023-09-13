@@ -1,5 +1,5 @@
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
-use web_sys::HtmlIFrameElement;
+use web_sys::{HtmlElement, HtmlIFrameElement};
 use yew::Context;
 
 use crate::{
@@ -91,21 +91,13 @@ impl PageDisplay {
             return false;
         };
 
-        let element_bounds = element.get_bounding_client_rect();
-        let frame_bounds = section
-            .get_iframe_body()
-            .unwrap()
-            .get_bounding_client_rect();
-
         let frame_width = section.get_iframe().client_width() as f64;
 
-        let dist = frame_bounds.x().abs()
-            + element_bounds.x()
-            + (frame_bounds.x().abs() - frame_bounds.right().abs());
-
-        // TODO: Incorrect page setting
-
-        self.set_page((dist / frame_width).floor() as usize, section)
+        self.set_page(
+            (element.unchecked_into::<HtmlElement>().offset_left() as f64 / frame_width).floor()
+                as usize,
+            section,
+        )
     }
 
     pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
