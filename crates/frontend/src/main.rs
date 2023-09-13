@@ -21,7 +21,7 @@ use common_local::{
     ws::{TaskId, TaskInfo},
     CollectionId, FileId, LibraryColl, LibraryId, Member, Permissions, PublicServerSettings,
 };
-use gloo_utils::{body, document};
+use gloo_utils::document;
 use lazy_static::lazy_static;
 use services::open_websocket_conn;
 use yew::prelude::*;
@@ -109,8 +109,6 @@ enum Msg {
     GetTasksResponse(WrappingResponse<Vec<(TaskId, TaskInfo)>>),
     LibraryListResults(WrappingResponse<api::GetLibrariesResponse>),
 
-    LocationChange(Location),
-
     UpdateNavVis(bool),
 
     Update,
@@ -120,7 +118,6 @@ struct Model {
     state: Rc<AppState>,
 
     has_loaded_member: bool,
-    _location_handle: Option<LocationHandle>,
 }
 
 impl Component for Model {
@@ -141,23 +138,11 @@ impl Component for Model {
                 update_nav_visibility: ctx.link().callback(Msg::UpdateNavVis),
             }),
             has_loaded_member: false,
-            _location_handle: ctx
-                .link()
-                .add_location_listener(ctx.link().callback(Msg::LocationChange)),
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::LocationChange(_nav) => {
-                let state = Rc::make_mut(&mut self.state);
-
-                state.is_navbar_visible = !matches!(
-                    ctx.link().route::<BaseRoute>().unwrap(),
-                    BaseRoute::ReadBook { .. }
-                );
-            }
-
             Msg::LoadServerSettings(resp) => match resp {
                 WrappingResponse::Resp(settings) => {
                     let state = Rc::make_mut(&mut self.state);

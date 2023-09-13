@@ -9,7 +9,12 @@ use gloo_utils::body;
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
-use yew_router::{components::Link, Routable};
+use yew_router::{
+    components::Link,
+    prelude::Location,
+    scope_ext::{LocationHandle, RouterScopeExt},
+    Routable,
+};
 
 use crate::{
     components::BookListItemInfo, pages::settings::SettingsRoute, request, AppState, BaseRoute,
@@ -27,11 +32,13 @@ pub enum Msg {
     SearchResults(usize, WrappingResponse<GetBookListResponse>),
 
     ContextChanged(Rc<AppState>),
+    LocationChange(Location),
 }
 
 pub struct NavbarModule {
     state: Rc<AppState>,
     _listener: ContextHandle<Rc<AppState>>,
+    _location_handle: Option<LocationHandle>,
 
     // left_items: Vec<(BaseRoute, DisplayType)>,
     right_items: Vec<(BaseRoute, DisplayType)>,
@@ -57,6 +64,9 @@ impl Component for NavbarModule {
         Self {
             state,
             _listener,
+            _location_handle: ctx
+                .link()
+                .add_location_listener(ctx.link().callback(Msg::LocationChange)),
 
             // left_items: vec![
             //     // (BaseRoute::Dashboard, DisplayType::Icon("home", "Home")),
@@ -79,6 +89,15 @@ impl Component for NavbarModule {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::LocationChange(_nav) => {
+                let state = Rc::make_mut(&mut self.state);
+
+                state.update_nav_visibility.emit(!matches!(
+                    ctx.link().route::<BaseRoute>().unwrap(),
+                    BaseRoute::ReadBook { .. }
+                ));
+            }
+
             Msg::ContextChanged(state) => self.state = state,
 
             Msg::Close => {
