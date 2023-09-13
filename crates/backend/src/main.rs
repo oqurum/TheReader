@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "books_backend=debug,actix_server=debug,actix_web=debug".into()
+                "books_backend=debug,bookie=debug,actix_server=debug,actix_web=debug".into()
             }),
         )
         .with(tracing_subscriber::fmt::layer())

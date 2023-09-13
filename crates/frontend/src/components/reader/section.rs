@@ -69,7 +69,7 @@ pub struct SectionContents {
     #[allow(dead_code)]
     on_load: Closure<dyn FnMut()>,
 
-    chapters: Vec<Rc<Chapter>>,
+    pub chapters: Vec<Rc<Chapter>>,
 
     cached_pages: Vec<CachedPage>,
 
@@ -118,6 +118,16 @@ impl SectionContents {
         document.element_from_point(x, y)
     }
 
+    pub fn find_section_start(&self, index: usize) -> Option<Element> {
+        let mut elements = self.find_elements(&format!("div[data-section-id=\"{index}\"]"));
+
+        if elements.len() != 0 {
+            Some(elements.swap_remove(0))
+        } else {
+            None
+        }
+    }
+
     pub fn find_elements(&self, selector: &str) -> Vec<Element> {
         let frame = self.get_iframe();
 
@@ -157,10 +167,7 @@ impl SectionContents {
                         .get_bounding_client_rect();
 
                     return Some(
-                        ((body.x().abs()
-                            + node.x()
-                            + node.width() / 2.0
-                            + (node.x() / body.width()).ceil() * 10.0)
+                        ((body.x().abs() + node.x() + (node.x() / body.width()).ceil() * 10.0)
                             / body.width())
                         .abs()
                         .floor() as usize,

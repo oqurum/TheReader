@@ -82,6 +82,32 @@ impl PageDisplay {
         ));
     }
 
+    pub fn set_chapter(&mut self, index: usize, section: &mut SectionContents) -> bool {
+        let Some(chapter) = section.get_chapters().iter().find(|v| v.value == index) else {
+            return false;
+        };
+
+        let Some(element) = section.find_section_start(chapter.value) else {
+            return false;
+        };
+
+        let element_bounds = element.get_bounding_client_rect();
+        let frame_bounds = section
+            .get_iframe_body()
+            .unwrap()
+            .get_bounding_client_rect();
+
+        let frame_width = section.get_iframe().client_width() as f64;
+
+        let dist = frame_bounds.x().abs()
+            + element_bounds.x()
+            + (frame_bounds.x().abs() - frame_bounds.right().abs());
+
+        // TODO: Incorrect page setting
+
+        self.set_page((dist / frame_width).floor() as usize, section)
+    }
+
     pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
         if index >= section.page_count() {
             return false;

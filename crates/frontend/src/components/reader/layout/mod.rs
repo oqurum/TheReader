@@ -105,6 +105,16 @@ impl LayoutDisplay {
         }
     }
 
+    pub fn set_chapter(&mut self, index: usize, section: &mut SectionContents) -> bool {
+        match self {
+            LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => {
+                v.set_chapter(index, section)
+            }
+            LayoutDisplay::VerticalScroll(v) => v.set_chapter(index, section),
+            LayoutDisplay::Image(v) => v.set_page(index, section),
+        }
+    }
+
     pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
         match self {
             LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => {

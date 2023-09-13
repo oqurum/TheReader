@@ -201,6 +201,7 @@ pub struct LoadResourceQuery {
 pub struct GetFileByIdResponse {
     pub media: MediaItem,
     pub progress: Option<Progression>,
+    pub toc: Vec<(String, usize)>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

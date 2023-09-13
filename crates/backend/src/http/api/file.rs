@@ -173,6 +173,8 @@ pub async fn load_file(
 ) -> WebResult<JsonResponse<Option<api::GetFileByIdResponse>>> {
     Ok(web::Json(WrappingResponse::okay(
         if let Some(file) = FileModel::find_one_by_id(*file_id, &mut *db.acquire().await?).await? {
+            let mut book = bookie::load_from_path(&file.path)?.unwrap();
+
             Some(api::GetFileByIdResponse {
                 progress: FileProgressionModel::find_one(
                     member.member_id(),
@@ -182,6 +184,7 @@ pub async fn load_file(
                 .await?
                 .map(|v| v.into()),
 
+                toc: book.get_table_of_contents()?.unwrap_or_default(),
                 media: file.into(),
             })
         } else {

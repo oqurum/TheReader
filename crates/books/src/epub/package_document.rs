@@ -20,6 +20,7 @@ pub struct PackageDocument {
     pub metadata: PackageMetadata,
     pub manifest: PackageManifest,
     pub spine: PackageSpine,
+    pub guide: PackageGuide,
 
     pub collection: Option<Vec<PackageCollection>>,
 }
@@ -89,6 +90,7 @@ impl PackageDocument {
                     WorkingOn::Metadata => &mut this.metadata,
                     WorkingOn::Manifest => &mut this.manifest,
                     WorkingOn::Spine => &mut this.spine,
+                    WorkingOn::Guide => &mut this.guide,
                     // WorkingOn::Collection => this.collection,
                     _ => continue,
                 };
@@ -113,11 +115,33 @@ pub struct XmlElement {
 }
 
 impl XmlElement {
-    fn take_inner_children(&mut self) -> Vec<XmlElement> {
+    pub fn take_attribute(&mut self, value: &str) -> Option<String> {
+        let index = self
+            .attributes
+            .iter()
+            .position(|v| v.name.local_name == value)?;
+
+        Some(self.attributes.remove(index).value)
+    }
+
+    pub fn take_inner_children(&mut self) -> Vec<XmlElement> {
         self.children
             .drain(..)
             .map(|this| Arc::try_unwrap(this).unwrap().into_inner().unwrap())
             .collect()
+    }
+
+    pub fn take_first_children(&mut self) -> Option<XmlElement> {
+        if self.children.len() != 0 {
+            Some(
+                Arc::try_unwrap(self.children.remove(0))
+                    .unwrap()
+                    .into_inner()
+                    .unwrap(),
+            )
+        } else {
+            None
+        }
     }
 }
 
@@ -127,6 +151,7 @@ enum WorkingOn {
     Metadata,
     Manifest,
     Spine,
+    Guide,
 }
 
 impl WorkingOn {
@@ -136,6 +161,7 @@ impl WorkingOn {
             "metadata" => Self::Metadata,
             "manifest" => Self::Manifest,
             "spine" => Self::Spine,
+            "guide" => Self::Guide,
 
             _ => return None,
         })
@@ -348,6 +374,10 @@ impl PackageManifest {
         self.items.iter().find(|item| item.id == value)
     }
 
+    pub fn get_item_by_href(&self, value: &str) -> Option<&ManifestItem> {
+        self.items.iter().find(|item| item.href == value)
+    }
+
     pub fn get_item_by_property(&self, value: &str) -> Option<&ManifestItem> {
         self.items
             .iter()
@@ -421,6 +451,12 @@ pub struct PackageSpine {
     pub page_progression_direction: Option<String>,
     pub toc: Option<String>, // LEGACY
     pub items: Vec<SpineItemRef>,
+}
+
+impl PackageSpine {
+    pub fn position_of_idref(&self, value: &str) -> Option<usize> {
+        self.items.iter().position(|item| item.idref == value)
+    }
 }
 
 impl Parser for PackageSpine {
@@ -510,6 +546,65 @@ impl Parser for PackageCollection {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct PackageGuide {
+    pub items: Vec<GuideItemRef>,
+}
+
+impl PackageGuide {
+    pub fn find_toc(&self) -> Option<&GuideItemRef> {
+        self.items.iter().find(|v| v.type_of == "toc")
+    }
+}
+
+impl Parser for PackageGuide {
+    fn parse(&mut self, mut element: XmlElement) -> Result<()> {
+        for child in element.take_inner_children() {
+            self.items.push(GuideItemRef::try_from(child)?);
+        }
+
+        // TODO: assertions
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct GuideItemRef {
+    pub href: String,
+    pub type_of: String,
+    pub title: String,
+}
+
+// TODO: Could use serde if I wanted to.
+impl TryFrom<XmlElement> for GuideItemRef {
+    type Error = Error;
+
+    fn try_from(elem: XmlElement) -> std::result::Result<Self, Self::Error> {
+        let mut attr = elem
+            .attributes
+            .into_iter()
+            .map(|v| {
+                (
+                    v.name
+                        .prefix
+                        .map(|p| format!("{}:{}", p, v.name.local_name.as_str()))
+                        .unwrap_or(v.name.local_name),
+                    v.value,
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        // TODO: Errors
+
+        Ok(Self {
+            href: attr.remove("href").unwrap(),
+            type_of: attr.remove("type").unwrap(),
+            title: attr.remove("title").unwrap(),
+        })
+    }
+}
+
 // TODO: Meet specific criteria. | https://www.w3.org/publishing/epub3/epub-packages.html#sec-package-content-conf
 
 #[derive(Debug, Default)]
@@ -568,6 +663,6 @@ impl TryFrom<XmlElement> for DcmesElement {
     } // TODO: Error
 }
 
-trait Parser {
+pub(in crate::epub) trait Parser {
     fn parse(&mut self, element: XmlElement) -> Result<()>;
 }

@@ -53,6 +53,7 @@ pub trait Book: Send {
         prepend_to_urls: Option<&str>,
         add_css: Option<&[&str]>,
     ) -> Result<Vec<u8>>;
+
     fn read_path_as_string(
         &mut self,
         path: &str,
@@ -68,6 +69,10 @@ pub trait Book: Send {
 
     fn get_files(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    fn get_table_of_contents(&mut self) -> Result<Option<Vec<(String, usize)>>> {
+        Ok(None)
     }
 
     fn chapter_count(&self) -> usize;

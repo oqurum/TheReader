@@ -125,6 +125,20 @@ impl ScrollDisplay {
         }
     }
 
+    pub fn set_chapter(&mut self, index: usize, section: &mut SectionContents) -> bool {
+        let Some(chapter) = section.get_chapters().iter().find(|v| v.value == index) else {
+            return false;
+        };
+
+        let Some(element) = section.find_section_start(chapter.value) else {
+            return false;
+        };
+
+        element.scroll_into_view();
+
+        true
+    }
+
     /// Will only scroll to the start of the section
     pub fn set_page(&mut self, _index: usize, section: &mut SectionContents) -> bool {
         let el = section

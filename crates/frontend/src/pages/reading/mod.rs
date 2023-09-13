@@ -9,7 +9,7 @@ use std::{
 use common::api::WrappingResponse;
 use common_local::{
     api::{self, GetChaptersResponse},
-    DisplayBookItem, FileId, MediaItem, Progression,
+    FileId,
 };
 use gloo_events::EventListener;
 use gloo_timers::callback::Timeout;
@@ -21,7 +21,8 @@ use yew::{context::ContextHandle, prelude::*};
 use crate::{
     components::reader::{
         layout::PageMovement, navbar::ReaderNavbar, LayoutDisplay, LoadedChapters, OverlayEvent,
-        Reader, ReaderEvent, ReaderSettings, SharedInnerReaderSettings, SharedReaderSettings,
+        Reader, ReaderEvent, ReaderSettings, ReadingInfo, SharedInnerReaderSettings,
+        SharedReaderSettings, UpdatableReadingInfo,
     },
     get_preferences, request,
     util::is_mobile_or_tablet,
@@ -51,6 +52,7 @@ pub enum Msg {
     RetrievePages(WrappingResponse<GetChaptersResponse>),
 
     ContextChanged(Rc<AppState>),
+    ReadingInfoUpdated(()),
 }
 
 #[derive(Properties, PartialEq, Eq)]
@@ -66,10 +68,8 @@ pub struct ReadingBook {
     book_dimensions: (i32, i32),
 
     reader_settings: SharedReaderSettings,
-    progress: Rc<Mutex<Option<Progression>>>,
-    book: Option<Rc<DisplayBookItem>>,
-    book_file: Option<Rc<MediaItem>>,
-    chapters: LoadedChapters,
+    reading_info: UpdatableReadingInfo,
+
     last_grabbed_count: usize,
     // TODO: Cache pages
     timeout: Option<Timeout>,
@@ -123,11 +123,17 @@ impl Component for ReadingBook {
             book_dimensions: reader_settings.dimensions,
 
             reader_settings,
-            chapters: LoadedChapters::new(),
+            reading_info: UpdatableReadingInfo::new(
+                ReadingInfo {
+                    chapters: LoadedChapters::new(),
+                    progress: None,
+                    table_of_contents: Vec::new(),
+                    file: None,
+                    book: None,
+                },
+                ctx.link().callback(Msg::ReadingInfoUpdated),
+            ),
             last_grabbed_count: 0,
-            progress: Rc::new(Mutex::new(None)),
-            book_file: None,
-            book: None,
 
             _on_resize_event: {
                 let link = ctx.link().clone();
@@ -164,6 +170,10 @@ impl Component for ReadingBook {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            Msg::ReadingInfoUpdated(_) => {
+                self.reading_info.set_updated();
+            }
+
             Msg::ContextChanged(state) => {
                 self.state = state;
 
@@ -204,11 +214,14 @@ impl Component for ReadingBook {
             Msg::RetrievePages(resp) => match resp.ok() {
                 Ok(info) => {
                     self.last_grabbed_count = info.limit;
-                    self.chapters.total = info.total;
 
-                    for item in info.items {
-                        self.chapters.chapters.push(Rc::new(item));
-                    }
+                    self.reading_info.update(|store| {
+                        store.chapters.total = info.total;
+
+                        for item in info.items {
+                            store.chapters.chapters.push(Rc::new(item));
+                        }
+                    });
                 }
 
                 Err(err) => crate::display_error(err),
@@ -216,14 +229,16 @@ impl Component for ReadingBook {
 
             Msg::RetrieveBook(resp) => match resp.ok() {
                 Ok(resp) => {
-                    self.book = Some(Rc::new(resp.book));
+                    self.reading_info.update(|store| {
+                        store.book = Some(resp.book);
+                    });
                 }
 
                 Err(err) => crate::display_error(err),
             },
 
             Msg::RetrieveBookFile(resp) => match resp.ok() {
-                Ok(Some(resp)) => {
+                Ok(Some(mut resp)) => {
                     // Get Chapters.
 
                     let file_id = resp.media.id;
@@ -249,8 +264,13 @@ impl Component for ReadingBook {
                         });
                     }
 
-                    self.book_file = Some(Rc::new(resp.media));
-                    *self.progress.lock().unwrap() = resp.progress;
+                    self.reading_info.update(|store| {
+                        store.file = Some(resp.media);
+                        store.progress = resp.progress;
+
+                        resp.toc.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+                        store.table_of_contents = resp.toc;
+                    });
 
                     self.update_settings();
                 }
@@ -284,25 +304,31 @@ impl Component for ReadingBook {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if let Some((file, book)) = self.book_file.as_ref().zip(self.book.as_ref()) {
-            let mut book_class = String::from("book");
+        {
+            let info = self.reading_info.borrow();
 
-            if is_full_screen() {
-                book_class += " overlay-x overlay-y";
+            if info.file.is_none() || info.book.is_none() {
+                return html! {
+                    <h1>{ "Loading..." }</h1>
+                };
             }
+        }
 
-            html! {
-                <div class="reading-container">
+        let mut book_class = String::from("book");
+
+        if is_full_screen() {
+            book_class += " overlay-x overlay-y";
+        }
+
+        html! {
+            <div class="reading-container">
+                <ContextProvider<UpdatableReadingInfo> context={ self.reading_info.clone() }>
                     {
                         if is_full_screen() {
                             html! {}
                         } else {
                             html! {
-                                <ReaderNavbar
-                                    file={ Rc::clone(file) }
-                                    book={ Rc::clone(book) }
-                                    progress={ Rc::clone(&self.progress) }
-                                />
+                                <ReaderNavbar />
                             }
                         }
                     }
@@ -313,20 +339,12 @@ impl Component for ReadingBook {
                                 width={ self.book_dimensions.0 }
                                 height={ self.book_dimensions.1 }
 
-                                book={ Rc::clone(file) }
-                                progress={ Rc::clone(&self.progress) }
-                                chapters={ self.chapters.clone() }
-
                                 event={ ctx.link().callback(Msg::ReaderEvent) }
                             />
                         </ContextProvider<SharedReaderSettings>>
                     </div>
-                </div>
-            }
-        } else {
-            html! {
-                <h1>{ "Loading..." }</h1>
-            }
+                </ContextProvider<UpdatableReadingInfo>>
+            </div>
         }
     }
 
@@ -359,7 +377,8 @@ impl Component for ReadingBook {
 
 impl ReadingBook {
     fn update_settings(&mut self) {
-        let Some(book) = self.book_file.as_ref() else {
+        let info = self.reading_info.borrow();
+        let Some(book) = info.file.as_ref() else {
             return;
         };
 

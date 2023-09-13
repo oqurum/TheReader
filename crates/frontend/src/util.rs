@@ -1,3 +1,6 @@
+use std::{cell::RefCell, rc::Rc};
+
+use chrono::{DateTime, Utc};
 use common::api::{ApiErrorResponse, ErrorCodeResponse};
 use common_local::filter::FilterContainer;
 use gloo_utils::window;
@@ -7,6 +10,8 @@ use regex::Regex;
 use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
 use web_sys::{EventTarget, MouseEvent};
 use yew::{html::Scope, Callback, Component};
+
+use crate::Result;
 
 lazy_static! {
     static ref MOBILE_TABLET_CHECK: Regex = Regex::new(r"iP(ad|od|hone)|Tablet|Nexus|Mobile|IEMobile|MSIE [1-7]\.|Opera Mini|BB10|Symbian|webOS|Lenovo YT-|Android").unwrap_throw();
@@ -52,6 +57,89 @@ impl Drop for ElementEvent {
     fn drop(&mut self) {
         if let Some(dest) = self.destructor.take() {
             dest(&self.element, (*self.function).as_ref().unchecked_ref()).unwrap_throw();
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct UpdatableContext<V> {
+    last_updated: DateTime<Utc>,
+    content: Rc<RefCell<V>>,
+
+    update_cb: Callback<()>,
+}
+
+impl<V: 'static> UpdatableContext<V> {
+    pub fn new(value: V, update_cb: Callback<()>) -> Self {
+        Self {
+            update_cb,
+            last_updated: Utc::now(),
+            content: Rc::new(RefCell::new(value)),
+        }
+    }
+
+    pub fn update<F: FnOnce(&mut V)>(&self, value: F) {
+        let mut mutate = self.content.borrow_mut();
+
+        value(&mut mutate);
+
+        self.update_cb.emit(());
+    }
+
+    pub fn update_res<F: FnOnce(&mut V) -> Result<()>>(&self, value: F) -> Result<()> {
+        let mut mutate = self.content.borrow_mut();
+
+        value(&mut mutate)?;
+
+        self.update_cb.emit(());
+
+        Ok(())
+    }
+
+    pub fn update_if<F: FnOnce(&mut V) -> bool>(&self, value: F) -> bool {
+        let mut mutate = self.content.borrow_mut();
+
+        if value(&mut mutate) {
+            self.update_cb.emit(());
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn reform<F: Fn(A, &mut V) + 'static, A>(&self, value: F) -> Callback<A> {
+        let this = self.clone();
+
+        Callback::from(move |e| {
+            let mut mutate = this.content.borrow_mut();
+
+            value(e, &mut mutate);
+
+            this.update_cb.emit(());
+        })
+    }
+
+    pub fn borrow(&self) -> std::cell::Ref<'_, V> {
+        self.content.borrow()
+    }
+
+    pub fn set_updated(&mut self) {
+        self.last_updated = Utc::now();
+    }
+}
+
+impl<V> PartialEq for UpdatableContext<V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.last_updated == other.last_updated
+    }
+}
+
+impl<V> Clone for UpdatableContext<V> {
+    fn clone(&self) -> Self {
+        Self {
+            last_updated: self.last_updated.clone(),
+            content: self.content.clone(),
+            update_cb: self.update_cb.clone(),
         }
     }
 }

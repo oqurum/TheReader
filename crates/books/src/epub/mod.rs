@@ -8,7 +8,7 @@
 use std::{
     borrow::Cow,
     fs::File,
-    io::Read,
+    io::{Cursor, Read},
     path::{Path, PathBuf},
 };
 
@@ -16,10 +16,13 @@ use binstall_zip::ZipArchive;
 use common_local::sort::filename_sort;
 
 pub mod container;
+mod file_ncx;
 mod modifier;
 mod package_document;
 
 use crate::{BookSearch, Result};
+
+use self::file_ncx::FileNCX;
 
 use super::Book;
 use container::*;
@@ -187,6 +190,38 @@ impl EpubBook {
 }
 
 impl Book for EpubBook {
+    fn get_table_of_contents(&mut self) -> Result<Option<Vec<(String, usize)>>> {
+        if let Some(path) = self
+            .package
+            .manifest
+            .get_item_by_id("ncx")
+            .map(|v| v.href.clone())
+        {
+            let value = self.read_path_as_bytes(&path, None, None)?;
+            let ncx_file = FileNCX::parse(Cursor::new(value))?;
+
+            Ok(Some(
+                ncx_file
+                    .nav_map
+                    .into_iter()
+                    .filter_map(|v| {
+                        let item = self.package.manifest.get_item_by_href(&v.content.src)?;
+
+                        Some((
+                            v.nav_label.text,
+                            self.package.spine.position_of_idref(&item.id)?,
+                        ))
+                    })
+                    .collect(),
+            ))
+        } else {
+            // TODO: Would need to parse the file
+            // let toc = self.package.guide.find_toc().unwrap();
+
+            Ok(None)
+        }
+    }
+
     fn load_from_path(path: &str) -> Result<Self>
     where
         Self: Sized,
