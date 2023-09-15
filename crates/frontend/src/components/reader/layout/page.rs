@@ -4,7 +4,7 @@ use yew::Context;
 
 use crate::{
     components::{
-        reader::{section::SectionContents, ReaderMsg},
+        reader::{section::SectionContents, ReaderMsg, IFRAME_PADDING_SIZE},
         Reader,
     },
     util::ElementEvent,
@@ -118,7 +118,7 @@ impl PageDisplay {
                 &format!(
                     "calc(-{}% - {}px)",
                     100 * section.page_offset,
-                    section.page_offset * 10
+                    section.page_offset * IFRAME_PADDING_SIZE
                 ),
             )
             .unwrap_throw();

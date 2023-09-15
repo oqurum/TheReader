@@ -32,6 +32,8 @@ pub use self::view_overlay::{DragType, OverlayEvent, ViewOverlay};
 pub use settings::*;
 
 const PAGE_CHANGE_DRAG_AMOUNT: usize = 200;
+// Column-Gap is 50px, padding l/r is 20px
+const IFRAME_PADDING_SIZE: usize = 50;
 
 // TODO: Don't run self.use_progression until images are rendered or we should set widths for images. Causing on-load position to be incorrect
 

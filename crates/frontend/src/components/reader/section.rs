@@ -11,6 +11,8 @@ use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
 use web_sys::{Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement, Node};
 use yew::Context;
 
+use crate::components::reader::IFRAME_PADDING_SIZE;
+
 use super::{
     color, js_update_iframe_after_load,
     util::{for_each_child_map, table::TableContainer},
@@ -162,8 +164,9 @@ impl SectionContents {
                     let node = cont.parent_node().unwrap().unchecked_into::<HtmlElement>();
 
                     return Some(
-                        (node.offset_left() as f32 / (iframe.client_width() - 10) as f32).floor()
-                            as usize,
+                        (node.offset_left() as f32
+                            / (iframe.client_width() - IFRAME_PADDING_SIZE as i32) as f32)
+                            .floor() as usize,
                     );
                 }
             }

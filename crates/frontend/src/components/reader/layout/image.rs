@@ -4,7 +4,7 @@ use yew::Context;
 
 use crate::{
     components::{
-        reader::{section::SectionContents, ReaderMsg},
+        reader::{section::SectionContents, ReaderMsg, IFRAME_PADDING_SIZE},
         Reader,
     },
     util::ElementEvent,
@@ -113,7 +113,11 @@ impl ImageDisplay {
         body.style()
             .set_property(
                 "left",
-                &format!("calc(-{}% - {}px)", 100 * page, page as isize * 10 - amount),
+                &format!(
+                    "calc(-{}% - {}px)",
+                    100 * page,
+                    page as isize * IFRAME_PADDING_SIZE as isize - amount
+                ),
             )
             .unwrap();
     }
@@ -129,7 +133,7 @@ impl ImageDisplay {
 
         let body = section.get_iframe_body().unwrap_throw();
 
-        // TODO: Fix the margin offset which is applied (the X * 10).
+        // TODO: Fix the margin offset which is applied (the X * IFRAME_PADDING_SIZE).
 
         if self.movement == PageMovement::RightToLeft {
             let count = section.page_count();
@@ -137,7 +141,11 @@ impl ImageDisplay {
             body.style()
                 .set_property(
                     "width",
-                    &format!("calc({}% + {}px)", 100 * count, actual_offset * 10),
+                    &format!(
+                        "calc({}% + {}px)",
+                        100 * count,
+                        actual_offset * IFRAME_PADDING_SIZE
+                    ),
                 )
                 .unwrap_throw();
         }
@@ -148,7 +156,11 @@ impl ImageDisplay {
         body.style()
             .set_property(
                 "left",
-                &format!("calc(-{}% - {}px)", 100 * actual_offset, actual_offset * 10),
+                &format!(
+                    "calc(-{}% - {}px)",
+                    100 * actual_offset,
+                    actual_offset * IFRAME_PADDING_SIZE
+                ),
             )
             .unwrap_throw();
 

@@ -5,19 +5,23 @@
 
 html {
 	height: 100% !important;
-	padding: 5px 5px 13px 5px !important;
+	padding: 20px 20px 13px 20px !important;
 	font-family: 'Roboto', sans-serif !important;
 }
 
 
 body {
 	column-fill: auto !important;
-	column-gap: 10px !important;
+	column-gap: 50px !important;
 	position: relative !important;
 	overflow: hidden !important;
 	margin: 0 !important;
 	padding: 0 !important;
 	height: calc(100% - 20px) !important;
+}
+
+body, a, p, span {
+	line-height: 1.7em !important;
 }
 
 body.image-page {
