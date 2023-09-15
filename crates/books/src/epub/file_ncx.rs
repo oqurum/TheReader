@@ -132,7 +132,7 @@ impl Parser for NcxHeadMeta {
 
 #[derive(Debug, Default)]
 pub struct NavPoint {
-    pub class: String,
+    pub class: Option<String>,
     pub id: String,
     pub play_order: String,
 
@@ -142,7 +142,7 @@ pub struct NavPoint {
 
 impl Parser for NavPoint {
     fn parse(&mut self, mut element: XmlElement) -> Result<()> {
-        self.class = element.take_attribute("class").unwrap();
+        self.class = element.take_attribute("class");
         self.id = element.take_attribute("id").unwrap();
         self.play_order = element.take_attribute("playOrder").unwrap();
 

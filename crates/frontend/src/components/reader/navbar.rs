@@ -33,12 +33,18 @@ pub fn ReaderNavbar() -> Html {
 
                         <button
                             type="button"
-                            class="btn btn-sm btn-secondary me-1"
+                            class={ classes!("btn", "btn-sm", "btn-secondary", "me-1", (*displaying == Viewing::TableOfContents).then_some("active")) }
                             title="Chapters"
                             onclick={
-                                let setter = displaying.setter();
+                                let setter = displaying.clone();
 
-                                Callback::from(move |_| setter.set(Viewing::TableOfContents))
+                                Callback::from(move |_| {
+                                    if *setter == Viewing::TableOfContents {
+                                        setter.set(Viewing::None);
+                                    } else {
+                                        setter.set(Viewing::TableOfContents);
+                                    }
+                                })
                             }
                         ><i class="bi bi-list-stars"></i></button>
 
