@@ -1,3 +1,4 @@
+use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -27,6 +28,7 @@ pub struct Config {
     pub libby: LibraryConnection,
     pub email: Option<ConfigEmail>,
     pub authenticators: Authenticators,
+    pub searching: Searching,
 
     pub has_admin_account: bool,
     pub is_public_access: bool,
@@ -50,23 +52,19 @@ pub struct ConfigServer {
     ))]
     pub name: String,
     pub is_secure: bool,
-    pub auth_key: Vec<u8>,
+    pub auth_key: String,
 }
 
 impl Default for ConfigServer {
     fn default() -> Self {
-        use rand::RngCore;
-
-        let mut rng = rand::thread_rng();
-        let mut key = [0; 64];
-
-        rng.try_fill_bytes(&mut key)
-            .expect("Unable to fill buffer for Auth Key");
-
         Self {
             name: Default::default(),
             is_secure: Default::default(),
-            auth_key: key.to_vec(),
+            auth_key: rand::thread_rng()
+                .sample_iter(Alphanumeric)
+                .take(64)
+                .map(char::from)
+                .collect(),
         }
     }
 }
@@ -104,6 +102,19 @@ impl Default for Authenticators {
             email_pass: true,
             email_no_pass: false,
             main_server: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Searching {
+    pub google_api_key: String,
+}
+
+impl Default for Searching {
+    fn default() -> Self {
+        Self {
+            google_api_key: String::new(),
         }
     }
 }

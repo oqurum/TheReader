@@ -287,6 +287,8 @@ async fn save_setup_config(mut value: SetupConfig) -> Result<()> {
         libby: LibraryConnection::default(),
         email: value.email,
         authenticators: value.authenticators,
+        // TODO: Implement into setup
+        searching: Default::default(),
 
         has_admin_account: false,
         is_public_access: false,

@@ -217,12 +217,9 @@ pub async fn search_all_agents(
     }
 
     // Search all sources
-    let prefixes = [
-        LibbyMetadata.get_agent(),
-        OpenLibraryMetadata.get_agent(),
-        GoogleBooksMetadata.get_agent(),
-    ];
-    let mut buffer = futures::stream::iter([
+    let mut prefixes = vec![LibbyMetadata.get_agent(), OpenLibraryMetadata.get_agent()];
+
+    let mut buffer = vec![
         search_or_ignore(
             agent.libby && config.authenticators.main_server && config.libby.token.is_some(),
             LibbyMetadata.search(search, search_for),
@@ -231,10 +228,17 @@ pub async fn search_all_agents(
             agent.openlib,
             OpenLibraryMetadata.search(search, search_for),
         ),
-        search_or_ignore(agent.google, GoogleBooksMetadata.search(search, search_for)),
-    ])
-    .buffered(3)
-    .enumerate();
+    ];
+
+    if !get_config().searching.google_api_key.is_empty() {
+        prefixes.push(GoogleBooksMetadata.get_agent());
+        buffer.push(search_or_ignore(
+            agent.google,
+            GoogleBooksMetadata.search(search, search_for),
+        ));
+    }
+
+    let mut buffer = futures::stream::iter(buffer).buffered(3).enumerate();
 
     while let Some((index, val)) = buffer.next().await {
         match val {

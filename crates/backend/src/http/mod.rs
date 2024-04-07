@@ -86,7 +86,7 @@ pub async fn register_http_service(
     cli_args: &CliArgs,
     db_data: web::Data<SqlPool>,
 ) -> std::io::Result<()> {
-    let secret_key = Key::from(&get_config().server.auth_key);
+    let secret_key = Key::from(get_config().server.auth_key.as_bytes());
 
     HttpServer::new(move || {
         App::new()

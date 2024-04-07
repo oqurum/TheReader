@@ -4,7 +4,6 @@
 
 use std::collections::HashMap;
 
-use crate::{model::FileModel, Result};
 use async_trait::async_trait;
 use common::Agent;
 use common_local::{BookItemCached, SearchForBooksBy};
@@ -13,7 +12,12 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::{Metadata, MetadataReturned, SearchFor, SearchItem};
-use crate::metadata::{FoundImageLocation, FoundItem};
+use crate::{
+    config::get_config,
+    metadata::{FoundImageLocation, FoundItem},
+    model::FileModel,
+    Result,
+};
 
 lazy_static! {
     pub static ref REMOVE_HTML_TAGS: Regex = Regex::new("<(.|\n)*?>").unwrap();
@@ -67,7 +71,7 @@ impl Metadata for GoogleBooksMetadata {
 
             SearchFor::Book(specifically) => {
                 let url = format!(
-                    "https://www.googleapis.com/books/v1/volumes?q={}",
+                    "https://www.googleapis.com/books/v1/volumes?q={}&key={}",
                     match specifically {
                         SearchForBooksBy::AuthorName =>
                             BookSearchKeyword::InAuthor.combile_string(search),
@@ -75,7 +79,8 @@ impl Metadata for GoogleBooksMetadata {
                             urlencoding::encode(search).to_string(),
                         SearchForBooksBy::Title =>
                             BookSearchKeyword::InTitle.combile_string(search),
-                    }
+                    },
+                    get_config().searching.google_api_key
                 );
 
                 info!(url, "Searching");
@@ -121,8 +126,9 @@ impl Metadata for GoogleBooksMetadata {
 impl GoogleBooksMetadata {
     pub async fn request_query(&self, id: String) -> Result<Option<MetadataReturned>> {
         let resp = reqwest::get(format!(
-            "https://www.googleapis.com/books/v1/volumes?q={}",
-            BookSearchKeyword::Isbn.combile_string(&id)
+            "https://www.googleapis.com/books/v1/volumes?q={}&key={}",
+            BookSearchKeyword::Isbn.combile_string(&id),
+            get_config().searching.google_api_key
         ))
         .await?;
 
@@ -143,8 +149,9 @@ impl GoogleBooksMetadata {
 
     pub async fn request_singular_id(&self, id: &str) -> Result<Option<MetadataReturned>> {
         let resp = reqwest::get(format!(
-            "https://www.googleapis.com/books/v1/volumes/{}",
-            id
+            "https://www.googleapis.com/books/v1/volumes/{}?key={}",
+            id,
+            get_config().searching.google_api_key
         ))
         .await?;
 
