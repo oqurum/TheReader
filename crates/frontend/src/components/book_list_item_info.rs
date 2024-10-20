@@ -8,18 +8,26 @@ use crate::BaseRoute;
 
 #[derive(Clone, Properties, PartialEq)]
 pub struct Props {
+    #[prop_or_default]
     pub image: Option<String>,
+    #[prop_or_default]
     pub title: Option<String>,
+    #[prop_or_default]
     pub subtitle: Option<String>,
+    #[prop_or_default]
     pub description: Option<String>,
 
+    #[prop_or_default]
     pub class: Option<String>,
+    #[prop_or_default]
     pub small: Option<bool>,
 
+    #[prop_or_default]
     pub onclick: Option<Callback<()>>,
 
     #[prop_or_default]
     pub onclick_close_popup: bool,
+    #[prop_or_default]
     pub to: Option<BaseRoute>,
 }
 

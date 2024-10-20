@@ -1,13 +1,11 @@
-use std::rc::Rc;
-
 use common_local::ws::{TaskInfo, TaskType, WebsocketNotification};
 use yew::prelude::*;
-use yew_agent::{Bridge, Bridged};
+use yew_agent::scope_ext::{AgentScopeExt, WorkerBridgeHandle};
 
 use crate::{services::WsEventBus, RUNNING_TASKS};
 
 pub struct AdminTaskPage {
-    _producer: Box<dyn Bridge<WsEventBus>>,
+    // _producer: WorkerBridgeHandle<WsEventBus>,
 }
 
 impl Component for AdminTaskPage {
@@ -16,14 +14,11 @@ impl Component for AdminTaskPage {
 
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            _producer: {
-                let cb = {
-                    let link = ctx.link().clone();
-                    move |e| link.send_message(e)
-                };
-
-                WsEventBus::bridge(Rc::new(cb))
-            },
+            // _producer: {
+            //     let link = ctx.link().clone();
+            //     ctx.link()
+            //         .bridge_worker(Callback::from(move |e| link.send_message(e)))
+            // },
         }
     }
 

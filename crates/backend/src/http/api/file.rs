@@ -1,13 +1,12 @@
 use std::io::Cursor;
 
 use actix_files::NamedFile;
-use actix_web::http::header::ContentDisposition;
+use actix_web::http::header::{ContentDisposition, HeaderValue};
 use actix_web::{delete, get, post, web, HttpResponse};
 
 use common::api::WrappingResponse;
 use common_local::api::{FileUnwrappedHeaderType, FileUnwrappedInfo};
 use common_local::{api, Chapter, FileId, Progression};
-use reqwest::header::HeaderValue;
 
 use crate::http::{JsonResponse, MemberCookie};
 use crate::model::FileModel;
@@ -205,13 +204,14 @@ pub async fn download_file(
     Ok(NamedFile::open_async(file_model.path)
         .await
         .map_err(crate::Error::from)?
-        .set_content_disposition(ContentDisposition::from_raw(&HeaderValue::from_str(
-            &format!(
+        .set_content_disposition(ContentDisposition::from_raw(
+            &HeaderValue::from_str(&format!(
                 r#"attachment; filename="{}.{}""#,
                 file_model.file_name.replace('"', ""), // Shouldn't have " in the file_name but just in-case.
                 file_model.file_type,
-            ),
-        )?)?))
+            ))
+            .unwrap(),
+        )?))
 }
 
 #[get("/file/{id}/debug/{tail:.*}")]

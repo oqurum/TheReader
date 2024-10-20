@@ -13,6 +13,7 @@ use crate::request;
 pub struct LibraryEditProperty {
     pub id: LibraryId,
     /// When we update the Library.
+    #[prop_or_default]
     pub on_change: Option<Callback<UpdateLibrary>>,
 }
 

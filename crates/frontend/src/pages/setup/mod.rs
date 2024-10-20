@@ -190,7 +190,7 @@ impl Component for SetupPage {
                                                 // TODO: Fix. We should show errors on each input.
                                                 // ISSUE: Display: Struct/List aren't properly writeln'd so it will not newline
                                                 // https://github.com/Keats/validator/pull/235
-                                                { self.current_errors.clone() }
+                                                { self.current_errors.to_string() }
                                             </div>
                                         }
                                     }

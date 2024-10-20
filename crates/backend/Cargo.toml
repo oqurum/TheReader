@@ -20,7 +20,7 @@ path = "src/main.rs"
 bundled = ["include_dir"]
 
 [dependencies]
-include_dir = { version = "0.7.3", optional = true }
+include_dir = { version = "0.7", optional = true }
 
 common = { path = "../../global_common", features = ["backend"] }
 
@@ -28,17 +28,17 @@ common-local = { path = "../common", features = ["backend"] }
 bookie = { path = "../books" }
 
 actix = "0.13"
-actix-web = "4.2"
+actix-web = "4.7"
 actix-files = "0.6"
-actix-session = { version = "0.7", features = ["cookie-session"] }
-actix-identity = "0.5"
-actix-multipart = "0.4"
-actix-web-actors = "4.1"
+actix-session = { version = "0.10", features = ["cookie-session"] }
+actix-identity = "0.8"
+actix-multipart = "0.7"
+actix-web-actors = "4.3"
 uaparser = "0.6"
 
 async-trait = "0.1"
 futures = "0.3"
-reqwest = { version = "0.11", features = ["json", "multipart"] }
+reqwest = { version = "0.12", features = ["json", "multipart"] }
 tokio = { workspace = true, features = ["full"] }
 
 serde = { workspace = true }
@@ -46,30 +46,30 @@ serde_json = { workspace = true }
 serde_urlencoded = { workspace = true }
 serde-xml-rs = { workspace = true }
 serde_qs = { workspace = true, features = ["actix4"] }
-toml_edit = { version = "0.15", features = ["easy"] }
+toml_edit = { version = "0.22" }
 
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-actix-web = "0.6"
+tracing-actix-web = "0.7"
 tracing = "0.1"
 
 base64 = { workspace = true }
-bcrypt = "0.13"
+bcrypt = "0.15"
 sha2 = "0.10"
-strsim = "0.10"
+strsim = "0.11"
 
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 chrono = { workspace = true }
-image = "0.24"
+image = "0.25"
 lazy_static = "1.4"
 rand = { workspace = true }
 regex = { workspace = true }
 urlencoding = { workspace = true }
 validator = { workspace = true }
 
-lettre = "0.10"
+lettre = "0.11"
 
 # rusqlite = { workspace = true, features = [ "bundled", "trace", "blob", "serde_json", "chrono" ] }
 sqlx = { workspace = true, features = [

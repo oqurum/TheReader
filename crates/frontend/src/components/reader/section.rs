@@ -19,6 +19,12 @@ use super::{
     CachedPage, LayoutDisplay, Reader, ReaderSettings,
 };
 
+#[wasm_bindgen::prelude::wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &js_sys::Object);
+}
+
 pub enum SectionLoadProgress {
     Waiting,
     Loading(SectionContents),

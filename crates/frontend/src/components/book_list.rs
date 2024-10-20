@@ -16,7 +16,7 @@ use common_local::{
 };
 use js_sys::Date;
 use yew::prelude::*;
-use yew_agent::{Bridge, Bridged};
+use yew_agent::scope_ext::{AgentScopeExt, WorkerBridgeHandle};
 
 use crate::{request, services::WsEventBus};
 
@@ -68,7 +68,7 @@ pub struct BookListComponent {
     // TODO: Make More Advanced
     editing_items: Rc<RefCell<Vec<BookId>>>,
 
-    _producer: Box<dyn Bridge<WsEventBus>>,
+    // _producer: WorkerBridgeHandle<WsEventBus>,
 
     // TODO: I should just have a global one
     task_items: HashMap<TaskId, BookId>,
@@ -92,15 +92,12 @@ impl Component for BookListComponent {
 
             editing_items: Rc::new(RefCell::new(Vec::new())),
 
-            _producer: {
-                let cb = {
-                    let link = ctx.link().clone();
-                    move |e| link.send_message(Msg::HandleWebsocket(e))
-                };
-
-                WsEventBus::bridge(Rc::new(cb))
-            },
-
+            // _producer: {
+            //     let link = ctx.link().clone();
+            //     ctx.link().bridge_worker(Callback::from(move |e| {
+            //         link.send_message(Msg::HandleWebsocket(e))
+            //     }))
+            // },
             task_items: HashMap::new(),
             task_items_updating: HashSet::new(),
         }
@@ -269,6 +266,7 @@ impl Component for BookListComponent {
                                 html! {
                                     <BookPosterItem
                                         {is_updating}
+                                        progress={None}
 
                                         item={item.clone()}
                                         callback={ctx.link().callback(Msg::BookListItemEvent)}
@@ -289,6 +287,7 @@ impl Component for BookListComponent {
         } else {
             html! {
                 <InfiniteScroll
+                    r#ref={None}
                     class="book-list normal"
                     event={ Callback::from(|_| {}) }
                 >

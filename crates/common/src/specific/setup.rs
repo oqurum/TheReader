@@ -4,10 +4,10 @@ use validator::Validate;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Validate)]
 pub struct SetupConfig {
-    #[validate]
+    #[validate(nested)]
     pub server: ConfigServer,
     pub directories: Vec<String>,
-    #[validate]
+    #[validate(nested)]
     pub email: Option<ConfigEmail>,
     pub authenticators: Authenticators,
     pub libby: Option<LibraryConnection>,

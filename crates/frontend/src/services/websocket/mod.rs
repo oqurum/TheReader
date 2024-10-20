@@ -10,10 +10,10 @@ use reqwasm::websocket::{futures::WebSocket, Message};
 
 use wasm_bindgen::UnwrapThrowExt;
 use wasm_bindgen_futures::spawn_local;
-use yew_agent::Dispatched;
 
 mod event_bus;
 pub use event_bus::WsEventBus;
+use yew_agent::Spawnable;
 
 use crate::util::as_local_path_without_http;
 
@@ -68,7 +68,8 @@ fn create_incoming_reader(
     mut read: SplitStream<WebSocket>,
     mut send_back: Sender<WebsocketResponse>,
 ) {
-    let mut event_bus = WsEventBus::dispatcher();
+    let event_bus = WsEventBus::spawner();
+    let event_bus = event_bus.spawn("./worker.js");
 
     spawn_local(async move {
         while let Some(msg) = read.next().await {

@@ -106,6 +106,8 @@ impl LayoutDisplay {
     }
 
     pub fn set_chapter(&mut self, index: usize, section: &mut SectionContents) -> bool {
+        debug!("=== set_chapter({index}) ===");
+
         match self {
             LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => {
                 v.set_chapter(index, section)
@@ -116,6 +118,8 @@ impl LayoutDisplay {
     }
 
     pub fn set_page(&mut self, index: usize, section: &mut SectionContents) -> bool {
+        debug!("=== set_page({index}) ===");
+
         match self {
             LayoutDisplay::SinglePage(v) | LayoutDisplay::DoublePage(v) => {
                 v.set_page(index, section)

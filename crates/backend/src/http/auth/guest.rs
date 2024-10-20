@@ -1,3 +1,4 @@
+use actix_web::http::header;
 use actix_web::web;
 use actix_web::HttpMessage;
 use actix_web::HttpRequest;
@@ -38,7 +39,7 @@ pub async fn post_guest_oauth(
 
     if let Some(header) = request
         .headers()
-        .get(reqwest::header::USER_AGENT)
+        .get(header::USER_AGENT)
         .and_then(|v| v.to_str().ok())
     {
         NewClientModel::new(auth.oauth_token_secret.clone(), String::from("Web"), header)

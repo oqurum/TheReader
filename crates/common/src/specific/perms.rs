@@ -9,9 +9,11 @@ use sqlx::{
     Decode, Encode, Sqlite, Type,
 };
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct GroupPermissions(i64);
+
 bitflags! {
-    #[derive(Serialize, Deserialize)]
-    pub struct GroupPermissions: i64 {
+    impl GroupPermissions: i64 {
         const OWNER = 1 << 0;
         const BASIC = 1 << 1;
         const GUEST = 1 << 2;
@@ -74,7 +76,7 @@ impl Permissions {
 impl From<i64> for Permissions {
     fn from(value: i64) -> Self {
         Self {
-            group: GroupPermissions { bits: value },
+            group: GroupPermissions(value),
         }
     }
 }
@@ -82,7 +84,7 @@ impl From<i64> for Permissions {
 #[cfg(feature = "backend")]
 impl<'q> Encode<'q, Sqlite> for Permissions {
     fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Int64(self.group.bits));
+        args.push(SqliteArgumentValue::Int64(self.group.0));
 
         IsNull::No
     }
@@ -94,7 +96,7 @@ impl<'r> Decode<'r, Sqlite> for Permissions {
         let val = <i64 as Decode<'r, Sqlite>>::decode(value)?;
 
         Ok(Self {
-            group: GroupPermissions { bits: val },
+            group: GroupPermissions(val),
         })
     }
 }
@@ -113,9 +115,7 @@ impl<'de> Deserialize<'de> for Permissions {
         D: Deserializer<'de>,
     {
         Ok(Self {
-            group: GroupPermissions {
-                bits: i64::deserialize(deserializer)?,
-            },
+            group: GroupPermissions(i64::deserialize(deserializer)?),
         })
     }
 }
@@ -125,6 +125,6 @@ impl Serialize for Permissions {
     where
         S: Serializer,
     {
-        self.group.bits.serialize(serializer)
+        self.group.0.serialize(serializer)
     }
 }

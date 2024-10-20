@@ -38,10 +38,13 @@ pub fn render_placeholder_item() -> Html {
 pub struct BookPosterItemProps {
     // TODO: Convert to Either<DisplayItem, BookProgression> and remove progress field.
     pub item: DisplayItem,
+    #[prop_or_default]
     pub callback: Option<Callback<BookPosterItemMsg>>,
+    #[prop_or_default]
     pub editing_items: Option<Rc<RefCell<Vec<BookId>>>>,
 
     // i64 is currently just total chapter count
+    #[prop_or_default]
     pub progress: Option<(Progression, MediaItem)>,
 
     #[prop_or_default]
@@ -482,6 +485,7 @@ pub struct DropdownInfoPopupProps {
 
     pub book_id: BookId,
     pub is_matched: bool,
+    #[prop_or_default]
     pub progress: Option<Progression>,
 
     pub event: Callback<DropdownInfoPopupEvent>,

@@ -115,23 +115,20 @@ pub fn _passwordless(props: &InnerProps) -> Html {
     let async_resp = submit_passless.clone();
     let callback = props.cb.clone();
     let data_resp_error = response_error.setter();
-    use_effect_with_deps(
-        move |loading| {
-            if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
-                data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
+    use_effect_with(submit_passless.loading, move |loading| {
+        if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+            data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
 
-                callback.emit(
-                    async_resp
-                        .data
-                        .clone()
-                        .ok_or_else(|| async_resp.error.clone().unwrap()),
-                );
-            }
+            callback.emit(
+                async_resp
+                    .data
+                    .clone()
+                    .ok_or_else(|| async_resp.error.clone().unwrap()),
+            );
+        }
 
-            || {}
-        },
-        submit_passless.loading,
-    );
+        || {}
+    });
 
     html! {
         <>
@@ -200,23 +197,20 @@ pub fn _password(props: &InnerProps) -> Html {
     let async_resp = submit_pass.clone();
     let callback = props.cb.clone();
     let data_resp_error = response_error.setter();
-    use_effect_with_deps(
-        move |loading| {
-            if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
-                data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
+    use_effect_with(submit_pass.loading, move |loading| {
+        if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+            data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
 
-                callback.emit(
-                    async_resp
-                        .data
-                        .clone()
-                        .ok_or_else(|| async_resp.error.clone().unwrap()),
-                );
-            }
+            callback.emit(
+                async_resp
+                    .data
+                    .clone()
+                    .ok_or_else(|| async_resp.error.clone().unwrap()),
+            );
+        }
 
-            || {}
-        },
-        submit_pass.loading,
-    );
+        || {}
+    });
 
     html! {
         <>
@@ -266,23 +260,20 @@ pub fn _guest(props: &InnerProps) -> Html {
     let async_resp = submit_passless.clone();
     let callback = props.cb.clone();
     let data_resp_error = response_error.setter();
-    use_effect_with_deps(
-        move |loading| {
-            if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
-                data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
+    use_effect_with(submit_passless.loading, move |loading| {
+        if !*loading && (async_resp.data.is_some() || async_resp.error.is_some()) {
+            data_resp_error.set(async_resp.error.as_ref().map(|v| v.description.clone()));
 
-                callback.emit(
-                    async_resp
-                        .data
-                        .clone()
-                        .ok_or_else(|| async_resp.error.clone().unwrap()),
-                );
-            }
+            callback.emit(
+                async_resp
+                    .data
+                    .clone()
+                    .ok_or_else(|| async_resp.error.clone().unwrap()),
+            );
+        }
 
-            || {}
-        },
-        submit_passless.loading,
-    );
+        || {}
+    });
 
     html! {
         <>

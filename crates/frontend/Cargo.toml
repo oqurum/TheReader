@@ -14,7 +14,7 @@ default = ["web"]
 
 # Used for global common SCSS
 [build-dependencies]
-grass = "0.12"
+grass = "0.13"
 
 
 [dependencies]
@@ -31,10 +31,10 @@ serde_qs = { workspace = true }
 
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-gloo-events = "0.1"
-gloo-utils = "0.1"
-gloo-file = "0.2"
-gloo-timers = "0.2"
+gloo-events = "0.2"
+gloo-utils = "0.2"
+gloo-file = "0.3"
+gloo-timers = "0.3"
 js-sys = "0.3"
 
 regex = { workspace = true }
@@ -51,10 +51,10 @@ anyhow = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 
-yew = "0.20"
-yew-agent = "0.2"
-yew-router = "0.17"
-yew-hooks = "0.2"
+yew = "0.21"
+yew-agent = "0.3"
+yew-router = "0.18"
+yew-hooks = "0.3"
 
 validator = { workspace = true }
 wasm-logger = "0.2"

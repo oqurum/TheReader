@@ -5,7 +5,7 @@ use gloo_timers::callback::Interval;
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{DomRect, HtmlElement, MouseEvent};
 use yew::{
-    function_component, hook, html, use_effect_with_deps, use_mut_ref, use_node_ref, use_state,
+    function_component, hook, html, use_effect_with, use_mut_ref, use_node_ref, use_state,
     use_state_eq, Callback, Html, NodeRef, Properties, UseStateHandle,
 };
 use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
@@ -75,7 +75,15 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
         let canvas_node = node.clone();
 
-        use_effect_with_deps(
+        use_effect_with(
+            (
+                state.swiping,
+                state.direction,
+                state.length_x,
+                state.length_y,
+                state.coords_start,
+                state.coords_end,
+            ),
             move |(swiping, direction, length_x, length_y, coords_start, coords_end)| {
                 let distance = match **direction {
                     UseSwipeDirection::Left => length_x.abs(),
@@ -145,14 +153,6 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                 }
                 || ()
             },
-            (
-                state.swiping,
-                state.direction,
-                state.length_x,
-                state.length_y,
-                state.coords_start,
-                state.coords_end,
-            ),
         );
     }
 
@@ -162,85 +162,82 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
 
         let canvas_node = node.clone();
 
-        use_effect_with_deps(
-            move |handle| {
-                if *handle.dragging || *curr_event_state {
-                    let distance = match *handle.direction {
-                        UseSwipeDirection::Left => handle.length_x.abs(),
-                        UseSwipeDirection::Right => handle.length_x.abs(),
-                        UseSwipeDirection::Up => handle.length_y.abs(),
-                        UseSwipeDirection::Down => handle.length_y.abs(),
-                        UseSwipeDirection::None => 0,
-                    } as usize;
+        use_effect_with(state2, move |handle| {
+            if *handle.dragging || *curr_event_state {
+                let distance = match *handle.direction {
+                    UseSwipeDirection::Left => handle.length_x.abs(),
+                    UseSwipeDirection::Right => handle.length_x.abs(),
+                    UseSwipeDirection::Up => handle.length_y.abs(),
+                    UseSwipeDirection::Down => handle.length_y.abs(),
+                    UseSwipeDirection::None => 0,
+                } as usize;
 
-                    let direction = match *handle.direction {
-                        UseSwipeDirection::Left => DragType::Left(distance),
-                        UseSwipeDirection::Right => DragType::Right(distance),
-                        UseSwipeDirection::Up => DragType::Up(distance),
-                        UseSwipeDirection::Down => DragType::Down(distance),
-                        UseSwipeDirection::None => DragType::None,
+                let direction = match *handle.direction {
+                    UseSwipeDirection::Left => DragType::Left(distance),
+                    UseSwipeDirection::Right => DragType::Right(distance),
+                    UseSwipeDirection::Up => DragType::Up(distance),
+                    UseSwipeDirection::Down => DragType::Down(distance),
+                    UseSwipeDirection::None => DragType::None,
+                };
+
+                // If we're dragging the mouse down and it's registered as moving.
+                if *handle.dragging {
+                    if !*curr_event_state {
+                        time_down.set(Utc::now());
+
+                        if mouse_held_ticker.is_none() {
+                            let event = event.clone();
+                            let coords = *handle.coords_start;
+                            mouse_held_ticker.set(Some(Interval::new(100, move || {
+                                event.emit(OverlayEvent::Hold {
+                                    since: Utc::now().signed_duration_since(*time_down),
+                                    x: coords.0,
+                                    y: coords.1,
+                                });
+                            })));
+                        }
+                    }
+
+                    curr_event_state.set(true);
+
+                    if direction != DragType::None {
+                        mouse_held_ticker.set(None);
+                    }
+
+                    event.emit(OverlayEvent::Drag {
+                        type_of: direction,
+                        instant: None,
+                        coords_start: *handle.coords_start,
+                        coords_end: handle.coords_end.unwrap_or_default(),
+                    });
+                } else if *curr_event_state {
+                    curr_event_state.set(false);
+                    mouse_held_ticker.set(None);
+
+                    let (width, height) = {
+                        let node = canvas_node.cast::<HtmlElement>().unwrap();
+
+                        (node.client_width(), node.client_height())
                     };
 
-                    // If we're dragging the mouse down and it's registered as moving.
-                    if *handle.dragging {
-                        if !*curr_event_state {
-                            time_down.set(Utc::now());
-
-                            if mouse_held_ticker.is_none() {
-                                let event = event.clone();
-                                let coords = *handle.coords_start;
-                                mouse_held_ticker.set(Some(Interval::new(100, move || {
-                                    event.emit(OverlayEvent::Hold {
-                                        since: Utc::now().signed_duration_since(*time_down),
-                                        x: coords.0,
-                                        y: coords.1,
-                                    });
-                                })));
-                            }
-                        }
-
-                        curr_event_state.set(true);
-
-                        if direction != DragType::None {
-                            mouse_held_ticker.set(None);
-                        }
-
-                        event.emit(OverlayEvent::Drag {
-                            type_of: direction,
-                            instant: None,
-                            coords_start: *handle.coords_start,
-                            coords_end: handle.coords_end.unwrap_or_default(),
-                        });
-                    } else if *curr_event_state {
-                        curr_event_state.set(false);
-                        mouse_held_ticker.set(None);
-
-                        let (width, height) = {
-                            let node = canvas_node.cast::<HtmlElement>().unwrap();
-
-                            (node.client_width(), node.client_height())
-                        };
-
-                        event.emit(OverlayEvent::Release {
-                            instant: Some(Utc::now().signed_duration_since(*time_down)),
-                            x: handle.coords_start.0,
-                            y: handle.coords_start.1,
-
-                            width,
-                            height,
-                        });
-                    }
-                } else {
-                    event.emit(OverlayEvent::Hover {
+                    event.emit(OverlayEvent::Release {
+                        instant: Some(Utc::now().signed_duration_since(*time_down)),
                         x: handle.coords_start.0,
                         y: handle.coords_start.1,
+
+                        width,
+                        height,
                     });
                 }
+            } else {
+                event.emit(OverlayEvent::Hover {
+                    x: handle.coords_start.0,
+                    y: handle.coords_start.1,
+                });
+            }
 
-                || ()
-            },
-            state2,
-        );
+            || ()
+        });
     }
 
     html! {

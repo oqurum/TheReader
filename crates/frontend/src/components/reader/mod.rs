@@ -322,6 +322,8 @@ impl Component for Reader {
             ReaderMsg::Ignore => return false,
 
             ReaderMsg::ReadingInfoUpdated(reading_info) => {
+                debug!("!! ReadingInfoUpdated !!");
+
                 self.reading_info = reading_info;
 
                 self.cached_chapters = self.reading_info.borrow().chapters.chapters.clone();
@@ -370,6 +372,10 @@ impl Component for Reader {
 
                 debug!("Page Transition End: {}", self.drag_distance);
                 self.is_transitioning = false;
+
+                if self.drag_distance == 0 {
+                    return false;
+                }
 
                 // TODO: Check if we we changed pages to being with.
 
@@ -800,6 +806,8 @@ impl Component for Reader {
             }
 
             ReaderMsg::SetSection(new_section) => {
+                debug!("=== SetSection({new_section}) ===");
+
                 let next_section = new_section.min(
                     self.reading_info
                         .borrow()
@@ -819,6 +827,8 @@ impl Component for Reader {
             }
 
             ReaderMsg::NextSection => {
+                debug!("=== NextSection ===");
+
                 let new_section_index = self.get_current_frame_index() + 1;
 
                 if new_section_index == self.section_frames.len() {
@@ -842,6 +852,7 @@ impl Component for Reader {
             }
 
             ReaderMsg::PreviousSection => {
+                debug!("=== PreviousSection ===");
                 let Some(new_section_index) = self.get_current_frame_index().checked_sub(1) else {
                     return false;
                 };
@@ -870,7 +881,10 @@ impl Component for Reader {
                 self.drag_distance = 0;
             }
 
-            ReaderMsg::UploadProgress => self.upload_progress_and_emit(ctx),
+            ReaderMsg::UploadProgress => {
+                debug!(">>> UploadProgress <<<");
+                self.upload_progress_and_emit(ctx);
+            }
 
             // Called after iframe is loaded.
             ReaderMsg::GenerateIFrameLoaded(section_index) => {
@@ -1330,7 +1344,7 @@ impl Reader {
     }
 
     fn on_all_frames_generated(&mut self, ctx: &Context<Self>) {
-        info!("All Frames Generated");
+        info!("> All Frames Generated <");
         // Double check page counts before proceeding.
         self.update_cached_pages();
 
@@ -1341,6 +1355,8 @@ impl Reader {
         // TODO: Move to Msg::GenerateIFrameLoaded so it's only in a single place.
         let prog = self.reading_info.borrow().progress;
         self.use_progression(prog, ctx);
+
+        info!("> All Frames Generated <");
     }
 
     fn next_page(&mut self) -> bool {
@@ -1510,8 +1526,6 @@ impl Reader {
             // TODO: Disabled b/c of reader section generation rework.
             // self.load_surrounding_sections(ctx);
 
-            debug!("=========================");
-
             true
         } else {
             false
@@ -1627,6 +1641,8 @@ impl Reader {
             .is_some()
         {
             self.upload_progress(ctx);
+        } else {
+            error!("Unable to find Current Frame to upload progress");
         }
     }
 
@@ -1687,12 +1703,15 @@ impl Reader {
                 });
 
                 if !did_update {
+                    debug!("no update");
                     return;
                 }
 
                 value
             }
         };
+
+        debug!("-> {req:?}");
 
         ctx.link().send_future(async move {
             match req {
