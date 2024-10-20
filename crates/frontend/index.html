@@ -24,16 +24,17 @@
 	<script>
 		window.addEventListener("load", () => window.scrollTo(0, 1));
 
-		let is_mobile = false;
-		if ("maxTouchPoints" in window.navigator) {
-			is_mobile = window.navigator.maxTouchPoints != 0;
-		}
-		// TODO: Check user agent instead.
+		// TODO: For some reason its' 10 on Firefox
+		// let is_mobile = false;
+		// if ("maxTouchPoints" in window.navigator) {
+		// 	is_mobile = window.navigator.maxTouchPoints != 0;
+		// }
+		// // TODO: Check user agent instead.
 
-		if (is_mobile) {
-			let asdfsdf = false;
-			window.addEventListener('click', () => asdfsdf ? true : (asdfsdf = true) && document.body.requestFullscreen());
-		}
+		// if (is_mobile) {
+		// 	let asdfsdf = false;
+		// 	window.addEventListener('click', () => asdfsdf ? true : (asdfsdf = true) && document.body.requestFullscreen());
+		// }
 	</script>
 </head>
 
