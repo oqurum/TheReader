@@ -6,7 +6,7 @@ use common::{
 use common_local::{
     api::{self, GetBookResponse},
     util::file_size_bytes_to_readable_string,
-    Progression, ThumbnailStoreExt,
+    FileId, Progression, ThumbnailStoreExt,
 };
 use yew::prelude::*;
 use yew_router::prelude::*;
@@ -19,13 +19,19 @@ use crate::{
     request, BaseRoute,
 };
 
+#[derive(Clone, PartialEq)]
+pub enum LocalPopup {
+    Poster(DisplayOverlayItem),
+    UseExistingProgress { file_id: FileId },
+}
+
 #[derive(Clone)]
 pub enum Msg {
     // Retrive
     RetrieveMediaView(Box<WrappingResponse<GetBookResponse>>),
 
     // Events
-    ShowPopup(DisplayOverlayItem),
+    ShowPopup(LocalPopup),
     ClosePopup,
 
     // TODO: Replace with book_poster_item::PosterItem
@@ -44,7 +50,7 @@ pub struct Property {
 pub struct BookPage {
     media: Option<GetBookResponse>,
 
-    media_popup: Option<DisplayOverlayItem>,
+    media_popup: Option<LocalPopup>,
 }
 
 impl Component for BookPage {
@@ -72,7 +78,7 @@ impl Component for BookPage {
             },
 
             Msg::ShowPopup(new_disp) => {
-                if let Some(old_disp) = self.media_popup.as_mut() {
+                if let Some(old_disp) = self.media_popup.as_ref() {
                     if *old_disp == new_disp {
                         self.media_popup = None;
                     } else {
@@ -105,9 +111,12 @@ impl Component for BookPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <div class="view-container">
-                { self.render_main(ctx) }
-            </div>
+            <>
+                { self.render_popup(ctx) }
+                <div class="view-container">
+                    { self.render_main(ctx) }
+                </div>
+            </>
         }
     }
 
@@ -133,12 +142,136 @@ impl Component for BookPage {
 }
 
 impl BookPage {
+    fn render_popup(&self, ctx: &Context<Self>) -> Html {
+        let Some(GetBookResponse { book, progress, .. }) = self.media.as_ref() else {
+            return html! {};
+        };
+
+        let Some(overlay_type) = self.media_popup.as_ref() else {
+            return html! {};
+        };
+
+        match overlay_type {
+            &LocalPopup::UseExistingProgress { file_id } => {
+                html! {
+                    <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+                        <div class="d-flex flex-column p-2">
+                            <h4>{ "Book Progression" }</h4>
+
+                            <p>{ "Progress existing on another File. If would you like to transfer progress from another file, select below or start reading." }</p>
+                            <small>{ "Note: Progress from one file may not align to the new file." }</small>
+
+                            <div class="d-flex flex-column">
+                                {
+                                    for progress.iter().map(|progress| html! {
+                                        <div class="p-2">
+                                            {
+                                                if let Some(&Progression::Ebook { chapter, page, .. }) = progress.as_ref() {
+                                                    html! {
+                                                        <>
+                                                            <span>{ "Chapter: " } { chapter }</span>
+                                                            <br />
+                                                            <span>{ "Page: " } { page }</span>
+                                                        </>
+                                                    }
+                                                } else {
+                                                    html! {}
+                                                }
+                                            }
+                                        </div>
+
+                                    })
+                                }
+                            </div>
+
+                            <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: file_id } } classes="btn btn-success">
+                                <span>{ "Start From Beginning" }</span>
+                            </Link<BaseRoute>>
+                        </div>
+                    </Popup>
+                }
+            }
+
+            LocalPopup::Poster(DisplayOverlayItem::Info { book_id: _ }) => {
+                html! {
+                    <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
+                        <h1>{"Info"}</h1>
+                    </Popup>
+                }
+            }
+
+            &LocalPopup::Poster(DisplayOverlayItem::More {
+                book_id,
+                mouse_pos: (pos_x, pos_y),
+            }) => {
+                let is_matched = book.source.agent.as_ref() != "local";
+
+                html! {
+                    <DropdownInfoPopup
+                        { pos_x }
+                        { pos_y }
+
+                        { book_id }
+                        { is_matched }
+
+                        event={ ctx.link().callback(move |e| {
+                            match e {
+                                // TODO:
+                                DropdownInfoPopupEvent::AddToCollection(_id) => Msg::ClosePopup,
+                                DropdownInfoPopupEvent::RemoveFromCollection(_id) => Msg::ClosePopup,
+                                DropdownInfoPopupEvent::MarkAsRead => Msg::ClosePopup,
+                                DropdownInfoPopupEvent::MarkAsUnread => Msg::ClosePopup,
+
+                                DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
+                                DropdownInfoPopupEvent::RefreshMetadata => Msg::UpdateBook(book_id),
+                                DropdownInfoPopupEvent::UnMatchBook => Msg::UnMatchBook(book_id),
+                                DropdownInfoPopupEvent::SearchFor => Msg::ShowPopup(LocalPopup::Poster(DisplayOverlayItem::SearchForBook { book_id, input_value: None })),
+                                DropdownInfoPopupEvent::Info => Msg::ShowPopup(LocalPopup::Poster(DisplayOverlayItem::Info { book_id })),
+                            }
+                        }) }
+                    />
+                }
+            }
+
+            LocalPopup::Poster(DisplayOverlayItem::Edit(resp)) => {
+                html! {
+                    <PopupEditBook
+                        on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
+                        classes={ classes!("popup-book-edit") }
+                        media_resp={ (**resp).clone() }
+                    />
+                }
+            }
+
+            &LocalPopup::Poster(DisplayOverlayItem::SearchForBook {
+                book_id,
+                ref input_value,
+            }) => {
+                let input_value = if let Some(v) = input_value {
+                    v.to_string()
+                } else {
+                    format!(
+                        "{} {}",
+                        book.title.as_deref().unwrap_or_default(),
+                        book.cached.author.as_deref().unwrap_or_default()
+                    )
+                };
+
+                let input_value = input_value.trim().to_string();
+
+                html! {
+                    <PopupSearchBook {book_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
+                }
+            }
+        }
+    }
+
     fn render_main(&self, ctx: &Context<Self>) -> Html {
         if let Some(GetBookResponse {
             people,
             book,
             media,
-            progress,
+            progress: progress_vec,
         }) = self.media.as_ref()
         {
             let book_id = book.id;
@@ -146,10 +279,10 @@ impl BookPage {
                 e.prevent_default();
                 e.stop_propagation();
 
-                Msg::ShowPopup(DisplayOverlayItem::More {
+                Msg::ShowPopup(LocalPopup::Poster(DisplayOverlayItem::More {
                     book_id,
                     mouse_pos: (e.page_x(), e.page_y()),
-                })
+                }))
             });
 
             html! {
@@ -168,7 +301,7 @@ impl BookPage {
                                         let resp = request::get_media_view(book_id).await;
 
                                         match resp.ok() {
-                                            Ok(resp) => Msg::ShowPopup(DisplayOverlayItem::Edit(Box::new(resp))),
+                                            Ok(resp) => Msg::ShowPopup(LocalPopup::Poster(DisplayOverlayItem::Edit(Box::new(resp)))),
                                             Err(err) => {
                                                 crate::display_error(err);
 
@@ -206,11 +339,30 @@ impl BookPage {
                         <h2>{ "Files" }</h2>
                         <div class="row">
                             {
-                                for media.iter().zip(progress.iter()).map(|(media, progress)| {
-                                    // TODO: Add an "Are you sure?" for if we clicked on a non-progressed file.
+                                for media.iter().zip(progress_vec.iter()).map(|(media, progress)| {
+                                    let file_id = media.id;
+                                    let nav = ctx.link().navigator().unwrap();
+                                    let route = BaseRoute::ReadBook { book_id: media.id };
+                                    let has_progress = progress.is_some();
+                                    let other_has_progress = progress_vec.iter().any(|v| v.is_some());
 
                                     html! {
-                                        <Link<BaseRoute> to={ BaseRoute::ReadBook { book_id: media.id } } classes={ "col-sm-12 col-md-6 col-lg-4 file-item link-light" }>
+                                        <a
+                                            href={ route.to_path() }
+                                            class={ "col-sm-12 col-md-6 col-lg-4 file-item link-light" }
+                                            onclick={ ctx.link().callback(move |e: MouseEvent| {
+                                                e.prevent_default();
+
+                                                if !has_progress && other_has_progress {
+                                                    Msg::ShowPopup(LocalPopup::UseExistingProgress {
+                                                        file_id,
+                                                    })
+                                                } else {
+                                                    nav.push(&route);
+                                                    Msg::Ignore
+                                                }
+                                            }) }
+                                        >
                                             <h5>{ media.file_name.clone() }</h5>
                                             <div><b>{ "File Size: " }</b>{ file_size_bytes_to_readable_string(media.file_size) }</div>
                                             <div><b>{ "File Type: " }</b>{ media.file_type.clone() }</div>
@@ -228,7 +380,7 @@ impl BookPage {
                                                     html! {}
                                                 }
                                             }
-                                        </Link<BaseRoute>>
+                                        </a>
                                     }
                                 })
                             }
@@ -250,80 +402,6 @@ impl BookPage {
                             }
                         </div>
                     </section>
-
-                    {
-                        if let Some(overlay_type) = self.media_popup.as_ref() {
-                            match overlay_type {
-                                DisplayOverlayItem::Info { book_id: _ } => {
-                                    html! {
-                                        <Popup type_of={ PopupType::FullOverlay } on_close={ctx.link().callback(|_| Msg::ClosePopup)}>
-                                            <h1>{"Info"}</h1>
-                                        </Popup>
-                                    }
-                                }
-
-                                &DisplayOverlayItem::More { book_id, mouse_pos: (pos_x, pos_y) } => {
-                                    let is_matched = book.source.agent.as_ref() != "local";
-
-                                    html! {
-                                        <DropdownInfoPopup
-                                            { pos_x }
-                                            { pos_y }
-
-                                            { book_id }
-                                            { is_matched }
-
-                                            event={ ctx.link().callback(move |e| {
-                                                match e {
-                                                    // TODO:
-                                                    DropdownInfoPopupEvent::AddToCollection(_id) => Msg::ClosePopup,
-                                                    DropdownInfoPopupEvent::RemoveFromCollection(_id) => Msg::ClosePopup,
-                                                    DropdownInfoPopupEvent::MarkAsRead => Msg::ClosePopup,
-                                                    DropdownInfoPopupEvent::MarkAsUnread => Msg::ClosePopup,
-
-                                                    DropdownInfoPopupEvent::Closed => Msg::ClosePopup,
-                                                    DropdownInfoPopupEvent::RefreshMetadata => Msg::UpdateBook(book_id),
-                                                    DropdownInfoPopupEvent::UnMatchBook => Msg::UnMatchBook(book_id),
-                                                    DropdownInfoPopupEvent::SearchFor => Msg::ShowPopup(DisplayOverlayItem::SearchForBook { book_id, input_value: None }),
-                                                    DropdownInfoPopupEvent::Info => Msg::ShowPopup(DisplayOverlayItem::Info { book_id }),
-                                                }
-                                            }) }
-                                        />
-                                    }
-                                }
-
-                                DisplayOverlayItem::Edit(resp) => {
-                                    html! {
-                                        <PopupEditBook
-                                            on_close={ ctx.link().callback(|_| Msg::ClosePopup) }
-                                            classes={ classes!("popup-book-edit") }
-                                            media_resp={ (**resp).clone() }
-                                        />
-                                    }
-                                }
-
-                                &DisplayOverlayItem::SearchForBook { book_id, ref input_value } => {
-                                    let input_value = if let Some(v) = input_value {
-                                        v.to_string()
-                                    } else {
-                                        format!(
-                                            "{} {}",
-                                            book.title.as_deref().unwrap_or_default(),
-                                            book.cached.author.as_deref().unwrap_or_default()
-                                        )
-                                    };
-
-                                    let input_value = input_value.trim().to_string();
-
-                                    html! {
-                                        <PopupSearchBook {book_id} {input_value} on_close={ ctx.link().callback(|_| Msg::ClosePopup) } />
-                                    }
-                                }
-                            }
-                        } else {
-                            html! {}
-                        }
-                    }
                 </div>
             }
         } else {
