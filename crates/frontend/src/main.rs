@@ -1,6 +1,6 @@
 #![allow(clippy::let_unit_value, clippy::type_complexity)]
 
-#[macro_use(info, debug, error)]
+#[macro_use]
 extern crate log;
 
 use std::{

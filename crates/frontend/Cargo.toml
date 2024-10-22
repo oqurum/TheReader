@@ -37,6 +37,7 @@ gloo-file = "0.3"
 gloo-timers = "0.3"
 js-sys = "0.3"
 
+itertools = { workspace = true }
 regex = { workspace = true }
 chrono = { workspace = true, features = ["wasmbind"] }
 base64 = { workspace = true }
@@ -64,6 +65,7 @@ wasm-logger = "0.2"
 version = "0.3"
 features = [
 	"DomTokenList",
+	"DomRectList",
 	"DomRect",
 	"FormData",
 	"Headers",

@@ -150,6 +150,8 @@ impl ScrollDisplay {
 
         el.scroll_with_x_and_y(0.0, 0.0);
 
+        // TODO: Utilize section.page_offset - based off height of device.
+
         true
     }
 

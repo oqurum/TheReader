@@ -1,8 +1,21 @@
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
-use web_sys::HtmlElement;
+use web_sys::{HtmlElement, Node};
 
 pub mod selection;
 pub mod table;
+
+pub fn for_each_child_node<V: Fn(&Node) + Clone + Copy + 'static>(element: &Node, func: V) {
+    let children = element.child_nodes();
+    let mut index = 0;
+
+    while let Some(child) = children.item(index) {
+        func(&child);
+
+        for_each_child_node(&child, func);
+
+        index += 1;
+    }
+}
 
 pub fn for_each_child<V: Fn(&HtmlElement)>(element: &HtmlElement, func: &V) {
     let children = element.children();

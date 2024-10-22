@@ -373,6 +373,7 @@ impl Component for Reader {
                 debug!("Page Transition End: {}", self.drag_distance);
                 self.is_transitioning = false;
 
+                // FIX: When loaded initially, this prevents it from swapping to the incorrect page.
                 if self.drag_distance == 0 {
                     return false;
                 }
@@ -882,8 +883,10 @@ impl Component for Reader {
             }
 
             ReaderMsg::UploadProgress => {
-                debug!(">>> UploadProgress <<<");
-                self.upload_progress_and_emit(ctx);
+                if self.section_frames.iter().all(|v| v.is_loaded()) {
+                    debug!(">>> UploadProgress <<<");
+                    self.upload_progress_and_emit(ctx);
+                }
             }
 
             // Called after iframe is loaded.
@@ -1283,12 +1286,15 @@ impl Reader {
                                             element.scroll_into_view();
                                         }
                                     } else {
-                                        let page =
+                                        let found_page =
                                             section.get_page_from_byte_position(char_pos as usize);
 
-                                        debug!("use_progression - set page: {:?}", page);
+                                        debug!(
+                                            "use_progression - set page: {:?} (prev {page})",
+                                            found_page
+                                        );
 
-                                        if let Some(page) = page {
+                                        if let Some(page) = found_page {
                                             self.cached_display.set_page(page, section);
                                         }
                                     }
@@ -1649,9 +1655,11 @@ impl Reader {
     // TODO: Move to SectionLoadProgress
     fn upload_progress(&mut self, ctx: &Context<Self>) {
         let (chapter, page, char_pos, book_id) = {
-            let (char_pos, viewing_section) = self
-                .get_current_frame()
-                .unwrap()
+            let frame = self.get_current_frame().unwrap();
+
+            let page = frame.page_offset as i64;
+
+            let (char_pos, viewing_section) = frame
                 .get_current_byte_pos(self.settings.display.is_scroll())
                 .map(|v| (v.0 as i64, v.1))
                 .unwrap_or((-1, self.viewing_section));
@@ -1660,9 +1668,7 @@ impl Reader {
 
             (
                 viewing_section,
-                self.get_current_frame()
-                    .map(|v| v.page_offset)
-                    .unwrap_or_default() as i64,
+                page,
                 char_pos,
                 self.reading_info.borrow().get_file().id,
             )
@@ -1697,6 +1703,7 @@ impl Reader {
                     if state.progress == value {
                         false
                     } else {
+                        // debug!("|> {:?}", state.progress);
                         state.progress = value;
                         true
                     }
@@ -1711,7 +1718,7 @@ impl Reader {
             }
         };
 
-        debug!("-> {req:?}");
+        // debug!("-> {req:?}");
 
         ctx.link().send_future(async move {
             match req {

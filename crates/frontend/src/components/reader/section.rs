@@ -6,16 +6,16 @@ use std::{cell::RefCell, rc::Rc};
 
 use common_local::Chapter;
 use editor::{ListenerEvent, ListenerHandle, ListenerId, MouseListener};
-use gloo_utils::window;
+use gloo_utils::{document, window};
+use itertools::{FoldWhile, Itertools};
+use js_sys::Array;
 use wasm_bindgen::{prelude::Closure, JsCast, UnwrapThrowExt};
-use web_sys::{Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement, Node};
+use web_sys::{DomRect, Element, HtmlElement, HtmlHeadElement, HtmlIFrameElement, Node, Text};
 use yew::Context;
-
-use crate::components::reader::IFRAME_PADDING_SIZE;
 
 use super::{
     color, js_update_iframe_after_load,
-    util::{for_each_child_map, table::TableContainer},
+    util::{for_each_child_map, for_each_child_node, table::TableContainer},
     CachedPage, LayoutDisplay, Reader, ReaderSettings,
 };
 
@@ -160,20 +160,73 @@ impl SectionContents {
             cont: Node,
             iframe: &HtmlIFrameElement,
         ) -> Option<usize> {
-            let value = cont.node_value().unwrap_or_default();
+            if cont.node_type() == Node::TEXT_NODE {
+                let value = cont.unchecked_ref::<Text>().data();
 
-            if cont.node_type() == Node::TEXT_NODE && !value.trim().is_empty() {
-                *byte_count += value.len();
+                if !value.trim().is_empty() {
+                    *byte_count += value.len();
 
-                if *byte_count > position {
-                    // We need to parent element since we're inside a Text Node.
-                    let node = cont.parent_node().unwrap().unchecked_into::<HtmlElement>();
+                    // TODO: Vertical pages
+                    if *byte_count > position {
+                        // We need to parent element since we're inside a Text Node.
+                        let parent_element = cont
+                            .parent_element()
+                            .unwrap()
+                            .unchecked_into::<HtmlElement>();
 
-                    return Some(
-                        (node.offset_left() as f32
-                            / (iframe.client_width() - IFRAME_PADDING_SIZE as i32) as f32)
-                            .floor() as usize,
-                    );
+                        // If it spans multiple pages, offset should be negative b/c these are relative to current view.
+                        // Will be positive if it's on a page to the right
+                        let offset_x = Array::from(&parent_element.child_nodes())
+                            .iter()
+                            .map(|v| v.unchecked_into::<Node>())
+                            .fold_while(f64::MAX, |v, n| {
+                                if n == cont {
+                                    // Incase we only had 1 node.
+                                    if v == f64::MAX {
+                                        FoldWhile::Done(0.0)
+                                    } else {
+                                        FoldWhile::Done(v)
+                                    }
+                                } else {
+                                    let range = document().create_range().unwrap();
+                                    range.select_node_contents(&n).unwrap();
+                                    let rect = range.get_bounding_client_rect();
+
+                                    FoldWhile::Continue(v.min(rect.x()))
+                                }
+                            })
+                            .into_inner();
+
+                        let iframe_width = iframe.client_width() as f32;
+
+                        // Remove padding (node is text on right side of page) we only care about left side.
+                        // 400 -> 0, 1,500 -> 1,000
+                        let start_offset = (parent_element.offset_left() as f32 / iframe_width)
+                            .floor()
+                            * iframe_width;
+
+                        let range = document().create_range().unwrap();
+                        range.select_node_contents(&cont).unwrap();
+
+                        // BB has relative positions
+                        let x_s = range.get_bounding_client_rect().x() as f32;
+
+                        let diff = x_s - offset_x as f32;
+
+                        let calc_page = (diff + start_offset) / iframe_width;
+
+                        // debug!(
+                        //     "------- Page: {calc_page} || ox {offset_x}, s {start_offset}, r {x_s}, d {diff} | ",
+                        // );
+                        // debug!(
+                        //     "------- ({diff} + {start_offset}) / {iframe_width} = {calc_page} || dif = ({x_s} - {offset_x})",
+                        // );
+
+                        // log(&cont);
+                        // log(&parent_element);
+
+                        return Some(calc_page.floor() as usize);
+                    }
                 }
             }
 
@@ -207,50 +260,68 @@ impl SectionContents {
             is_vertical: bool,
             cont: Node,
         ) -> Option<(usize, usize)> {
-            if cont.node_type() == Node::ELEMENT_NODE
-                && (cont
-                    .unchecked_ref::<HtmlElement>()
-                    .class_list()
-                    .contains("reader-section-start")
-                    || cont
-                        .unchecked_ref::<HtmlElement>()
-                        .class_list()
-                        .contains("reader-section-end"))
-            {
-                *last_section_id = cont
-                    .unchecked_ref::<Element>()
-                    .get_attribute("data-section-id")
-                    .unwrap()
-                    .parse()
-                    .unwrap();
+            // Set current section id
+            if cont.node_type() == Node::ELEMENT_NODE {
+                let cont_element = cont.unchecked_ref::<HtmlElement>();
+                let class_list = cont_element.class_list();
+
+                if class_list.contains("reader-section-start")
+                    || class_list.contains("reader-section-end")
+                {
+                    *last_section_id = cont_element
+                        .get_attribute("data-section-id")
+                        .unwrap()
+                        .parse()
+                        .unwrap();
+                }
             }
 
             if cont.node_type() == Node::TEXT_NODE
                 && !cont.node_value().unwrap_or_default().trim().is_empty()
             {
-                // TODO: Will probably mess up if element takes up a full page.
-                if (is_vertical
-                    && (moved_amount
-                        - (cont
-                            .parent_element()
-                            .unwrap()
-                            .unchecked_into::<HtmlElement>()
-                            .offset_top() as f32)
-                        < 0.0))
-                    || (!is_vertical
-                        && (moved_amount
-                            - (cont
-                                .parent_element()
-                                .unwrap()
-                                .unchecked_into::<HtmlElement>()
-                                .offset_left() as f32)
-                            < 0.0))
-                {
-                    return Some((*byte_count, *last_section_id));
-                } else {
-                    *byte_count += cont.node_value().unwrap().len();
-                    // TODO: Check if we overshot the view page. If so half it and check again
+                let parent_element = cont
+                    .parent_element()
+                    .unwrap()
+                    .unchecked_into::<HtmlElement>();
+
+                // RESOLVES BUG: Messing up when an element takes up a full page.
+                let start_offset = (is_vertical
+                    .then(|| parent_element.offset_top())
+                    .unwrap_or_else(|| parent_element.offset_left())
+                    as f32)
+                    - moved_amount;
+                let end_offset = (is_vertical
+                    .then(|| parent_element.offset_top() + parent_element.offset_height())
+                    .unwrap_or_else(|| parent_element.offset_left() + parent_element.offset_width())
+                    as f32)
+                    - moved_amount;
+
+                // If either is positive, the parent is in view
+                if start_offset.is_sign_positive() || end_offset.is_sign_positive() {
+                    let range = document().create_range().unwrap();
+                    range.select_node_contents(&cont).unwrap();
+
+                    if let Some(list) = range.get_client_rects() {
+                        let (x_s, y_s) = Array::from(&list)
+                            .iter()
+                            .map(|v| v.unchecked_into::<DomRect>())
+                            .fold((f64::MAX, f64::MAX), |(x, y), r| {
+                                (x.min(r.x()), y.min(r.y()))
+                            });
+
+                        // TODO: Figure out a way to pick text halfway through on the left size of the page.
+                        if (is_vertical && y_s.is_sign_positive())
+                            || (!is_vertical && x_s.is_sign_positive())
+                        {
+                            debug!("b{byte_count} s{last_section_id}");
+                            return Some((*byte_count, *last_section_id));
+                        }
+                    } else {
+                        warn!("Unable to get client rects for some reason");
+                    }
                 }
+
+                *byte_count += cont.node_value().unwrap().len();
             }
 
             let nodes = cont.child_nodes();
@@ -338,9 +409,10 @@ impl SectionContents {
     ) {
         let document = self.get_iframe().content_document().unwrap_throw();
 
+        let body = self.get_iframe_body().unwrap_throw();
+
         // Insert chapters
         {
-            let body = self.get_iframe_body().unwrap_throw();
             let mut inserted_header = false;
 
             for chapter in &self.chapters {
@@ -408,8 +480,48 @@ impl SectionContents {
 
         color::load_reader_color_into_section(&settings.color, self);
 
+        // TODO: This is a temporary fix. We need to properly be able to determine byte position based off text which takes up multiple pages.
+        // TODO: May have issues once we start highlighting things.
+        // Split Text Nodes to be more digestible (byte position fix)
+        for_each_child_node(&body, |node| {
+            if node.node_type() == Node::TEXT_NODE {
+                let mut text_node = node.clone().unchecked_into::<Text>();
+
+                // TODO: Need a proper max length
+                const MAX_LENGTH: u32 = 400;
+
+                'woop: while text_node.length() > MAX_LENGTH {
+                    let data = text_node.data();
+
+                    let mut last_period_loc = 0;
+
+                    // We split at the period to keep it simple.
+                    for periods_loc in data.match_indices(".").map(|a| a.0) {
+                        if periods_loc > MAX_LENGTH as usize {
+                            if last_period_loc == 0 {
+                                text_node = text_node.split_text(text_node.length() / 2).unwrap();
+                            } else {
+                                text_node =
+                                    text_node.split_text(1 + last_period_loc as u32).unwrap();
+                            }
+
+                            continue 'woop;
+                        }
+
+                        last_period_loc = periods_loc;
+                    }
+
+                    // If there were no periods.
+                    // MIN check to ensure the split text isn't greater than MAX_LENGTH
+                    text_node = text_node
+                        .split_text((text_node.length() / 2).min(MAX_LENGTH))
+                        .unwrap();
+                }
+            }
+        });
+
         // Shrink Tables
-        self.cached_tables = for_each_child_map(&self.get_iframe_body().unwrap_throw(), &|v| {
+        self.cached_tables = for_each_child_map(&body, &|v| {
             if v.local_name() == "table" {
                 let mut v = TableContainer::from(v);
                 v.update_if_needed(settings.dimensions.1 as usize);
@@ -430,7 +542,7 @@ impl SectionContents {
         cached_display.on_stop_viewing(self);
 
         self.editor_handle = editor::register(
-            self.get_iframe_body().unwrap_throw(),
+            body,
             MouseListener::Ignore,
             Some(document),
             Some(Rc::new(RefCell::new(move |_id: ListenerId| {
