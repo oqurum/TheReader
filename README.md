@@ -15,9 +15,12 @@ TODO:
 
 To run and build the application you need to do the following:
 
-[Install Rust](https://www.rust-lang.org/). It's used for coding this whole application.
+1. [Install Rust](https://www.rust-lang.org/). It's used for coding this whole application.
 
-[Install Trunk](https://trunkrs.dev/#install). It's used for building the frontend.
+2. [Install Trunk](https://trunkrs.dev/#install). It's used for building the frontend.
+   - Ensure a C Linker is installed - Lazy? `sudo apt install build-essential` will install all essentials including the linker
+
+3. Add Wasm32 Target to Rust: `rustup target add wasm32-unknown-unknown` - Used for frontend
 
 ## Git
 Import the submodules
@@ -32,6 +35,11 @@ cargo run --bin books-backend
 ```
 
 The server will now be hosted on `127.0.0.1:8084`
+
+### Known Errors:
+
+Error: could not find system library 'openssl' required by the 'openssl-sys' crate
+- https://github.com/sfackler/rust-openssl/issues/855#issuecomment-450057552
 
 ## Frontend:
 Execute one of these commands
