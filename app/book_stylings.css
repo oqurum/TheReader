@@ -110,7 +110,7 @@ body.color-black {
 }
 
 .editor-toolbar {
-	position: absolute;
+	position: fixed;
 	display: flex;
 	background-color: darkslategrey;
 	height: 30px;

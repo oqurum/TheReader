@@ -1,14 +1,22 @@
-use std::rc::Rc;
+use std::{
+    rc::Rc,
+    sync::{Mutex, RwLock},
+};
 
 use chrono::{Duration, Utc};
+use editor::RangeBox;
 use gloo_timers::callback::Interval;
-use wasm_bindgen::UnwrapThrowExt;
-use web_sys::{DomRect, HtmlElement, MouseEvent};
+use wasm_bindgen::{JsCast, UnwrapThrowExt};
+use web_sys::{CanvasRenderingContext2d, DomRect, HtmlCanvasElement, HtmlElement, MouseEvent};
 use yew::{
     function_component, hook, html, use_effect_with, use_mut_ref, use_node_ref, use_state,
     use_state_eq, Callback, Html, NodeRef, Properties, UseStateHandle,
 };
 use yew_hooks::{use_event, use_swipe, UseSwipeDirection};
+
+use crate::Result;
+
+use super::section::SectionContents;
 
 const THRESHOLD: i32 = 5;
 
@@ -49,13 +57,25 @@ pub enum DragType {
     None,
 }
 
-#[derive(PartialEq, Properties)]
-pub struct ViewOverlayProps {
-    pub event: Callback<OverlayEvent>,
+impl DragType {
+    pub fn distance(self) -> usize {
+        match self {
+            DragType::Up(v) => v,
+            DragType::Right(v) => v,
+            DragType::Down(v) => v,
+            DragType::Left(v) => v,
+            DragType::None => 0,
+        }
+    }
 }
 
-#[function_component(ViewOverlay)]
-pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
+#[derive(PartialEq, Properties)]
+pub struct ViewOverlayProps {
+    pub event: Callback<(NodeRef, OverlayEvent)>,
+}
+
+#[function_component]
+pub fn ViewOverlay(props: &ViewOverlayProps) -> Html {
     let node = use_node_ref();
     let state = use_swipe(node.clone());
     let state2 = use_mouse(node.clone());
@@ -108,12 +128,16 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                         if mouse_held_ticker.is_none() {
                             let event = event.clone();
                             let coords = coords_start.clone();
+                            let canvas_node = canvas_node.clone();
                             mouse_held_ticker.set(Some(Interval::new(100, move || {
-                                event.emit(OverlayEvent::Hold {
-                                    since: Utc::now().signed_duration_since(*time_down),
-                                    x: coords.0,
-                                    y: coords.1,
-                                });
+                                event.emit((
+                                    canvas_node.clone(),
+                                    OverlayEvent::Hold {
+                                        since: Utc::now().signed_duration_since(*time_down),
+                                        x: coords.0,
+                                        y: coords.1,
+                                    },
+                                ));
                             })));
                         }
                     }
@@ -124,12 +148,15 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                         mouse_held_ticker.set(None);
                     }
 
-                    event.emit(OverlayEvent::Drag {
-                        type_of: direction,
-                        instant: None,
-                        coords_start: **coords_start,
-                        coords_end: **coords_end,
-                    });
+                    event.emit((
+                        canvas_node.clone(),
+                        OverlayEvent::Drag {
+                            type_of: direction,
+                            instant: None,
+                            coords_start: **coords_start,
+                            coords_end: **coords_end,
+                        },
+                    ));
                 } else if *curr_event_state {
                     curr_event_state.set(false);
                     mouse_held_ticker.set(None);
@@ -142,14 +169,17 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                         (node.client_width(), node.client_height())
                     };
 
-                    event.emit(OverlayEvent::Release {
-                        instant: Some(Utc::now().signed_duration_since(*time_down)),
-                        x,
-                        y,
+                    event.emit((
+                        canvas_node.clone(),
+                        OverlayEvent::Release {
+                            instant: Some(Utc::now().signed_duration_since(*time_down)),
+                            x,
+                            y,
 
-                        width,
-                        height,
-                    });
+                            width,
+                            height,
+                        },
+                    ));
                 }
                 || ()
             },
@@ -188,12 +218,16 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                         if mouse_held_ticker.is_none() {
                             let event = event.clone();
                             let coords = *handle.coords_start;
+                            let canvas_node = canvas_node.clone();
                             mouse_held_ticker.set(Some(Interval::new(100, move || {
-                                event.emit(OverlayEvent::Hold {
-                                    since: Utc::now().signed_duration_since(*time_down),
-                                    x: coords.0,
-                                    y: coords.1,
-                                });
+                                event.emit((
+                                    canvas_node.clone(),
+                                    OverlayEvent::Hold {
+                                        since: Utc::now().signed_duration_since(*time_down),
+                                        x: coords.0,
+                                        y: coords.1,
+                                    },
+                                ));
                             })));
                         }
                     }
@@ -204,12 +238,15 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                         mouse_held_ticker.set(None);
                     }
 
-                    event.emit(OverlayEvent::Drag {
-                        type_of: direction,
-                        instant: None,
-                        coords_start: *handle.coords_start,
-                        coords_end: handle.coords_end.unwrap_or_default(),
-                    });
+                    event.emit((
+                        canvas_node.clone(),
+                        OverlayEvent::Drag {
+                            type_of: direction,
+                            instant: None,
+                            coords_start: *handle.coords_start,
+                            coords_end: handle.coords_end.unwrap_or_default(),
+                        },
+                    ));
                 } else if *curr_event_state {
                     curr_event_state.set(false);
                     mouse_held_ticker.set(None);
@@ -220,20 +257,26 @@ pub fn _view_overlay(props: &ViewOverlayProps) -> Html {
                         (node.client_width(), node.client_height())
                     };
 
-                    event.emit(OverlayEvent::Release {
-                        instant: Some(Utc::now().signed_duration_since(*time_down)),
-                        x: handle.coords_start.0,
-                        y: handle.coords_start.1,
+                    event.emit((
+                        canvas_node.clone(),
+                        OverlayEvent::Release {
+                            instant: Some(Utc::now().signed_duration_since(*time_down)),
+                            x: handle.coords_start.0,
+                            y: handle.coords_start.1,
 
-                        width,
-                        height,
-                    });
+                            width,
+                            height,
+                        },
+                    ));
                 }
             } else {
-                event.emit(OverlayEvent::Hover {
-                    x: handle.coords_start.0,
-                    y: handle.coords_start.1,
-                });
+                event.emit((
+                    canvas_node.clone(),
+                    OverlayEvent::Hover {
+                        x: handle.coords_start.0,
+                        y: handle.coords_start.1,
+                    },
+                ));
             }
 
             || ()
@@ -423,5 +466,153 @@ pub fn use_mouse(node: NodeRef) -> UseMouseHandle {
         coords_end,
         length_x,
         length_y,
+    }
+}
+
+#[derive(Default)]
+pub struct OverlayHandler {
+    // TODO: Better name. Used to distinguish if we've held the mouse down.
+    pub on_held_toggle: bool,
+    // Left: True, Right: False
+    pub is_dragging: Option<bool>,
+    pub sel_pos: RwLock<Option<RangeBox>>,
+    pub last_mouse: Mutex<(f32, f32)>,
+}
+
+impl OverlayHandler {
+    pub fn unselect(&self, section: &SectionContents, canvas: NodeRef) -> Result<()> {
+        section.editor_handle.unselect()?;
+
+        let canvas = canvas.cast::<HtmlCanvasElement>().unwrap_throw();
+        let ctx = canvas
+            .get_context("2d")?
+            .unwrap_throw()
+            .unchecked_into::<CanvasRenderingContext2d>();
+
+        ctx.clear_rect(0.0, 0.0, canvas.width() as f64, canvas.height() as f64);
+
+        Ok(())
+    }
+
+    pub fn is_inside_drag_handle(&self, x: f64, y: f64) -> bool {
+        self.is_inside_start_drag_handle(x, y) || self.is_inside_end_drag_handle(x, y)
+    }
+
+    pub fn is_inside_start_drag_handle(&self, x: f64, y: f64) -> bool {
+        if let Some(boxx) = *self.sel_pos.read().unwrap_throw() {
+            boxx.start.x - 2.0 <= x
+                && boxx.start.y <= y
+                && boxx.start.x + 3.0 >= x
+                && boxx.start.y + boxx.start.height >= y
+        } else {
+            false
+        }
+    }
+
+    pub fn is_inside_end_drag_handle(&self, x: f64, y: f64) -> bool {
+        if let Some(boxx) = *self.sel_pos.read().unwrap_throw() {
+            boxx.end.x - 2.0 <= x
+                && boxx.end.y <= y
+                && boxx.end.x + 3.0 >= x
+                && boxx.end.y + boxx.end.height >= y
+        } else {
+            false
+        }
+    }
+
+    pub fn highlight_text(
+        &self,
+        x: f32,
+        y: f32,
+        section: &SectionContents,
+        canvas: NodeRef,
+    ) -> Result<()> {
+        let pos = section.editor_handle.click_or_select(
+            x,
+            y,
+            section.get_iframe_body().unwrap_throw().unchecked_into(),
+        )?;
+
+        self.render_canvas(x, y, pos, canvas)?;
+
+        *self.sel_pos.write().unwrap_throw() = Some(pos);
+
+        Ok(())
+    }
+
+    pub fn handle_hover_event(&self, x: f32, y: f32, canvas: NodeRef) -> Result<()> {
+        if let Some(pos) = *self.sel_pos.read().unwrap_throw() {
+            self.render_canvas(x, y, pos, canvas)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn handle_drag_event(
+        &self,
+        x: f32,
+        y: f32,
+        section: &SectionContents,
+        canvas: NodeRef,
+    ) -> Result<bool> {
+        let mut mouse = self.last_mouse.lock().unwrap_throw();
+
+        if (x - mouse.0).abs() > 5.0 || (y - mouse.1).abs() > 5.0 {
+            mouse.0 = x;
+            mouse.1 = y;
+
+            let pos = section.editor_handle.resize_selection_to(
+                self.is_dragging.unwrap_or_default(),
+                x,
+                y,
+            )?;
+
+            self.render_canvas(x, y, pos, canvas)?;
+
+            *self.sel_pos.write().unwrap_throw() = Some(pos);
+
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn render_canvas(&self, x: f32, y: f32, pos: RangeBox, canvas: NodeRef) -> Result<()> {
+        let canvas = canvas.cast::<HtmlCanvasElement>().unwrap_throw();
+        let ctx = canvas
+            .get_context("2d")?
+            .unwrap_throw()
+            .unchecked_into::<CanvasRenderingContext2d>();
+
+        canvas.set_width(canvas.client_width() as u32);
+        canvas.set_height(canvas.client_height() as u32);
+
+        ctx.clear_rect(0.0, 0.0, canvas.width() as f64, canvas.height() as f64);
+
+        ctx.set_line_width(2.0);
+
+        if self.is_inside_start_drag_handle(x as f64, y as f64) {
+            ctx.set_stroke_style_str("#FF0");
+        } else {
+            ctx.set_stroke_style_str("#F70");
+        }
+
+        ctx.begin_path();
+        ctx.move_to(pos.start.x, pos.start.y);
+        ctx.line_to(pos.start.x, pos.start.y + pos.start.height + 1.0);
+        ctx.stroke();
+
+        if self.is_inside_end_drag_handle(x as f64, y as f64) {
+            ctx.set_stroke_style_str("#FF0");
+        } else {
+            ctx.set_stroke_style_str("#F70");
+        }
+
+        ctx.begin_path();
+        ctx.move_to(pos.end.x, pos.end.y);
+        ctx.line_to(pos.end.x, pos.end.y + pos.end.height + 1.0);
+        ctx.stroke();
+
+        Ok(())
     }
 }

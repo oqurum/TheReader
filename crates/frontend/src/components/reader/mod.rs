@@ -6,6 +6,7 @@ use common_local::{
 };
 use gloo_timers::callback::{Interval, Timeout};
 use gloo_utils::{body, window};
+use view_overlay::OverlayHandler;
 use wasm_bindgen::{
     prelude::{wasm_bindgen, Closure},
     JsCast, UnwrapThrowExt,
@@ -175,7 +176,7 @@ pub enum ReaderMsg {
     UpdateDragDistance,
 
     HandleScrollChangePage(DragType),
-    HandleViewOverlay(OverlayEvent),
+    HandleViewOverlay((Option<NodeRef>, OverlayEvent)),
     UploadProgress,
 
     NextPage,
@@ -211,8 +212,8 @@ pub struct Reader {
     handle_js_redirect_clicks: Closure<dyn FnMut(String, String)>,
     cursor_type: &'static str,
     visible_redirect_rects: Vec<DomRect>,
-    // TODO: Better name. Used to distinguish if we've held the mouse down.
-    on_held_toggle: bool,
+
+    handler: OverlayHandler,
 
     drag_distance: isize,
 
@@ -308,7 +309,7 @@ impl Component for Reader {
             _handle_keyboard: handle_keyboard,
             is_transitioning: false,
             initial_progression_set: false,
-            on_held_toggle: false,
+            handler: OverlayHandler::default(),
 
             settings,
             _settings_listener,
@@ -451,12 +452,22 @@ impl Component for Reader {
                 }
             }
 
-            ReaderMsg::HandleViewOverlay(event) => {
+            ReaderMsg::HandleViewOverlay((canvas, event)) => {
                 match event {
                     // Changes users' cursor if they're currently hovering over a redirect.
                     OverlayEvent::Hover { x, y } => {
                         if !self.settings.display.is_scroll() {
                             let (x, y) = (x as f64, y as f64);
+
+                            if let Some(canvas) = canvas {
+                                if let Some(section) = self.get_current_frame() {
+                                    if section.editor_handle.has_selection().unwrap_throw() {
+                                        self.handler
+                                            .handle_hover_event(x as f32, y as f32, canvas)
+                                            .unwrap_throw();
+                                    }
+                                }
+                            }
 
                             let mut was_found = false;
 
@@ -500,12 +511,14 @@ impl Component for Reader {
                         instant,
                     } => {
                         // Return if we've click and held.
-                        if self.on_held_toggle {
-                            self.on_held_toggle = false;
+                        if self.handler.on_held_toggle || self.handler.is_dragging.is_some() {
+                            self.handler.on_held_toggle = false;
+                            self.handler.is_dragging = None;
+
                             return false;
                         }
 
-                        self.on_held_toggle = false;
+                        self.handler.on_held_toggle = false;
 
                         debug!(
                             "Input Release: [w{width}, h{height}], [x{x}, y{y}], took: {instant:?}"
@@ -593,8 +606,46 @@ impl Component for Reader {
                         type_of,
                         instant,
                         coords_start,
-                        ..
+                        coords_end,
                     } => {
+                        if let Some(canvas) = canvas {
+                            if let Some(section) = self.get_current_frame() {
+                                if section.editor_handle.has_selection().unwrap_throw() {
+                                    if coords_end == (0, 0) && self.handler.is_dragging.is_none() {
+                                        let inside_handle = self.handler.is_inside_drag_handle(
+                                            coords_start.0 as f64,
+                                            coords_start.1 as f64,
+                                        );
+
+                                        if inside_handle {
+                                            self.handler.is_dragging =
+                                                Some(self.handler.is_inside_start_drag_handle(
+                                                    coords_start.0 as f64,
+                                                    coords_start.1 as f64,
+                                                ));
+                                            return false;
+                                        }
+                                    } else {
+                                        self.handler
+                                            .handle_drag_event(
+                                                coords_end.0 as f32,
+                                                coords_end.1 as f32,
+                                                section,
+                                                canvas,
+                                            )
+                                            .unwrap_throw();
+
+                                        return false;
+                                    }
+
+                                    self.handler.unselect(section, canvas).unwrap_throw();
+                                    self.handler.is_dragging = None;
+
+                                    return false;
+                                }
+                            }
+                        }
+
                         debug!(
                             "Input Drag: [typeof {type_of:?}], [coords {coords_start:?}], took: {instant:?}"
                         );
@@ -634,19 +685,24 @@ impl Component for Reader {
 
                     OverlayEvent::Hold { since, x, y } => {
                         // TODO: since is not accurate. It's longer than it should be. i.e last down (or something) is the last since its' at.
-                        if !self.on_held_toggle && since.num_seconds() >= 1 {
+                        if !self.handler.on_held_toggle
+                            && since.num_seconds() >= 1
+                            && self.handler.is_dragging.is_none()
+                        {
                             debug!("Highlight Text: {x} {y} {since:?}");
 
-                            self.on_held_toggle = true;
+                            // TODO: ~4 second delay between this log and fn call
 
-                            // TODO: Text Editing Preparation
-                            // if let Some(section) = self.get_current_frame() {
-                            //     section.editor_handle.click_or_select(
-                            //         x as f32,
-                            //         y as f32,
-                            //         section.get_iframe_body().unwrap_throw().unchecked_into()
-                            //     ).unwrap_throw();
-                            // }
+                            // TODO: Still needed?
+                            self.handler.on_held_toggle = true;
+
+                            if let Some(canvas) = canvas {
+                                if let Some(section) = self.get_current_frame() {
+                                    self.handler
+                                        .highlight_text(x as f32, y as f32, section, canvas)
+                                        .unwrap_throw();
+                                }
+                            }
                         }
                     }
                 }
@@ -981,7 +1037,7 @@ impl Component for Reader {
                     {
                         if !self.settings.display.is_scroll() {
                             html! {
-                                <ViewOverlay event={ ctx.link().callback(ReaderMsg::HandleViewOverlay) } />
+                                <ViewOverlay event={ ctx.link().callback(|(a, b)| ReaderMsg::HandleViewOverlay((Some(a), b))) } />
                             }
                         } else {
                             html! {}

@@ -20,7 +20,7 @@ grass = "0.13"
 [dependencies]
 common-local = { path = "../common", features = ["frontend"] }
 common = { path = "../../global_common", features = ["frontend"] }
-editor = { git = "https://github.com/oqurum/html-editor", rev = "463630e" }
+editor = { git = "https://github.com/oqurum/html-editor" }
 
 tokio = { workspace = true, features = ["time"] }
 
@@ -84,6 +84,7 @@ features = [
 	"TouchEvent",
 	"MouseEventInit",
 	"HtmlCanvasElement",
+	"CanvasRenderingContext2d",
 	"TouchList",
 	"CaretPosition",
 	"Selection",

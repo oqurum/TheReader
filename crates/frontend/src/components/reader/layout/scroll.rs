@@ -94,15 +94,18 @@ impl ScrollDisplay {
             let function_mu = Closure::wrap(Box::new(move |e: MouseEvent| {
                 let duration = Utc::now().signed_duration_since(press_duration.get());
 
-                link.send_message(ReaderMsg::HandleViewOverlay(OverlayEvent::Release {
-                    instant: Some(duration),
+                link.send_message(ReaderMsg::HandleViewOverlay((
+                    None,
+                    OverlayEvent::Release {
+                        instant: Some(duration),
 
-                    x: e.x(),
-                    y: e.y(),
+                        x: e.x(),
+                        y: e.y(),
 
-                    width: 0,
-                    height: 0,
-                }))
+                        width: 0,
+                        height: 0,
+                    },
+                )))
             }) as Box<dyn FnMut(MouseEvent)>);
 
             self._events.push(ElementEvent::link(
